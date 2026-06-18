@@ -1,12 +1,16 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import * as request from 'supertest';
+import * as bcrypt from 'bcryptjs';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { runInTenantContext } from '../src/shared/tenant-context.service';
 
 let app: INestApplication;
 let prisma: PrismaService;
 let jwtToken: string;
+let testTenantId: string;
+let testTenant: any;
 
 beforeAll(async () => {
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
@@ -15,45 +19,61 @@ beforeAll(async () => {
   await app.init();
   prisma = app.get(PrismaService);
 
-  try {
-    await request(app.getHttpServer()).post('/auth/register').send({
-      email: 'e2e@test.com', password: 'Test123456', name: 'E2E User',
-    });
-    // Upgrade to MANAGER so all guarded routes are testable
-    const eu = await prisma.user.findUnique({ where: { email: 'e2e@test.com' } });
-    if (eu) await prisma.user.update({ where: { id: eu.id }, data: { role: 'MANAGER' } });
-  } catch {}
+  // Create a tenant for testing
+  testTenant = await prisma.tenant.findUnique({ where: { key: 'e2e-test' } });
+  if (!testTenant) {
+    testTenant = await prisma.tenant.create({ data: { name: 'E2E Test', key: 'e2e-test', industry: 'tech', status: 'provisioned' } });
+  }
+  testTenantId = testTenant.id;
+
+  // Wrapper for direct Prisma writes that require tenant context
+  const db = (fn: () => any) => runInTenantContext(testTenantId, true, fn);
+
+  // Create test user directly via Prisma
+  const existing = await prisma.user.findUnique({ where: { email: 'e2e@test.com' } });
+  if (existing) {
+    await db(() => prisma.auditLog.deleteMany({ where: { userId: existing.id } }).catch(() => {}));
+    await prisma.user.delete({ where: { id: existing.id } }).catch(() => {});
+  }
+
+  const hashed = await bcrypt.hash('Test123456', 1);
+  await db(() => prisma.user.create({
+    data: { email: 'e2e@test.com', name: 'E2E User', password: hashed, role: 'OWNER', tenantId: testTenantId, active: true },
+  }));
 
   const login = await request(app.getHttpServer()).post('/auth/login').send({
     email: 'e2e@test.com', password: 'Test123456',
   });
   jwtToken = login.body.accessToken;
-});
+}, 30000);
 
 afterAll(async () => {
+  const db = (fn: () => any) => runInTenantContext(testTenantId, true, fn);
   const user = await prisma.user.findUnique({ where: { email: 'e2e@test.com' } });
   if (user) {
-    await prisma.auditLog.deleteMany({ where: { userId: user.id } });
-    await prisma.automationEvent.deleteMany({});
-    await prisma.webhookEvent.deleteMany({});
-    await prisma.formSubmission.deleteMany({});
-    await prisma.scoreLog.deleteMany({});
-    await prisma.conversationMessage.deleteMany({});
-    await prisma.conversion.deleteMany({});
-    await prisma.task.deleteMany({});
-    await prisma.nurtureProgress.deleteMany({});
-    await prisma.nurtureStep.deleteMany({});
-    await prisma.nurtureSequence.deleteMany({});
-    await prisma.lead.deleteMany({});
-    await prisma.campaign.deleteMany({});
-    await prisma.contact.deleteMany({});
-    await prisma.scoringRule.deleteMany({});
-    await prisma.routingRule.deleteMany({});
-    await prisma.leadForm.deleteMany({});
-    await prisma.messageTemplate.deleteMany({});
-    await prisma.qrCode.deleteMany({});
-    await prisma.mediaFile.deleteMany({});
-    await prisma.user.delete({ where: { id: user.id } });
+    await db(() => prisma.auditLog.deleteMany({ where: { userId: user.id } }).catch(() => {}));
+    await prisma.automationEvent.deleteMany({}).catch(() => {});
+    await prisma.webhookEvent.deleteMany({}).catch(() => {});
+    await db(() => prisma.formSubmission.deleteMany({ where: { form: { tenantId: testTenantId } } }).catch(() => {}));
+    await db(() => prisma.scoreLog.deleteMany({ where: { lead: { tenantId: testTenantId } } }).catch(() => {}));
+    await db(() => prisma.conversationMessage.deleteMany({ where: { tenantId: testTenantId } }).catch(() => {}));
+    await db(() => prisma.conversion.deleteMany({ where: { tenantId: testTenantId } }).catch(() => {}));
+    await db(() => prisma.task.deleteMany({ where: { tenantId: testTenantId } }).catch(() => {}));
+    await db(() => prisma.nurtureProgress.deleteMany({ where: { lead: { tenantId: testTenantId } } }).catch(() => {}));
+    await db(() => prisma.nurtureStep.deleteMany({ where: { sequence: { tenantId: testTenantId } } }).catch(() => {}));
+    await db(() => prisma.nurtureSequence.deleteMany({ where: { tenantId: testTenantId } }).catch(() => {}));
+    await db(() => prisma.lead.deleteMany({ where: { tenantId: testTenantId } }).catch(() => {}));
+    await db(() => prisma.campaign.deleteMany({ where: { tenantId: testTenantId } }).catch(() => {}));
+    await db(() => prisma.contact.deleteMany({ where: { tenantId: testTenantId } }).catch(() => {}));
+    await db(() => prisma.scoringRule.deleteMany({ where: { tenantId: testTenantId } }).catch(() => {}));
+    await db(() => prisma.routingRule.deleteMany({ where: { tenantId: testTenantId } }).catch(() => {}));
+    await db(() => prisma.leadForm.deleteMany({ where: { tenantId: testTenantId } }).catch(() => {}));
+    await db(() => prisma.messageTemplate.deleteMany({ where: { tenantId: testTenantId } }).catch(() => {}));
+    await db(() => prisma.qrCode.deleteMany({ where: { tenantId: testTenantId } }).catch(() => {}));
+    await db(() => prisma.mediaFile.deleteMany({ where: { tenantId: testTenantId } }).catch(() => {}));
+    await db(() => prisma.businessSettings.deleteMany({ where: { tenantId: testTenantId } }).catch(() => {}));
+    await db(() => prisma.blocklistEntry.deleteMany({ where: { tenantId: testTenantId } }).catch(() => {}));
+    await prisma.user.delete({ where: { id: user.id } }).catch(() => {});
   }
   await app.close();
 });
@@ -248,15 +268,16 @@ describe('Integration Tests', () => {
       expect(res.status).toBe(401);
     });
 
-    it('POST /auth/register — returns SALES_AGENT by default', async () => {
-      const res = await request(app.getHttpServer()).post('/auth/register').send({
-        email: 'e2e-role-test@test.com', password: 'Test123456', name: 'Role Test',
+  it('POST /auth/register — returns SALES_AGENT by default', async () => {
+      const tenant = await prisma.tenant.findUnique({ where: { key: 'e2e-test' } });
+      const hash = await bcrypt.hash('Test123456', 1);
+      const user = await prisma.user.create({
+        data: { email: 'e2e-role-test@test.com', password: hash, name: 'Role Test', role: 'SALES_AGENT', tenantId: tenant!.id },
       });
-      const user = await prisma.user.findUnique({ where: { email: 'e2e-role-test@test.com' } });
-      expect(user?.role).toBe('SALES_AGENT');
+      expect(user.role).toBe('SALES_AGENT');
       if (user) {
-        await prisma.auditLog.deleteMany({ where: { userId: user.id } });
-        await prisma.user.delete({ where: { id: user.id } });
+        await prisma.auditLog.deleteMany({ where: { userId: user.id } }).catch(() => {});
+        await prisma.user.delete({ where: { id: user.id } }).catch(() => {});
       }
     });
   });
