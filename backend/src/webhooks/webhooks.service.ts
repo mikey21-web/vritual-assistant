@@ -21,32 +21,31 @@ export class WebhooksService {
   private idempotencyKey(parts: string[]): string { return parts.join(':').slice(0, 255); }
   private payloadHash(payload: any): string { return crypto.createHash('md5').update(JSON.stringify(payload, Object.keys(payload).sort())).digest('hex'); }
 
-  async handleFormSubmit(provider: string, payload: any) {
+  async handleFormSubmit(provider: string, payload: any, tenantId?: string | null) {
     const key = this.idempotencyKey([provider, 'form', payload.submissionId || this.payloadHash(payload)]);
     const existing = await this.prisma.webhookEvent.findUnique({ where: { idempotencyKey: key } });
     if (existing) return { status: 'duplicate', result: existing.processedResult };
 
-    const contact = await this.contactsService.findOrCreate({ name: payload.name, email: payload.email, phone: payload.phone, whatsapp: payload.whatsapp, company: payload.company });
-    const lead = await this.leadsService.create({ contactId: contact.id, source: 'FORM', message: payload.message, interest: payload.interest, metadata: payload });
+    const contact = await this.contactsService.findOrCreate({ name: payload.name, email: payload.email, phone: payload.phone, whatsapp: payload.whatsapp, company: payload.company, tenantId: tenantId ?? undefined });
+    const lead = await this.leadsService.create({ contactId: contact.id, source: 'FORM', message: payload.message, interest: payload.interest, metadata: payload, tenantId: tenantId ?? undefined });
     const result = { contact, lead };
     await this.prisma.webhookEvent.create({ data: { provider, eventType: 'form_submit', idempotencyKey: key, rawPayload: payload, processedResult: result } });
     await this.auditLogs.log('webhook_processed', 'WebhookEvent', key, undefined, { provider, eventType: 'form_submit' });
     return { data: result };
   }
 
-  async handleWhatsApp(provider: string, payload: any) {
+  async handleWhatsApp(provider: string, payload: any, tenantId?: string | null) {
     const msgId = payload.messageId || payload.id;
     const key = this.idempotencyKey([provider, 'whatsapp', msgId || this.payloadHash(payload)]);
     const existing = await this.prisma.webhookEvent.findUnique({ where: { idempotencyKey: key } });
     if (existing) return { status: 'duplicate', result: existing.processedResult };
 
-    const contact = await this.contactsService.findOrCreate({ name: payload.contactName, phone: payload.from, whatsapp: payload.from });
-    const lead = await this.leadsService.create({ contactId: contact.id, source: 'WHATSAPP', message: payload.text || payload.body, metadata: payload });
+    const contact = await this.contactsService.findOrCreate({ name: payload.contactName, phone: payload.from, whatsapp: payload.from, tenantId: tenantId ?? undefined });
+    const lead = await this.leadsService.create({ contactId: contact.id, source: 'WHATSAPP', message: payload.text || payload.body, metadata: payload, tenantId: tenantId ?? undefined });
     await this.conversationsService.create({ text: payload.text || payload.body, channel: 'WHATSAPP', direction: 'INBOUND', providerMessageId: msgId, leadId: lead.id, contactId: contact.id, metadata: payload });
     const result = { contact, lead };
     await this.prisma.webhookEvent.create({ data: { provider, eventType: 'whatsapp_message', idempotencyKey: key, rawPayload: payload, processedResult: result } });
 
-    // Fire-and-forget agent trigger
     this.agentClient.trigger(lead.tenantId || '', lead.id, msgId || key, 'WHATSAPP', payload.text || payload.body || '');
 
     return { data: result };

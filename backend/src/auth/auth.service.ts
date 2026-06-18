@@ -18,6 +18,13 @@ export class AuthService {
     const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (existing) throw new UnauthorizedException('Email already registered');
 
+    if (!dto.tenantId) {
+      throw new UnauthorizedException('tenantId is required for user registration');
+    }
+
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: dto.tenantId } });
+    if (!tenant) throw new UnauthorizedException('Tenant not found');
+
     const hashed = await bcrypt.hash(dto.password, 12);
     const user = await this.prisma.user.create({
       data: {
@@ -26,7 +33,7 @@ export class AuthService {
         phone: dto.phone,
         password: hashed,
         role: 'SALES_AGENT',
-        tenantId: null,
+        tenantId: dto.tenantId,
       },
     });
 

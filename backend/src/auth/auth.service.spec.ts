@@ -23,11 +23,20 @@ describe('AuthService', () => {
     active: true,
   };
 
+  const mockTenant = {
+    id: 'tenant-1',
+    name: 'Test Tenant',
+    key: 'test-tenant',
+  };
+
   beforeEach(async () => {
     prisma = {
       user: {
         findUnique: jest.fn(),
         create: jest.fn(),
+      },
+      tenant: {
+        findUnique: jest.fn().mockResolvedValue(mockTenant),
       },
     };
 
@@ -56,6 +65,7 @@ describe('AuthService', () => {
         email: 'test@example.com',
         password: 'password123',
         name: 'Test User',
+        tenantId: 'tenant-1',
       });
 
       expect(result.accessToken).toBe('test-jwt-token');
@@ -67,7 +77,7 @@ describe('AuthService', () => {
       prisma.user.findUnique.mockResolvedValue(mockUser);
 
       await expect(
-        service.register({ email: 'test@example.com', password: 'password123', name: 'Test' }),
+        service.register({ email: 'test@example.com', password: 'password123', name: 'Test', tenantId: 'tenant-1' }),
       ).rejects.toThrow(UnauthorizedException);
     });
   });

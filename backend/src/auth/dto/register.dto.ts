@@ -19,4 +19,9 @@ export class RegisterDto {
   @IsOptional()
   @IsString()
   phone?: string;
+
+  @ApiProperty({ required: false, description: 'Tenant ID (required; defaults to null only for platform owners)' })
+  @IsOptional()
+  @IsString()
+  tenantId?: string;
 }

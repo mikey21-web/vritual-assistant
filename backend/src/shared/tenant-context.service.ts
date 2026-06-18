@@ -7,26 +7,47 @@ export interface TenantUser {
   role?: string;
 }
 
-const tenantStorage = new AsyncLocalStorage<{ tenantId: string | null }>();
+export interface TenantContext {
+  tenantId: string | null;
+  isPlatformAdmin: boolean;
+}
+
+const tenantStorage = new AsyncLocalStorage<TenantContext>();
+
+const PLATFORM_ADMIN_ROLES = new Set(['OWNER', 'ADMIN']);
+
+export function getTenantContext(): TenantContext {
+  const store = tenantStorage.getStore();
+  return store ?? { tenantId: null, isPlatformAdmin: false };
+}
 
 export function getCurrentTenantId(): string | null {
-  const store = tenantStorage.getStore();
-  return store?.tenantId ?? null;
+  return tenantStorage.getStore()?.tenantId ?? null;
 }
 
-export function runInTenantContext<T>(tenantId: string | null, fn: () => T): T {
-  return tenantStorage.run({ tenantId }, fn);
+export function runInTenantContext<T>(
+  tenantId: string | null,
+  isPlatformAdmin: boolean,
+  fn: () => T,
+): T {
+  return tenantStorage.run({ tenantId, isPlatformAdmin }, fn);
 }
 
-export function tenantFilter(user?: TenantUser | null): { tenantId?: string | null } {
+export function tenantFilter(user?: TenantUser | null): { tenantId?: string } {
   const tenantId = user?.tenantId || null;
-  if (!tenantId) return {};
+  const role = user?.role;
+  const isPlatformAdmin = role ? PLATFORM_ADMIN_ROLES.has(role) : false;
+
+  if (!tenantId) {
+    if (!isPlatformAdmin) return { tenantId: '__no_tenant__' };
+    return {};
+  }
   return { tenantId };
 }
 
 @Injectable()
 export class TenantContextService {
-  getFilter(user?: TenantUser | null): { tenantId?: string | null } {
+  getFilter(user?: TenantUser | null): { tenantId?: string } {
     return tenantFilter(user);
   }
 }

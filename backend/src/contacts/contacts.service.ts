@@ -35,22 +35,58 @@ export class ContactsService {
   }
 
   async findOrCreate(data: { phone?: string; email?: string; name?: string; whatsapp?: string; company?: string; tenantId?: string }) {
-    if (data.phone) {
-      const existing = await this.prisma.contact.findFirst({ where: { phone: data.phone } });
-      if (existing) return existing;
+    const tenantId = data.tenantId;
+
+    if (data.phone && tenantId) {
+      return this.prisma.contact.upsert({
+        where: { tenantId_phone: { tenantId, phone: data.phone } },
+        update: {
+          name: data.name,
+          email: data.email,
+          whatsapp: data.whatsapp,
+          company: data.company,
+        },
+        create: {
+          name: data.name,
+          email: data.email,
+          phone: data.phone,
+          whatsapp: data.whatsapp,
+          company: data.company,
+          tenantId,
+        },
+      });
     }
-    if (data.email) {
-      const existing = await this.prisma.contact.findFirst({ where: { email: data.email } });
-      if (existing) return existing;
+
+    if (data.email && tenantId) {
+      return this.prisma.contact.upsert({
+        where: { tenantId_email: { tenantId, email: data.email } },
+        update: {
+          name: data.name,
+          phone: data.phone,
+          whatsapp: data.whatsapp,
+          company: data.company,
+        },
+        create: {
+          name: data.name,
+          email: data.email,
+          phone: data.phone,
+          whatsapp: data.whatsapp,
+          company: data.company,
+          tenantId,
+        },
+      });
     }
-    try {
-      return await this.prisma.contact.create({ data: { ...data, tenantId: data.tenantId } });
-    } catch (e: any) {
-      if (e.code === 'P2002') {
-        return this.findOrCreate(data);
-      }
-      throw e;
-    }
+
+    return this.prisma.contact.create({
+      data: {
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        whatsapp: data.whatsapp,
+        company: data.company,
+        tenantId: tenantId ?? null,
+      },
+    });
   }
 
   async create(data: any) {

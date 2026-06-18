@@ -24,6 +24,7 @@ describe('ContactsService', () => {
         findUnique: jest.fn().mockResolvedValue(mockContact),
         findFirst: jest.fn(),
         create: jest.fn().mockResolvedValue(mockContact),
+        upsert: jest.fn().mockResolvedValue(mockContact),
         update: jest.fn().mockResolvedValue(mockContact),
         count: jest.fn().mockResolvedValue(1),
       },
@@ -47,15 +48,14 @@ describe('ContactsService', () => {
   });
 
   it('should dedupe by phone', async () => {
-    prisma.contact.findFirst.mockResolvedValue(mockContact);
-    prisma.contact.create.mockResolvedValue(null);
-    const c = await service.findOrCreate({ phone: '+1234567890', name: 'John' });
+    prisma.contact.upsert.mockResolvedValue(mockContact);
+    const c = await service.findOrCreate({ phone: '+1234567890', name: 'John', tenantId: 'tenant-1' });
     expect(c.id).toBe('contact-1');
   });
 
   it('should dedupe by email', async () => {
-    prisma.contact.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce(mockContact);
-    const c = await service.findOrCreate({ email: 'john@test.com', name: 'John' });
+    prisma.contact.upsert.mockResolvedValue(mockContact);
+    const c = await service.findOrCreate({ email: 'john@test.com', name: 'John', tenantId: 'tenant-1' });
     expect(c.id).toBe('contact-1');
   });
 });

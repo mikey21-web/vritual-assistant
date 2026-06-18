@@ -14,6 +14,7 @@ export class FormWebhookDto {
   @ApiPropertyOptional() @IsString() @IsOptional() message?: string;
   @ApiPropertyOptional() @IsString() @IsOptional() campaignId?: string;
   @ApiPropertyOptional() @IsString() @IsOptional() formId?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() tenantId?: string;
   @ApiPropertyOptional() @IsObject() @IsOptional() metadata?: Record<string, unknown>;
 }
 

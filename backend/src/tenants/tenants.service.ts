@@ -55,24 +55,68 @@ export class TenantsService {
   }
 
   async delete(id: string, purgeData = false) {
-    if (purgeData) {
-      const tables = [
-        'conversationMessage', 'leadFormField', 'nurtureProgress', 'nurtureStep',
-        'scoreLog', 'task', 'internalNote', 'revenueRecord',
-        'systemEvent', 'timelineItem', 'failureRecord',
-        'workflowStepRun', 'workflowInstance', 'ruleExecution',
-        'leadOwnershipHistory', 'savedFilter', 'notificationPreference',
-        'importExportLog', 'customFieldValue',
-        'lead', 'contact', 'campaign', 'qrCode', 'leadForm',
-        'messageTemplate', 'nurtureSequence', 'scoringRule', 'routingRule',
-        'conversion', 'crmMapping', 'bookingSetting', 'customFieldDefinition',
-        'pipelineStage', 'automationRule', 'integration',
-        'blocklistEntry', 'slaRule', 'businessSettings',
-      ] as const;
-      await Promise.all(tables.map(t => (this.prisma as any)[t].deleteMany({ where: { tenantId: id } })));
-      await this.prisma.clientTemplateInstallation.deleteMany({ where: { tenantId: id } });
+    if (!purgeData) {
+      const leadCount = await this.prisma.lead.count({ where: { tenantId: id } });
+      if (leadCount > 0) {
+        throw new BadRequestException('Tenant has existing leads. Use purgeData=true or delete leads first.');
+      }
+      const userCount = await this.prisma.user.count({ where: { tenantId: id } });
+      if (userCount > 0) {
+        throw new BadRequestException('Tenant has users. Delete users first or use purgeData=true.');
+      }
+      await this.prisma.tenant.delete({ where: { id } });
+      await this.auditLogs.log('tenant_deleted', 'Tenant', id);
+      return { deleted: true };
     }
-    await this.prisma.tenant.delete({ where: { id } });
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.workflowStepRun.deleteMany({ where: { workflowInstance: { lead: { tenantId: id } } } });
+      await tx.workflowInstance.deleteMany({ where: { lead: { tenantId: id } } });
+      await tx.nurtureProgress.deleteMany({ where: { lead: { tenantId: id } } });
+      await tx.scoreLog.deleteMany({ where: { lead: { tenantId: id } } });
+      await tx.internalNote.deleteMany({ where: { lead: { tenantId: id } } });
+      await tx.revenueRecord.deleteMany({ where: { tenantId: id } });
+      await tx.conversationMessage.deleteMany({ where: { tenantId: id } });
+      await tx.task.deleteMany({ where: { tenantId: id } });
+      await tx.mediaFile.deleteMany({ where: { tenantId: id } });
+      await tx.leadOwnershipHistory.deleteMany({ where: { lead: { tenantId: id } } });
+      await tx.failureRecord.deleteMany({ where: { lead: { tenantId: id } } });
+      await tx.systemEvent.deleteMany({ where: { OR: [{ lead: { tenantId: id } }, { contact: { tenantId: id } }] } });
+      await tx.timelineItem.deleteMany({ where: { OR: [{ lead: { tenantId: id } }, { contact: { tenantId: id } }] } });
+      await tx.ruleExecution.deleteMany({ where: { rule: { tenantId: id } } });
+      await tx.conversion.deleteMany({ where: { tenantId: id } });
+      await tx.formSubmission.deleteMany({ where: { form: { tenantId: id } } });
+      await tx.leadFormField.deleteMany({ where: { form: { tenantId: id } } });
+      await tx.nurtureStep.deleteMany({ where: { sequence: { tenantId: id } } });
+      await tx.qrScan.deleteMany({ where: { qrCode: { tenantId: id } } });
+      await tx.customFieldValue.deleteMany({ where: { OR: [{ contact: { tenantId: id } }, { lead: { tenantId: id } }] } });
+      await tx.lead.deleteMany({ where: { tenantId: id } });
+      await tx.contact.deleteMany({ where: { tenantId: id } });
+      await tx.campaign.deleteMany({ where: { tenantId: id } });
+      await tx.qrCode.deleteMany({ where: { tenantId: id } });
+      await tx.leadForm.deleteMany({ where: { tenantId: id } });
+      await tx.messageTemplate.deleteMany({ where: { tenantId: id } });
+      await tx.nurtureSequence.deleteMany({ where: { tenantId: id } });
+      await tx.scoringRule.deleteMany({ where: { tenantId: id } });
+      await tx.routingRule.deleteMany({ where: { tenantId: id } });
+      await tx.crmMapping.deleteMany({ where: { tenantId: id } });
+      await tx.bookingSetting.deleteMany({ where: { tenantId: id } });
+      await tx.customFieldDefinition.deleteMany({ where: { tenantId: id } });
+      await tx.pipelineStage.deleteMany({ where: { tenantId: id } });
+      await tx.automationRule.deleteMany({ where: { tenantId: id } });
+      await tx.integration.deleteMany({ where: { tenantId: id } });
+      await tx.blocklistEntry.deleteMany({ where: { tenantId: id } });
+      await tx.slaRule.deleteMany({ where: { tenantId: id } });
+      await tx.businessSettings.deleteMany({ where: { tenantId: id } });
+      await tx.savedFilter.deleteMany({ where: { user: { tenantId: id } } });
+      await tx.notificationPreference.deleteMany({ where: { user: { tenantId: id } } });
+      await tx.importExportLog.deleteMany({ where: { user: { tenantId: id } } });
+      await tx.clientTemplateInstallation.deleteMany({ where: { tenantId: id } });
+      await tx.auditLog.deleteMany({ where: { tenantId: id } });
+      await tx.user.deleteMany({ where: { tenantId: id } });
+      await tx.tenant.delete({ where: { id } });
+    });
+
     await this.auditLogs.log('tenant_deleted', 'Tenant', id);
     return { deleted: true };
   }
