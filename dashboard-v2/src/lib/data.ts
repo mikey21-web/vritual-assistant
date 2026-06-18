@@ -107,5 +107,6 @@ export async function fetchNurtureSequences() { return api('/nurture-sequences')
 export async function createNurtureSequence(data: any) { return api('/nurture-sequences', { method: 'POST', body: JSON.stringify(data) }); }
 export async function addNurtureStep(seqId: string, data: any) { return api(`/nurture-sequences/${seqId}/steps`, { method: 'POST', body: JSON.stringify(data) }); }
 export async function deleteNurtureStep(seqId: string, stepId: string) { return api(`/nurture-sequences/${seqId}/steps/${stepId}`, { method: 'DELETE' }); }
+export async function deleteNurtureSequence(seqId: string) { return api(`/nurture-sequences/${seqId}`, { method: 'DELETE' }); }
 
 export async function triggerAgent(leadId: string) { return api('/agent/run-summary', { method: 'POST', body: JSON.stringify({ leadId, action: 'manual_trigger' }) }); }

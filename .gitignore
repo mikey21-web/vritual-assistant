@@ -9,3 +9,16 @@ uploads/
 coverage/
 .nyc_output/
 .turbo/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+*.egg
+.venv/
+venv/
+
+# Build outputs
+dashboard-v2/dist/
+backend/dist/
