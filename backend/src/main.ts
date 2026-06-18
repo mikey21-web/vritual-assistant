@@ -8,7 +8,24 @@ import { GlobalExceptionFilter } from './shared/exception.filter';
 import helmet from 'helmet';
 import * as express from 'express';
 
+const DEFAULT_SECRETS = ['change-me', 'dev-secret', 'local-dev-jwt-secret-2024', 'local-dev-signed-url-secret'];
+
+function validateSecrets() {
+  const jwtSecret = process.env.JWT_SECRET;
+  if (!jwtSecret || DEFAULT_SECRETS.includes(jwtSecret)) {
+    throw new Error('JWT_SECRET must be changed from the default value');
+  }
+  if (!process.env.DATABASE_URL) {
+    throw new Error('DATABASE_URL is required');
+  }
+  if (process.env.REDIS_URL && process.env.REDIS_URL === 'redis://localhost:6379') {
+    console.warn('WARNING: REDIS_URL is set to default localhost — this may not be intentional for production');
+  }
+}
+
 async function bootstrap() {
+  validateSecrets();
+
   const app = await NestFactory.create(AppModule, {
     rawBody: true,
     bodyParser: false,

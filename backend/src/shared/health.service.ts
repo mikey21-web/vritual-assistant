@@ -88,7 +88,7 @@ export class HealthService {
       await this.prisma.$queryRaw`SELECT 1`;
       return { status: 'ok', latencyMs: Date.now() - start };
     } catch (e: any) {
-      return { status: 'error', detail: e.message };
+      return { status: 'error', detail: 'database unavailable' };
     }
   }
 
@@ -98,9 +98,9 @@ export class HealthService {
       const res = await fetch(`${baseUrl}${path}`, { signal: AbortSignal.timeout(3000) });
       return res.ok
         ? { status: 'ok', latencyMs: Date.now() - start }
-        : { status: 'error', detail: `HTTP ${res.status}` };
+        : { status: 'error', detail: `unreachable` };
     } catch (e: any) {
-      return { status: 'error', detail: e.message };
+      return { status: 'error', detail: 'unreachable' };
     }
   }
 }

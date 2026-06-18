@@ -37,6 +37,8 @@ export class CampaignsService {
         startDate: c.startDate, endDate: c.endDate, active: false, creatorId: c.creatorId,
         utmSource: c.utmSource, utmMedium: c.utmMedium, utmCampaign: c.utmCampaign,
         utmTerm: c.utmTerm, utmContent: c.utmContent,
+        tenantId: c.tenantId, formId: c.formId, qrCodeId: c.qrCodeId,
+        nurtureId: c.nurtureId, assignedAgentId: c.assignedAgentId,
       },
     });
     await this.auditLogs.log('campaign_duplicated', 'Campaign', dup.id, userId, { originalId: id });
