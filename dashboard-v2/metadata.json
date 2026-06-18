@@ -1,0 +1,6 @@
+{
+  "name": "Lead Auto",
+  "description": "Handcrafted enterprise lead automation and analytics platform dashboard built with high-fidelity React and Tailwind.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

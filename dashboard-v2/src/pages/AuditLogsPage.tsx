@@ -1,0 +1,1 @@
+import React from "react";function AuditLogsPage(){return React.createElement("div",null,React.createElement("h2",null,"AuditLogsPage"),React.createElement("p",null,"Loading..."));}export default AuditLogsPage; 

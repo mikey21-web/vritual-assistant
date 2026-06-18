@@ -1,0 +1,1204 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  MANAGER
+  SALES_AGENT
+  SUPPORT_AGENT
+  VIEWER
+}
+
+enum LeadSource {
+  CAMPAIGN
+  QR_CODE
+  FORM
+  CHATBOT
+  MOBILE_APP
+  WHATSAPP
+  SOCIAL_MEDIA
+  PHONE_CALL
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  ENGAGED
+  QUALIFYING
+  QUALIFIED
+  PROPOSAL_SENT
+  APPOINTMENT_BOOKED
+  CONVERTED
+  LOST
+  COLD
+  SPAM
+}
+
+enum LeadSegment {
+  HOT
+  WARM
+  COLD
+  UNQUALIFIED
+  EXISTING_CUSTOMER
+  RECONNECT
+}
+
+enum MessageChannel {
+  WHATSAPP
+  EMAIL
+  SMS
+  CHATBOT
+  SOCIAL_DM
+  PHONE_CALL
+  SYSTEM
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum MediaCategory {
+  CAMPAIGN_ASSET
+  LEAD_ATTACHMENT
+  MESSAGE_ATTACHMENT
+  BROCHURE
+  CATALOG
+  PROPOSAL
+  QUOTE
+  INVOICE
+  CASE_STUDY
+  DIGITAL_DOWNLOAD
+  OTHER
+}
+
+enum NurtureStepType {
+  SEND_WHATSAPP
+  SEND_EMAIL
+  SEND_DOCUMENT
+  SEND_IMAGE
+  SEND_DIGITAL_DOWNLOAD
+  CREATE_TASK
+  NOTIFY_TEAM
+  WAIT
+  CHECK_CONDITION
+  UPDATE_LEAD_STATUS
+  PUSH_TO_CRM
+  SEND_BOOKING_LINK
+}
+
+enum ConversionDestination {
+  CRM_QUALIFIED_PUSH
+  APPOINTMENT_BOOKING
+  QUOTE_REQUEST
+  PURCHASE_ONLINE
+  ORDER_BOOKING
+  MEMBER_REGISTRATION
+  DIGITAL_DOWNLOAD
+  USER_SUBSCRIPTION
+}
+
+enum ConversionStatus {
+  REQUESTED
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum AutomationEventType {
+  LEAD_CREATED
+  LEAD_UPDATED
+  LEAD_SCORED
+  LEAD_HOT
+  LEAD_QUALIFIED
+  LEAD_NO_RESPONSE
+  CONVERSATION_MESSAGE_RECEIVED
+  CONVERSATION_MESSAGE_SENT
+  APPOINTMENT_REQUESTED
+  APPOINTMENT_BOOKED
+  QUOTE_REQUESTED
+  ORDER_CREATED
+  PAYMENT_SUCCESS
+  SUBSCRIPTION_STARTED
+  DIGITAL_DOWNLOAD_REQUESTED
+  DIGITAL_DOWNLOAD_DELIVERED
+  MEDIA_UPLOADED
+  MEDIA_ATTACHED
+  CRM_PUSH_REQUESTED
+}
+
+enum MessageTemplateType {
+  WELCOME
+  QUALIFICATION_QUESTION
+  FOLLOW_UP
+  RECONNECT
+  APPOINTMENT_LINK
+  QUOTE_REQUEST
+  PAYMENT_LINK
+  CRM_CONFIRMATION
+  DIGITAL_DOWNLOAD
+  THANK_YOU
+}
+
+enum CustomFieldType {
+  TEXT
+  NUMBER
+  DATE
+  BOOLEAN
+  DROPDOWN
+}
+
+enum CustomFieldTarget {
+  CONTACT
+  LEAD
+}
+
+// === CLIENT & TENANT SYSTEM ===
+
+model Tenant {
+  id                 String   @id @default(uuid())
+  name               String
+  key                String   @unique
+  industry           String
+  status             String   @default("pending")       // pending | provisioned | suspended
+  provisioningTemplateId String?
+  config             Json     @default("{}")
+  contactEmail       String?
+  contactName        String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  users          User[]
+  contacts       Contact[]
+  leads          Lead[]
+  campaigns      Campaign[]
+  leadForms      LeadForm[]
+  messageTemplates MessageTemplate[]
+  nurtureSequences NurtureSequence[]
+  scoringRules   ScoringRule[]
+  routingRules   RoutingRule[]
+  conversions    Conversion[]
+  crmMappings    CrmMapping[]
+  bookingSettings BookingSetting[]
+  customFieldDefinitions CustomFieldDefinition[]
+  pipelineStages PipelineStage[]
+  automationRules AutomationRule[]
+  installations  ClientTemplateInstallation[]
+  businessSettings BusinessSettings[]
+  qrCodes         QrCode[]
+  integrations    Integration[]
+  blocklistEntries BlocklistEntry[]
+  slaRules        SlaRule[]
+
+  @@index([key])
+  @@index([status])
+  @@map("tenants")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  phone     String?
+  password  String
+  role      UserRole @default(SALES_AGENT)
+  active    Boolean  @default(true)
+  tenantId  String?
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assignedLeads    Lead[]
+  createdCampaigns Campaign[]        @relation("CampaignCreator")
+  assignedCampaigns Campaign[]       @relation("CampaignAssignee")
+  createdTemplates MessageTemplate[]
+  createdMedia     MediaFile[]       @relation("MediaUploader")
+  auditLogs        AuditLog[]
+  tasks            Task[]
+  savedFilters     SavedFilter[]
+  internalNotes    InternalNote[]
+  notificationPrefs NotificationPreference[]
+  importExportLogs ImportExportLog[]
+  ownershipFrom    LeadOwnershipHistory[] @relation("OwnershipFromUser")
+  ownershipTo      LeadOwnershipHistory[] @relation("OwnershipToUser")
+  ownershipChanged LeadOwnershipHistory[] @relation("OwnershipChangedBy")
+  escalatedSla     SlaRule[]
+
+  @@index([email])
+  @@index([role])
+  @@map("users")
+}
+
+model BusinessSettings {
+  id                    String   @id @default(uuid())
+  tenantId              String?
+  tenant                Tenant?  @relation(fields: [tenantId], references: [id])
+  businessName          String   @default("")
+  timezone              String   @default("UTC")
+  defaultCurrency       String   @default("USD")
+  defaultWhatsAppNumber String?
+  defaultEmail          String?
+  defaultCrm            String?
+  defaultBookingTool    String?
+  workingHoursStart     String?
+  workingHoursEnd       String?
+  notificationEmail     String?
+  notificationPhone     String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([tenantId])
+  @@map("business_settings")
+}
+
+model Contact {
+  id               String   @id @default(uuid())
+  tenantId         String?
+  tenant           Tenant?  @relation(fields: [tenantId], references: [id])
+  name             String?
+  email            String?
+  phone            String?
+  whatsapp         String?
+  company          String?
+  location         String?
+  preferredChannel String?
+  metadata         Json     @default("{}")
+  tags             String[] @default([])
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  leads          Lead[]
+  conversations  ConversationMessage[]
+  mediaFiles     MediaFile[]       @relation("ContactMedia")
+  customFields   CustomFieldValue[]
+  systemEvents   SystemEvent[]
+  timelineItems  TimelineItem[]
+
+  @@index([email])
+  @@index([phone])
+  @@index([whatsapp])
+  @@index([tenantId])
+  @@map("contacts")
+}
+
+model Lead {
+  id           String      @id @default(uuid())
+  tenantId     String?
+  tenant       Tenant?     @relation(fields: [tenantId], references: [id])
+  status       LeadStatus  @default(NEW)
+  segment      LeadSegment @default(COLD)
+  source       LeadSource
+  score        Int         @default(0)
+  priority     Int         @default(0)
+  interest     String?
+  budget       String?
+  urgency      String?
+  message      String?
+  tags         String[]    @default([])
+  metadata     Json        @default("{}")
+  campaignId   String?
+  qualifiedAt  DateTime?
+  convertedAt  DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  contactId       String
+  contact         Contact         @relation(fields: [contactId], references: [id])
+  assignedAgentId String?
+  assignedAgent   User?           @relation(fields: [assignedAgentId], references: [id])
+
+  campaign        Campaign?       @relation(fields: [campaignId], references: [id])
+  conversations   ConversationMessage[]
+  mediaFiles      MediaFile[]     @relation("LeadMedia")
+  nurtureProgress NurtureProgress[]
+  tasks           Task[]
+  conversions     Conversion[]
+  scoreLogs       ScoreLog[]
+  customFields    CustomFieldValue[]
+  ownershipHistory LeadOwnershipHistory[]
+  internalNotes  InternalNote[]
+  revenueRecords RevenueRecord[]
+  systemEvents   SystemEvent[]
+  timelineItems  TimelineItem[]
+  failureRecords FailureRecord[]
+  workflowInstances WorkflowInstance[]
+
+  @@index([status])
+  @@index([segment])
+  @@index([score])
+  @@index([source])
+  @@index([campaignId])
+  @@index([assignedAgentId])
+  @@index([contactId])
+  @@index([createdAt])
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([tenantId, assignedAgentId])
+  @@map("leads")
+}
+
+model Campaign {
+  id                String    @id @default(uuid())
+  tenantId          String?
+  tenant            Tenant?   @relation(fields: [tenantId], references: [id])
+  name              String
+  sourceType        LeadSource
+  offer             String?
+  landingUrl        String?
+  conversionGoal    String?
+  crmDestination    String?
+  bookingDestination String?
+  active            Boolean   @default(true)
+  startDate         DateTime?
+  endDate           DateTime?
+  utmSource         String?
+  utmMedium         String?
+  utmCampaign       String?
+  utmTerm           String?
+  utmContent        String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  creatorId       String
+  creator         User               @relation("CampaignCreator", fields: [creatorId], references: [id])
+  assignedAgentId String?
+  assignedAgent   User?              @relation("CampaignAssignee", fields: [assignedAgentId], references: [id])
+  formId          String?
+  form            LeadForm?          @relation(fields: [formId], references: [id])
+  qrCodeId        String?
+  qrCode          QrCode?            @relation(fields: [qrCodeId], references: [id])
+  nurtureId       String?
+  nurtureSequence NurtureSequence?   @relation(fields: [nurtureId], references: [id])
+  leads           Lead[]
+  mediaFiles      MediaFile[]        @relation("CampaignMedia")
+  conversations   ConversationMessage[]
+
+  @@index([active])
+  @@index([sourceType])
+  @@index([tenantId])
+  @@map("campaigns")
+}
+
+model LeadForm {
+  id        String   @id @default(uuid())
+  tenantId  String?
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id])
+  name      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  fields      LeadFormField[]
+  submissions FormSubmission[]
+  campaigns   Campaign[]
+
+  @@index([tenantId])
+  @@map("lead_forms")
+}
+
+model LeadFormField {
+  id          String  @id @default(uuid())
+  label       String
+  fieldKey    String
+  type        String
+  required    Boolean @default(false)
+  placeholder String?
+  validation  Json    @default("{}")
+  options     Json    @default("[]")
+  displayOrder Int   @default(0)
+  formId      String
+  form        LeadForm @relation(fields: [formId], references: [id])
+
+  @@map("lead_form_fields")
+}
+
+model FormSubmission {
+  id        String   @id @default(uuid())
+  payload   Json
+  formId    String
+  form      LeadForm @relation(fields: [formId], references: [id])
+  leadId    String?
+  createdAt DateTime @default(now())
+
+  @@map("form_submissions")
+}
+
+model QrCode {
+  id           String   @id @default(uuid())
+  tenantId     String?
+  tenant       Tenant?  @relation(fields: [tenantId], references: [id])
+  name         String
+  destinationType String
+  destination  String
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  scans    QrScan[]
+  campaigns Campaign[]
+
+  @@index([tenantId])
+  @@map("qr_codes")
+}
+
+model QrScan {
+  id        String   @id @default(uuid())
+  qrCodeId  String
+  qrCode    QrCode   @relation(fields: [qrCodeId], references: [id])
+  country   String?
+  city      String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([qrCodeId])
+  @@map("qr_scans")
+}
+
+model ConversationMessage {
+  id                String          @id @default(uuid())
+  text              String
+  providerMessageId String?
+  deliveryStatus    String          @default("pending")
+  channel           MessageChannel
+  direction         MessageDirection
+  metadata          Json            @default("{}")
+  messageTemplateId String?
+  messageTemplate   MessageTemplate? @relation(fields: [messageTemplateId], references: [id])
+  leadId            String
+  lead              Lead            @relation(fields: [leadId], references: [id])
+  contactId         String?
+  contact           Contact?        @relation(fields: [contactId], references: [id])
+  campaignId        String?
+  campaign          Campaign?       @relation(fields: [campaignId], references: [id])
+  createdAt         DateTime        @default(now())
+
+  @@index([leadId])
+  @@index([campaignId])
+  @@index([providerMessageId])
+  @@index([channel])
+  @@index([direction])
+  @@map("conversation_messages")
+}
+
+model MessageTemplate {
+  id        String              @id @default(uuid())
+  tenantId  String?
+  tenant    Tenant?             @relation(fields: [tenantId], references: [id])
+  name      String
+  type      MessageTemplateType
+  channel   MessageChannel
+  body      String
+  variables Json                @default("[]")
+  version   Int                 @default(1)
+  active    Boolean             @default(true)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  creatorId         String
+  creator           User                  @relation(fields: [creatorId], references: [id])
+  mediaFiles        MediaFile[]           @relation("TemplateMedia")
+  conversationMsgs  ConversationMessage[]
+  nurtureSteps      NurtureStep[]
+
+  @@index([tenantId])
+  @@map("message_templates")
+}
+
+model MediaFile {
+  id             String        @id @default(uuid())
+  fileName       String
+  originalName   String
+  fileType       String
+  mimeType       String
+  fileSize       Int
+  storageProvider String       @default("local")
+  storageKey     String
+  publicUrl      String?
+  signedUrl      String?
+  category       MediaCategory @default(OTHER)
+  tags           String[]      @default([])
+  isDigitalDownload Boolean    @default(false)
+  downloadStatus String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  uploadedById String
+  uploadedBy   User            @relation("MediaUploader", fields: [uploadedById], references: [id])
+  leadId       String?
+  lead         Lead?           @relation("LeadMedia", fields: [leadId], references: [id])
+  campaignId   String?
+  campaign     Campaign?       @relation("CampaignMedia", fields: [campaignId], references: [id])
+  contactId    String?
+  contact      Contact?        @relation("ContactMedia", fields: [contactId], references: [id])
+  templateId   String?
+  template     MessageTemplate? @relation("TemplateMedia", fields: [templateId], references: [id])
+
+  @@index([category])
+  @@index([fileType])
+  @@index([createdAt])
+  @@index([leadId])
+  @@index([campaignId])
+  @@index([templateId])
+  @@map("media_files")
+}
+
+model NurtureSequence {
+  id        String   @id @default(uuid())
+  tenantId  String?
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id])
+  name      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  steps     NurtureStep[]
+  campaigns Campaign[]
+  progress  NurtureProgress[]
+
+  @@index([tenantId])
+  @@map("nurture_sequences")
+}
+
+model NurtureStep {
+  id            String           @id @default(uuid())
+  sequenceId    String
+  sequence      NurtureSequence  @relation(fields: [sequenceId], references: [id])
+  type          NurtureStepType
+  displayOrder  Int
+  config        Json             @default("{}")
+  templateId    String?
+  template      MessageTemplate? @relation(fields: [templateId], references: [id])
+  waitSeconds   Int              @default(0)
+  condition     Json             @default("{}")
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@map("nurture_steps")
+}
+
+model NurtureProgress {
+  id         String          @id @default(uuid())
+  leadId     String
+  lead       Lead            @relation(fields: [leadId], references: [id])
+  sequenceId String
+  sequence   NurtureSequence @relation(fields: [sequenceId], references: [id])
+  stepId     String
+  status     String          @default("pending")
+  dueAt      DateTime?
+  executedAt DateTime?
+  error      String?
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  @@index([leadId])
+  @@index([sequenceId])
+  @@index([status])
+  @@map("nurture_progress")
+}
+
+model ScoringRule {
+  id          String   @id @default(uuid())
+  tenantId    String?
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id])
+  name        String
+  description String?
+  field       String
+  operator    String
+  value       String
+  points      Int
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+  @@map("scoring_rules")
+}
+
+model ScoreLog {
+  id        String   @id @default(uuid())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id])
+  ruleId    String?
+  oldScore  Int
+  newScore  Int
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@index([leadId])
+  @@map("score_logs")
+}
+
+model RoutingRule {
+  id          String   @id @default(uuid())
+  tenantId    String?
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id])
+  name        String
+  description String?
+  conditions  Json
+  action      Json
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+  @@map("routing_rules")
+}
+
+model Task {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  status      String   @default("pending")
+  priority    String   @default("medium")
+  dueAt       DateTime?
+  leadId      String?
+  lead        Lead?    @relation(fields: [leadId], references: [id])
+  assigneeId  String?
+  assignee    User?    @relation(fields: [assigneeId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([assigneeId])
+  @@index([leadId])
+  @@map("tasks")
+}
+
+model Conversion {
+  id             String               @id @default(uuid())
+  tenantId       String?
+  tenant         Tenant?              @relation(fields: [tenantId], references: [id])
+  destination    ConversionDestination
+  status         ConversionStatus     @default(REQUESTED)
+  externalId     String?
+  metadata       Json                 @default("{}")
+  leadId         String
+  lead           Lead                 @relation(fields: [leadId], references: [id])
+  requestedById  String?
+  completedAt    DateTime?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  @@index([leadId])
+  @@index([destination])
+  @@index([status])
+  @@index([tenantId])
+  @@map("conversions")
+}
+
+model Integration {
+  id         String   @id @default(uuid())
+  tenantId   String?
+  tenant     Tenant?  @relation(fields: [tenantId], references: [id])
+  type       String
+  name       String
+  config     Json
+  isActive   Boolean  @default(false)
+  status     String   @default("disconnected")
+  lastTested DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([tenantId])
+  @@map("integrations")
+}
+
+model CrmMapping {
+  id          String   @id @default(uuid())
+  tenantId    String?
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id])
+  name        String
+  crmType     String
+  fieldMappings Json
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+  @@map("crm_mappings")
+}
+
+model BookingSetting {
+  id           String   @id @default(uuid())
+  tenantId     String?
+  tenant       Tenant?  @relation(fields: [tenantId], references: [id])
+  name         String
+  provider     String
+  config       Json
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([tenantId])
+  @@map("booking_settings")
+}
+
+model AutomationEvent {
+  id         String               @id @default(uuid())
+  type       AutomationEventType
+  payload    Json
+  status     String               @default("pending")
+  attempts   Int                  @default(0)
+  maxAttempts Int                 @default(5)
+  nextRetryAt DateTime?
+  lastError  String?
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+
+  @@index([type])
+  @@index([status])
+  @@index([nextRetryAt])
+  @@map("automation_events")
+}
+
+model WebhookEvent {
+  id              String   @id @default(uuid())
+  provider        String
+  eventType       String
+  idempotencyKey  String   @unique
+  rawPayload      Json
+  processedResult Json?
+  status          String   @default("processed")
+  createdAt       DateTime @default(now())
+
+  @@index([idempotencyKey])
+  @@index([provider])
+  @@map("webhook_events")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  action    String
+  entity    String
+  entityId  String?
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  changes   Json?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([entity])
+  @@index([entityId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model CustomFieldDefinition {
+  id       String            @id @default(uuid())
+  tenantId String?
+  tenant   Tenant?           @relation(fields: [tenantId], references: [id])
+  name     String
+  key      String
+  type     CustomFieldType
+  target   CustomFieldTarget
+  options  Json              @default("[]")
+  required Boolean           @default(false)
+  active   Boolean           @default(true)
+  displayOrder Int           @default(0)
+  createdAt DateTime          @default(now())
+  values   CustomFieldValue[]
+
+  @@unique([key, target, tenantId])
+  @@map("custom_field_definitions")
+}
+
+model CustomFieldValue {
+  id             String                @id @default(uuid())
+  definitionId   String
+  definition     CustomFieldDefinition @relation(fields: [definitionId], references: [id])
+  value          String?
+  contactId      String?
+  contact        Contact?              @relation(fields: [contactId], references: [id])
+  leadId         String?
+  lead           Lead?                 @relation(fields: [leadId], references: [id])
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  @@index([definitionId])
+  @@index([contactId])
+  @@index([leadId])
+  @@map("custom_field_values")
+}
+
+model LeadOwnershipHistory {
+  id        String   @id @default(uuid())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  fromUserId String?
+  fromUser  User?    @relation("OwnershipFromUser", fields: [fromUserId], references: [id], onDelete: SetNull)
+  toUserId  String?
+  toUser    User?    @relation("OwnershipToUser", fields: [toUserId], references: [id], onDelete: SetNull)
+  changedBy String?
+  changedByUser User? @relation("OwnershipChangedBy", fields: [changedBy], references: [id], onDelete: SetNull)
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@index([leadId])
+  @@map("lead_ownership_history")
+}
+
+model PipelineStage {
+  id          String   @id @default(uuid())
+  tenantId    String?
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id])
+  name        String
+  order       Int      @default(0)
+  color       String   @default("#6b7280")
+  isDefault   Boolean  @default(false)
+  isEnd       Boolean  @default(false)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  @@index([tenantId])
+  @@map("pipeline_stages")
+}
+
+model SavedFilter {
+  id        String   @id @default(uuid())
+  name      String
+  entity    String
+  filters   Json
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isShared  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("saved_filters")
+}
+
+model InternalNote {
+  id        String   @id @default(uuid())
+  content   String
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([leadId])
+  @@map("internal_notes")
+}
+
+model BlocklistEntry {
+  id        String   @id @default(uuid())
+  tenantId  String?
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id])
+  type      String
+  value     String
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@unique([type, value, tenantId])
+  @@index([tenantId])
+  @@map("blocklist_entries")
+}
+
+model NotificationPreference {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  leadHot   Boolean  @default(true)
+  leadAssigned Boolean @default(true)
+  messageReceived Boolean @default(true)
+  dailySummary Boolean @default(false)
+  webhookFailure Boolean @default(true)
+  slaBreach  Boolean @default(true)
+  channels   Json    @default("[\"in-app\"]")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("notification_preferences")
+}
+
+model SlaRule {
+  id            String   @id @default(uuid())
+  tenantId      String?
+  tenant        Tenant?  @relation(fields: [tenantId], references: [id])
+  name          String
+  condition     Json
+  responseTimeMinutes Int
+  escalationUserId String?
+  escalationUser User?   @relation(fields: [escalationUserId], references: [id], onDelete: SetNull)
+  escalationAfterMinutes Int?
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  @@index([tenantId])
+  @@map("sla_rules")
+}
+
+model RevenueRecord {
+  id          String   @id @default(uuid())
+  leadId      String
+  lead        Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  amount      Float
+  currency    String   @default("USD")
+  type        String
+  status      String   @default("pending")
+  recordedAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@index([leadId])
+  @@map("revenue_records")
+}
+
+model ImportExportLog {
+  id        String   @id @default(uuid())
+  type       String
+  status     String   @default("processing")
+  fileUrl    String?
+  totalRows  Int      @default(0)
+  processedRows Int   @default(0)
+  failedRows Int      @default(0)
+  errors     Json?
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  completedAt DateTime?
+
+  @@index([userId])
+  @@map("import_export_logs")
+}
+
+// === CORE ENGINE MODELS ===
+
+model SystemEvent {
+  id              String    @id @default(uuid())
+  type            String
+  source          String    @default("system")
+  status          String    @default("pending")
+  entityType      String?
+  entityId        String?
+  leadId          String?
+  lead            Lead?     @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  contactId       String?
+  contact         Contact?  @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  campaignId      String?
+  payload         Json      @default("{}")
+  metadata        Json?
+  correlationId   String?
+  idempotencyKey  String?   @unique
+  createdById     String?
+  createdAt       DateTime  @default(now())
+  processedAt     DateTime?
+
+  @@index([type])
+  @@index([status])
+  @@index([leadId])
+  @@index([contactId])
+  @@index([entityType, entityId])
+  @@index([correlationId])
+  @@index([idempotencyKey])
+  @@index([createdAt])
+  @@map("system_events")
+}
+
+model AutomationRule {
+  id          String    @id @default(uuid())
+  tenantId    String?
+  tenant      Tenant?   @relation(fields: [tenantId], references: [id])
+  name        String
+  description String?
+  category    String
+  eventType   String?
+  priority    Int       @default(100)
+  conditions  Json
+  actions     Json
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  executions  RuleExecution[]
+
+  @@index([category])
+  @@index([eventType])
+  @@index([active])
+  @@index([priority])
+  @@index([tenantId])
+  @@map("automation_rules")
+}
+
+model RuleExecution {
+  id        String    @id @default(uuid())
+  ruleId    String
+  rule      AutomationRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  eventId   String?
+  result    String
+  input     Json      @default("{}")
+  output    Json?
+  error     String?
+  createdAt DateTime  @default(now())
+
+  @@index([ruleId])
+  @@index([eventId])
+  @@index([createdAt])
+  @@map("rule_executions")
+}
+
+model TimelineItem {
+  id          String    @id @default(uuid())
+  leadId      String?
+  contactId   String?
+  type        String
+  title       String
+  description String?
+  metadata    Json?
+  createdById String?
+  createdAt   DateTime  @default(now())
+
+  lead    Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  contact Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  @@index([leadId])
+  @@index([contactId])
+  @@index([type])
+  @@index([createdAt])
+  @@map("timeline_items")
+}
+
+model FailureRecord {
+  id             String    @id @default(uuid())
+  type           String
+  status         String    @default("open")
+  severity       String    @default("medium")
+  entityType     String?
+  entityId       String?
+  leadId         String?
+  lead           Lead?     @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  contactId      String?
+  provider       String?
+  operation      String?
+  message        String
+  errorCode      String?
+  rawError       Json?
+  retryable      Boolean   @default(true)
+  attempts       Int       @default(0)
+  maxAttempts    Int       @default(5)
+  nextRetryAt    DateTime?
+  resolvedAt     DateTime?
+  resolvedById   String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([status])
+  @@index([type])
+  @@index([leadId])
+  @@index([nextRetryAt])
+  @@index([createdAt])
+  @@map("failure_records")
+}
+
+model WorkflowInstance {
+  id            String    @id @default(uuid())
+  workflowType  String
+  status        String    @default("running")
+  leadId        String?
+  lead          Lead?     @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  contactId     String?
+  campaignId    String?
+  currentStep   String?
+  context       Json      @default("{}")
+  startedAt     DateTime  @default(now())
+  completedAt   DateTime?
+  failedAt      DateTime?
+  failureReason String?
+
+  steps WorkflowStepRun[]
+
+  @@index([workflowType])
+  @@index([status])
+  @@index([leadId])
+  @@map("workflow_instances")
+}
+
+model WorkflowStepRun {
+  id                 String    @id @default(uuid())
+  workflowInstanceId String
+  workflowInstance   WorkflowInstance @relation(fields: [workflowInstanceId], references: [id], onDelete: Cascade)
+  stepKey            String
+  status             String
+  input              Json?
+  output             Json?
+  error              String?
+  startedAt          DateTime  @default(now())
+  completedAt        DateTime?
+
+  @@index([workflowInstanceId])
+  @@index([stepKey])
+  @@index([status])
+  @@map("workflow_step_runs")
+}
+
+// === NICHE TEMPLATE SYSTEM ===
+
+model NicheTemplate {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  name        String
+  description String?
+  industry    String
+  version     Int      @default(1)
+  status      String   @default("draft")
+  config      Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  packs       NicheTemplatePack[]
+  installations ClientTemplateInstallation[]
+
+  @@index([industry])
+  @@index([status])
+  @@index([key])
+  @@map("niche_templates")
+}
+
+model NicheTemplatePack {
+  id         String        @id @default(uuid())
+  templateId String
+  template   NicheTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  type       String
+  name       String
+  payload    Json
+  order      Int           @default(0)
+  active     Boolean       @default(true)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  @@index([templateId])
+  @@index([type])
+  @@map("niche_template_packs")
+}
+
+model ClientTemplateInstallation {
+  id               String   @id @default(uuid())
+  clientKey        String?
+  tenantId         String?
+  tenant           Tenant?         @relation(fields: [tenantId], references: [id])
+  templateId       String
+  template         NicheTemplate @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  templateVersion  Int
+  status           String   @default("installed")
+  installedById    String?
+  installedAt      DateTime @default(now())
+  configSnapshot   Json
+  createdRecords   Json
+  errorMessage     String?
+
+  @@index([clientKey])
+  @@index([tenantId])
+  @@index([templateId])
+  @@index([status])
+  @@map("client_template_installations")
+}
+
+

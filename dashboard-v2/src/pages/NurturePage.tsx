@@ -1,0 +1,1 @@
+import React from "react";function NurturePage(){return React.createElement("div",null,React.createElement("h2",null,"NurturePage"),React.createElement("p",null,"Loading..."));}export default NurturePage; 

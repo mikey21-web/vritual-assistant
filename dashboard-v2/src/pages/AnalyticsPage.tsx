@@ -1,0 +1,1 @@
+import React from "react";function AnalyticsPage(){return React.createElement("div",null,React.createElement("h2",null,"AnalyticsPage"),React.createElement("p",null,"Loading..."));}export default AnalyticsPage; 

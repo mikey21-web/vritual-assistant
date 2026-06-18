@@ -1,0 +1,1 @@
+import React from "react";function BookingPage(){return React.createElement("div",null,React.createElement("h2",null,"BookingPage"),React.createElement("p",null,"Loading..."));}export default BookingPage; 

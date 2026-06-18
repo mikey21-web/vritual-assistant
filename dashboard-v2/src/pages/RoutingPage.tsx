@@ -1,0 +1,1 @@
+import React from "react";function RoutingPage(){return React.createElement("div",null,React.createElement("h2",null,"RoutingPage"),React.createElement("p",null,"Loading..."));}export default RoutingPage; 

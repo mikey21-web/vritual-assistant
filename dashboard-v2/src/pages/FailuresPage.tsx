@@ -1,0 +1,1 @@
+import React from "react";function FailuresPage(){return React.createElement("div",null,React.createElement("h2",null,"FailuresPage"),React.createElement("p",null,"Loading..."));}export default FailuresPage; 

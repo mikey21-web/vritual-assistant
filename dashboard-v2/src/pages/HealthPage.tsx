@@ -1,0 +1,1 @@
+import React from "react";function HealthPage(){return React.createElement("div",null,React.createElement("h2",null,"HealthPage"),React.createElement("p",null,"Loading..."));}export default HealthPage; 

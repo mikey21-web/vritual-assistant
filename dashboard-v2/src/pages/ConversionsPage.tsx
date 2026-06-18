@@ -1,0 +1,1 @@
+import React from "react";function ConversionsPage(){return React.createElement("div",null,React.createElement("h2",null,"ConversionsPage"),React.createElement("p",null,"Loading..."));}export default ConversionsPage; 
