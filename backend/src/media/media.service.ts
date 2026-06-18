@@ -7,6 +7,22 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { v4 as uuid } from 'uuid';
 
+const MAGIC_BYTES: Record<string, number[]> = {
+  'image/jpeg': [0xFF, 0xD8, 0xFF],
+  'image/png': [0x89, 0x50, 0x4E, 0x47],
+  'image/webp': [0x52, 0x49, 0x46, 0x46],
+  'application/pdf': [0x25, 0x50, 0x44, 0x46],
+};
+
+function sniffMime(buffer: Buffer): string | null {
+  for (const [mime, bytes] of Object.entries(MAGIC_BYTES)) {
+    if (buffer.length >= bytes.length && bytes.every((b, i) => buffer[i] === b)) {
+      return mime;
+    }
+  }
+  return null;
+}
+
 const ALLOWED_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/csv'];
 const EXECUTABLE_EXTENSIONS = ['exe', 'bat', 'sh', 'cmd', 'msi', 'vbs', 'ps1'];
 const BLOCKED_MIMES = ['application/x-msdownload', 'application/x-msdos-program', 'application/x-sh', 'application/x-bat'];
@@ -35,8 +51,15 @@ export class MediaService {
     const ext = file.originalname.split('.').pop()?.toLowerCase() || '';
     if (EXECUTABLE_EXTENSIONS.includes(ext)) throw new BadRequestException('Executable files are not allowed');
     if (BLOCKED_MIMES.includes(file.mimetype)) throw new BadRequestException('Executable files are not allowed');
-    if (!ALLOWED_MIMES.includes(file.mimetype)) throw new BadRequestException(`MIME type ${file.mimetype} is not allowed`);
     if (file.size > MAX_FILE_SIZE) throw new BadRequestException('File too large');
+
+    const sniffed = sniffMime(file.buffer);
+    if (sniffed && !ALLOWED_MIMES.includes(sniffed)) {
+      throw new BadRequestException(`File content appears to be ${sniffed} which is not allowed`);
+    }
+    if (!sniffed && !ALLOWED_MIMES.includes(file.mimetype)) {
+      throw new BadRequestException(`MIME type ${file.mimetype} is not allowed`);
+    }
 
     const isPrivate = metadata.private === true || metadata.private === 'true';
     const storageKey = `${uuid()}.${ext}`;

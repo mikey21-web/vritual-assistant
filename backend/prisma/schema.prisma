@@ -202,6 +202,9 @@ model Tenant {
   mediaFiles      MediaFile[]
   revenueRecords  RevenueRecord[]
   auditLogs       AuditLog[]
+  systemEvents    SystemEvent[]
+  timelineItems   TimelineItem[]
+  failureRecords  FailureRecord[]
 
   @@index([key])
   @@index([status])
@@ -1011,6 +1014,8 @@ model SystemEvent {
   correlationId   String?
   idempotencyKey  String?   @unique
   createdById     String?
+  tenantId        String?
+  tenant          Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   createdAt       DateTime  @default(now())
   processedAt     DateTime?
 
@@ -1022,6 +1027,7 @@ model SystemEvent {
   @@index([correlationId])
   @@index([idempotencyKey])
   @@index([createdAt])
+  @@index([tenantId])
   @@map("system_events")
 }
 
@@ -1076,6 +1082,8 @@ model TimelineItem {
   description String?
   metadata    Json?
   createdById String?
+  tenantId    String?
+  tenant      Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   createdAt   DateTime  @default(now())
 
   lead    Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
@@ -1085,6 +1093,7 @@ model TimelineItem {
   @@index([contactId])
   @@index([type])
   @@index([createdAt])
+  @@index([tenantId])
   @@map("timeline_items")
 }
 
@@ -1109,6 +1118,8 @@ model FailureRecord {
   nextRetryAt    DateTime?
   resolvedAt     DateTime?
   resolvedById   String?
+  tenantId       String?
+  tenant         Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -1117,6 +1128,7 @@ model FailureRecord {
   @@index([leadId])
   @@index([nextRetryAt])
   @@index([createdAt])
+  @@index([tenantId])
   @@map("failure_records")
 }
 

@@ -39,6 +39,7 @@ export class MediaController {
       throw new BadRequestException('Invalid file path');
     }
     if (!fs.existsSync(fullPath)) throw new BadRequestException('File not found');
+    res.setHeader('Content-Disposition', 'attachment');
     return res.sendFile(fullPath);
   }
 
