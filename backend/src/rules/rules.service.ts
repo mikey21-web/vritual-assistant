@@ -55,7 +55,14 @@ export class RulesService {
     const results: any[] = [];
 
     for (const rule of rules) {
-      const conditions = typeof rule.conditions === 'string' ? JSON.parse(rule.conditions as string) : (rule.conditions as any[]);
+      let conditions: any[];
+      try {
+        conditions = typeof rule.conditions === 'string' ? JSON.parse(rule.conditions as string) : (rule.conditions as any[]);
+        if (!Array.isArray(conditions)) conditions = [];
+      } catch {
+        conditions = [];
+      }
+      if (conditions.length === 0) continue;
       const allMatch = conditions.every((cond: any) => {
         const fn = SUPPORTED_CONDITIONS[cond.operator];
         if (!fn) return false;
@@ -82,7 +89,7 @@ export class RulesService {
           ruleId: rule.id,
           result: allMatch ? 'matched' : 'not_matched',
           input: lead as any,
-          output: result,
+          output: result as any,
         },
       });
 

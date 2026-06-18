@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+from typing import Any, Coroutine
 import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 from app.config import Settings
@@ -27,16 +30,16 @@ class BackendClient:
     async def close(self):
         await self.client.aclose()
 
-    def _retry_get(self, url: str) -> callable:
+    def _retry_get(self, url: str) -> Coroutine[Any, Any, dict]:
         @retry(
             stop=stop_after_attempt(3),
             wait=wait_exponential(multiplier=0.5, min=0.5, max=5),
             retry=retry_if_exception_type((httpx.TimeoutException, httpx.ConnectError)),
             reraise=True,
         )
-        async def _get():
+        async def _do_get():
             return await self._get(url)
-        return _get()
+        return _do_get()
 
     async def _get(self, path: str) -> dict:
         r = await self.client.get(f"{self.base}{path}")

@@ -280,12 +280,22 @@ export class NicheTemplatesService {
     });
   }
 
-  async getClientTemplate(clientKey: string) {
-    const inst = await this.prisma.clientTemplateInstallation.findFirst({
-      where: { clientKey, status: 'installed' },
-      orderBy: { installedAt: 'desc' },
-      include: { template: { select: { key: true, name: true, industry: true } } },
-    });
+  async getClientTemplate(clientKey?: string, tenantId?: string) {
+    let inst;
+    if (tenantId) {
+      inst = await this.prisma.clientTemplateInstallation.findFirst({
+        where: { tenantId, status: 'installed' },
+        orderBy: { installedAt: 'desc' },
+        include: { template: { select: { key: true, name: true, industry: true } } },
+      });
+    }
+    if (!inst && clientKey) {
+      inst = await this.prisma.clientTemplateInstallation.findFirst({
+        where: { clientKey, status: 'installed' },
+        orderBy: { installedAt: 'desc' },
+        include: { template: { select: { key: true, name: true, industry: true } } },
+      });
+    }
     if (!inst) throw new NotFoundException('No template installed for this client');
 
     // Load the full template with packs for the agent

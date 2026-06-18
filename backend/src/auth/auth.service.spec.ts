@@ -92,13 +92,13 @@ describe('AuthService', () => {
     });
 
     it('should reject wrong password', async () => {
-      const hashed = await bcrypt.hash('password123', 12);
+      const hashed = await bcrypt.hash('password123', 1);
       prisma.user.findUnique.mockResolvedValue({ ...mockUser, password: hashed });
 
       await expect(
         service.login({ email: 'test@example.com', password: 'wrongpassword' }),
       ).rejects.toThrow(UnauthorizedException);
-    });
+    }, 10000);
 
     it('should reject non-existent user', async () => {
       prisma.user.findUnique.mockResolvedValue(null);

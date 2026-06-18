@@ -48,7 +48,7 @@ async def test_load_context(settings):
     assert result["terminate"] is False
 
     niche_url = client._get.call_args_list[2][0][0]
-    assert "clientKey=t-1" in niche_url
+    assert "tenantId=t-1" in niche_url
 
 
 @pytest.mark.asyncio

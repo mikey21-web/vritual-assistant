@@ -107,17 +107,19 @@ export class PackApplierService {
         this.logger.warn('Skipped conversion_goals pack: requires a lead, not suitable for template provisioning');
         break;
       case 'reports':
+        if (!userId) throw new Error('userId is required for reports provisioning');
         for (const r of payload.reports || []) {
           const created = await this.prisma.savedFilter.create({
-            data: { name: r.name, entity: 'report', filters: r, userId: userId || '', isShared: true },
+            data: { name: r.name, entity: 'report', filters: r, userId, isShared: true },
           });
           add('savedFilter', created.id);
         }
         break;
       case 'saved_filters':
+        if (!userId) throw new Error('userId is required for saved_filters provisioning');
         for (const f of payload.filters || []) {
           const created = await this.prisma.savedFilter.create({
-            data: { ...f, userId: userId || '', isShared: f.isShared ?? false } as any,
+            data: { ...f, userId, isShared: f.isShared ?? false } as any,
           });
           add('savedFilter', created.id);
         }

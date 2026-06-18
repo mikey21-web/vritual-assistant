@@ -13,16 +13,16 @@ export class SlaProcessor extends WorkerHost {
     const result = await this.advanced.evaluateSlaRules();
     const escalated = result.breaches.filter(b => b.escalationNeeded);
     for (const breach of escalated) {
-      try {
-        await this.prisma.task.create({
-          data: {
-            title: `SLA Breach: ${breach.slaRuleName} — Lead ${breach.leadName || breach.leadId}`,
-            priority: 'high',
-            leadId: breach.leadId,
-            assigneeId: breach.escalationUserId || undefined,
-          },
-        });
-      } catch {}
+      await this.prisma.task.create({
+        data: {
+          title: `SLA Breach: ${breach.slaRuleName} — Lead ${breach.leadName || breach.leadId}`,
+          priority: 'high',
+          leadId: breach.leadId,
+          assigneeId: breach.escalationUserId || undefined,
+        },
+      }).catch(err => {
+        console.error(`SLA task creation failed for lead ${breach.leadId}: ${err.message}`);
+      });
     }
     return { evaluatedAt: result.evaluatedAt, breachCount: result.breaches.length, escalatedCount: escalated.length };
   }

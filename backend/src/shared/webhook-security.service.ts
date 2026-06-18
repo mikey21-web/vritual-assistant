@@ -27,6 +27,9 @@ export class WebhookSecurityService {
         acc[k.trim()] = v.trim();
         return acc;
       }, {});
+      const timestamp = parseInt(parts.t, 10);
+      const now = Math.floor(Date.now() / 1000);
+      if (Math.abs(now - timestamp) > 300) return false;
       const expected = crypto.createHmac('sha256', secret).update(`${parts.t}.${rawBody.toString('utf8')}`).digest('hex');
       if (expected.length !== parts.v1?.length) return false;
       return crypto.timingSafeEqual(Buffer.from(parts.v1), Buffer.from(expected));

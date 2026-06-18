@@ -32,17 +32,25 @@ async def already_processed(trigger_id: str) -> bool:
     return _in_memory.get(trigger_id, False)
 
 
-async def mark_processing(trigger_id: str) -> None:
+async def mark_processing(trigger_id: str) -> bool:
     if _redis:
         result = await _redis.set(f"agent:trigger:{trigger_id}", "1", nx=True, ex=TTL_SECONDS)
         if not result:
             logger.debug("idempotency_race_skipped", trigger_id=trigger_id)
+            return False
+        return True
     else:
+        if _in_memory.get(trigger_id):
+            return False
         _in_memory[trigger_id] = True
+        return True
 
 
 async def mark_done(trigger_id: str) -> None:
-    pass
+    if _redis:
+        await _redis.delete(f"agent:trigger:{trigger_id}")
+    else:
+        _in_memory.pop(trigger_id, None)
 
 
 async def close() -> None:

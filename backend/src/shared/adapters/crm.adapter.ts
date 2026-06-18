@@ -8,7 +8,7 @@ export interface CrmAdapter {
 @Injectable()
 export class HubspotAdapter implements CrmAdapter {
   async pushLead(lead: any, mapping: any): Promise<{ success: boolean; externalId?: string; error?: string }> {
-    const apiKey = mapping.config?.apiKey || process.env.HUBSPOT_API_KEY;
+    const apiKey = mapping.config?.apiKey || (mapping.config?.useGlobalFallback ? process.env.HUBSPOT_API_KEY : undefined);
     if (!apiKey) return { success: false, error: 'HUBSPOT_API_KEY not configured' };
     try {
       const fields: any = {};
@@ -27,7 +27,7 @@ export class HubspotAdapter implements CrmAdapter {
     }
   }
   async healthCheck(config: any): Promise<boolean> {
-    const apiKey = config?.apiKey || process.env.HUBSPOT_API_KEY;
+    const apiKey = config?.apiKey || (config?.useGlobalFallback ? process.env.HUBSPOT_API_KEY : undefined);
     if (!apiKey) return false;
     try {
       const res = await fetch('https://api.hubapi.com/crm/v3/objects/contacts?limit=1', { headers: { Authorization: `Bearer ${apiKey}` } });
@@ -49,8 +49,19 @@ export class SalesforceAdapter implements CrmAdapter {
       return { success: false, error: 'Salesforce credentials not configured (clientId, clientSecret, username, password required)' };
     }
 
+    const ALLOWED_SF_URLS = ['login.salesforce.com', 'test.salesforce.com'];
+    const resolvedUrl = instanceUrl || 'https://login.salesforce.com';
     try {
-      const tokenRes = await fetch(`${instanceUrl || 'https://login.salesforce.com'}/services/oauth2/token`, {
+      const urlObj = new URL(resolvedUrl);
+      if (!ALLOWED_SF_URLS.some(h => urlObj.hostname === h || urlObj.hostname.endsWith(`.${h}`))) {
+        return { success: false, error: 'Salesforce instance URL not in allowed hostnames' };
+      }
+    } catch {
+      return { success: false, error: 'Invalid Salesforce instance URL' };
+    }
+
+    try {
+      const tokenRes = await fetch(`${resolvedUrl}/services/oauth2/token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
@@ -145,16 +156,7 @@ export class ZohoAdapter implements CrmAdapter {
     }
   }
 
-  async healthCheck(config: any): Promise<boolean> {
-    const refreshToken = config?.refreshToken || process.env.ZOHO_REFRESH_TOKEN;
-    if (!refreshToken) return false;
-    try {
-      const res = await fetch('https://accounts.zoho.com/oauth/v2/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: refreshToken, client_id: 'check', client_secret: 'check' }),
-      });
-      return res.ok || res.status === 400;
-    } catch { return false; }
+  async healthCheck(_config: any): Promise<boolean> {
+    return false;
   }
 }

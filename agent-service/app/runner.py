@@ -23,7 +23,10 @@ async def execute_run(settings: Settings, req: AgentRunRequest) -> str:
         logger.info("run_skipped_duplicate", triggerId=req.triggerId)
         return run_id
 
-    await mark_processing(req.triggerId)
+    acquired = await mark_processing(req.triggerId)
+    if not acquired:
+        logger.info("run_skipped_concurrent", triggerId=req.triggerId)
+        return run_id
     logger.info("run_started", leadId=req.leadId, trigger=req.trigger)
 
     client = BackendClient(settings)

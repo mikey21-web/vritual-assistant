@@ -56,7 +56,7 @@ async def _load_context(state: AgentState, config: dict) -> AgentState:
         lead, conversations, niche_raw = await asyncio.gather(
             client._get(f"/leads/{lead_id}"),
             client._get(f"/leads/{lead_id}/conversations"),
-            client._get(f"/niche-templates/client/current?clientKey={tenant_id}"),
+            client._get(f"/niche-templates/client/current?tenantId={tenant_id}"),
         )
     except BackendError as e:
         if e.status in (401, 403):
@@ -127,6 +127,7 @@ async def _agent_node(state: AgentState, config: dict) -> AgentState:
     if hasattr(response, "tool_calls") and response.tool_calls:
         for tc in response.tool_calls:
             state["actions_taken"].append({
+                "id": tc.get("id", ""),
                 "tool": tc.get("name", ""),
                 "args": tc.get("args", {}),
                 "status": "pending",

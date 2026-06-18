@@ -17,9 +17,19 @@ export class CustomFieldsService {
   async setValues(target: string, targetId: string, values: { definitionId: string; value: string }[]) {
     const results: any[] = [];
     for (const v of values) {
-      const existing = await this.prisma.customFieldValue.findFirst({ where: { definitionId: v.definitionId, ...(target === 'contact' ? { contactId: targetId } : { leadId: targetId }) } });
-      if (existing) results.push(await this.prisma.customFieldValue.update({ where: { id: existing.id }, data: { value: v.value } }));
-      else results.push(await this.prisma.customFieldValue.create({ data: { definitionId: v.definitionId, value: v.value, ...(target === 'contact' ? { contactId: targetId } : { leadId: targetId }) } }));
+      const whereKey = target === 'contact'
+        ? { definitionId_contactId: { definitionId: v.definitionId, contactId: targetId } }
+        : { definitionId_leadId: { definitionId: v.definitionId, leadId: targetId } };
+
+      const createData: any = { definitionId: v.definitionId, value: v.value };
+      if (target === 'contact') createData.contactId = targetId;
+      else createData.leadId = targetId;
+
+      results.push(await this.prisma.customFieldValue.upsert({
+        where: whereKey as any,
+        update: { value: v.value },
+        create: createData,
+      }));
     }
     return results;
   }

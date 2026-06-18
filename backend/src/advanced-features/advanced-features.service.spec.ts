@@ -125,7 +125,7 @@ describe('AdvancedFeaturesService — blocklist & SLA', () => {
   describe('SLA rules', () => {
     it('should evaluate SLA rules and find breaches', async () => {
       prisma.lead.findMany.mockResolvedValue([
-        { id: 'lead-1', createdAt: new Date(Date.now() - 120 * 60000), contact: { name: 'Test', email: 'test@test.com' } },
+        { id: 'lead-1', createdAt: new Date(Date.now() - 120 * 60000), contact: { name: 'Test', email: 'test@test.com' }, conversations: [] },
       ]);
       const result = await service.evaluateSlaRules();
       expect(result.breaches.length).toBe(1);

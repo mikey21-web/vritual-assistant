@@ -1,6 +1,9 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Req, UseInterceptors, UploadedFile, HttpCode, Headers, UnauthorizedException } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Req, Res, UseInterceptors, UploadedFile, HttpCode, Headers, UnauthorizedException, NotFoundException } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
+import * as crypto from 'crypto';
+import * as path from 'path';
+import * as fs from 'fs';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -96,7 +99,7 @@ export class AdvancedFeaturesController {
     return this.svc.processImport(logId, rows, (entity === 'lead' ? 'lead' : 'contact'));
   }
   @Post('export/start') @Roles('OWNER', 'ADMIN', 'MANAGER', 'VIEWER') startExport(@Req() req) { return this.svc.startExport(req.user.sub); }
-  @Post('export/:logId/complete') @Roles('OWNER', 'ADMIN', 'MANAGER') completeExport(@Param('logId') logId: string, @Body() d: { entity: string }) { return this.svc.completeExport(logId, (d.entity === 'lead' ? 'lead' : 'contact')); }
+  @Post('export/:logId/complete') @Roles('OWNER', 'ADMIN', 'MANAGER') completeExport(@Param('logId') logId: string, @Body() d: { entity: string }, @Req() req) { return this.svc.completeExport(logId, (d.entity === 'lead' ? 'lead' : 'contact'), {}, req.user?.tenantId); }
   @Get('import-export/logs') @Roles('OWNER', 'ADMIN', 'MANAGER') getImportLogs(@Req() req) { return this.svc.getImportLogs(req.user.sub); }
 
   // Data retention purge
@@ -113,11 +116,25 @@ export class AdvancedFeaturesController {
     const expectedToken = process.env.N8N_BACKEND_JWT;
     if (!expectedToken) throw new UnauthorizedException('Failure inbox not configured');
     const token = auth?.startsWith('Bearer ') ? auth.slice(7) : '';
-    if (token !== expectedToken) throw new UnauthorizedException('Invalid n8n token');
+    const tokenBuf = Buffer.from(token);
+    const expectedBuf = Buffer.from(expectedToken);
+    if (tokenBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(tokenBuf, expectedBuf)) throw new UnauthorizedException('Invalid n8n token');
     return this.svc.recordFailure(d);
   }
   @Post('failure-inbox/:id/retry') @Roles('OWNER', 'ADMIN') retryFailedEvent(@Param('id') id: string) { return this.svc.retryFailedEvent(id); }
 
   // Sandbox test
   @Get('sandbox/test') @Roles('OWNER', 'ADMIN') sandboxTest() { return this.svc.sandboxTest(); }
+
+  // Export download
+  @Get('exports/:filename')
+  @Roles('OWNER', 'ADMIN', 'MANAGER')
+  downloadExport(@Param('filename') filename: string, @Res() res: any) {
+    const storagePath = process.env.STORAGE_PATH || './uploads';
+    const fullPath = path.join(storagePath, filename);
+    if (!fs.existsSync(fullPath)) throw new NotFoundException('Export file not found');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Type', 'text/csv');
+    return res.sendFile(fullPath);
+  }
 }

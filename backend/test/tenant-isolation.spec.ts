@@ -112,21 +112,21 @@ describe('Tenant Isolation', () => {
       testLeadId = res.body.id;
 
       const lead = await prisma.lead.findUnique({ where: { id: testLeadId } });
-      expect(lead.tenantId).toBe(tenantA.id);
+      expect(lead?.tenantId).toBe(tenantA.id);
     });
 
     it('POST /tasks creates task with correct tenantId', async () => {
       const res = await request(app.getHttpServer()).post('/tasks').set('Authorization', `Bearer ${tokenA}`).send({ title: 'A Task', leadId: testLeadId });
       expect(res.status).toBe(201);
       const task = await prisma.task.findUnique({ where: { id: res.body.id } });
-      expect(task.tenantId).toBe(tenantA.id);
+      expect(task?.tenantId).toBe(tenantA.id);
     });
 
     it('POST /conversations creates message with correct tenantId', async () => {
       const res = await request(app.getHttpServer()).post('/conversations').set('Authorization', `Bearer ${tokenA}`).send({ text: 'A msg', channel: 'SYSTEM', direction: 'OUTBOUND', leadId: testLeadId });
       expect(res.status).toBe(201);
       const msg = await prisma.conversationMessage.findUnique({ where: { id: res.body.id } });
-      expect(msg.tenantId).toBe(tenantA.id);
+      expect(msg?.tenantId).toBe(tenantA.id);
     });
   });
 

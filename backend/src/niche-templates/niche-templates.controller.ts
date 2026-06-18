@@ -59,8 +59,8 @@ export class NicheTemplatesController {
 
   // === CLIENT-SAFE ROUTE — any authenticated user can read their own config ===
   @Get('client/current')
-  @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT')
-  getClientTemplate(@Query('clientKey') clientKey?: string) {
-    return this.svc.getClientTemplate(clientKey || 'default');
+  @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT', 'SUPPORT_AGENT', 'VIEWER')
+  getClientTemplate(@Query('clientKey') clientKey?: string, @Query('tenantId') tenantId?: string) {
+    return this.svc.getClientTemplate(clientKey, tenantId);
   }
 }

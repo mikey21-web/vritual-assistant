@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { CreatePipelineStageDto, UpdatePipelineStageDto, UpdateNotificationPrefsDto } from './dto/advanced-features.dto';
+import { getTenantContext } from '../shared/tenant-context.service';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -65,6 +66,7 @@ export class AdvancedFeaturesService {
     const primary = await this.prisma.contact.findUnique({ where: { id: primaryId } });
     const secondary = await this.prisma.contact.findUnique({ where: { id: secondaryId } });
     if (!primary || !secondary) throw new NotFoundException('One or both contacts not found');
+    if (primary.tenantId !== secondary.tenantId) throw new BadRequestException('Cannot merge contacts from different tenants');
 
     const diff: Record<string, { from: unknown; to: unknown }> = {};
     const fields = ['name', 'email', 'phone', 'whatsapp', 'company', 'location'] as const;
@@ -111,8 +113,9 @@ export class AdvancedFeaturesService {
   }
   getBlocklist(query: Record<string, string> = {}, tenantId?: string | null) { return this.prisma.blocklistEntry.findMany({ where: { tenantId: tenantId || null }, orderBy: { createdAt: 'desc' }, take: 100 }); }
   async addToBlocklist(type: string, value: string, reason?: string) {
-    const entry = await this.prisma.blocklistEntry.create({ data: { type, value: value.toLowerCase().trim(), reason } });
-    await this.auditLogs.log('blocklist_added', 'BlocklistEntry', entry.id, undefined, { type, value: value.toLowerCase().trim(), reason });
+    const normalized = type === 'phone' ? value.replace(/[\s\-\(\)\+]/g, '') : value.toLowerCase().trim();
+    const entry = await this.prisma.blocklistEntry.create({ data: { type, value: normalized, reason } });
+    await this.auditLogs.log('blocklist_added', 'BlocklistEntry', entry.id, undefined, { type, value: normalized, reason });
     return entry;
   }
   async removeFromBlocklist(id: string) { await this.prisma.blocklistEntry.delete({ where: { id } }); return { deleted: true }; }
@@ -145,19 +148,32 @@ export class AdvancedFeaturesService {
       let condition: Record<string, unknown> = {};
       try { condition = typeof rule.condition === 'string' ? JSON.parse(rule.condition) : (rule.condition as Record<string, unknown>); } catch {}
 
+      const responseCutoff = new Date(Date.now() - rule.responseTimeMinutes * 60000);
       const where: any = {
         status: { notIn: ['CONVERTED', 'LOST', 'SPAM'] },
-        createdAt: { lt: new Date(Date.now() - rule.responseTimeMinutes * 60000) },
       };
 
       if (condition.status) where.status = condition.status;
       if (condition.segment) where.segment = condition.segment;
       if (condition.source) where.source = condition.source;
 
-      const breached = await this.prisma.lead.findMany({ where, take: 100, select: { id: true, createdAt: true, contact: { select: { name: true, email: true } } } });
+      const leads = await this.prisma.lead.findMany({
+        where,
+        take: 100,
+        select: {
+          id: true,
+          createdAt: true,
+          contact: { select: { name: true, email: true } },
+          conversations: { orderBy: { createdAt: 'desc' }, take: 1, where: { direction: 'OUTBOUND' }, select: { createdAt: true } },
+        },
+      });
 
-      for (const lead of breached) {
-        const hoursResponse = Math.round((Date.now() - new Date(lead.createdAt || Date.now()).getTime()) / 3600000);
+      for (const lead of leads) {
+        const lastOutbound = lead.conversations[0]?.createdAt;
+        if (lastOutbound && new Date(lastOutbound) > responseCutoff) continue;
+
+        const referenceTime = lastOutbound || lead.createdAt || new Date();
+        const hoursResponse = Math.round((Date.now() - new Date(referenceTime).getTime()) / 3600000);
         results.push({
           slaRuleId: rule.id,
           slaRuleName: rule.name,
@@ -267,15 +283,15 @@ export class AdvancedFeaturesService {
     return this.prisma.importExportLog.create({ data: { type: 'export', userId, status: 'processing' } });
   }
 
-  async completeExport(logId: string, entity: 'contact' | 'lead', filters: Record<string, string> = {}) {
+  async completeExport(logId: string, entity: 'contact' | 'lead', filters: Record<string, string> = {}, tenantId?: string | null) {
     const log = await this.prisma.importExportLog.findUnique({ where: { id: logId } });
     if (!log) throw new NotFoundException('Export log not found');
 
     let data: any[] = [];
     if (entity === 'contact') {
-      data = await this.prisma.contact.findMany({ take: 10000, orderBy: { createdAt: 'desc' } });
+      data = await this.prisma.contact.findMany({ where: tenantId ? { tenantId } : {}, take: 10000, orderBy: { createdAt: 'desc' } });
     } else {
-      data = await this.prisma.lead.findMany({ take: 10000, orderBy: { createdAt: 'desc' }, include: { contact: { select: { name: true, email: true, phone: true } } } });
+      data = await this.prisma.lead.findMany({ where: tenantId ? { tenantId } : {}, take: 10000, orderBy: { createdAt: 'desc' }, include: { contact: { select: { name: true, email: true, phone: true } } } });
     }
 
     const headers = entity === 'contact'
@@ -319,8 +335,10 @@ export class AdvancedFeaturesService {
   async purgeSpamAndCold(retentionDays: number = 365) {
     if (retentionDays < 30) throw new BadRequestException('Minimum retention is 30 days');
     const cutoff = new Date(Date.now() - retentionDays * 24 * 3600 * 1000);
+    const ctx = getTenantContext();
+    const whereTenant = ctx.tenantId && !ctx.isPlatformAdmin ? { tenantId: ctx.tenantId } : {};
     const deleted = await this.prisma.lead.deleteMany({
-      where: { OR: [{ status: 'SPAM' }, { segment: 'COLD', updatedAt: { lt: cutoff } }] },
+      where: { ...whereTenant, OR: [{ status: 'SPAM' }, { segment: 'COLD', updatedAt: { lt: cutoff } }] },
     });
     await this.auditLogs.log('data_purged', 'Lead', undefined, undefined, { deletedCount: deleted.count, retentionDays });
     return { deletedCount: deleted.count, retentionDays };
