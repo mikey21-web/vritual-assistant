@@ -147,9 +147,22 @@ def _should_continue(state: AgentState, config: dict) -> str:
     if state.get("steps", 0) >= max_steps:
         return "persist"
 
+    steps = state.get("steps", 0)
+
     if messages:
         last = messages[-1]
         if hasattr(last, "tool_calls") and last.tool_calls:
+            for tc in last.tool_calls:
+                name = tc.get("name", "")
+                if name in ("escalate_to_human", "mark_lost"):
+                    state["terminate"] = True
+                    return "persist"
+
+                send_count = sum(1 for a in state.get("actions_taken", []) if a.get("tool") == "send_message")
+                if name == "send_message" and send_count >= 2:
+                    state["terminate"] = True
+                    return "persist"
+
             return "tools"
 
     return "persist"

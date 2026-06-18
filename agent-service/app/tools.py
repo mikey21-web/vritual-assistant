@@ -32,9 +32,23 @@ def build_tools(ctx: ToolContext) -> list:
     async def extract_fields(fields: list[dict]):
         """Save facts the lead revealed. fields: [{"key":"email","value":"a@b.com"}, ...]"""
         try:
-            field_map = {f["key"]: f["value"] for f in fields}
+            if not isinstance(fields, list):
+                return _err("fields must be a list")
+            field_map = {}
+            for f in fields:
+                if not isinstance(f, dict):
+                    continue
+                k = str(f.get("key", "")).strip()
+                v = str(f.get("value", ""))
+                if not k or len(k) > 100:
+                    continue
+                if len(v) > 5000:
+                    v = v[:5000]
+                field_map[k] = v
+            if not field_map:
+                return _err("no valid fields to store")
             await ctx.client.update_custom_fields(ctx.lead_id, field_map)
-            return _ok(f"stored {len(fields)} field(s)")
+            return _ok(f"stored {len(field_map)} field(s)")
         except BackendError as e:
             return _err(str(e))
 

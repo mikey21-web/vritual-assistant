@@ -11,15 +11,20 @@ import * as express from 'express';
 const DEFAULT_SECRETS = ['change-me', 'dev-secret', 'local-dev-jwt-secret-2024', 'local-dev-signed-url-secret'];
 
 function validateSecrets() {
+  const isDev = process.env.NODE_ENV !== 'production';
   const jwtSecret = process.env.JWT_SECRET;
-  if (!jwtSecret || DEFAULT_SECRETS.includes(jwtSecret)) {
-    throw new Error('JWT_SECRET must be changed from the default value');
+  if (!jwtSecret) {
+    if (isDev) { console.warn('WARNING: JWT_SECRET not set — using unsafe dev fallback'); return; }
+    throw new Error('JWT_SECRET is required in production');
+  }
+  if (DEFAULT_SECRETS.includes(jwtSecret) && !isDev) {
+    throw new Error('JWT_SECRET must be changed from the default value in production');
+  }
+  if (jwtSecret === 'local-dev-jwt-secret-2024' && !isDev) {
+    throw new Error('JWT_SECRET must be changed from the default value in production');
   }
   if (!process.env.DATABASE_URL) {
     throw new Error('DATABASE_URL is required');
-  }
-  if (process.env.REDIS_URL && process.env.REDIS_URL === 'redis://localhost:6379') {
-    console.warn('WARNING: REDIS_URL is set to default localhost — this may not be intentional for production');
   }
 }
 

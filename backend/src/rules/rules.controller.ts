@@ -17,13 +17,13 @@ export class RulesController {
   findAll(@Query('category') category?: string) { return this.svc.findAll(category); }
 
   @Post() @Roles('OWNER', 'ADMIN', 'MANAGER')
-  create(@Body() d: any) { return this.svc.create(d); }
+  create(@Body() d: { name: string; category: string; priority?: number; eventType?: string; conditions: any; actions: any; active?: boolean; description?: string }) { return this.svc.create(d); }
 
   @Get(':id') @Roles('OWNER', 'ADMIN', 'MANAGER', 'VIEWER')
   findOne(@Param('id') id: string) { return this.svc.findOne(id); }
 
   @Patch(':id') @Roles('OWNER', 'ADMIN', 'MANAGER')
-  update(@Param('id') id: string, @Body() d: any) { return this.svc.update(id, d); }
+  update(@Param('id') id: string, @Body() d: { name?: string; category?: string; priority?: number; eventType?: string; conditions?: any; actions?: any; active?: boolean; description?: string }) { return this.svc.update(id, d); }
 
   @Delete(':id') @Roles('OWNER', 'ADMIN')
   remove(@Param('id') id: string) { return this.svc.remove(id); }

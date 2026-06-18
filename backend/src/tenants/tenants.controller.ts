@@ -23,13 +23,13 @@ export class TenantsController {
 
   @Post()
   @Roles('OWNER', 'ADMIN')
-  create(@Body() data: any) {
+  create(@Body() data: { key: string; name: string; industry: string; contactEmail?: string; contactName?: string }) {
     return this.tenantsService.create(data);
   }
 
   @Patch(':id')
   @Roles('OWNER', 'ADMIN')
-  update(@Param('id') id: string, @Body() data: any) {
+  update(@Param('id') id: string, @Body() data: { name?: string; status?: string; contactEmail?: string; contactName?: string; config?: any }) {
     return this.tenantsService.update(id, data);
   }
 
@@ -41,7 +41,7 @@ export class TenantsController {
 
   @Post(':id/provision')
   @Roles('OWNER', 'ADMIN')
-  provision(@Param('id') tenantId: string, @Body() body: any, @Req() req: any) {
+  provision(@Param('id') tenantId: string, @Body() body: { templateId: string; adminEmail?: string; adminPassword?: string; adminName?: string }, @Req() req: any) {
     return this.tenantsService.provision(
       tenantId,
       body.templateId,

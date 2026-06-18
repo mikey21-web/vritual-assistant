@@ -21,10 +21,10 @@ export class NicheTemplatesController {
   findOne(@Param('id') id: string) { return this.svc.findOne(id); }
 
   @Post() @Roles('OWNER', 'ADMIN')
-  create(@Body() d: any) { return this.svc.create(d); }
+  create(@Body() d: { key: string; name: string; description?: string; industry: string; config?: any }) { return this.svc.create(d); }
 
   @Patch(':id') @Roles('OWNER', 'ADMIN')
-  update(@Param('id') id: string, @Body() d: any) { return this.svc.update(id, d); }
+  update(@Param('id') id: string, @Body() d: { key?: string; name?: string; description?: string; industry?: string; config?: any }) { return this.svc.update(id, d); }
 
   @Delete(':id') @Roles('OWNER', 'ADMIN')
   delete(@Param('id') id: string) { return this.svc.delete(id); }
