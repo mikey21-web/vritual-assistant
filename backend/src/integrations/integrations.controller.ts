@@ -21,4 +21,5 @@ export class IntegrationsController {
   @Patch(':id') @Roles('OWNER', 'ADMIN') update(@Param('id') id: string, @Body() d: UpdateIntegrationDto) { return this.service.update(id, d); }
   @Delete(':id') @Roles('OWNER', 'ADMIN') remove(@Param('id') id: string) { return this.service.remove(id); }
   @Post(':id/test') @Roles('OWNER', 'ADMIN') test(@Param('id') id: string) { return this.service.test(id); }
+  @Post('migrate-encrypt') @Roles('OWNER') migrateEncrypt() { return this.service.migratePlaintextConfigs(); }
 }

@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { HubspotAdapter, SalesforceAdapter, ZohoAdapter } from '../shared/adapters/crm.adapter';
-import { encrypt, decrypt } from '../shared/crypto.util';
+import { encrypt, decrypt, isEncrypted } from '../shared/crypto.util';
 
 const SECRET_FIELDS = ['apiKey', 'apiSecret', 'secret', 'token', 'password', 'accessToken', 'privateKey', 'clientSecret', 'authToken', 'refreshToken'];
 
@@ -71,6 +71,30 @@ export class IntegrationsService {
   create(data: any) { return this.prisma.integration.create({ data: { ...data, config: envelopeEncrypt(data.config) } }).then(r => ({ ...r, config: redactSecrets(r.config) })); }
   async update(id: string, data: any) { await this.findOne(id); const payload = { ...data }; if (payload.config) payload.config = envelopeEncrypt(payload.config); return this.prisma.integration.update({ where: { id }, data: payload }).then(r => ({ ...r, config: redactSecrets(r.config) })); }
   async remove(id: string) { await this.findOne(id); return this.prisma.integration.delete({ where: { id } }); }
+
+  async migratePlaintextConfigs(): Promise<{ migrated: number; skipped: number }> {
+    const all = await this.prisma.integration.findMany();
+    let migrated = 0;
+    let skipped = 0;
+    for (const row of all) {
+      const config = row.config as any;
+      if (!config || typeof config !== 'object') { skipped++; continue; }
+      let needsEncrypt = false;
+      for (const key of SECRET_FIELDS) {
+        if (typeof config[key] === 'string' && config[key] && !isEncrypted(config[key])) {
+          needsEncrypt = true;
+          break;
+        }
+      }
+      if (!needsEncrypt) { skipped++; continue; }
+      await this.prisma.integration.update({
+        where: { id: row.id },
+        data: { config: envelopeEncrypt(config) },
+      });
+      migrated++;
+    }
+    return { migrated, skipped };
+  }
 
   async test(id: string) {
     const integration = await this.prisma.integration.findUnique({ where: { id } });
