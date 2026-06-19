@@ -1,7 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { HubspotAdapter, SalesforceAdapter, ZohoAdapter } from '../shared/adapters/crm.adapter';
+import { WhatsAppCloudAdapter } from '../shared/adapters/messaging.adapter';
+import { TwilioSmsAdapter } from '../shared/adapters/sms.adapter';
+import { CalendlyAdapter, GoogleCalendarAdapter } from '../shared/adapters/calendar.adapter';
+import { CircuitBreaker } from '../shared/circuit-breaker';
 import { encrypt, decrypt, isEncrypted } from '../shared/crypto.util';
+import { Logger } from '@nestjs/common';
 
 const SECRET_FIELDS = ['apiKey', 'apiSecret', 'secret', 'token', 'password', 'accessToken', 'privateKey', 'clientSecret', 'authToken', 'refreshToken'];
 
@@ -52,11 +57,17 @@ function envelopeDecrypt(config: any): any {
 
 @Injectable()
 export class IntegrationsService {
+  private readonly logger = new Logger(IntegrationsService.name);
+
   constructor(
     private prisma: PrismaService,
     private hubspot: HubspotAdapter,
     private salesforce: SalesforceAdapter,
     private zoho: ZohoAdapter,
+    private whatsApp: WhatsAppCloudAdapter,
+    private twilioSms: TwilioSmsAdapter,
+    private calendly: CalendlyAdapter,
+    private googleCalendar: GoogleCalendarAdapter,
   ) {}
 
   findAll(query: any = {}) {
@@ -100,13 +111,23 @@ export class IntegrationsService {
     const integration = await this.prisma.integration.findUnique({ where: { id } });
     if (!integration) throw new NotFoundException('Integration not found');
 
-    let isHealthy = false;
     const config = envelopeDecrypt(integration.config as any);
+    let isHealthy = false;
+
+    const breaker = new CircuitBreaker(`health-${integration.type}-${id}`, 3, 15000);
+
     switch (integration.type) {
-      case 'HUBSPOT': isHealthy = await this.hubspot.healthCheck(config); break;
-      case 'SALESFORCE': isHealthy = await this.salesforce.healthCheck(config); break;
-      case 'ZOHO': isHealthy = await this.zoho.healthCheck(config); break;
-      default: return { name: integration.name, type: integration.type, status: 'unimplemented', testedAt: new Date(), message: 'Health check not implemented for this integration type' };
+      case 'HUBSPOT': isHealthy = await breaker.call(() => this.hubspot.healthCheck(config), () => Promise.resolve(false)); break;
+      case 'SALESFORCE': isHealthy = await breaker.call(() => this.salesforce.healthCheck(config), () => Promise.resolve(false)); break;
+      case 'ZOHO': isHealthy = await breaker.call(() => this.zoho.healthCheck(config), () => Promise.resolve(false)); break;
+      case 'WHATSAPP': isHealthy = await breaker.call(() => this.whatsApp.healthCheck(config), () => Promise.resolve(false)); break;
+      case 'TWILIO_SMS':
+        isHealthy = !!config?.TWILIO_ACCOUNT_SID;
+        if (!isHealthy) this.logger.warn(`Twilio SMS health check: missing TWILIO_ACCOUNT_SID`);
+        break;
+      case 'CALENDLY': isHealthy = await breaker.call(() => this.calendly.healthCheck(config), () => Promise.resolve(false)); break;
+      case 'GOOGLE_CALENDAR': isHealthy = await breaker.call(() => this.googleCalendar.healthCheck(config), () => Promise.resolve(false)); break;
+      default: return { name: integration.name, type: integration.type, status: 'unsupported' as const, testedAt: new Date() };
     }
 
     const newStatus = isHealthy ? 'connected' : 'disconnected';
