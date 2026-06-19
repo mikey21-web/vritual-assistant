@@ -1,18 +1,22 @@
-FROM node:20-alpine AS builder
+# syntax=docker/dockerfile:1
+FROM node:20-alpine AS build
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
-RUN npx prisma generate && npm run build
+RUN npx prisma generate
+RUN npm run build
 
-FROM node:20-alpine
+FROM node:20-alpine AS production
 WORKDIR /app
+RUN apk add --no-cache curl
 COPY package*.json ./
-RUN npm ci --omit=dev && npm install prisma@^5.19.1 --no-save
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/prisma ./prisma
-RUN mkdir -p /app/uploads && chown -R node:node /app
-USER node
+RUN npm ci --omit=dev
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=build /app/prisma ./prisma
+COPY --from=build /app/package.json ./
 EXPOSE 3001
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD curl -f http://localhost:3001/health || exit 1
+CMD npx prisma migrate deploy && node dist/main

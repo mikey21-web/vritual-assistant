@@ -14,3 +14,8 @@ class Settings(BaseSettings):
     max_agent_steps: int = 12
     request_timeout_seconds: float = 20.0
     port: int = 8000
+
+    # Langfuse tracing (self-hosted, env-gated; no-op if unset)
+    langfuse_host: str | None = None
+    langfuse_public_key: str | None = None
+    langfuse_secret_key: str | None = None

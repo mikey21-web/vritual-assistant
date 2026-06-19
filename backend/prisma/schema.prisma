@@ -1139,3 +1139,28 @@ model WorkflowStepRun {
   @@index([status])
   @@map("workflow_step_runs")
 }
+
+model OutboxMessage {
+  id                 String   @id @default(uuid())
+  channel            String
+  recipient          String
+  text               String
+  leadId             String?
+  contactId          String?
+  conversationMessageId String?
+  idempotencyKey     String   @unique
+  status             String   @default("pending") // pending | delivered | failed
+  attempts           Int      @default(0)
+  maxAttempts        Int      @default(3)
+  lastError          String?
+  scheduledAt        DateTime @default(now())
+  lockedAt           DateTime?
+  deliveredAt        DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([status])
+  @@index([idempotencyKey])
+  @@index([scheduledAt])
+  @@map("outbox_messages")
+}

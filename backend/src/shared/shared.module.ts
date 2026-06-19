@@ -1,5 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 import { SignedUrlService } from './signed-url.service';
+import { OutboxService } from './outbox.service';
 import { WebhookSecurityService } from './webhook-security.service';
 import { HealthService } from './health.service';
 import { PackApplierService } from './pack-applier.service';
@@ -17,13 +18,13 @@ import { HealthController } from './health.controller';
     SignedUrlService, WebhookSecurityService, HealthService, PackApplierService,
     HubspotAdapter, SalesforceAdapter, ZohoAdapter,
     CalendlyAdapter, GoogleCalendarAdapter,
-    WhatsAppCloudAdapter, TwilioSmsAdapter, EmailAdapter,
+    WhatsAppCloudAdapter, TwilioSmsAdapter, EmailAdapter, OutboxService,
   ],
   exports: [
     SignedUrlService, WebhookSecurityService, HealthService, PackApplierService,
     HubspotAdapter, SalesforceAdapter, ZohoAdapter,
     CalendlyAdapter, GoogleCalendarAdapter,
-    WhatsAppCloudAdapter, TwilioSmsAdapter, EmailAdapter,
+    WhatsAppCloudAdapter, TwilioSmsAdapter, EmailAdapter, OutboxService,
   ],
 })
 export class SharedModule {}
