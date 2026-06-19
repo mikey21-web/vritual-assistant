@@ -1,5 +1,5 @@
 import { api } from './api';
-import type { Lead, Contact, Campaign, Task, Message, Template, Integration, BookingSetting, CrmMapping, ScoringRule, RoutingRule, AutomationRule, PipelineStage, FailureRecord, NicheTemplate, Tenant, User, HealthReport, AnalyticsOverview } from './types';
+import type { Lead, Contact, Campaign, Task, Message, Template, Integration, BookingSetting, CrmMapping, ScoringRule, RoutingRule, AutomationRule, PipelineStage, FailureRecord, User, HealthReport, AnalyticsOverview } from './types';
 
 const PAGE = (page = 1, limit = 20) => `?page=${page}&limit=${limit}`;
 
@@ -83,18 +83,6 @@ export async function updateBusinessSettings(data: any) { return api('/business-
 export async function fetchFailures(filter = 'all') { return api(filter === 'open' ? '/failures/open' : '/failures') as Promise<FailureRecord[]>; }
 export async function retryFailure(id: string) { return api(`/failures/${id}/retry`, { method: 'POST' }); }
 export async function resolveFailure(id: string) { return api(`/failures/${id}/resolve`, { method: 'POST' }); }
-
-export async function fetchTenants() { return api('/tenants?limit=200') as Promise<{ data: Tenant[]; total: number }>; }
-export async function createTenant(data: any) { return api('/tenants', { method: 'POST', body: JSON.stringify(data) }); }
-export async function deleteTenant(id: string) { return api(`/tenants/${id}?purgeData=true`, { method: 'DELETE' }); }
-export async function provisionTenant(id: string, data: any) { return api(`/tenants/${id}/provision`, { method: 'POST', body: JSON.stringify(data) }); }
-export async function fetchMyNiche() { return api('/tenants/me/myniche') as Promise<any>; }
-
-export async function fetchNicheTemplates() { return api('/niche-templates') as Promise<NicheTemplate[]>; }
-export async function fetchInstallations() { return api('/niche-templates/installations/all') as Promise<any[]>; }
-export async function publishTemplate(id: string) { return api(`/niche-templates/${id}/publish`, { method: 'POST' }); }
-export async function applyTemplate(id: string, clientKey?: string) { return api(`/niche-templates/${id}/apply`, { method: 'POST', body: JSON.stringify({ clientKey: clientKey || 'default' }) }); }
-export async function dryRunTemplate(id: string) { return api(`/niche-templates/${id}/dry-run`, { method: 'POST', body: JSON.stringify({}) }); }
 
 export async function fetchAutomationRules() { return api('/rules') as Promise<AutomationRule[]>; }
 export async function createAutomationRule(data: any) { return api('/rules', { method: 'POST', body: JSON.stringify(data) }); }

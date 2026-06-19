@@ -23,20 +23,12 @@ describe('AuthService', () => {
     active: true,
   };
 
-  const mockTenant = {
-    id: 'tenant-1',
-    name: 'Test Tenant',
-    key: 'test-tenant',
-  };
-
   beforeEach(async () => {
     prisma = {
       user: {
         findUnique: jest.fn(),
+        findFirst: jest.fn().mockResolvedValue({ id: 'admin-1', role: 'OWNER' }),
         create: jest.fn(),
-      },
-      tenant: {
-        findUnique: jest.fn().mockResolvedValue(mockTenant),
       },
     };
 

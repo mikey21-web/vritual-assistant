@@ -30,7 +30,6 @@ const PageComponents: Record<string, React.LazyExoticComponent<React.ComponentTy
   AuditLogs: lazy(() => import("./pages/AuditLogsPage")),
   Advanced: lazy(() => import("./pages/AdvancedPage")),
   Settings: lazy(() => import("./pages/SettingsPage")),
-  NicheTemplates: lazy(() => import("./pages/NicheTemplatesPage")),
   Workspace: lazy(() => import("./pages/WorkspacePage")),
   Failures: lazy(() => import("./pages/FailuresPage")),
   Health: lazy(() => import("./pages/HealthPage")),
@@ -63,7 +62,7 @@ function getPageKey(path: string): string {
     "/integrations": "Integrations", "/crm": "CRM", "/booking": "Booking",
     "/analytics": "Analytics", "/team": "Team",
     "/audit-logs": "AuditLogs", "/advanced": "Advanced",
-    "/settings": "Settings", "/niche-templates": "NicheTemplates",
+    "/settings": "Settings",
     "/workspace": "Workspace", "/failures": "Failures", "/health": "Health",
   };
   return map[path] || "Overview";

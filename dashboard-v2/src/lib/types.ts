@@ -167,29 +167,6 @@ export interface FailureRecord {
   createdAt: string;
 }
 
-export interface NicheTemplate {
-  id: string;
-  key: string;
-  name: string;
-  industry: string;
-  version: number;
-  status: string;
-  _count: { packs: number };
-}
-
-export interface Tenant {
-  id: string;
-  key: string;
-  name: string;
-  industry: string;
-  status: string;
-  contactEmail?: string;
-  contactName?: string;
-  createdAt: string;
-  _count: { users: number; leads: number; campaigns: number };
-  installations: { template: { key: string; name: string; industry: string } }[];
-}
-
 export interface User {
   id: string;
   name: string;
@@ -221,5 +198,5 @@ export type NavigationPage =
   | 'Overview' | 'Leads' | 'Contacts' | 'Campaigns' | 'Forms' | 'QR Codes'
   | 'Messages' | 'Templates' | 'Media' | 'Nurture' | 'Scoring' | 'Routing'
   | 'Tasks' | 'Conversions' | 'Integrations' | 'CRM' | 'Booking' | 'Analytics'
-  | 'Team' | 'Audit Logs' | 'Advanced' | 'Settings' | 'Clients' | 'Niche Templates'
-  | 'Client Workspace' | 'Failures' | 'Health';
+  | 'Team' | 'Audit Logs' | 'Advanced' | 'Settings' | 'Workspace'
+  | 'Failures' | 'Health';
