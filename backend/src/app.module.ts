@@ -40,6 +40,8 @@ import { FailuresModule } from './failures/failures.module';
 import { RulesModule } from './rules/rules.module';
 import { AutomationModule } from './automation/automation.module';
 import { BootstrapModule } from './bootstrap/bootstrap.module';
+import { BillingModule } from './billing/billing.module';
+import { ComplianceModule } from './compliance/compliance.module';
 import { PermissionsModule } from './permissions/permissions.module';
 import { AgentModule } from './agent/agent.module';
 
@@ -94,6 +96,8 @@ import { AgentModule } from './agent/agent.module';
     RulesModule,
     BootstrapModule,
     AutomationModule,
+    BillingModule,
+    ComplianceModule,
     PermissionsModule,
     AgentModule,
   ],

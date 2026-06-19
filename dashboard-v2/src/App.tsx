@@ -1,104 +1,163 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
-import { Toaster } from 'react-hot-toast';
-import { Menu, X, Search } from 'lucide-react';
-import { useAuth } from './lib/useAuth';
-import { AppProvider } from './context/AppContext';
-import Sidebar from './components/Sidebar';
-import OverviewPage from './pages/OverviewPage';
-import LeadsPage from './pages/LeadsPage';
-import ContactsPage from './pages/ContactsPage';
-import CampaignsPage from './pages/CampaignsPage';
-import FormsPage from './pages/FormsPage';
-import QRCodesPage from './pages/QRCodesPage';
-import MessagesPage from './pages/MessagesPage';
-import LoginPage from './pages/LoginPage';
-import CommandPalette from './components/CommandPalette';
+import { useState, useEffect, lazy, Suspense } from "react";
+import { Toaster, toast } from "sonner";
+import { useAuth } from "./lib/useAuth";
+import { AppProvider } from "./context/AppContext";
+import { Sidebar } from "./components/layout/sidebar";
+import { Topbar } from "./components/layout/topbar";
+import { LoginPage } from "./pages/LoginPage";
+import { Skeleton } from "./components/ui/skeleton";
+import OverviewPage from "./pages/OverviewPage";
+import LeadsPage from "./pages/LeadsPage";
+import ContactsPage from "./pages/ContactsPage";
+import CampaignsPage from "./pages/CampaignsPage";
+import FormsPage from "./pages/FormsPage";
+import QRCodesPage from "./pages/QRCodesPage";
+import MessagesPage from "./pages/MessagesPage";
 
 const PageComponents: Record<string, React.LazyExoticComponent<React.ComponentType<any>>> = {
-  Templates: lazy(() => import('./pages/TemplatesPage')),
-  Media: lazy(() => import('./pages/MediaPage')),
-  Nurture: lazy(() => import('./pages/NurturePage')),
-  Scoring: lazy(() => import('./pages/ScoringPage')),
-  Routing: lazy(() => import('./pages/RoutingPage')),
-  Tasks: lazy(() => import('./pages/TasksPage')),
-  Conversions: lazy(() => import('./pages/ConversionsPage')),
-  Integrations: lazy(() => import('./pages/IntegrationsPage')),
-  CRM: lazy(() => import('./pages/CRMPage')),
-  Booking: lazy(() => import('./pages/BookingPage')),
-  Analytics: lazy(() => import('./pages/AnalyticsPage')),
-  Team: lazy(() => import('./pages/TeamPage')),
-  AuditLogs: lazy(() => import('./pages/AuditLogsPage')),
-  Advanced: lazy(() => import('./pages/AdvancedPage')),
-  Settings: lazy(() => import('./pages/SettingsPage')),
-  Clients: lazy(() => import('./pages/ClientsPage')),
-  NicheTemplates: lazy(() => import('./pages/NicheTemplatesPage')),
-  Workspace: lazy(() => import('./pages/WorkspacePage')),
-  Failures: lazy(() => import('./pages/FailuresPage')),
-  Health: lazy(() => import('./pages/HealthPage')),
+  Templates: lazy(() => import("./pages/TemplatesPage")),
+  Media: lazy(() => import("./pages/MediaPage")),
+  Nurture: lazy(() => import("./pages/NurturePage")),
+  Scoring: lazy(() => import("./pages/ScoringPage")),
+  Routing: lazy(() => import("./pages/RoutingPage")),
+  Tasks: lazy(() => import("./pages/TasksPage")),
+  Conversions: lazy(() => import("./pages/ConversionsPage")),
+  Integrations: lazy(() => import("./pages/IntegrationsPage")),
+  CRM: lazy(() => import("./pages/CRMPage")),
+  Booking: lazy(() => import("./pages/BookingPage")),
+  Analytics: lazy(() => import("./pages/AnalyticsPage")),
+  Team: lazy(() => import("./pages/TeamPage")),
+  AuditLogs: lazy(() => import("./pages/AuditLogsPage")),
+  Advanced: lazy(() => import("./pages/AdvancedPage")),
+  Settings: lazy(() => import("./pages/SettingsPage")),
+  NicheTemplates: lazy(() => import("./pages/NicheTemplatesPage")),
+  Workspace: lazy(() => import("./pages/WorkspacePage")),
+  Failures: lazy(() => import("./pages/FailuresPage")),
+  Health: lazy(() => import("./pages/HealthPage")),
 };
 
-const pageMap: Record<string, any> = {
-  Overview: OverviewPage, Leads: LeadsPage, Contacts: ContactsPage, Campaigns: CampaignsPage, Forms: FormsPage,
-  'QR Codes': QRCodesPage, Messages: MessagesPage,
-};
-
-function DashboardContent() {
-  const { user, isLoggedIn, logout, fetchProfile } = useAuth();
-  const [page, setPage] = useState<any>('Overview');
-  const [collapsed, setCollapsed] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [commandOpen, setCommandOpen] = useState(false);
-
-  useEffect(() => {
-    fetchProfile();
-  }, []);
-
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); setCommandOpen(p => !p); } };
-    window.addEventListener('keydown', h);
-    return () => window.removeEventListener('keydown', h);
-  }, []);
-
-  const renderPage = () => {
-    const name = page.replace(/ /g, '');
-    const LazyPage = PageComponents[name as keyof typeof PageComponents];
-    const PageComponent = pageMap[page];
-    if (PageComponent) return <PageComponent />;
-    if (LazyPage) return <Suspense fallback={<div className="p-8 text-gray-400">Loading...</div>}><LazyPage /></Suspense>;
-    return <OverviewPage />;
-  };
-
+function PageFallback() {
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-gray-50/50 text-gray-800">
-      <Toaster position="bottom-right" />
-      {mobileOpen && <div onClick={() => setMobileOpen(false)} className="fixed inset-0 bg-gray-950/40 backdrop-blur-xs z-40 md:hidden" />}
-      <div className={`fixed inset-y-0 left-0 z-50 md:static flex shrink-0 h-full transition-transform duration-300 md:translate-x-0 ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:block'}`}>
-        <Sidebar activePage={page} onNavigate={(p) => { setPage(p); setMobileOpen(false); }} isCollapsed={collapsed} onToggleCollapse={() => setCollapsed(!collapsed)} userEmail={user?.email} />
+    <div className="p-6 space-y-4">
+      <Skeleton className="h-8 w-48" />
+      <Skeleton className="h-4 w-72" />
+      <div className="grid grid-cols-3 gap-4 mt-6">
+        <Skeleton className="h-24 rounded-lg" />
+        <Skeleton className="h-24 rounded-lg" />
+        <Skeleton className="h-24 rounded-lg" />
       </div>
-      <div className="flex-1 flex flex-col min-w-0 h-full relative overflow-hidden">
-        <header className="h-14 bg-white border-b border-gray-200/50 px-4 flex items-center justify-between shrink-0 select-none">
-          <div className="flex items-center gap-3">
-            <button onClick={() => setMobileOpen(!mobileOpen)} className="md:hidden text-gray-500 p-1.5 border border-gray-200 rounded-lg">
-              {mobileOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
-            </button>
-            <span className="text-xs font-semibold text-gray-800 font-mono uppercase hidden md:block">Lead Auto v2.4</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <button onClick={() => setCommandOpen(true)} className="flex items-center gap-2 px-3 py-1.5 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100">
-              <Search className="w-3.5 h-3.5" /> <span>Ctrl+K</span>
-            </button>
-            <button onClick={logout} className="text-xs text-gray-400 hover:text-gray-600">Logout</button>
-          </div>
-        </header>
-        <main className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 container mx-auto max-w-7xl">{renderPage()}</main>
-      </div>
-      <CommandPalette isOpen={commandOpen} onClose={() => setCommandOpen(false)} leads={[]} campaigns={[]} settings={null as any} onNavigate={(p: any) => { setPage(p); setCommandOpen(false); }} />
+      <Skeleton className="h-64 rounded-lg mt-4" />
     </div>
   );
 }
 
+function getPageKey(path: string): string {
+  const map: Record<string, string> = {
+    "/": "Overview",
+    "/leads": "Leads", "/contacts": "Contacts",
+    "/campaigns": "Campaigns", "/forms": "Forms", "/qr-codes": "QRCodes",
+    "/conversations": "Messages", "/messages": "Messages",
+    "/templates": "Templates", "/media": "Media",
+    "/nurture": "Nurture", "/scoring": "Scoring", "/rules": "Rules",
+    "/tasks": "Tasks", "/conversions": "Conversions",
+    "/integrations": "Integrations", "/crm": "CRM", "/booking": "Booking",
+    "/analytics": "Analytics", "/team": "Team",
+    "/audit-logs": "AuditLogs", "/advanced": "Advanced",
+    "/settings": "Settings", "/niche-templates": "NicheTemplates",
+    "/workspace": "Workspace", "/failures": "Failures", "/health": "Health",
+  };
+  return map[path] || "Overview";
+}
+
+const pageRoutes: Record<string, React.ComponentType<any>> = {
+  Overview: OverviewPage,
+  Leads: LeadsPage,
+  Contacts: ContactsPage,
+  Campaigns: CampaignsPage,
+  Forms: FormsPage,
+  QRCodes: QRCodesPage,
+  Messages: MessagesPage,
+};
+
 export default function App() {
-  const { isLoggedIn } = useAuth();
-  if (!isLoggedIn) return <LoginPage />;
-  return <AppProvider><DashboardContent /></AppProvider>;
+  const { user, login, logout, fetchProfile, loading, isLoggedIn } = useAuth();
+  const [page, setPage] = useState("Overview");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [dark, setDark] = useState(() => localStorage.getItem("theme") === "dark");
+
+  useEffect(() => {
+    fetchProfile();
+    const onHash = () => {
+      const hash = window.location.hash.replace("#", "") || "/";
+      setPage(getPageKey(hash));
+    };
+    onHash();
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", dark);
+    localStorage.setItem("theme", dark ? "dark" : "light");
+  }, [dark]);
+
+  const navigate = (path: string) => {
+    window.location.hash = path;
+    setPage(getPageKey(path));
+  };
+
+  const handleLogin = async (email: string, password: string) => {
+    await login(email, password);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[var(--background)]">
+        <div className="flex items-center gap-2">
+          <div className="h-8 w-8 rounded-lg bg-[var(--primary)] flex items-center justify-center">
+            <span className="text-sm font-bold text-white">LA</span>
+          </div>
+          <span className="font-display text-lg font-bold">LeadAuto</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isLoggedIn) {
+    return <LoginPage onLogin={handleLogin} />;
+  }
+
+  const PageComponent = pageRoutes[page] || PageComponents[page];
+
+  return (
+    <AppProvider>
+      <div className="flex h-screen bg-[var(--background)] text-[var(--foreground)]">
+        <Sidebar
+          collapsed={sidebarCollapsed}
+          onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+        />
+
+        <div className={`flex flex-1 flex-col transition-all duration-300 ${sidebarCollapsed ? "ml-16" : "ml-64"}`}>
+          <Topbar
+            onMenuToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+            dark={dark}
+            onThemeToggle={() => setDark(!dark)}
+          />
+
+          <main className="flex-1 overflow-auto p-6">
+            <Suspense fallback={<PageFallback />}>
+              {PageComponent ? (
+                <PageComponent />
+              ) : (
+                <div className="flex h-full items-center justify-center text-[var(--muted-foreground)]">
+                  Page not found
+                </div>
+              )}
+            </Suspense>
+          </main>
+        </div>
+      </div>
+      <Toaster richColors position="top-right" />
+    </AppProvider>
+  );
 }
