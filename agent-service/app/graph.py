@@ -53,13 +53,11 @@ async def _load_context(state: AgentState, config: dict) -> AgentState:
     nich = state.get("niche_config")
 
     try:
-        lead, conversations, niche_raw = await asyncio.gather(
+        lead, conversations = await asyncio.gather(
             client._get(f"/leads/{lead_id}"),
             client._get(f"/leads/{lead_id}/conversations"),
-            # In single-tenant mode, the agent loads niche config from the local file
-            # (mounted read-only from the host at deploy time)
-            load_niche_config_from_file(),
         )
+        niche_raw = load_niche_config_from_file()
     except BackendError as e:
         if e.status in (401, 403):
             logger.error("load_context_auth_failed", status=e.status, endpoint=e.endpoint)
@@ -195,7 +193,6 @@ async def _persist_node(state: AgentState, config: dict) -> AgentState:
         await client.post_run_summary({
             "runId": run_id,
             "leadId": state["lead_id"],
-            "tenantId": state["tenant_id"],
             "actions": resolved_actions,
             "model": settings.agent_model,
             "startedAt": started_at,

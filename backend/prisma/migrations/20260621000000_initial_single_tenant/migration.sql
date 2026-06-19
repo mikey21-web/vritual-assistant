@@ -1,5 +1,5 @@
 -- CreateEnum
-CREATE TYPE "UserRole" AS ENUM ('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT', 'SUPPORT_AGENT', 'VIEWER');
+CREATE TYPE "UserRole" AS ENUM ('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT');
 
 -- CreateEnum
 CREATE TYPE "LeadSource" AS ENUM ('CAMPAIGN', 'QR_CODE', 'FORM', 'CHATBOT', 'MOBILE_APP', 'WHATSAPP', 'SOCIAL_MEDIA', 'PHONE_CALL');
@@ -67,6 +67,11 @@ CREATE TABLE "business_settings" (
     "defaultBookingTool" TEXT,
     "workingHoursStart" TEXT,
     "workingHoursEnd" TEXT,
+    "quietHoursStart" TEXT,
+    "quietHoursEnd" TEXT,
+    "autonomyLevel" TEXT NOT NULL DEFAULT 'full',
+    "consentRequired" BOOLEAN NOT NULL DEFAULT true,
+    "maxMessagesPerDay" INTEGER NOT NULL DEFAULT 10,
     "notificationEmail" TEXT,
     "notificationPhone" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -87,6 +92,11 @@ CREATE TABLE "contacts" (
     "preferredChannel" TEXT,
     "metadata" JSONB NOT NULL DEFAULT '{}',
     "tags" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "consentStatus" TEXT NOT NULL DEFAULT 'unknown',
+    "consentSource" TEXT,
+    "consentAt" TIMESTAMP(3),
+    "optedOutAt" TIMESTAMP(3),
+    "agentMemory" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -116,6 +126,18 @@ CREATE TABLE "leads" (
     "assignedAgentId" TEXT,
 
     CONSTRAINT "leads_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "consent_events" (
+    "id" TEXT NOT NULL,
+    "contactId" TEXT NOT NULL,
+    "channel" TEXT NOT NULL,
+    "action" TEXT NOT NULL,
+    "source" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "consent_events_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -448,6 +470,22 @@ CREATE TABLE "automation_events" (
 );
 
 -- CreateTable
+CREATE TABLE "scheduled_actions" (
+    "id" TEXT NOT NULL,
+    "leadId" TEXT NOT NULL,
+    "kind" TEXT NOT NULL,
+    "runAt" TIMESTAMP(3) NOT NULL,
+    "payload" JSONB NOT NULL DEFAULT '{}',
+    "status" TEXT NOT NULL DEFAULT 'pending',
+    "dedupeKey" TEXT NOT NULL,
+    "attempts" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "scheduled_actions_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "webhook_events" (
     "id" TEXT NOT NULL,
     "provider" TEXT NOT NULL,
@@ -504,6 +542,281 @@ CREATE TABLE "custom_field_values" (
     CONSTRAINT "custom_field_values_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "lead_ownership_history" (
+    "id" TEXT NOT NULL,
+    "leadId" TEXT NOT NULL,
+    "fromUserId" TEXT,
+    "toUserId" TEXT,
+    "changedBy" TEXT,
+    "reason" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "lead_ownership_history_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "pipeline_stages" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "order" INTEGER NOT NULL DEFAULT 0,
+    "color" TEXT NOT NULL DEFAULT '#6b7280',
+    "isDefault" BOOLEAN NOT NULL DEFAULT false,
+    "isEnd" BOOLEAN NOT NULL DEFAULT false,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "pipeline_stages_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "saved_filters" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "entity" TEXT NOT NULL,
+    "filters" JSONB NOT NULL,
+    "userId" TEXT NOT NULL,
+    "isShared" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "saved_filters_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "internal_notes" (
+    "id" TEXT NOT NULL,
+    "content" TEXT NOT NULL,
+    "leadId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "internal_notes_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "blocklist_entries" (
+    "id" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "value" TEXT NOT NULL,
+    "reason" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "blocklist_entries_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "notification_preferences" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "leadHot" BOOLEAN NOT NULL DEFAULT true,
+    "leadAssigned" BOOLEAN NOT NULL DEFAULT true,
+    "messageReceived" BOOLEAN NOT NULL DEFAULT true,
+    "dailySummary" BOOLEAN NOT NULL DEFAULT false,
+    "webhookFailure" BOOLEAN NOT NULL DEFAULT true,
+    "slaBreach" BOOLEAN NOT NULL DEFAULT true,
+    "channels" JSONB NOT NULL DEFAULT '["in-app"]',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "notification_preferences_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "sla_rules" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "condition" JSONB NOT NULL,
+    "responseTimeMinutes" INTEGER NOT NULL,
+    "escalationUserId" TEXT,
+    "escalationAfterMinutes" INTEGER,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "sla_rules_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "revenue_records" (
+    "id" TEXT NOT NULL,
+    "leadId" TEXT NOT NULL,
+    "amount" DOUBLE PRECISION NOT NULL,
+    "currency" TEXT NOT NULL DEFAULT 'USD',
+    "type" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'pending',
+    "recordedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "revenue_records_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "import_export_logs" (
+    "id" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'processing',
+    "fileUrl" TEXT,
+    "totalRows" INTEGER NOT NULL DEFAULT 0,
+    "processedRows" INTEGER NOT NULL DEFAULT 0,
+    "failedRows" INTEGER NOT NULL DEFAULT 0,
+    "errors" JSONB,
+    "userId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "completedAt" TIMESTAMP(3),
+
+    CONSTRAINT "import_export_logs_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "system_events" (
+    "id" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "source" TEXT NOT NULL DEFAULT 'system',
+    "status" TEXT NOT NULL DEFAULT 'pending',
+    "entityType" TEXT,
+    "entityId" TEXT,
+    "leadId" TEXT,
+    "contactId" TEXT,
+    "campaignId" TEXT,
+    "payload" JSONB NOT NULL DEFAULT '{}',
+    "metadata" JSONB,
+    "correlationId" TEXT,
+    "idempotencyKey" TEXT,
+    "createdById" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "processedAt" TIMESTAMP(3),
+
+    CONSTRAINT "system_events_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "automation_rules" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "category" TEXT NOT NULL,
+    "eventType" TEXT,
+    "priority" INTEGER NOT NULL DEFAULT 100,
+    "conditions" JSONB NOT NULL,
+    "actions" JSONB NOT NULL,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "automation_rules_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "rule_executions" (
+    "id" TEXT NOT NULL,
+    "ruleId" TEXT NOT NULL,
+    "eventId" TEXT,
+    "result" TEXT NOT NULL,
+    "input" JSONB NOT NULL DEFAULT '{}',
+    "output" JSONB,
+    "error" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "rule_executions_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "timeline_items" (
+    "id" TEXT NOT NULL,
+    "leadId" TEXT,
+    "contactId" TEXT,
+    "type" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "description" TEXT,
+    "metadata" JSONB,
+    "createdById" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "timeline_items_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "failure_records" (
+    "id" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'open',
+    "severity" TEXT NOT NULL DEFAULT 'medium',
+    "entityType" TEXT,
+    "entityId" TEXT,
+    "leadId" TEXT,
+    "contactId" TEXT,
+    "provider" TEXT,
+    "operation" TEXT,
+    "message" TEXT NOT NULL,
+    "errorCode" TEXT,
+    "rawError" JSONB,
+    "retryable" BOOLEAN NOT NULL DEFAULT true,
+    "attempts" INTEGER NOT NULL DEFAULT 0,
+    "maxAttempts" INTEGER NOT NULL DEFAULT 5,
+    "nextRetryAt" TIMESTAMP(3),
+    "resolvedAt" TIMESTAMP(3),
+    "resolvedById" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "failure_records_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "workflow_instances" (
+    "id" TEXT NOT NULL,
+    "workflowType" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'running',
+    "leadId" TEXT,
+    "contactId" TEXT,
+    "campaignId" TEXT,
+    "currentStep" TEXT,
+    "context" JSONB NOT NULL DEFAULT '{}',
+    "startedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "completedAt" TIMESTAMP(3),
+    "failedAt" TIMESTAMP(3),
+    "failureReason" TEXT,
+
+    CONSTRAINT "workflow_instances_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "workflow_step_runs" (
+    "id" TEXT NOT NULL,
+    "workflowInstanceId" TEXT NOT NULL,
+    "stepKey" TEXT NOT NULL,
+    "status" TEXT NOT NULL,
+    "input" JSONB,
+    "output" JSONB,
+    "error" TEXT,
+    "startedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "completedAt" TIMESTAMP(3),
+
+    CONSTRAINT "workflow_step_runs_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "outbox_messages" (
+    "id" TEXT NOT NULL,
+    "channel" TEXT NOT NULL,
+    "recipient" TEXT NOT NULL,
+    "text" TEXT NOT NULL,
+    "leadId" TEXT,
+    "contactId" TEXT,
+    "conversationMessageId" TEXT,
+    "idempotencyKey" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'pending',
+    "attempts" INTEGER NOT NULL DEFAULT 0,
+    "maxAttempts" INTEGER NOT NULL DEFAULT 3,
+    "lastError" TEXT,
+    "scheduledAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "lockedAt" TIMESTAMP(3),
+    "deliveredAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "outbox_messages_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
 
@@ -545,6 +858,9 @@ CREATE INDEX "leads_contactId_idx" ON "leads"("contactId");
 
 -- CreateIndex
 CREATE INDEX "leads_createdAt_idx" ON "leads"("createdAt");
+
+-- CreateIndex
+CREATE INDEX "consent_events_contactId_idx" ON "consent_events"("contactId");
 
 -- CreateIndex
 CREATE INDEX "campaigns_active_idx" ON "campaigns"("active");
@@ -628,6 +944,15 @@ CREATE INDEX "automation_events_status_idx" ON "automation_events"("status");
 CREATE INDEX "automation_events_nextRetryAt_idx" ON "automation_events"("nextRetryAt");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "scheduled_actions_dedupeKey_key" ON "scheduled_actions"("dedupeKey");
+
+-- CreateIndex
+CREATE INDEX "scheduled_actions_status_runAt_idx" ON "scheduled_actions"("status", "runAt");
+
+-- CreateIndex
+CREATE INDEX "scheduled_actions_leadId_idx" ON "scheduled_actions"("leadId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "webhook_events_idempotencyKey_key" ON "webhook_events"("idempotencyKey");
 
 -- CreateIndex
@@ -660,6 +985,132 @@ CREATE INDEX "custom_field_values_contactId_idx" ON "custom_field_values"("conta
 -- CreateIndex
 CREATE INDEX "custom_field_values_leadId_idx" ON "custom_field_values"("leadId");
 
+-- CreateIndex
+CREATE INDEX "lead_ownership_history_leadId_idx" ON "lead_ownership_history"("leadId");
+
+-- CreateIndex
+CREATE INDEX "saved_filters_userId_idx" ON "saved_filters"("userId");
+
+-- CreateIndex
+CREATE INDEX "internal_notes_leadId_idx" ON "internal_notes"("leadId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "blocklist_entries_type_value_key" ON "blocklist_entries"("type", "value");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "notification_preferences_userId_key" ON "notification_preferences"("userId");
+
+-- CreateIndex
+CREATE INDEX "revenue_records_leadId_idx" ON "revenue_records"("leadId");
+
+-- CreateIndex
+CREATE INDEX "import_export_logs_userId_idx" ON "import_export_logs"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "system_events_idempotencyKey_key" ON "system_events"("idempotencyKey");
+
+-- CreateIndex
+CREATE INDEX "system_events_type_idx" ON "system_events"("type");
+
+-- CreateIndex
+CREATE INDEX "system_events_status_idx" ON "system_events"("status");
+
+-- CreateIndex
+CREATE INDEX "system_events_leadId_idx" ON "system_events"("leadId");
+
+-- CreateIndex
+CREATE INDEX "system_events_contactId_idx" ON "system_events"("contactId");
+
+-- CreateIndex
+CREATE INDEX "system_events_entityType_entityId_idx" ON "system_events"("entityType", "entityId");
+
+-- CreateIndex
+CREATE INDEX "system_events_correlationId_idx" ON "system_events"("correlationId");
+
+-- CreateIndex
+CREATE INDEX "system_events_idempotencyKey_idx" ON "system_events"("idempotencyKey");
+
+-- CreateIndex
+CREATE INDEX "system_events_createdAt_idx" ON "system_events"("createdAt");
+
+-- CreateIndex
+CREATE INDEX "automation_rules_category_idx" ON "automation_rules"("category");
+
+-- CreateIndex
+CREATE INDEX "automation_rules_eventType_idx" ON "automation_rules"("eventType");
+
+-- CreateIndex
+CREATE INDEX "automation_rules_active_idx" ON "automation_rules"("active");
+
+-- CreateIndex
+CREATE INDEX "automation_rules_priority_idx" ON "automation_rules"("priority");
+
+-- CreateIndex
+CREATE INDEX "rule_executions_ruleId_idx" ON "rule_executions"("ruleId");
+
+-- CreateIndex
+CREATE INDEX "rule_executions_eventId_idx" ON "rule_executions"("eventId");
+
+-- CreateIndex
+CREATE INDEX "rule_executions_createdAt_idx" ON "rule_executions"("createdAt");
+
+-- CreateIndex
+CREATE INDEX "timeline_items_leadId_idx" ON "timeline_items"("leadId");
+
+-- CreateIndex
+CREATE INDEX "timeline_items_contactId_idx" ON "timeline_items"("contactId");
+
+-- CreateIndex
+CREATE INDEX "timeline_items_type_idx" ON "timeline_items"("type");
+
+-- CreateIndex
+CREATE INDEX "timeline_items_createdAt_idx" ON "timeline_items"("createdAt");
+
+-- CreateIndex
+CREATE INDEX "failure_records_status_idx" ON "failure_records"("status");
+
+-- CreateIndex
+CREATE INDEX "failure_records_type_idx" ON "failure_records"("type");
+
+-- CreateIndex
+CREATE INDEX "failure_records_leadId_idx" ON "failure_records"("leadId");
+
+-- CreateIndex
+CREATE INDEX "failure_records_nextRetryAt_idx" ON "failure_records"("nextRetryAt");
+
+-- CreateIndex
+CREATE INDEX "failure_records_createdAt_idx" ON "failure_records"("createdAt");
+
+-- CreateIndex
+CREATE INDEX "workflow_instances_workflowType_idx" ON "workflow_instances"("workflowType");
+
+-- CreateIndex
+CREATE INDEX "workflow_instances_status_idx" ON "workflow_instances"("status");
+
+-- CreateIndex
+CREATE INDEX "workflow_instances_leadId_idx" ON "workflow_instances"("leadId");
+
+-- CreateIndex
+CREATE INDEX "workflow_step_runs_workflowInstanceId_idx" ON "workflow_step_runs"("workflowInstanceId");
+
+-- CreateIndex
+CREATE INDEX "workflow_step_runs_stepKey_idx" ON "workflow_step_runs"("stepKey");
+
+-- CreateIndex
+CREATE INDEX "workflow_step_runs_status_idx" ON "workflow_step_runs"("status");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "outbox_messages_idempotencyKey_key" ON "outbox_messages"("idempotencyKey");
+
+-- CreateIndex
+CREATE INDEX "outbox_messages_status_idx" ON "outbox_messages"("status");
+
+-- CreateIndex
+CREATE INDEX "outbox_messages_idempotencyKey_idx" ON "outbox_messages"("idempotencyKey");
+
+-- CreateIndex
+CREATE INDEX "outbox_messages_scheduledAt_idx" ON "outbox_messages"("scheduledAt");
+
 -- AddForeignKey
 ALTER TABLE "leads" ADD CONSTRAINT "leads_contactId_fkey" FOREIGN KEY ("contactId") REFERENCES "contacts"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
@@ -668,6 +1119,9 @@ ALTER TABLE "leads" ADD CONSTRAINT "leads_assignedAgentId_fkey" FOREIGN KEY ("as
 
 -- AddForeignKey
 ALTER TABLE "leads" ADD CONSTRAINT "leads_campaignId_fkey" FOREIGN KEY ("campaignId") REFERENCES "campaigns"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "consent_events" ADD CONSTRAINT "consent_events_contactId_fkey" FOREIGN KEY ("contactId") REFERENCES "contacts"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "campaigns" ADD CONSTRAINT "campaigns_creatorId_fkey" FOREIGN KEY ("creatorId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -748,6 +1202,9 @@ ALTER TABLE "tasks" ADD CONSTRAINT "tasks_assigneeId_fkey" FOREIGN KEY ("assigne
 ALTER TABLE "conversions" ADD CONSTRAINT "conversions_leadId_fkey" FOREIGN KEY ("leadId") REFERENCES "leads"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "scheduled_actions" ADD CONSTRAINT "scheduled_actions_leadId_fkey" FOREIGN KEY ("leadId") REFERENCES "leads"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -758,4 +1215,61 @@ ALTER TABLE "custom_field_values" ADD CONSTRAINT "custom_field_values_contactId_
 
 -- AddForeignKey
 ALTER TABLE "custom_field_values" ADD CONSTRAINT "custom_field_values_leadId_fkey" FOREIGN KEY ("leadId") REFERENCES "leads"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "lead_ownership_history" ADD CONSTRAINT "lead_ownership_history_leadId_fkey" FOREIGN KEY ("leadId") REFERENCES "leads"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "lead_ownership_history" ADD CONSTRAINT "lead_ownership_history_fromUserId_fkey" FOREIGN KEY ("fromUserId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "lead_ownership_history" ADD CONSTRAINT "lead_ownership_history_toUserId_fkey" FOREIGN KEY ("toUserId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "lead_ownership_history" ADD CONSTRAINT "lead_ownership_history_changedBy_fkey" FOREIGN KEY ("changedBy") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "saved_filters" ADD CONSTRAINT "saved_filters_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "internal_notes" ADD CONSTRAINT "internal_notes_leadId_fkey" FOREIGN KEY ("leadId") REFERENCES "leads"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "internal_notes" ADD CONSTRAINT "internal_notes_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "notification_preferences" ADD CONSTRAINT "notification_preferences_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "sla_rules" ADD CONSTRAINT "sla_rules_escalationUserId_fkey" FOREIGN KEY ("escalationUserId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "revenue_records" ADD CONSTRAINT "revenue_records_leadId_fkey" FOREIGN KEY ("leadId") REFERENCES "leads"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "import_export_logs" ADD CONSTRAINT "import_export_logs_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "system_events" ADD CONSTRAINT "system_events_leadId_fkey" FOREIGN KEY ("leadId") REFERENCES "leads"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "system_events" ADD CONSTRAINT "system_events_contactId_fkey" FOREIGN KEY ("contactId") REFERENCES "contacts"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "rule_executions" ADD CONSTRAINT "rule_executions_ruleId_fkey" FOREIGN KEY ("ruleId") REFERENCES "automation_rules"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "timeline_items" ADD CONSTRAINT "timeline_items_leadId_fkey" FOREIGN KEY ("leadId") REFERENCES "leads"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "timeline_items" ADD CONSTRAINT "timeline_items_contactId_fkey" FOREIGN KEY ("contactId") REFERENCES "contacts"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "failure_records" ADD CONSTRAINT "failure_records_leadId_fkey" FOREIGN KEY ("leadId") REFERENCES "leads"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "workflow_instances" ADD CONSTRAINT "workflow_instances_leadId_fkey" FOREIGN KEY ("leadId") REFERENCES "leads"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "workflow_step_runs" ADD CONSTRAINT "workflow_step_runs_workflowInstanceId_fkey" FOREIGN KEY ("workflowInstanceId") REFERENCES "workflow_instances"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 

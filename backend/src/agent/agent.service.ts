@@ -13,7 +13,7 @@ export class AgentService {
     private timeline: TimelineService,
   ) {}
 
-  async recordRunSummary(dto: { runId: string; leadId: string; tenantId: string; actions: any[]; model: string; startedAt: string; finishedAt: string }) {
+  async recordRunSummary(dto: { runId: string; leadId: string; actions: any[]; model: string; startedAt: string; finishedAt: string }) {
     const actionSummary = (dto.actions || []).map((a: any) =>
       `${a.tool}: ${a.status}`
     ).join(', ') || 'no actions';

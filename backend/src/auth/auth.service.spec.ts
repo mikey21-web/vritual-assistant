@@ -57,7 +57,6 @@ describe('AuthService', () => {
         email: 'test@example.com',
         password: 'password123',
         name: 'Test User',
-        tenantId: 'tenant-1',
       });
 
       expect(result.accessToken).toBe('test-jwt-token');
@@ -69,7 +68,7 @@ describe('AuthService', () => {
       prisma.user.findUnique.mockResolvedValue(mockUser);
 
       await expect(
-        service.register({ email: 'test@example.com', password: 'password123', name: 'Test', tenantId: 'tenant-1' }),
+        service.register({ email: 'test@example.com', password: 'password123', name: 'Test' }),
       ).rejects.toThrow(UnauthorizedException);
     });
   });

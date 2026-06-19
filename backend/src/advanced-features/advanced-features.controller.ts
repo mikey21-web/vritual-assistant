@@ -99,7 +99,7 @@ export class AdvancedFeaturesController {
     return this.svc.processImport(logId, rows, (entity === 'lead' ? 'lead' : 'contact'));
   }
   @Post('export/start') @Roles('OWNER', 'ADMIN', 'MANAGER', 'VIEWER') startExport(@Req() req) { return this.svc.startExport(req.user.sub); }
-  @Post('export/:logId/complete') @Roles('OWNER', 'ADMIN', 'MANAGER') completeExport(@Param('logId') logId: string, @Body() d: { entity: string }, @Req() req) { return this.svc.completeExport(logId, (d.entity === 'lead' ? 'lead' : 'contact'), {}, req.user?.tenantId); }
+  @Post('export/:logId/complete') @Roles('OWNER', 'ADMIN', 'MANAGER') completeExport(@Param('logId') logId: string, @Body() d: { entity: string }) { return this.svc.completeExport(logId, (d.entity === 'lead' ? 'lead' : 'contact')); }
   @Get('import-export/logs') @Roles('OWNER', 'ADMIN', 'MANAGER') getImportLogs(@Req() req) { return this.svc.getImportLogs(req.user.sub); }
 
   // Data retention purge

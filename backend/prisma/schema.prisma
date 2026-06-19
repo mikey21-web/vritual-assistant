@@ -12,8 +12,6 @@ enum UserRole {
   ADMIN
   MANAGER
   SALES_AGENT
-  SUPPORT_AGENT
-  VIEWER
 }
 
 enum LeadSource {
@@ -171,7 +169,6 @@ model User {
   password  String
   role      UserRole @default(SALES_AGENT)
   active    Boolean  @default(true)
-  tenantId  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -198,7 +195,6 @@ model User {
 
 model BusinessSettings {
   id                    String   @id @default(uuid())
-  tenantId              String?
   businessName          String   @default("")
   timezone              String   @default("UTC")
   defaultCurrency       String   @default("USD")
@@ -218,13 +214,11 @@ model BusinessSettings {
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
-  @@index([tenantId])
   @@map("business_settings")
 }
 
 model Contact {
   id               String   @id @default(uuid())
-  tenantId         String?
   name             String?
   email            String?
   phone            String?
@@ -253,15 +247,11 @@ model Contact {
   @@index([email])
   @@index([phone])
   @@index([whatsapp])
-  @@index([tenantId])
-  @@unique([tenantId, phone])
-  @@unique([tenantId, email])
   @@map("contacts")
 }
 
 model Lead {
   id           String      @id @default(uuid())
-  tenantId     String?
   status       LeadStatus  @default(NEW)
   segment      LeadSegment @default(COLD)
   source       LeadSource
@@ -309,9 +299,6 @@ model Lead {
   @@index([assignedAgentId])
   @@index([contactId])
   @@index([createdAt])
-  @@index([tenantId])
-  @@index([tenantId, status])
-  @@index([tenantId, assignedAgentId])
   @@map("leads")
 }
 
@@ -330,7 +317,6 @@ model ConsentEvent {
 
 model Campaign {
   id                String    @id @default(uuid())
-  tenantId          String?
   name              String
   sourceType        LeadSource
   offer             String?
@@ -365,13 +351,11 @@ model Campaign {
 
   @@index([active])
   @@index([sourceType])
-  @@index([tenantId])
   @@map("campaigns")
 }
 
 model LeadForm {
   id        String   @id @default(uuid())
-  tenantId  String?
   name      String
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
@@ -381,7 +365,6 @@ model LeadForm {
   submissions FormSubmission[]
   campaigns   Campaign[]
 
-  @@index([tenantId])
   @@map("lead_forms")
 }
 
@@ -414,7 +397,6 @@ model FormSubmission {
 
 model QrCode {
   id           String   @id @default(uuid())
-  tenantId     String?
   name         String
   destinationType String
   destination  String
@@ -425,7 +407,6 @@ model QrCode {
   scans    QrScan[]
   campaigns Campaign[]
 
-  @@index([tenantId])
   @@map("qr_codes")
 }
 
@@ -458,7 +439,6 @@ model ConversationMessage {
   contact           Contact?        @relation(fields: [contactId], references: [id])
   campaignId        String?
   campaign          Campaign?       @relation(fields: [campaignId], references: [id])
-  tenantId          String?
   createdAt         DateTime        @default(now())
 
   @@index([leadId])
@@ -466,13 +446,11 @@ model ConversationMessage {
   @@index([providerMessageId])
   @@index([channel])
   @@index([direction])
-  @@index([tenantId])
   @@map("conversation_messages")
 }
 
 model MessageTemplate {
   id        String              @id @default(uuid())
-  tenantId  String?
   name      String
   type      MessageTemplateType
   channel   MessageChannel
@@ -489,7 +467,6 @@ model MessageTemplate {
   conversationMsgs  ConversationMessage[]
   nurtureSteps      NurtureStep[]
 
-  @@index([tenantId])
   @@map("message_templates")
 }
 
@@ -521,7 +498,6 @@ model MediaFile {
   contact      Contact?        @relation("ContactMedia", fields: [contactId], references: [id])
   templateId   String?
   template     MessageTemplate? @relation("TemplateMedia", fields: [templateId], references: [id])
-  tenantId     String?
 
   @@index([category])
   @@index([fileType])
@@ -529,13 +505,11 @@ model MediaFile {
   @@index([leadId])
   @@index([campaignId])
   @@index([templateId])
-  @@index([tenantId])
   @@map("media_files")
 }
 
 model NurtureSequence {
   id        String   @id @default(uuid())
-  tenantId  String?
   name      String
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
@@ -545,7 +519,6 @@ model NurtureSequence {
   campaigns Campaign[]
   progress  NurtureProgress[]
 
-  @@index([tenantId])
   @@map("nurture_sequences")
 }
 
@@ -588,7 +561,6 @@ model NurtureProgress {
 
 model ScoringRule {
   id          String   @id @default(uuid())
-  tenantId    String?
   name        String
   description String?
   field       String
@@ -599,7 +571,6 @@ model ScoringRule {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  @@index([tenantId])
   @@map("scoring_rules")
 }
 
@@ -619,7 +590,6 @@ model ScoreLog {
 
 model RoutingRule {
   id          String   @id @default(uuid())
-  tenantId    String?
   name        String
   description String?
   conditions  Json
@@ -628,7 +598,6 @@ model RoutingRule {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  @@index([tenantId])
   @@map("routing_rules")
 }
 
@@ -643,20 +612,17 @@ model Task {
   lead        Lead?    @relation(fields: [leadId], references: [id])
   assigneeId  String?
   assignee    User?    @relation(fields: [assigneeId], references: [id])
-  tenantId    String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([status])
   @@index([assigneeId])
   @@index([leadId])
-  @@index([tenantId])
   @@map("tasks")
 }
 
 model Conversion {
   id             String               @id @default(uuid())
-  tenantId       String?
   destination    ConversionDestination
   status         ConversionStatus     @default(REQUESTED)
   externalId     String?
@@ -671,13 +637,11 @@ model Conversion {
   @@index([leadId])
   @@index([destination])
   @@index([status])
-  @@index([tenantId])
   @@map("conversions")
 }
 
 model Integration {
   id         String   @id @default(uuid())
-  tenantId   String?
   type       String
   name       String
   config     Json
@@ -687,13 +651,11 @@ model Integration {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  @@index([tenantId])
   @@map("integrations")
 }
 
 model CrmMapping {
   id          String   @id @default(uuid())
-  tenantId    String?
   name        String
   crmType     String
   fieldMappings Json
@@ -701,13 +663,11 @@ model CrmMapping {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  @@index([tenantId])
   @@map("crm_mappings")
 }
 
 model BookingSetting {
   id           String   @id @default(uuid())
-  tenantId     String?
   name         String
   provider     String
   config       Json
@@ -715,7 +675,6 @@ model BookingSetting {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  @@index([tenantId])
   @@map("booking_settings")
 }
 
@@ -779,20 +738,17 @@ model AuditLog {
   user      User?    @relation(fields: [userId], references: [id])
   changes   Json?
   metadata  Json?
-  tenantId  String?
   createdAt DateTime @default(now())
 
   @@index([entity])
   @@index([entityId])
   @@index([userId])
   @@index([createdAt])
-  @@index([tenantId])
   @@map("audit_logs")
 }
 
 model CustomFieldDefinition {
   id       String            @id @default(uuid())
-  tenantId String?
   name     String
   key      String
   type     CustomFieldType
@@ -804,7 +760,7 @@ model CustomFieldDefinition {
   createdAt DateTime          @default(now())
   values   CustomFieldValue[]
 
-  @@unique([key, target, tenantId])
+  @@unique([key, target])
   @@map("custom_field_definitions")
 }
 
@@ -845,7 +801,6 @@ model LeadOwnershipHistory {
 
 model PipelineStage {
   id          String   @id @default(uuid())
-  tenantId    String?
   name        String
   order       Int      @default(0)
   color       String   @default("#6b7280")
@@ -854,7 +809,6 @@ model PipelineStage {
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
 
-  @@index([tenantId])
   @@map("pipeline_stages")
 }
 
@@ -887,14 +841,12 @@ model InternalNote {
 
 model BlocklistEntry {
   id        String   @id @default(uuid())
-  tenantId  String?
   type      String
   value     String
   reason    String?
   createdAt DateTime @default(now())
 
-  @@unique([type, value, tenantId])
-  @@index([tenantId])
+  @@unique([type, value])
   @@map("blocklist_entries")
 }
 
@@ -917,7 +869,6 @@ model NotificationPreference {
 
 model SlaRule {
   id            String   @id @default(uuid())
-  tenantId      String?
   name          String
   condition     Json
   responseTimeMinutes Int
@@ -927,7 +878,6 @@ model SlaRule {
   active        Boolean  @default(true)
   createdAt     DateTime @default(now())
 
-  @@index([tenantId])
   @@map("sla_rules")
 }
 
@@ -940,11 +890,9 @@ model RevenueRecord {
   type        String
   status      String   @default("pending")
   recordedAt  DateTime @default(now())
-  tenantId    String?
   createdAt   DateTime @default(now())
 
   @@index([leadId])
-  @@index([tenantId])
   @@map("revenue_records")
 }
 
@@ -985,7 +933,6 @@ model SystemEvent {
   correlationId   String?
   idempotencyKey  String?   @unique
   createdById     String?
-  tenantId        String?
   createdAt       DateTime  @default(now())
   processedAt     DateTime?
 
@@ -997,13 +944,11 @@ model SystemEvent {
   @@index([correlationId])
   @@index([idempotencyKey])
   @@index([createdAt])
-  @@index([tenantId])
   @@map("system_events")
 }
 
 model AutomationRule {
   id          String    @id @default(uuid())
-  tenantId    String?
   name        String
   description String?
   category    String
@@ -1021,7 +966,6 @@ model AutomationRule {
   @@index([eventType])
   @@index([active])
   @@index([priority])
-  @@index([tenantId])
   @@map("automation_rules")
 }
 
@@ -1051,7 +995,6 @@ model TimelineItem {
   description String?
   metadata    Json?
   createdById String?
-  tenantId    String?
   createdAt   DateTime  @default(now())
 
   lead    Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
@@ -1061,7 +1004,6 @@ model TimelineItem {
   @@index([contactId])
   @@index([type])
   @@index([createdAt])
-  @@index([tenantId])
   @@map("timeline_items")
 }
 
@@ -1086,7 +1028,6 @@ model FailureRecord {
   nextRetryAt    DateTime?
   resolvedAt     DateTime?
   resolvedById   String?
-  tenantId       String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -1095,7 +1036,6 @@ model FailureRecord {
   @@index([leadId])
   @@index([nextRetryAt])
   @@index([createdAt])
-  @@index([tenantId])
   @@map("failure_records")
 }
 

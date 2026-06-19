@@ -28,15 +28,12 @@ export class FormsService {
   async deleteField(formId: string, fieldId: string) { return this.prisma.leadFormField.delete({ where: { id: fieldId } }); }
 
   async submit(formId: string, payload: any) {
-    const form = await this.findOne(formId);
-    if (!form.tenantId) throw new NotFoundException('Form is not associated with a tenant');
+    await this.findOne(formId);
     const contact = await this.contactsService.findOrCreate({
       name: payload.name, email: payload.email, phone: payload.phone, whatsapp: payload.whatsapp, company: payload.company,
-      tenantId: form.tenantId,
     });
     const lead = await this.leadsService.create({
       contactId: contact.id, source: 'FORM', message: payload.message, interest: payload.interest, metadata: payload,
-      tenantId: form.tenantId,
     });
     await this.prisma.formSubmission.create({ data: { formId, payload, leadId: lead.id } });
     await this.auditLogs.log('form_submitted', 'LeadForm', formId);

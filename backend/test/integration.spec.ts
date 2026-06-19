@@ -230,7 +230,7 @@ describe('Integration Tests', () => {
 
   describe('Authentication', () => {
     it('POST /auth/register — creates user and returns token', async () => {
-      const res = await request(app.getHttpServer()).post('/auth/register').send({
+      const res = await request(app.getHttpServer()).post('/auth/register').set('Authorization', `Bearer ${jwtToken}`).send({
         email: 'e2e-auth-test@test.com', password: 'Test123456', name: 'Auth Test',
       });
       expect(res.status).toBe(201);
@@ -288,15 +288,15 @@ describe('Integration Tests', () => {
 
     beforeAll(async () => {
       try {
-        await request(app.getHttpServer()).post('/auth/register').send({ email: 'e2e-viewer@test.com', password: 'Test123456', name: 'Viewer' });
+        await request(app.getHttpServer()).post('/auth/register').set('Authorization', `Bearer ${jwtToken}`).send({ email: 'e2e-viewer@test.com', password: 'Test123456', name: 'Viewer' });
         const vu = await prisma.user.findUnique({ where: { email: 'e2e-viewer@test.com' } });
-        if (vu) await prisma.user.update({ where: { id: vu.id }, data: { role: 'VIEWER' } });
+        if (vu) await prisma.user.update({ where: { id: vu.id }, data: { role: 'SALES_AGENT' } });
         const vlogin = await request(app.getHttpServer()).post('/auth/login').send({ email: 'e2e-viewer@test.com', password: 'Test123456' });
         viewerToken = vlogin.body.accessToken;
       } catch {}
 
       try {
-        await request(app.getHttpServer()).post('/auth/register').send({ email: 'e2e-sales@test.com', password: 'Test123456', name: 'Sales' });
+        await request(app.getHttpServer()).post('/auth/register').set('Authorization', `Bearer ${jwtToken}`).send({ email: 'e2e-sales@test.com', password: 'Test123456', name: 'Sales' });
         const su = await prisma.user.findUnique({ where: { email: 'e2e-sales@test.com' } });
         if (su) await prisma.user.update({ where: { id: su.id }, data: { role: 'SALES_AGENT' } });
         const slogin = await request(app.getHttpServer()).post('/auth/login').send({ email: 'e2e-sales@test.com', password: 'Test123456' });
@@ -314,12 +314,12 @@ describe('Integration Tests', () => {
       }
     });
 
-    it('GET /failures — VIEWER gets 403', async () => {
+    it('GET /failures — SALES_AGENT gets 403', async () => {
       const res = await request(app.getHttpServer()).get('/failures').set('Authorization', `Bearer ${viewerToken}`);
       expect(res.status).toBe(403);
     });
 
-    it('POST /failures/:id/retry — VIEWER gets 403', async () => {
+    it('POST /failures/:id/retry — SALES_AGENT gets 403', async () => {
       const res = await request(app.getHttpServer()).post('/failures/fake-id/retry').set('Authorization', `Bearer ${viewerToken}`);
       expect(res.status).toBe(403);
     });
@@ -358,7 +358,7 @@ describe('Integration Tests', () => {
     });
 
     it('POST /webhooks/whatsapp — invalid signature returns 401', async () => {
-      const res = await request(app.getHttpServer()).post('/webhooks/whatsapp').set('x-hub-signature-256', 'invalid').send({ messageId: '123', from: '+123', text: 'hi' });
+      const res = await request(app.getHttpServer()).post('/webhooks/whatsapp').set('x-hub-signature-256', 'invalid').send({ entry: { changes: [] }, object: 'whatsapp_business_account' });
       expect(res.status).toBe(401);
     });
   });

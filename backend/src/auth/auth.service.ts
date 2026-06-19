@@ -57,11 +57,11 @@ export class AuthService {
     return rest;
   }
 
-  private generateTokens(user: { id: string; email: string; role: string; tenantId?: string | null }) {
-    const payload = { sub: user.id, email: user.email, role: user.role, tenantId: user.tenantId };
+  private generateTokens(user: { id: string; email: string; role: string }) {
+    const payload = { sub: user.id, email: user.email, role: user.role };
     return {
       accessToken: this.jwtService.sign(payload),
-      user: { id: user.id, email: user.email, role: user.role, tenantId: user.tenantId },
+      user: { id: user.id, email: user.email, role: user.role },
     };
   }
 }

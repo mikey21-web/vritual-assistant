@@ -14,7 +14,7 @@ import { PaginationDto } from '../shared/dto/pagination.dto';
 export class CampaignsController {
   constructor(private service: CampaignsService) {}
 
-  @Get() @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT', 'VIEWER') findAll(@Query() q: PaginationDto, @Req() req) { return this.service.findAll({ ...q, tenantId: req.user?.tenantId }); }
+  @Get() @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT') findAll(@Query() q: PaginationDto) { return this.service.findAll(q); }
   @Post() @Roles('OWNER', 'ADMIN', 'MANAGER') create(@Body() d: CreateCampaignDto, @Req() req) { return this.service.create({...d, creatorId: req.user.sub}, req.user.sub); }
   @Get(':id') @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT', 'VIEWER') findOne(@Param('id') id: string) { return this.service.findOne(id); }
   @Patch(':id') @Roles('OWNER', 'ADMIN', 'MANAGER') update(@Param('id') id: string, @Body() d: UpdateCampaignDto, @Req() req) { return this.service.update(id, d, req.user.sub); }

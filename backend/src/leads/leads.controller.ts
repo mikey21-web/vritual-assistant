@@ -17,7 +17,7 @@ export class LeadsController {
   @Get()
   @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT', 'SUPPORT_AGENT', 'VIEWER')
   @ApiQuery({ name: 'status', required: false }) @ApiQuery({ name: 'segment', required: false }) @ApiQuery({ name: 'source', required: false }) @ApiQuery({ name: 'campaignId', required: false }) @ApiQuery({ name: 'assignedAgentId', required: false }) @ApiQuery({ name: 'search', required: false })
-  findAll(@Query() q: LeadQueryDto & PaginationDto, @Req() req) { return this.service.findAll({ ...q, tenantId: req.user?.tenantId }); }
+  findAll(@Query() q: LeadQueryDto & PaginationDto) { return this.service.findAll(q); }
 
   @Post()
   @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT')

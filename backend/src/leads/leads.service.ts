@@ -15,9 +15,8 @@ export class LeadsService {
   ) {}
 
   async findAll(query: any = {}) {
-    const { page = 1, limit = 20, status, segment, source, campaignId, assignedAgentId, search, tenantId } = query;
+    const { page = 1, limit = 20, status, segment, source, campaignId, assignedAgentId, search } = query;
     const where: any = {};
-    if (tenantId) where.tenantId = tenantId;
     if (status) where.status = status;
     if (segment) where.segment = segment;
     if (source) where.source = source;

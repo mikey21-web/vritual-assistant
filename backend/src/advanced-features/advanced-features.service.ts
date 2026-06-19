@@ -65,7 +65,6 @@ export class AdvancedFeaturesService {
     const primary = await this.prisma.contact.findUnique({ where: { id: primaryId } });
     const secondary = await this.prisma.contact.findUnique({ where: { id: secondaryId } });
     if (!primary || !secondary) throw new NotFoundException('One or both contacts not found');
-    if (primary.tenantId !== secondary.tenantId) throw new BadRequestException('Cannot merge contacts from different tenants');
 
     const diff: Record<string, { from: unknown; to: unknown }> = {};
     const fields = ['name', 'email', 'phone', 'whatsapp', 'company', 'location'] as const;
@@ -103,19 +102,19 @@ export class AdvancedFeaturesService {
   }
 
   // === BLOCKLIST ===
-  async checkBlocklist(email?: string, phone?: string, tenantId?: string | null): Promise<boolean> {
+  async checkBlocklist(email?: string, phone?: string): Promise<boolean> {
     if (email) {
-      const blocked = await this.prisma.blocklistEntry.findFirst({ where: { type: 'email', value: email.toLowerCase().trim(), tenantId: tenantId || null } });
+      const blocked = await this.prisma.blocklistEntry.findFirst({ where: { type: 'email', value: email.toLowerCase().trim() } });
       if (blocked) return true;
     }
     if (phone) {
       const clean = this.normalizePhone(phone);
-      const blocked = await this.prisma.blocklistEntry.findFirst({ where: { type: 'phone', value: clean, tenantId: tenantId || null } });
+      const blocked = await this.prisma.blocklistEntry.findFirst({ where: { type: 'phone', value: clean } });
       if (blocked) return true;
     }
     return false;
   }
-  getBlocklist(query: Record<string, string> = {}, tenantId?: string | null) { return this.prisma.blocklistEntry.findMany({ where: { tenantId: tenantId || null }, orderBy: { createdAt: 'desc' }, take: 100 }); }
+  getBlocklist() { return this.prisma.blocklistEntry.findMany({ orderBy: { createdAt: 'desc' }, take: 100 }); }
   async addToBlocklist(type: string, value: string, reason?: string) {
     const normalized = type === 'phone' ? this.normalizePhone(value) : value.toLowerCase().trim();
     const entry = await this.prisma.blocklistEntry.create({ data: { type, value: normalized, reason } });
@@ -287,15 +286,15 @@ export class AdvancedFeaturesService {
     return this.prisma.importExportLog.create({ data: { type: 'export', userId, status: 'processing' } });
   }
 
-  async completeExport(logId: string, entity: 'contact' | 'lead', filters: Record<string, string> = {}, tenantId?: string | null) {
+  async completeExport(logId: string, entity: 'contact' | 'lead', filters: Record<string, string> = {}) {
     const log = await this.prisma.importExportLog.findUnique({ where: { id: logId } });
     if (!log) throw new NotFoundException('Export log not found');
 
     let data: any[] = [];
     if (entity === 'contact') {
-      data = await this.prisma.contact.findMany({ where: tenantId ? { tenantId } : {}, take: 10000, orderBy: { createdAt: 'desc' } });
+      data = await this.prisma.contact.findMany({ take: 10000, orderBy: { createdAt: 'desc' } });
     } else {
-      data = await this.prisma.lead.findMany({ where: tenantId ? { tenantId } : {}, take: 10000, orderBy: { createdAt: 'desc' }, include: { contact: { select: { name: true, email: true, phone: true } } } });
+      data = await this.prisma.lead.findMany({ take: 10000, orderBy: { createdAt: 'desc' }, include: { contact: { select: { name: true, email: true, phone: true } } } });
     }
 
     const headers = entity === 'contact'

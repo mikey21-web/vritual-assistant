@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -11,9 +11,9 @@ import { AnalyticsService } from './analytics.service';
 @ApiBearerAuth()
 export class AnalyticsController {
   constructor(private service: AnalyticsService) {}
-  @Get('overview') @Roles('OWNER', 'ADMIN', 'MANAGER', 'VIEWER') overview(@Req() req) { return this.service.overview(req.user?.tenantId); }
-  @Get('sources') @Roles('OWNER', 'ADMIN', 'MANAGER', 'VIEWER') sources(@Req() req) { return this.service.sources(req.user?.tenantId); }
-  @Get('campaigns') @Roles('OWNER', 'ADMIN', 'MANAGER', 'VIEWER') campaigns(@Req() req) { return this.service.campaigns(req.user?.tenantId); }
-  @Get('conversions') @Roles('OWNER', 'ADMIN', 'MANAGER', 'VIEWER') conversions(@Req() req) { return this.service.conversions(req.user?.tenantId); }
-  @Get('agents') @Roles('OWNER', 'ADMIN', 'MANAGER', 'VIEWER') agents(@Req() req) { return this.service.agents(req.user?.tenantId); }
+  @Get('overview') @Roles('OWNER', 'ADMIN', 'MANAGER') overview() { return this.service.overview(); }
+  @Get('sources') @Roles('OWNER', 'ADMIN', 'MANAGER') sources() { return this.service.sources(); }
+  @Get('campaigns') @Roles('OWNER', 'ADMIN', 'MANAGER') campaigns() { return this.service.campaigns(); }
+  @Get('conversions') @Roles('OWNER', 'ADMIN', 'MANAGER') conversions() { return this.service.conversions(); }
+  @Get('agents') @Roles('OWNER', 'ADMIN', 'MANAGER') agents() { return this.service.agents(); }
 }

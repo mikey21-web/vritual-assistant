@@ -34,58 +34,27 @@ export class ContactsService {
     return c;
   }
 
-  async findOrCreate(data: { phone?: string; email?: string; name?: string; whatsapp?: string; company?: string; tenantId?: string }) {
-    const tenantId = data.tenantId;
-
-    if (data.phone && tenantId) {
-      return this.prisma.contact.upsert({
-        where: { tenantId_phone: { tenantId, phone: data.phone } },
-        update: {
-          name: data.name,
-          email: data.email,
-          whatsapp: data.whatsapp,
-          company: data.company,
-        },
-        create: {
-          name: data.name,
-          email: data.email,
-          phone: data.phone,
-          whatsapp: data.whatsapp,
-          company: data.company,
-          tenantId,
-        },
-      });
+  async findOrCreate(data: { phone?: string; email?: string; name?: string; whatsapp?: string; company?: string }) {
+    if (data.phone) {
+      const existing = await this.prisma.contact.findFirst({ where: { phone: data.phone } });
+      if (existing) {
+        return this.prisma.contact.update({
+          where: { id: existing.id },
+          data: { name: data.name ?? existing.name, email: data.email ?? existing.email, whatsapp: data.whatsapp ?? existing.whatsapp, company: data.company ?? existing.company },
+        });
+      }
     }
-
-    if (data.email && tenantId) {
-      return this.prisma.contact.upsert({
-        where: { tenantId_email: { tenantId, email: data.email } },
-        update: {
-          name: data.name,
-          phone: data.phone,
-          whatsapp: data.whatsapp,
-          company: data.company,
-        },
-        create: {
-          name: data.name,
-          email: data.email,
-          phone: data.phone,
-          whatsapp: data.whatsapp,
-          company: data.company,
-          tenantId,
-        },
-      });
+    if (data.email) {
+      const existing = await this.prisma.contact.findFirst({ where: { email: data.email } });
+      if (existing) {
+        return this.prisma.contact.update({
+          where: { id: existing.id },
+          data: { name: data.name ?? existing.name, phone: data.phone ?? existing.phone, whatsapp: data.whatsapp ?? existing.whatsapp, company: data.company ?? existing.company },
+        });
+      }
     }
-
     return this.prisma.contact.create({
-      data: {
-        name: data.name,
-        email: data.email,
-        phone: data.phone,
-        whatsapp: data.whatsapp,
-        company: data.company,
-        tenantId: tenantId ?? null,
-      },
+      data: { name: data.name, email: data.email, phone: data.phone, whatsapp: data.whatsapp, company: data.company },
     });
   }
 

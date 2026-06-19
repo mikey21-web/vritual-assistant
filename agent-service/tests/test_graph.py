@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock
 from langchain_core.messages import AIMessage, ToolMessage
 from app.graph import build_graph, _load_context, _should_continue
 from app.config import Settings
@@ -24,7 +24,6 @@ async def test_load_context(settings):
     client._get = AsyncMock(side_effect=[
         {"id": "lead-1", "status": "NEW", "score": 0, "segment": "COLD", "contact": {"name": "Test"}},
         [],
-        {"industry": "events", "name": "Event Marketing", "configSnapshot": {"packs": []}, "template": {"industry": "events", "name": "Event Marketing Agency"}},
     ])
 
     state = {
@@ -35,6 +34,18 @@ async def test_load_context(settings):
         "trigger": "inbound_message",
         "incoming_text": "Hello",
         "run_id": "run-1",
+        "niche_config": {
+            "industry": "events",
+            "display_name": "Event Marketing Agency",
+            "fields_to_collect": [],
+            "scoring_signals": [],
+            "conversion_goals": [],
+            "pipeline_stages": [],
+            "booking_types": [],
+            "tone_examples": [],
+            "labels": {},
+            "compliance": [],
+        },
     }
 
     config = {"configurable": {"settings": settings, "client": client}}
@@ -46,9 +57,6 @@ async def test_load_context(settings):
     assert len(result["messages"]) > 0
     assert isinstance(result["messages"][0].content, str)
     assert result["terminate"] is False
-
-    niche_url = client._get.call_args_list[2][0][0]
-    assert "tenantId=t-1" in niche_url
 
 
 @pytest.mark.asyncio
@@ -64,6 +72,7 @@ async def test_load_context_auth_error_raises(settings):
         "trigger": "inbound_message",
         "incoming_text": "Hello",
         "run_id": "run-1",
+        "niche_config": {"industry": "generic", "display_name": "Business", "fields_to_collect": []},
     }
 
     config = {"configurable": {"settings": settings, "client": client}}
@@ -165,7 +174,6 @@ async def test_graph_compiles_and_runs_load_context_only(settings):
     client._get = AsyncMock(side_effect=[
         {"id": "lead-1", "status": "NEW", "score": 0, "segment": "COLD", "contact": {"name": "Test"}},
         [],
-        {"industry": "test", "name": "Test", "configSnapshot": {"packs": []}, "template": {"industry": "test", "name": "Test"}},
     ])
 
     ctx = ToolContext(client=client, lead_id="lead-1", tenant_id="tenant-1")
@@ -183,6 +191,13 @@ async def test_graph_compiles_and_runs_load_context_only(settings):
     }
 
     config = {"configurable": {"settings": settings, "client": client, "tools": tools}}
+
+    state["niche_config"] = {
+        "industry": "test", "display_name": "Test",
+        "fields_to_collect": [{"key": "name", "label": "Name", "type": "TEXT", "options": [], "required": True}],
+        "scoring_signals": [], "conversion_goals": [], "pipeline_stages": [], "booking_types": [],
+        "tone_examples": [], "labels": {}, "compliance": [],
+    }
 
     result = await _load_context(state, config)
     assert "lead_context" in result

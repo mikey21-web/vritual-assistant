@@ -14,7 +14,7 @@ export class AgentController {
 
   @Post('run-summary')
   @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT')
-  recordRunSummary(@Body() d: { runId: string; leadId: string; tenantId: string; actions: any[]; model: string; startedAt: string; finishedAt: string }) {
+  recordRunSummary(@Body() d: { runId: string; leadId: string; actions: any[]; model: string; startedAt: string; finishedAt: string }) {
     return this.agent.recordRunSummary(d);
   }
 }

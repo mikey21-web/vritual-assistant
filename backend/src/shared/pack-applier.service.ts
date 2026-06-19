@@ -6,8 +6,7 @@ export interface AppliedRecord { table: string; id: string; }
 /**
  * PackApplierService — provisions configuration packs into the database.
  *
- * In single-tenant mode, this no longer needs a tenantId.
- * Records are created without tenant scoping since there's only one deploy.
+ * Single-tenant: records are created without tenant scoping.
  */
 @Injectable()
 export class PackApplierService {

@@ -27,17 +27,17 @@ export class UsersService {
     return u;
   }
 
-  async create(data: { name: string; email: string; password?: string; role?: string; tenantId?: string; active?: boolean }) {
+  async create(data: { name: string; email: string; password?: string; role?: string; active?: boolean }) {
     if (!data.password) throw new BadRequestException('Password is required');
     const password = await bcrypt.hash(data.password, 12);
-    const { role, tenantId, active, ...safeData } = data;
+    const { role, active, ...safeData } = data;
     return this.prisma.user.create({
-      data: { ...safeData, password, role: (role as any) || 'SALES_AGENT', tenantId: tenantId || null, active: active !== false },
+      data: { ...safeData, password, role: (role as any) || 'SALES_AGENT', active: active !== false },
       select: SAFE_USER_SELECT,
     });
   }
 
-  async update(id: string, data: { name?: string; email?: string; password?: string }, _tenantId?: string) {
+  async update(id: string, data: { name?: string; email?: string; password?: string }) {
     await this.findOne(id);
     const { password, ...rest } = data;
     const updateData: any = { ...rest };

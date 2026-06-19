@@ -49,13 +49,13 @@ describe('ContactsService', () => {
 
   it('should dedupe by phone', async () => {
     prisma.contact.upsert.mockResolvedValue(mockContact);
-    const c = await service.findOrCreate({ phone: '+1234567890', name: 'John', tenantId: 'tenant-1' });
+    const c = await service.findOrCreate({ phone: '+1234567890', name: 'John' });
     expect(c.id).toBe('contact-1');
   });
 
   it('should dedupe by email', async () => {
     prisma.contact.upsert.mockResolvedValue(mockContact);
-    const c = await service.findOrCreate({ email: 'john@test.com', name: 'John', tenantId: 'tenant-1' });
+    const c = await service.findOrCreate({ email: 'john@test.com', name: 'John' });
     expect(c.id).toBe('contact-1');
   });
 });

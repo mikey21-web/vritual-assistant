@@ -15,7 +15,7 @@ import { UpdateContactDto } from './dto/update-contact.dto';
 export class ContactsController {
   constructor(private service: ContactsService) {}
 
-  @Get() @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT', 'SUPPORT_AGENT', 'VIEWER') findAll(@Query() q: PaginationDto, @Req() req) { return this.service.findAll({ ...q, tenantId: req.user?.tenantId }); }
+  @Get() @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT') findAll(@Query() q: PaginationDto) { return this.service.findAll(q); }
   @Post() @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT') create(@Body() d: CreateContactDto) { return this.service.create(d); }
   @Get(':id') @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT', 'SUPPORT_AGENT', 'VIEWER') findOne(@Param('id') id: string) { return this.service.findOne(id); }
   @Patch(':id') @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT') update(@Param('id') id: string, @Body() d: UpdateContactDto) { return this.service.update(id, d); }
