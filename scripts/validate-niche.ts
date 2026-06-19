@@ -12,9 +12,13 @@
  * CI must fail if any niche is invalid.
  */
 import { readFileSync, existsSync, readdirSync } from 'fs';
-import { resolve, extname } from 'path';
+import { resolve, extname, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import * as yaml from 'js-yaml';
 import Ajv from 'ajv';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const SCHEMA_PATH = resolve(__dirname, '..', 'config.schema.json');
 
@@ -27,7 +31,7 @@ interface ValidationResult {
 
 async function main() {
   const args = process.argv.slice(2);
-  const singleFile = args.find(a => a.startsWith('--file='))?.split('=')[1];
+  const singleFile = args.find(a => a.startsWith('--file='))?.split('=')[1] || args[args.indexOf('--file') + 1];
 
   const schema = loadSchema();
   const ajv = new Ajv({ allErrors: true });
@@ -128,7 +132,7 @@ async function validateFile(filePath: string, validate: Ajv.ValidateFunction): P
 
     const valid = validate(data);
     if (!valid) {
-      result.errors = validate.errors?.map(e => `${e.instancePath}: ${e.message}`) || ['Unknown validation error'];
+      result.errors = validate.errors?.map(e => `${(e as any).instancePath || (e as any).dataPath || ''}: ${e.message}`) || ['Unknown validation error'];
       return result;
     }
 
