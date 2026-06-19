@@ -57,10 +57,11 @@ async def execute_run(settings: Settings, req: AgentRunRequest) -> str:
         }
         await graph.ainvoke(initial_state, config)
         logger.info("run_completed", leadId=req.leadId)
+        await mark_done(req.triggerId, success=True)
     except Exception as e:
         logger.error("run_failed", error=str(e), leadId=req.leadId)
+        await mark_done(req.triggerId, success=False)
     finally:
-        await mark_done(req.triggerId)
         await client.close()
 
     return run_id

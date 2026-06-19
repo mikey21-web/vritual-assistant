@@ -12,7 +12,7 @@ from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, Tool
 from app.config import Settings
 from app.schemas import AgentState
 from app.backend_client import BackendClient, BackendError
-from app.niche_config import normalize_niche_config
+from app.niche_config import normalize_niche_config, load_niche_config_from_file
 from app.prompt import build_system_prompt
 from app.logging_config import utc_now_iso
 
@@ -56,7 +56,9 @@ async def _load_context(state: AgentState, config: dict) -> AgentState:
         lead, conversations, niche_raw = await asyncio.gather(
             client._get(f"/leads/{lead_id}"),
             client._get(f"/leads/{lead_id}/conversations"),
-            client._get(f"/niche-templates/client/current?tenantId={tenant_id}"),
+            # In single-tenant mode, the agent loads niche config from the local file
+            # (mounted read-only from the host at deploy time)
+            load_niche_config_from_file(),
         )
     except BackendError as e:
         if e.status in (401, 403):

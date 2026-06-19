@@ -3,7 +3,6 @@ import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { LoggingInterceptor } from './shared/logging.interceptor';
-import { TenantInterceptor } from './shared/tenant.interceptor';
 import { GlobalExceptionFilter } from './shared/exception.filter';
 import helmet from 'helmet';
 import * as express from 'express';
@@ -12,19 +11,32 @@ const DEFAULT_SECRETS = ['change-me', 'dev-secret', 'local-dev-jwt-secret-2024',
 
 function validateSecrets() {
   const isDev = process.env.NODE_ENV !== 'production';
-  const jwtSecret = process.env.JWT_SECRET;
-  if (!jwtSecret) {
-    if (isDev) { console.warn('WARNING: JWT_SECRET not set — using unsafe dev fallback'); return; }
-    throw new Error('JWT_SECRET is required in production');
+  const requiredVars = ['JWT_SECRET', 'DATABASE_URL', 'REDIS_URL'];
+  const missing = requiredVars.filter(v => !process.env[v]);
+  if (missing.length > 0) {
+    throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
   }
-  if (DEFAULT_SECRETS.includes(jwtSecret) && !isDev) {
-    throw new Error('JWT_SECRET must be changed from the default value in production');
+  const jwtSecret = process.env.JWT_SECRET!;
+  const signedUrlSecret = process.env.SIGNED_URL_SECRET;
+  const integrationsKey = process.env.INTEGRATIONS_ENC_KEY;
+  const agentKey = process.env.AGENT_INBOUND_KEY;
+  const serviceJwt = process.env.AGENT_SERVICE_JWT;
+
+  for (const [name, value] of [['JWT_SECRET', jwtSecret], ['SIGNED_URL_SECRET', signedUrlSecret], ['INTEGRATIONS_ENC_KEY', integrationsKey]] as const) {
+    if (value && DEFAULT_SECRETS.includes(value) && !isDev) {
+      throw new Error(`${name} must be changed from the default value in production`);
+    }
   }
   if (jwtSecret === 'local-dev-jwt-secret-2024' && !isDev) {
     throw new Error('JWT_SECRET must be changed from the default value in production');
   }
-  if (!process.env.DATABASE_URL) {
-    throw new Error('DATABASE_URL is required');
+  if (!isDev) {
+    if (!agentKey) throw new Error('AGENT_INBOUND_KEY is required in production');
+    if (!serviceJwt) throw new Error('AGENT_SERVICE_JWT is required in production');
+    if (!integrationsKey) throw new Error('INTEGRATIONS_ENC_KEY is required in production');
+  }
+  if (jwtSecret.length < 16) {
+    throw new Error('JWT_SECRET must be at least 16 characters long');
   }
 }
 
@@ -61,7 +73,6 @@ async function bootstrap() {
     },
   }));
   app.useGlobalInterceptors(new LoggingInterceptor());
-  app.useGlobalInterceptors(new TenantInterceptor());
   app.useGlobalFilters(new GlobalExceptionFilter());
 
   app.enableCors({

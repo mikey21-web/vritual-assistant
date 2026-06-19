@@ -21,8 +21,6 @@ services:
     image: redis:7-alpine
     container_name: lead-automation-redis
     restart: unless-stopped
-    ports:
-      - "6379:6379"
     volumes:
       - redisdata:/data
     healthcheck:
@@ -53,8 +51,12 @@ services:
       NODE_ENV: production
       STORAGE_PROVIDER: local
       STORAGE_PATH: /app/uploads
+      NICHE_CONFIG_PATH: /app/niche.config.yaml
+      SEED_OWNER_EMAIL: ${SEED_OWNER_EMAIL:-admin@localhost}
+      SEED_OWNER_PASSWORD: ${SEED_OWNER_PASSWORD:-}
     volumes:
       - uploads:/app/uploads
+      - ./niche.config.yaml:/app/niche.config.yaml:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -113,6 +115,9 @@ services:
       AGENT_MODEL: ${AGENT_MODEL:-claude-sonnet-4-6}
       REDIS_URL: redis://redis:6379
       PORT: 8000
+      NICHE_CONFIG_PATH: /app/niche.config.yaml
+    volumes:
+      - ./niche.config.yaml:/app/niche.config.yaml:ro
     depends_on:
       backend:
         condition: service_started

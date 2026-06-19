@@ -155,16 +155,16 @@ export default function CommandPalette({
     });
 
     // 4. Platform Settings Configuration
-    const settingsItems = [
+    const settingsItems = settings ? [
       { key: 'companyName', label: 'Company Name', subtitle: `Set organization identity. Current: "${settings.companyName}"`, icon: <Database className="w-4 h-4 text-zinc-500" /> },
       { key: 'senderEmail', label: 'Sender Email Address', subtitle: `System outgoing automation address. Current: ${settings.senderEmail}`, icon: <Mail className="w-4 h-4 text-zinc-500" /> },
       { key: 'apiKey', label: 'Gemini API Hook Key', subtitle: `Server-secure AI connection credentials. Current: ${settings.apiKey ? '••••••••' : 'Not configured'}`, icon: <Lock className="w-4 h-4 text-zinc-500" /> },
-      { key: 'dailyLeadLimit', label: 'Daily Leads Ingress Limit', subtitle: `Maximum cap for automated inbound entries. Current: ${settings.dailyLeadLimit.toLocaleString()} entries`, icon: <Hash className="w-4 h-4 text-zinc-500" /> },
+      { key: 'dailyLeadLimit', label: 'Daily Leads Ingress Limit', subtitle: `Maximum cap for automated inbound entries. Current: ${settings.dailyLeadLimit?.toLocaleString() ?? '—'} entries`, icon: <Hash className="w-4 h-4 text-zinc-500" /> },
       { key: 'enableRouting', label: 'AI Lead Despatch Routing', subtitle: `Toggle automatic distribution models. Current: ${settings.enableRouting ? 'ENABLED' : 'DISABLED'}`, icon: <Globe className="w-4 h-4 text-zinc-500" /> },
       { key: 'scoringThreshold', label: 'AI Score Quality Threshold', subtitle: `Standard parameters to classify hot contacts. Current: ${settings.scoringThreshold} / 100`, icon: <Sparkles className="w-4 h-4 text-zinc-500" /> },
       { key: 'slackWebhook', label: 'Slack Webhook Stream URL', subtitle: `Broadcasting socket. Current: ${settings.slackWebhook ? 'Successfully Linked' : 'None provided'}`, icon: <Cpu className="w-4 h-4 text-zinc-500" /> },
       { key: 'timezone', label: 'Operational System Timezone', subtitle: `Audit and activity logs coordinate. Current: ${settings.timezone}`, icon: <CalendarDays className="w-4 h-4 text-zinc-500" /> }
-    ];
+    ] : [];
 
     settingsItems.forEach(s => {
       list.push({

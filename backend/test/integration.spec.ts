@@ -1,16 +1,13 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { Test } from '@nestjs/testing';
 import * as request from 'supertest';
 import * as bcrypt from 'bcryptjs';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
-import { runInTenantContext } from '../src/shared/tenant-context.service';
 
 let app: INestApplication;
 let prisma: PrismaService;
 let jwtToken: string;
-let testTenantId: string;
-let testTenant: any;
 
 beforeAll(async () => {
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
@@ -19,27 +16,17 @@ beforeAll(async () => {
   await app.init();
   prisma = app.get(PrismaService);
 
-  // Create a tenant for testing
-  testTenant = await prisma.tenant.findUnique({ where: { key: 'e2e-test' } });
-  if (!testTenant) {
-    testTenant = await prisma.tenant.create({ data: { name: 'E2E Test', key: 'e2e-test', industry: 'tech', status: 'provisioned' } });
-  }
-  testTenantId = testTenant.id;
-
-  // Wrapper for direct Prisma writes that require tenant context
-  const db = (fn: () => any) => runInTenantContext(testTenantId, true, fn);
-
   // Create test user directly via Prisma
   const existing = await prisma.user.findUnique({ where: { email: 'e2e@test.com' } });
   if (existing) {
-    await db(() => prisma.auditLog.deleteMany({ where: { userId: existing.id } }).catch(() => {}));
+    await prisma.auditLog.deleteMany({ where: { userId: existing.id } }).catch(() => {});
     await prisma.user.delete({ where: { id: existing.id } }).catch(() => {});
   }
 
   const hashed = await bcrypt.hash('Test123456', 1);
-  await db(() => prisma.user.create({
-    data: { email: 'e2e@test.com', name: 'E2E User', password: hashed, role: 'OWNER', tenantId: testTenantId, active: true },
-  }));
+  await prisma.user.create({
+    data: { email: 'e2e@test.com', name: 'E2E User', password: hashed, role: 'OWNER', active: true },
+  });
 
   const login = await request(app.getHttpServer()).post('/auth/login').send({
     email: 'e2e@test.com', password: 'Test123456',
@@ -48,31 +35,30 @@ beforeAll(async () => {
 }, 30000);
 
 afterAll(async () => {
-  const db = (fn: () => any) => runInTenantContext(testTenantId, true, fn);
   const user = await prisma.user.findUnique({ where: { email: 'e2e@test.com' } });
   if (user) {
-    await db(() => prisma.auditLog.deleteMany({ where: { userId: user.id } }).catch(() => {}));
+    await prisma.auditLog.deleteMany({ where: { userId: user.id } }).catch(() => {});
     await prisma.automationEvent.deleteMany({}).catch(() => {});
     await prisma.webhookEvent.deleteMany({}).catch(() => {});
-    await db(() => prisma.formSubmission.deleteMany({ where: { form: { tenantId: testTenantId } } }).catch(() => {}));
-    await db(() => prisma.scoreLog.deleteMany({ where: { lead: { tenantId: testTenantId } } }).catch(() => {}));
-    await db(() => prisma.conversationMessage.deleteMany({ where: { tenantId: testTenantId } }).catch(() => {}));
-    await db(() => prisma.conversion.deleteMany({ where: { tenantId: testTenantId } }).catch(() => {}));
-    await db(() => prisma.task.deleteMany({ where: { tenantId: testTenantId } }).catch(() => {}));
-    await db(() => prisma.nurtureProgress.deleteMany({ where: { lead: { tenantId: testTenantId } } }).catch(() => {}));
-    await db(() => prisma.nurtureStep.deleteMany({ where: { sequence: { tenantId: testTenantId } } }).catch(() => {}));
-    await db(() => prisma.nurtureSequence.deleteMany({ where: { tenantId: testTenantId } }).catch(() => {}));
-    await db(() => prisma.lead.deleteMany({ where: { tenantId: testTenantId } }).catch(() => {}));
-    await db(() => prisma.campaign.deleteMany({ where: { tenantId: testTenantId } }).catch(() => {}));
-    await db(() => prisma.contact.deleteMany({ where: { tenantId: testTenantId } }).catch(() => {}));
-    await db(() => prisma.scoringRule.deleteMany({ where: { tenantId: testTenantId } }).catch(() => {}));
-    await db(() => prisma.routingRule.deleteMany({ where: { tenantId: testTenantId } }).catch(() => {}));
-    await db(() => prisma.leadForm.deleteMany({ where: { tenantId: testTenantId } }).catch(() => {}));
-    await db(() => prisma.messageTemplate.deleteMany({ where: { tenantId: testTenantId } }).catch(() => {}));
-    await db(() => prisma.qrCode.deleteMany({ where: { tenantId: testTenantId } }).catch(() => {}));
-    await db(() => prisma.mediaFile.deleteMany({ where: { tenantId: testTenantId } }).catch(() => {}));
-    await db(() => prisma.businessSettings.deleteMany({ where: { tenantId: testTenantId } }).catch(() => {}));
-    await db(() => prisma.blocklistEntry.deleteMany({ where: { tenantId: testTenantId } }).catch(() => {}));
+    await prisma.formSubmission.deleteMany({}).catch(() => {});
+    await prisma.scoreLog.deleteMany({}).catch(() => {});
+    await prisma.conversationMessage.deleteMany({}).catch(() => {});
+    await prisma.conversion.deleteMany({}).catch(() => {});
+    await prisma.task.deleteMany({}).catch(() => {});
+    await prisma.nurtureProgress.deleteMany({}).catch(() => {});
+    await prisma.nurtureStep.deleteMany({}).catch(() => {});
+    await prisma.nurtureSequence.deleteMany({}).catch(() => {});
+    await prisma.lead.deleteMany({}).catch(() => {});
+    await prisma.campaign.deleteMany({}).catch(() => {});
+    await prisma.contact.deleteMany({}).catch(() => {});
+    await prisma.scoringRule.deleteMany({}).catch(() => {});
+    await prisma.routingRule.deleteMany({}).catch(() => {});
+    await prisma.leadForm.deleteMany({}).catch(() => {});
+    await prisma.messageTemplate.deleteMany({}).catch(() => {});
+    await prisma.qrCode.deleteMany({}).catch(() => {});
+    await prisma.mediaFile.deleteMany({}).catch(() => {});
+    await prisma.businessSettings.deleteMany({}).catch(() => {});
+    await prisma.blocklistEntry.deleteMany({}).catch(() => {});
     await prisma.user.delete({ where: { id: user.id } }).catch(() => {});
   }
   await app.close();
@@ -242,7 +228,6 @@ describe('Integration Tests', () => {
     expect(res.status).toBe(400);
   });
 
-  // === ADDED: Auth ===
   describe('Authentication', () => {
     it('POST /auth/register — creates user and returns token', async () => {
       const res = await request(app.getHttpServer()).post('/auth/register').send({
@@ -267,22 +252,8 @@ describe('Integration Tests', () => {
       const res = await request(app.getHttpServer()).post('/auth/login').send({ email: 'e2e@test.com', password: 'WrongPass' });
       expect(res.status).toBe(401);
     });
-
-  it('POST /auth/register — returns SALES_AGENT by default', async () => {
-      const tenant = await prisma.tenant.findUnique({ where: { key: 'e2e-test' } });
-      const hash = await bcrypt.hash('Test123456', 1);
-      const user = await prisma.user.create({
-        data: { email: 'e2e-role-test@test.com', password: hash, name: 'Role Test', role: 'SALES_AGENT', tenantId: tenant!.id },
-      });
-      expect(user.role).toBe('SALES_AGENT');
-      if (user) {
-        await prisma.auditLog.deleteMany({ where: { userId: user.id } }).catch(() => {});
-        await prisma.user.delete({ where: { id: user.id } }).catch(() => {});
-      }
-    });
   });
 
-  // === ADDED: Leads CRUD as OWNER ===
   describe('Leads (OWNER)', () => {
     let testLeadId: string;
 
@@ -311,7 +282,6 @@ describe('Integration Tests', () => {
     });
   });
 
-  // === ADDED: Permission enforcement ===
   describe('Permission enforcement', () => {
     let viewerToken: string;
     let salesToken: string;
@@ -376,7 +346,6 @@ describe('Integration Tests', () => {
     });
   });
 
-  // === ADDED: Webhook security ===
   describe('Webhook security', () => {
     it('POST /webhooks/forms — valid api key returns 200', async () => {
       const res = await request(app.getHttpServer()).post('/webhooks/forms').set('x-api-key', 'dev-key-1').send({ name: 'Test', email: 'wtest@test.com' });
@@ -394,7 +363,6 @@ describe('Integration Tests', () => {
     });
   });
 
-  // === ADDED: Rules ===
   describe('Rules', () => {
     it('POST /rules — creates rule', async () => {
       const res = await request(app.getHttpServer()).post('/rules').set('Authorization', `Bearer ${jwtToken}`).send({
@@ -415,7 +383,6 @@ describe('Integration Tests', () => {
     });
   });
 
-  // === ADDED: Failures ===
   describe('Failures', () => {
     let failureId: string;
 

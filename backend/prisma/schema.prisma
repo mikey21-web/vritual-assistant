@@ -161,55 +161,7 @@ enum CustomFieldTarget {
   LEAD
 }
 
-// === CLIENT & TENANT SYSTEM ===
-
-model Tenant {
-  id                 String   @id @default(uuid())
-  name               String
-  key                String   @unique
-  industry           String
-  status             String   @default("pending")       // pending | provisioned | suspended
-  provisioningTemplateId String?
-  config             Json     @default("{}")
-  contactEmail       String?
-  contactName        String?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-
-  users          User[]
-  contacts       Contact[]
-  leads          Lead[]
-  campaigns      Campaign[]
-  leadForms      LeadForm[]
-  messageTemplates MessageTemplate[]
-  nurtureSequences NurtureSequence[]
-  scoringRules   ScoringRule[]
-  routingRules   RoutingRule[]
-  conversions    Conversion[]
-  crmMappings    CrmMapping[]
-  bookingSettings BookingSetting[]
-  customFieldDefinitions CustomFieldDefinition[]
-  pipelineStages PipelineStage[]
-  automationRules AutomationRule[]
-  installations  ClientTemplateInstallation[]
-  businessSettings BusinessSettings[]
-  qrCodes         QrCode[]
-  integrations    Integration[]
-  blocklistEntries BlocklistEntry[]
-  slaRules        SlaRule[]
-  tasks           Task[]
-  conversationMessages ConversationMessage[]
-  mediaFiles      MediaFile[]
-  revenueRecords  RevenueRecord[]
-  auditLogs       AuditLog[]
-  systemEvents    SystemEvent[]
-  timelineItems   TimelineItem[]
-  failureRecords  FailureRecord[]
-
-  @@index([key])
-  @@index([status])
-  @@map("tenants")
-}
+// === USER MODEL ===
 
 model User {
   id        String   @id @default(uuid())
@@ -220,7 +172,6 @@ model User {
   role      UserRole @default(SALES_AGENT)
   active    Boolean  @default(true)
   tenantId  String?
-  tenant    Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -248,7 +199,6 @@ model User {
 model BusinessSettings {
   id                    String   @id @default(uuid())
   tenantId              String?
-  tenant                Tenant?  @relation(fields: [tenantId], references: [id])
   businessName          String   @default("")
   timezone              String   @default("UTC")
   defaultCurrency       String   @default("USD")
@@ -258,6 +208,11 @@ model BusinessSettings {
   defaultBookingTool    String?
   workingHoursStart     String?
   workingHoursEnd       String?
+  quietHoursStart       String?   // e.g. "21:00"
+  quietHoursEnd         String?   // e.g. "09:00"
+  autonomyLevel         String   @default("full")  // shadow | approval | full
+  consentRequired       Boolean  @default(true)
+  maxMessagesPerDay     Int      @default(10)
   notificationEmail     String?
   notificationPhone     String?
   createdAt             DateTime @default(now())
@@ -270,7 +225,6 @@ model BusinessSettings {
 model Contact {
   id               String   @id @default(uuid())
   tenantId         String?
-  tenant           Tenant?  @relation(fields: [tenantId], references: [id])
   name             String?
   email            String?
   phone            String?
@@ -280,6 +234,11 @@ model Contact {
   preferredChannel String?
   metadata         Json     @default("{}")
   tags             String[] @default([])
+  consentStatus    String   @default("unknown")   // unknown | opted_in | opted_out
+  consentSource    String?
+  consentAt        DateTime?
+  optedOutAt       DateTime?
+  agentMemory      Json?                           // Bounded summary for the LLM agent
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -289,6 +248,7 @@ model Contact {
   customFields   CustomFieldValue[]
   systemEvents   SystemEvent[]
   timelineItems  TimelineItem[]
+  consentEvents  ConsentEvent[]
 
   @@index([email])
   @@index([phone])
@@ -302,7 +262,6 @@ model Contact {
 model Lead {
   id           String      @id @default(uuid())
   tenantId     String?
-  tenant       Tenant?     @relation(fields: [tenantId], references: [id])
   status       LeadStatus  @default(NEW)
   segment      LeadSegment @default(COLD)
   source       LeadSource
@@ -340,6 +299,7 @@ model Lead {
   timelineItems  TimelineItem[]
   failureRecords FailureRecord[]
   workflowInstances WorkflowInstance[]
+  scheduledActions  ScheduledAction[]
 
   @@index([status])
   @@index([segment])
@@ -355,10 +315,22 @@ model Lead {
   @@map("leads")
 }
 
+model ConsentEvent {
+  id        String   @id @default(uuid())
+  contactId String
+  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  channel   String   // whatsapp | email | sms | all
+  action    String   // opt_in | opt_out
+  source    String?  // webhook | form | agent | manual
+  createdAt DateTime @default(now())
+
+  @@index([contactId])
+  @@map("consent_events")
+}
+
 model Campaign {
   id                String    @id @default(uuid())
   tenantId          String?
-  tenant            Tenant?   @relation(fields: [tenantId], references: [id])
   name              String
   sourceType        LeadSource
   offer             String?
@@ -400,7 +372,6 @@ model Campaign {
 model LeadForm {
   id        String   @id @default(uuid())
   tenantId  String?
-  tenant    Tenant?  @relation(fields: [tenantId], references: [id])
   name      String
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
@@ -444,7 +415,6 @@ model FormSubmission {
 model QrCode {
   id           String   @id @default(uuid())
   tenantId     String?
-  tenant       Tenant?  @relation(fields: [tenantId], references: [id])
   name         String
   destinationType String
   destination  String
@@ -489,7 +459,6 @@ model ConversationMessage {
   campaignId        String?
   campaign          Campaign?       @relation(fields: [campaignId], references: [id])
   tenantId          String?
-  tenant            Tenant?         @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   createdAt         DateTime        @default(now())
 
   @@index([leadId])
@@ -504,7 +473,6 @@ model ConversationMessage {
 model MessageTemplate {
   id        String              @id @default(uuid())
   tenantId  String?
-  tenant    Tenant?             @relation(fields: [tenantId], references: [id])
   name      String
   type      MessageTemplateType
   channel   MessageChannel
@@ -554,7 +522,6 @@ model MediaFile {
   templateId   String?
   template     MessageTemplate? @relation("TemplateMedia", fields: [templateId], references: [id])
   tenantId     String?
-  tenant       Tenant?         @relation(fields: [tenantId], references: [id], onDelete: Restrict)
 
   @@index([category])
   @@index([fileType])
@@ -569,7 +536,6 @@ model MediaFile {
 model NurtureSequence {
   id        String   @id @default(uuid())
   tenantId  String?
-  tenant    Tenant?  @relation(fields: [tenantId], references: [id])
   name      String
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
@@ -623,7 +589,6 @@ model NurtureProgress {
 model ScoringRule {
   id          String   @id @default(uuid())
   tenantId    String?
-  tenant      Tenant?  @relation(fields: [tenantId], references: [id])
   name        String
   description String?
   field       String
@@ -655,7 +620,6 @@ model ScoreLog {
 model RoutingRule {
   id          String   @id @default(uuid())
   tenantId    String?
-  tenant      Tenant?  @relation(fields: [tenantId], references: [id])
   name        String
   description String?
   conditions  Json
@@ -680,7 +644,6 @@ model Task {
   assigneeId  String?
   assignee    User?    @relation(fields: [assigneeId], references: [id])
   tenantId    String?
-  tenant      Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -694,7 +657,6 @@ model Task {
 model Conversion {
   id             String               @id @default(uuid())
   tenantId       String?
-  tenant         Tenant?              @relation(fields: [tenantId], references: [id])
   destination    ConversionDestination
   status         ConversionStatus     @default(REQUESTED)
   externalId     String?
@@ -716,7 +678,6 @@ model Conversion {
 model Integration {
   id         String   @id @default(uuid())
   tenantId   String?
-  tenant     Tenant?  @relation(fields: [tenantId], references: [id])
   type       String
   name       String
   config     Json
@@ -733,7 +694,6 @@ model Integration {
 model CrmMapping {
   id          String   @id @default(uuid())
   tenantId    String?
-  tenant      Tenant?  @relation(fields: [tenantId], references: [id])
   name        String
   crmType     String
   fieldMappings Json
@@ -748,7 +708,6 @@ model CrmMapping {
 model BookingSetting {
   id           String   @id @default(uuid())
   tenantId     String?
-  tenant       Tenant?  @relation(fields: [tenantId], references: [id])
   name         String
   provider     String
   config       Json
@@ -778,6 +737,24 @@ model AutomationEvent {
   @@map("automation_events")
 }
 
+model ScheduledAction {
+  id         String   @id @default(uuid())
+  leadId     String
+  lead       Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  kind       String   // nurture_step | followup | re_engage | send_retry
+  runAt      DateTime
+  payload    Json     @default("{}")
+  status     String   @default("pending") // pending | claimed | done | cancelled | superseded | failed
+  dedupeKey  String   @unique             // e.g. 'nurture:{leadId}:{step}'
+  attempts   Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([status, runAt])
+  @@index([leadId])
+  @@map("scheduled_actions")
+}
+
 model WebhookEvent {
   id              String   @id @default(uuid())
   provider        String
@@ -803,7 +780,6 @@ model AuditLog {
   changes   Json?
   metadata  Json?
   tenantId  String?
-  tenant    Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   createdAt DateTime @default(now())
 
   @@index([entity])
@@ -817,7 +793,6 @@ model AuditLog {
 model CustomFieldDefinition {
   id       String            @id @default(uuid())
   tenantId String?
-  tenant   Tenant?           @relation(fields: [tenantId], references: [id])
   name     String
   key      String
   type     CustomFieldType
@@ -871,7 +846,6 @@ model LeadOwnershipHistory {
 model PipelineStage {
   id          String   @id @default(uuid())
   tenantId    String?
-  tenant      Tenant?  @relation(fields: [tenantId], references: [id])
   name        String
   order       Int      @default(0)
   color       String   @default("#6b7280")
@@ -914,7 +888,6 @@ model InternalNote {
 model BlocklistEntry {
   id        String   @id @default(uuid())
   tenantId  String?
-  tenant    Tenant?  @relation(fields: [tenantId], references: [id])
   type      String
   value     String
   reason    String?
@@ -945,7 +918,6 @@ model NotificationPreference {
 model SlaRule {
   id            String   @id @default(uuid())
   tenantId      String?
-  tenant        Tenant?  @relation(fields: [tenantId], references: [id])
   name          String
   condition     Json
   responseTimeMinutes Int
@@ -969,7 +941,6 @@ model RevenueRecord {
   status      String   @default("pending")
   recordedAt  DateTime @default(now())
   tenantId    String?
-  tenant      Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   createdAt   DateTime @default(now())
 
   @@index([leadId])
@@ -1015,7 +986,6 @@ model SystemEvent {
   idempotencyKey  String?   @unique
   createdById     String?
   tenantId        String?
-  tenant          Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   createdAt       DateTime  @default(now())
   processedAt     DateTime?
 
@@ -1034,7 +1004,6 @@ model SystemEvent {
 model AutomationRule {
   id          String    @id @default(uuid())
   tenantId    String?
-  tenant      Tenant?   @relation(fields: [tenantId], references: [id])
   name        String
   description String?
   category    String
@@ -1083,7 +1052,6 @@ model TimelineItem {
   metadata    Json?
   createdById String?
   tenantId    String?
-  tenant      Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   createdAt   DateTime  @default(now())
 
   lead    Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
@@ -1119,7 +1087,6 @@ model FailureRecord {
   resolvedAt     DateTime?
   resolvedById   String?
   tenantId       String?
-  tenant         Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -1172,67 +1139,3 @@ model WorkflowStepRun {
   @@index([status])
   @@map("workflow_step_runs")
 }
-
-// === NICHE TEMPLATE SYSTEM ===
-
-model NicheTemplate {
-  id          String   @id @default(uuid())
-  key         String   @unique
-  name        String
-  description String?
-  industry    String
-  version     Int      @default(1)
-  status      String   @default("draft")
-  config      Json
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  packs       NicheTemplatePack[]
-  installations ClientTemplateInstallation[]
-
-  @@index([industry])
-  @@index([status])
-  @@index([key])
-  @@map("niche_templates")
-}
-
-model NicheTemplatePack {
-  id         String        @id @default(uuid())
-  templateId String
-  template   NicheTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  type       String
-  name       String
-  payload    Json
-  order      Int           @default(0)
-  active     Boolean       @default(true)
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
-
-  @@index([templateId])
-  @@index([type])
-  @@map("niche_template_packs")
-}
-
-model ClientTemplateInstallation {
-  id               String   @id @default(uuid())
-  clientKey        String?
-  tenantId         String?
-  tenant           Tenant?         @relation(fields: [tenantId], references: [id])
-  templateId       String
-  template         NicheTemplate @relation(fields: [templateId], references: [id], onDelete: Restrict)
-  templateVersion  Int
-  status           String   @default("installed")
-  installedById    String?
-  installedAt      DateTime @default(now())
-  configSnapshot   Json
-  createdRecords   Json
-  errorMessage     String?
-
-  @@index([clientKey])
-  @@index([tenantId])
-  @@index([templateId])
-  @@index([status])
-  @@map("client_template_installations")
-}
-
-

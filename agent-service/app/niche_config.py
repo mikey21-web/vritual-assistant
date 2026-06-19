@@ -1,3 +1,8 @@
+import os
+import json
+from pathlib import Path
+
+
 SAFE_DEFAULT_CONFIG = {
     "industry": "generic",
     "display_name": "Business",
@@ -109,3 +114,36 @@ def normalize_niche_config(raw: dict | None) -> dict:
         "labels": labels or SAFE_DEFAULT_CONFIG["labels"],
         "compliance": compliance or SAFE_DEFAULT_CONFIG["compliance"],
     }
+
+
+def load_niche_config_from_file() -> dict:
+    """
+    Load the niche configuration from the local YAML file.
+
+    In single-tenant deployments, the niche.config.yaml is mounted
+    as a read-only volume at /app/niche.config.yaml.
+
+    Falls back to NICHE_CONFIG_PATH env var, then SAFE_DEFAULT_CONFIG.
+    """
+    import yaml
+
+    paths = [
+        os.environ.get("NICHE_CONFIG_PATH", ""),
+        "/app/niche.config.yaml",
+        "/app/niche.config.yml",
+        str(Path(__file__).parent.parent / "niche.config.yaml"),
+        str(Path(__file__).parent.parent / "niche.config.yml"),
+    ]
+
+    for path in paths:
+        if not path:
+            continue
+        try:
+            with open(path, "r") as f:
+                data = yaml.safe_load(f)
+                if data and isinstance(data, dict):
+                    return normalize_niche_config({"packs": data.get("packs", []), **data})
+        except (FileNotFoundError, PermissionError, yaml.YAMLError):
+            continue
+
+    return SAFE_DEFAULT_CONFIG

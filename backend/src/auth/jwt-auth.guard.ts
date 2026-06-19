@@ -32,14 +32,11 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
         throw new UnauthorizedException('Service key only permitted on agent endpoints');
       }
 
-      const tenantIdHeader = request.headers['x-tenant-id'] as string;
-      if (!tenantIdHeader) throw new UnauthorizedException('x-tenant-id header required with service key');
-
+      // In single-tenant mode, the tenant is implicit. Set user context for the agent.
       request.user = {
         sub: 'agent-service',
         email: 'agent@service.internal',
         role: 'SALES_AGENT',
-        tenantId: tenantIdHeader,
       };
       return true;
     }

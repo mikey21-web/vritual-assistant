@@ -98,6 +98,11 @@ export class AdvancedFeaturesService {
     return note;
   }
 
+  // Shared phone normalization — single source of truth
+  private normalizePhone(phone: string): string {
+    return phone.replace(/[\s\-\(\)\+]/g, '');
+  }
+
   // === BLOCKLIST ===
   async checkBlocklist(email?: string, phone?: string, tenantId?: string | null): Promise<boolean> {
     if (email) {
@@ -105,7 +110,7 @@ export class AdvancedFeaturesService {
       if (blocked) return true;
     }
     if (phone) {
-      const clean = phone.replace(/[\s\-\(\)\s+]/g, '');
+      const clean = this.normalizePhone(phone);
       const blocked = await this.prisma.blocklistEntry.findFirst({ where: { type: 'phone', value: clean, tenantId: tenantId || null } });
       if (blocked) return true;
     }
@@ -113,7 +118,7 @@ export class AdvancedFeaturesService {
   }
   getBlocklist(query: Record<string, string> = {}, tenantId?: string | null) { return this.prisma.blocklistEntry.findMany({ where: { tenantId: tenantId || null }, orderBy: { createdAt: 'desc' }, take: 100 }); }
   async addToBlocklist(type: string, value: string, reason?: string) {
-    const normalized = type === 'phone' ? value.replace(/[\s\-\(\)\+]/g, '') : value.toLowerCase().trim();
+    const normalized = type === 'phone' ? this.normalizePhone(value) : value.toLowerCase().trim();
     const entry = await this.prisma.blocklistEntry.create({ data: { type, value: normalized, reason } });
     await this.auditLogs.log('blocklist_added', 'BlocklistEntry', entry.id, undefined, { type, value: normalized, reason });
     return entry;

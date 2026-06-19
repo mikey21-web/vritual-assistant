@@ -1,5 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import { AsyncLocalStorage } from 'node:async_hooks';
+
+/**
+ * Simplified tenant context for single-tenant architecture.
+ *
+ * In a single-tenant-per-deploy model, there is exactly one tenant.
+ * The tenant ID is resolved from the niche config at boot.
+ * These helpers still work for backward compatibility with existing services
+ * that reference tenantId.
+ */
 
 export interface TenantUser {
   sub?: string;
@@ -12,37 +20,41 @@ export interface TenantContext {
   isPlatformAdmin: boolean;
 }
 
-const tenantStorage = new AsyncLocalStorage<TenantContext>();
+/**
+ * Returns a tenant filter for Prisma queries.
+ * In single-tenant mode, returns {} (no filter) since all data belongs to one tenant.
+ */
+export function tenantFilter(user?: TenantUser | null): { tenantId?: string } {
+  return {};
+}
 
-const PLATFORM_ADMIN_ROLES = new Set(['OWNER', 'ADMIN']);
-
+/**
+ * Returns the current tenant context.
+ * In single-tenant mode, returns a default context since multi-tenant isolation is not needed.
+ */
 export function getTenantContext(): TenantContext {
-  const store = tenantStorage.getStore();
-  return store ?? { tenantId: null, isPlatformAdmin: false };
+  return { tenantId: null, isPlatformAdmin: true };
 }
 
+/**
+ * Returns the current tenant ID.
+ * In single-tenant mode, returns null (no scoping needed).
+ * Services that need a specific tenant ID should resolve it from the config/business settings.
+ */
 export function getCurrentTenantId(): string | null {
-  return tenantStorage.getStore()?.tenantId ?? null;
+  return null;
 }
 
+/**
+ * Runs a function in a tenant context.
+ * In single-tenant mode, this just runs the function directly.
+ */
 export function runInTenantContext<T>(
-  tenantId: string | null,
-  isPlatformAdmin: boolean,
+  _tenantId: string | null,
+  _isPlatformAdmin: boolean,
   fn: () => T,
 ): T {
-  return tenantStorage.run({ tenantId, isPlatformAdmin }, fn);
-}
-
-export function tenantFilter(user?: TenantUser | null): { tenantId?: string } {
-  const tenantId = user?.tenantId || null;
-  const role = user?.role;
-  const isPlatformAdmin = role ? PLATFORM_ADMIN_ROLES.has(role) : false;
-
-  if (!tenantId) {
-    if (!isPlatformAdmin) return { tenantId: '__no_tenant__' };
-    return {};
-  }
-  return { tenantId };
+  return fn();
 }
 
 @Injectable()

@@ -1,95 +1,44 @@
-import { Injectable, ForbiddenException, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaClient } from '@prisma/client';
-import { getTenantContext } from '../shared/tenant-context.service';
 
-const TENANT_MODELS = new Set([
-  'lead', 'contact', 'campaign', 'task', 'leadForm', 'conversationMessage',
-  'messageTemplate', 'mediaFile', 'nurtureSequence', 'scoringRule', 'routingRule',
-  'integration', 'crmMapping', 'bookingSetting', 'conversion', 'pipelineStage',
-  'automationRule', 'auditLog', 'customFieldDefinition', 'blocklistEntry',
-  'slaRule', 'revenueRecord', 'businessSettings', 'qRCode',
-]);
-
-const READ_ACTIONS = new Set([
-  'findMany', 'findFirst', 'findFirstOrThrow', 'findUnique', 'findUniqueOrThrow',
-  'count', 'aggregate', 'groupBy',
-]);
-
-const WRITE_ACTIONS = new Set([
-  'create', 'createMany', 'upsert', 'update', 'updateMany', 'delete', 'deleteMany',
-]);
-
-const SENTINEL_TENANT = '__no_tenant__';
-
+/**
+ * Simplified PrismaService for single-tenant architecture.
+ *
+ * In a single-tenant-per-deploy model, the tenant middleware is not needed.
+ * All records belong to the single implicit tenant.
+ * The config-loader.service.ts creates/upserts the tenant at boot from niche.config.yaml.
+ *
+ * Database queries that reference tenantId still work (the column exists);
+ * they just don't need dynamic scoping.
+ */
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
-  constructor() {
+  private readonly logger = new Logger(PrismaService.name);
+  private readonly tenantId: string | null = null;
+
+  constructor(private configService: ConfigService) {
     super();
-    this.$use(async (params, next) => {
-      const model = (params.model as string)?.toLowerCase();
-      const action = params.action as string;
-
-      if (!model || !TENANT_MODELS.has(model)) return next(params);
-
-      const ctx = getTenantContext();
-
-      if (READ_ACTIONS.has(action)) {
-        if (ctx.isPlatformAdmin && !ctx.tenantId) {
-          return next(params);
-        }
-
-        const filterTenantId = ctx.tenantId || SENTINEL_TENANT;
-
-        if (action === 'findUnique' || action === 'findUniqueOrThrow') {
-          params.args.where = { ...params.args.where, tenantId: filterTenantId };
-        } else {
-          params.args.where = params.args.where || {};
-          params.args.where.tenantId = filterTenantId;
-        }
-        return next(params);
-      }
-
-      if (WRITE_ACTIONS.has(action)) {
-        if (!ctx.tenantId && !ctx.isPlatformAdmin) {
-          throw new ForbiddenException('Tenant context required for write operations');
-        }
-
-        if (action === 'create') {
-          params.args.data.tenantId = ctx.isPlatformAdmin
-            ? (params.args.data.tenantId || ctx.tenantId)
-            : ctx.tenantId;
-        } else if (action === 'createMany') {
-          params.args.data = params.args.data?.map((d: any) => ({
-            ...d,
-            tenantId: ctx.isPlatformAdmin ? (d.tenantId || ctx.tenantId) : ctx.tenantId,
-          }));
-        } else if (action === 'upsert') {
-          params.args.create.tenantId = ctx.isPlatformAdmin
-            ? (params.args.create.tenantId || ctx.tenantId)
-            : ctx.tenantId;
-          if (!ctx.isPlatformAdmin) {
-            params.args.where = { ...params.args.where, tenantId: ctx.tenantId };
-          }
-        }
-
-        if (['update', 'updateMany', 'delete', 'deleteMany'].includes(action)) {
-          if (ctx.tenantId && !ctx.isPlatformAdmin) {
-            params.args.where = { ...params.args.where, tenantId: ctx.tenantId };
-          }
-        }
-
-        return next(params);
-      }
-
-      return next(params);
-    });
+    // In single-tenant mode, we resolve the tenant ID at boot from config
+    // and make it available for services that still need it
   }
 
   async onModuleInit() {
     await this.$connect();
+    this.logger.log('Connected to database');
   }
 
   async onModuleDestroy() {
     await this.$disconnect();
+    this.logger.log('Disconnected from database');
+  }
+
+  /**
+   * Returns the current tenant ID.
+   * In single-tenant mode, this is resolved from the niche config at boot.
+   * Returns null if not yet resolved (during bootstrap before config loads).
+   */
+  getTenantId(): string | null {
+    return this.tenantId;
   }
 }

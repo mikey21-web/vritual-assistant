@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ForbiddenException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
@@ -18,12 +18,9 @@ export class AuthService {
     const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (existing) throw new UnauthorizedException('Email already registered');
 
-    if (!dto.tenantId) {
-      throw new UnauthorizedException('tenantId is required for user registration');
-    }
-
-    const tenant = await this.prisma.tenant.findUnique({ where: { id: dto.tenantId } });
-    if (!tenant) throw new UnauthorizedException('Tenant not found');
+    // Registration is admin/invite-only in single-tenant mode
+    const adminUser = await this.prisma.user.findFirst({ where: { role: 'OWNER' } });
+    if (!adminUser) throw new ForbiddenException('No admin exists — registration unavailable');
 
     const hashed = await bcrypt.hash(dto.password, 12);
     const user = await this.prisma.user.create({
@@ -33,7 +30,6 @@ export class AuthService {
         phone: dto.phone,
         password: hashed,
         role: 'SALES_AGENT',
-        tenantId: dto.tenantId,
       },
     });
 
@@ -55,7 +51,6 @@ export class AuthService {
   async getProfile(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      include: { tenant: { select: { id: true, key: true, name: true, industry: true, status: true } } },
     });
     if (!user) throw new UnauthorizedException('User not found');
     const { password, ...rest } = user;

@@ -40,13 +40,43 @@ export class WebhooksService {
     const existing = await this.prisma.webhookEvent.findUnique({ where: { idempotencyKey: key } });
     if (existing) return { status: 'duplicate', result: existing.processedResult };
 
+    const text = payload.text || payload.body || '';
     const contact = await this.contactsService.findOrCreate({ name: payload.contactName, phone: payload.from, whatsapp: payload.from, tenantId: tenantId ?? undefined });
-    const lead = await this.leadsService.create({ contactId: contact.id, source: 'WHATSAPP', message: payload.text || payload.body, metadata: payload, tenantId: tenantId ?? undefined });
-    await this.conversationsService.create({ text: payload.text || payload.body, channel: 'WHATSAPP', direction: 'INBOUND', providerMessageId: msgId, leadId: lead.id, contactId: contact.id, metadata: payload });
+    const lead = await this.leadsService.create({ contactId: contact.id, source: 'WHATSAPP', message: text, metadata: payload, tenantId: tenantId ?? undefined });
+
+    // Handle STOP commands for consent/opt-out
+    const stopPattern = /^\s*(stop|unsubscribe|cancel|opt.?out)\s*$/i;
+    if (stopPattern.test(text.trim())) {
+      await this.prisma.contact.update({
+        where: { id: contact.id },
+        data: {
+          consentStatus: 'opted_out',
+          optedOutAt: new Date(),
+        },
+      });
+      await this.prisma.consentEvent.create({
+        data: {
+          contactId: contact.id,
+          channel: 'WHATSAPP',
+          action: 'opt_out',
+          source: 'webhook',
+        },
+      });
+      // Send a single confirmation
+      await this.conversationsService.create({
+        text: "You've been unsubscribed. You won't receive further messages from us.",
+        channel: 'WHATSAPP',
+        direction: 'OUTBOUND',
+        leadId: lead.id,
+        contactId: contact.id,
+      });
+    }
+
+    await this.conversationsService.create({ text, channel: 'WHATSAPP', direction: 'INBOUND', providerMessageId: msgId, leadId: lead.id, contactId: contact.id, metadata: payload });
     const result = { contact, lead };
     await this.prisma.webhookEvent.create({ data: { provider, eventType: 'whatsapp_message', idempotencyKey: key, rawPayload: payload, processedResult: result } });
 
-    this.agentClient.trigger(lead.tenantId || '', lead.id, msgId || key, 'WHATSAPP', payload.text || payload.body || '');
+    this.agentClient.trigger(lead.tenantId || '', lead.id, msgId || key, 'WHATSAPP', text);
 
     return { data: result };
   }

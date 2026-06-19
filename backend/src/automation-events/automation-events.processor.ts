@@ -105,6 +105,7 @@ export class AutomationRetryProcessor extends WorkerHost {
         where: { id: eventId },
         data: {
           status: exceeded ? 'failed' : 'retrying',
+          attempts: event.attempts + 1,
           lastError: `Dispatch failed (${res.status}): ${errorText}`,
           nextRetryAt: exceeded ? null : new Date(Date.now() + Math.pow(2, event.attempts + 1) * 10000),
         },
@@ -119,6 +120,7 @@ export class AutomationRetryProcessor extends WorkerHost {
         where: { id: eventId },
         data: {
           status: exceeded ? 'failed' : 'retrying',
+          attempts: event.attempts + 1,
           lastError: e.message,
           nextRetryAt: exceeded ? null : new Date(Date.now() + Math.pow(2, event.attempts + 1) * 10000),
         },

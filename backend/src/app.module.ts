@@ -38,8 +38,8 @@ import { EventsModule } from './events/events.module';
 import { TimelineModule } from './timeline/timeline.module';
 import { FailuresModule } from './failures/failures.module';
 import { RulesModule } from './rules/rules.module';
-import { NicheTemplatesModule } from './niche-templates/niche-templates.module';
-import { TenantsModule } from './tenants/tenants.module';
+import { AutomationModule } from './automation/automation.module';
+import { BootstrapModule } from './bootstrap/bootstrap.module';
 import { PermissionsModule } from './permissions/permissions.module';
 import { AgentModule } from './agent/agent.module';
 
@@ -92,8 +92,8 @@ import { AgentModule } from './agent/agent.module';
     TimelineModule,
     FailuresModule,
     RulesModule,
-    NicheTemplatesModule,
-    TenantsModule,
+    BootstrapModule,
+    AutomationModule,
     PermissionsModule,
     AgentModule,
   ],

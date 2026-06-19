@@ -46,7 +46,14 @@ async def mark_processing(trigger_id: str) -> bool:
         return True
 
 
-async def mark_done(trigger_id: str) -> None:
+async def mark_done(trigger_id: str, success: bool = True) -> None:
+    """Mark a trigger as done.
+
+    On success, keep the key for its full TTL so retried triggers are skipped.
+    On failure, delete the key so the trigger can be retried.
+    """
+    if success:
+        return  # Keep the key — it will expire naturally after TTL
     if _redis:
         await _redis.delete(f"agent:trigger:{trigger_id}")
     else:
