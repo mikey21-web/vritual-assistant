@@ -5,7 +5,6 @@ import { NotFoundException } from '@nestjs/common';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { AdvancedFeaturesService } from '../advanced-features/advanced-features.service';
 import { EventsService } from '../events/events.service';
-import { TenantContextService } from '../shared/tenant-context.service';
 
 describe('LeadsService', () => {
   let service: LeadsService;
@@ -48,7 +47,6 @@ describe('LeadsService', () => {
         { provide: AuditLogsService, useValue: auditLogs },
         { provide: AdvancedFeaturesService, useValue: advanced },
         { provide: EventsService, useValue: events },
-        { provide: TenantContextService, useValue: { getFilter: jest.fn().mockReturnValue({}) } },
       ],
     }).compile();
 

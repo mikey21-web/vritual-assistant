@@ -4,7 +4,6 @@ import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { AdvancedFeaturesService } from '../advanced-features/advanced-features.service';
 import { EventsService } from '../events/events.service';
 import { getNested, evaluateCondition } from '../shared/scoring.util';
-import { TenantContextService } from '../shared/tenant-context.service';
 
 @Injectable()
 export class LeadsService {
@@ -13,7 +12,6 @@ export class LeadsService {
     private auditLogs: AuditLogsService,
     private advanced: AdvancedFeaturesService,
     private events: EventsService,
-    private tenantCtx: TenantContextService,
   ) {}
 
   async findAll(query: any = {}) {
@@ -72,7 +70,7 @@ export class LeadsService {
     const lead = await this.prisma.lead.findUnique({ where: { id }, include: { contact: true } });
     if (!lead) throw new NotFoundException('Lead not found');
 
-    const rules = await this.prisma.scoringRule.findMany({ where: { active: true, tenantId: lead.tenantId || undefined } });
+    const rules = await this.prisma.scoringRule.findMany({ where: { active: true } });
     let totalScore = lead.score || 0;
     for (const rule of rules) {
       const fieldValue = getNested(lead, rule.field);
@@ -95,7 +93,7 @@ export class LeadsService {
     const lead = await this.findOne(id);
     if (!agentId) {
       const available = await this.prisma.user.findFirst({
-        where: { role: { in: ['SALES_AGENT','MANAGER'] }, tenantId: lead.tenantId || undefined },
+        where: { role: { in: ['SALES_AGENT','MANAGER'] } },
         orderBy: { createdAt: 'asc' },
         select: { id: true },
       });

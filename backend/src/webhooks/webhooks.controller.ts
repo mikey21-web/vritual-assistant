@@ -5,7 +5,6 @@ import { Request } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
 import { WebhooksService } from './webhooks.service';
 import { WebhookSecurityService } from '../shared/webhook-security.service';
-import { runInTenantContext } from '../shared/tenant-context.service';
 import { Public } from '../auth/public.decorator';
 import { FormWebhookDto, WhatsAppWebhookDto, GenericWebhookDto } from './dto/webhook.dto';
 
@@ -42,7 +41,7 @@ export class WebhooksController {
       throw new UnauthorizedException('Invalid webhook API key');
     }
     const tenantId = d.tenantId || (await this.resolveTenant(apiKey || '', tenantIdHeader));
-    return runInTenantContext(tenantId, false, () => this.service.handleFormSubmit('external', d, tenantId));
+    return this.service.handleFormSubmit('external', d, tenantId);
   }
 
   @Post('whatsapp') @HttpCode(200) @ApiOperation({ summary: 'Receive WhatsApp webhook (signature verified)' })
@@ -57,7 +56,7 @@ export class WebhooksController {
       throw new UnauthorizedException('Invalid WhatsApp signature');
     }
     const tenantId = tenantIdHeader || null;
-    return runInTenantContext(tenantId, false, () => this.service.handleWhatsApp('whatsapp', d, tenantId));
+    return this.service.handleWhatsApp('whatsapp', d, tenantId);
   }
 
   @Post('social') @HttpCode(200)
@@ -70,7 +69,7 @@ export class WebhooksController {
       throw new UnauthorizedException('Invalid webhook API key');
     }
     const tenantId = await this.resolveTenant(apiKey || '', tenantIdHeader);
-    return runInTenantContext(tenantId, false, () => this.service.handleGeneric('social', 'social_message', d));
+    return this.service.handleGeneric('social', 'social_message', d);
   }
 
   @Post('calls') @HttpCode(200)
@@ -83,7 +82,7 @@ export class WebhooksController {
       throw new UnauthorizedException('Invalid webhook API key');
     }
     const tenantId = await this.resolveTenant(apiKey || '', tenantIdHeader);
-    return runInTenantContext(tenantId, false, () => this.service.handleGeneric('phone', 'phone_call', d));
+    return this.service.handleGeneric('phone', 'phone_call', d);
   }
 
   @Post('payments') @HttpCode(200) @ApiOperation({ summary: 'Receive payment webhook (Stripe-style sig verified)' })
@@ -98,7 +97,7 @@ export class WebhooksController {
       throw new UnauthorizedException('Invalid payment signature');
     }
     const tenantId = tenantIdHeader || null;
-    return runInTenantContext(tenantId, false, () => this.service.handlePayment('payment', d));
+    return this.service.handlePayment('payment', d);
   }
 
   @Post('chatbot') @HttpCode(200)
@@ -111,7 +110,7 @@ export class WebhooksController {
       throw new UnauthorizedException('Invalid webhook API key');
     }
     const tenantId = await this.resolveTenant(apiKey || '', tenantIdHeader);
-    return runInTenantContext(tenantId, false, () => this.service.handleGeneric('chatbot', 'chatbot_message', d));
+    return this.service.handleGeneric('chatbot', 'chatbot_message', d);
   }
 
   @Post('mobile-app') @HttpCode(200)
@@ -124,6 +123,6 @@ export class WebhooksController {
       throw new UnauthorizedException('Invalid webhook API key');
     }
     const tenantId = await this.resolveTenant(apiKey || '', tenantIdHeader);
-    return runInTenantContext(tenantId, false, () => this.service.handleGeneric('mobile-app', 'app_event', d));
+    return this.service.handleGeneric('mobile-app', 'app_event', d);
   }
 }

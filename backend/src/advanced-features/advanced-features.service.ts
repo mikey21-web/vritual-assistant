@@ -2,7 +2,6 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { CreatePipelineStageDto, UpdatePipelineStageDto, UpdateNotificationPrefsDto } from './dto/advanced-features.dto';
-import { getTenantContext } from '../shared/tenant-context.service';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -340,10 +339,8 @@ export class AdvancedFeaturesService {
   async purgeSpamAndCold(retentionDays: number = 365) {
     if (retentionDays < 30) throw new BadRequestException('Minimum retention is 30 days');
     const cutoff = new Date(Date.now() - retentionDays * 24 * 3600 * 1000);
-    const ctx = getTenantContext();
-    const whereTenant = ctx.tenantId && !ctx.isPlatformAdmin ? { tenantId: ctx.tenantId } : {};
     const deleted = await this.prisma.lead.deleteMany({
-      where: { ...whereTenant, OR: [{ status: 'SPAM' }, { segment: 'COLD', updatedAt: { lt: cutoff } }] },
+      where: { OR: [{ status: 'SPAM' }, { segment: 'COLD', updatedAt: { lt: cutoff } }] },
     });
     await this.auditLogs.log('data_purged', 'Lead', undefined, undefined, { deletedCount: deleted.count, retentionDays });
     return { deletedCount: deleted.count, retentionDays };
