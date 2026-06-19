@@ -7,6 +7,7 @@ import { TenantContextService } from './tenant-context.service';
 import { HubspotAdapter, SalesforceAdapter, ZohoAdapter } from './adapters/crm.adapter';
 import { CalendlyAdapter, GoogleCalendarAdapter } from './adapters/calendar.adapter';
 import { WhatsAppCloudAdapter } from './adapters/messaging.adapter';
+import { TwilioSmsAdapter } from './adapters/sms.adapter';
 import { EmailAdapter } from './adapters/email.adapter';
 import { HealthController } from './health.controller';
 
@@ -17,13 +18,13 @@ import { HealthController } from './health.controller';
     SignedUrlService, WebhookSecurityService, HealthService, PackApplierService, TenantContextService,
     HubspotAdapter, SalesforceAdapter, ZohoAdapter,
     CalendlyAdapter, GoogleCalendarAdapter,
-    WhatsAppCloudAdapter, EmailAdapter,
+    WhatsAppCloudAdapter, TwilioSmsAdapter, EmailAdapter,
   ],
   exports: [
     SignedUrlService, WebhookSecurityService, HealthService, PackApplierService, TenantContextService,
     HubspotAdapter, SalesforceAdapter, ZohoAdapter,
     CalendlyAdapter, GoogleCalendarAdapter,
-    WhatsAppCloudAdapter, EmailAdapter,
+    WhatsAppCloudAdapter, TwilioSmsAdapter, EmailAdapter,
   ],
 })
 export class SharedModule {}

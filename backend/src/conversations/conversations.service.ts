@@ -1,14 +1,22 @@
-import { Injectable, ForbiddenException } from '@nestjs/common';
+import { Injectable, ForbiddenException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { MessagePolicyService } from './message-policy.service';
+import { TwilioSmsAdapter } from '../shared/adapters/sms.adapter';
+import { WhatsAppCloudAdapter } from '../shared/adapters/messaging.adapter';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class ConversationsService {
+  private readonly logger = new Logger(ConversationsService.name);
+
   constructor(
     private prisma: PrismaService,
     private auditLogs: AuditLogsService,
     private policy: MessagePolicyService,
+    private smsAdapter: TwilioSmsAdapter,
+    private whatsAppAdapter: WhatsAppCloudAdapter,
+    private config: ConfigService,
   ) {}
 
   findAll(query: any = {}) {
@@ -37,7 +45,6 @@ export class ConversationsService {
         { isProactive: true, templateId: data.messageTemplateId },
       );
       if (!result.allowed) {
-        // Store as blocked with the reason
         const msg = await this.prisma.conversationMessage.create({
           data: {
             ...data,
@@ -51,7 +58,70 @@ export class ConversationsService {
     }
 
     const msg = await this.prisma.conversationMessage.create({ data });
+
+    // Dispatch via channel adapter for outbound messages
+    if (data.direction === 'OUTBOUND' && data.channel) {
+      this.dispatchViaChannel(msg).catch(err => this.logger.error(`Channel dispatch failed: ${err.message}`));
+    }
+
     await this.auditLogs.log('message_sent', 'ConversationMessage', msg.id, userId, { channel: data.channel, direction: data.direction });
     return msg;
+  }
+
+  private async dispatchViaChannel(msg: any): Promise<void> {
+    const lead = await this.prisma.lead.findUnique({
+      where: { id: msg.leadId },
+      include: { contact: true },
+    });
+    if (!lead?.contact) {
+      this.logger.warn(`Cannot dispatch message ${msg.id}: lead or contact not found`);
+      return;
+    }
+
+    const channel = (msg.channel || '').toUpperCase();
+    const text = msg.text;
+
+    if (channel === 'SMS') {
+      if (!lead.contact.phone) {
+        this.logger.warn(`Cannot dispatch SMS for message ${msg.id}: contact has no phone`);
+        return;
+      }
+      const result = await this.smsAdapter.send(lead.contact.phone, text);
+      if (result.success) {
+        await this.prisma.conversationMessage.update({
+          where: { id: msg.id },
+          data: { deliveryStatus: 'delivered', providerMessageId: result.providerMessageId },
+        });
+      } else {
+        await this.prisma.conversationMessage.update({
+          where: { id: msg.id },
+          data: { deliveryStatus: 'failed', metadata: { error: result.error } },
+        });
+      }
+    } else if (channel === 'WHATSAPP') {
+      if (!lead.contact.whatsapp && !lead.contact.phone) {
+        this.logger.warn(`Cannot dispatch WhatsApp for message ${msg.id}: contact has no phone/whatsapp`);
+        return;
+      }
+      const to: string = lead.contact.whatsapp || lead.contact.phone || '';
+      if (!to) return;
+      const config = {
+        phoneNumberId: this.config.get<string>('WHATSAPP_PHONE_NUMBER_ID') || '',
+        accessToken: this.config.get<string>('WHATSAPP_ACCESS_TOKEN') || '',
+      };
+      const result = await this.whatsAppAdapter.sendMessage(to, text, config);
+      if (result.success) {
+        await this.prisma.conversationMessage.update({
+          where: { id: msg.id },
+          data: { deliveryStatus: 'delivered', providerMessageId: result.messageId },
+        });
+      } else {
+        await this.prisma.conversationMessage.update({
+          where: { id: msg.id },
+          data: { deliveryStatus: 'failed', metadata: { error: result.error } },
+        });
+      }
+    }
+    // Other channels (EMAIL, etc.) would be handled here
   }
 }
