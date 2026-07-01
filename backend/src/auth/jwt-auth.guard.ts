@@ -2,9 +2,22 @@ import { Injectable, ExecutionContext, UnauthorizedException } from '@nestjs/com
 import { AuthGuard } from '@nestjs/passport';
 import { Reflector } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
+import * as crypto from 'crypto';
 import { IS_PUBLIC_KEY } from './public.decorator';
 
 const AGENT_ENDPOINTS = ['/agent/'];
+
+function timingSafeEqual(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) {
+    // Always compare equal-length buffers to prevent timing leak
+    const dummy = Buffer.alloc(bufA.length);
+    crypto.timingSafeEqual(bufA, dummy);
+    return false;
+  }
+  return crypto.timingSafeEqual(bufA, bufB);
+}
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
@@ -25,7 +38,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     if (serviceKey) {
       const configuredKey = this.config.get<string>('AGENT_SERVICE_JWT');
       if (!configuredKey) throw new UnauthorizedException('Service key auth not configured');
-      if (serviceKey !== configuredKey) throw new UnauthorizedException('Invalid service key');
+      if (!timingSafeEqual(serviceKey, configuredKey)) throw new UnauthorizedException('Invalid service key');
 
       const url = request.url || '';
       if (!AGENT_ENDPOINTS.some(prefix => url.startsWith(prefix))) {

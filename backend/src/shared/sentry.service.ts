@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import * as Sentry from '@sentry/node';
 
 /**
  * Sentry integration wrapper.
@@ -8,14 +9,17 @@ import { ConfigService } from '@nestjs/config';
 @Injectable()
 export class SentryService {
   private readonly logger = new Logger(SentryService.name);
-  private initialized = false;
+  initialized = false;
 
   constructor(private config: ConfigService) {
     const dsn = this.config.get<string>('SENTRY_DSN');
     if (dsn) {
       try {
-        // In production: import * as Sentry from '@sentry/node';
-        // Sentry.init({ dsn, environment: process.env.NODE_ENV || 'development', tracesSampleRate: 0.2 });
+        Sentry.init({
+          dsn,
+          environment: process.env.NODE_ENV || 'development',
+          tracesSampleRate: parseFloat(process.env.SENTRY_TRACES_SAMPLE_RATE || '0.2'),
+        });
         this.initialized = true;
         this.logger.log('Sentry initialized');
       } catch (e: any) {
@@ -24,14 +28,17 @@ export class SentryService {
     }
   }
 
+  getExpressErrorHandler() {
+    return Sentry.expressErrorHandler();
+  }
+
   captureException(error: Error, context?: Record<string, any>) {
     if (!this.initialized) return;
-    // Sentry.captureException(error, { extra: context });
-    this.logger.error(`[Sentry] ${error.message}`, context);
+    Sentry.captureException(error, { extra: context });
   }
 
   captureMessage(msg: string, level: 'info' | 'warning' | 'error' = 'info') {
     if (!this.initialized) return;
-    // Sentry.captureMessage(msg, level);
+    Sentry.captureMessage(msg, level);
   }
 }

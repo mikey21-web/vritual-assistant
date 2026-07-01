@@ -1,5 +1,17 @@
 import { Injectable } from '@nestjs/common';
 
+const HTTP_TIMEOUT_MS = parseInt(process.env.CRM_HTTP_TIMEOUT || '10000', 10);
+
+async function fetchWithTimeout(url: string, init: any = {}): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), HTTP_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export interface CrmAdapter {
   pushLead(lead: any, mapping: any): Promise<{ success: boolean; externalId?: string; error?: string }>;
   healthCheck(config: any): Promise<boolean>;
@@ -15,7 +27,7 @@ export class HubspotAdapter implements CrmAdapter {
       for (const [from, to] of Object.entries(mapping.fieldMappings || {})) {
         fields[to as string] = lead[from as string] ?? lead.contact?.[from as string];
       }
-      const res = await fetch('https://api.hubapi.com/crm/v3/objects/contacts', {
+      const res = await fetchWithTimeout('https://api.hubapi.com/crm/v3/objects/contacts', {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
         body: JSON.stringify({ properties: fields }),
       });
@@ -30,7 +42,7 @@ export class HubspotAdapter implements CrmAdapter {
     const apiKey = config?.apiKey;
     if (!apiKey) return false;
     try {
-      const res = await fetch('https://api.hubapi.com/crm/v3/objects/contacts?limit=1', { headers: { Authorization: `Bearer ${apiKey}` } });
+      const res = await fetchWithTimeout('https://api.hubapi.com/crm/v3/objects/contacts?limit=1', { headers: { Authorization: `Bearer ${apiKey}` } });
       return res.ok;
     } catch { return false; }
   }
@@ -46,7 +58,7 @@ export class SalesforceAdapter implements CrmAdapter {
     const instanceUrl = mapping.config?.instanceUrl || 'https://login.salesforce.com';
 
     if (!clientId || !clientSecret || !username || !password) {
-      return { success: false, error: 'Salesforce credentials not configured (clientId, clientSecret, username, password required)' };
+      return { success: false, error: 'Salesforce credentials not configured' };
     }
 
     const ALLOWED_SF_URLS = ['login.salesforce.com', 'test.salesforce.com'];
@@ -54,14 +66,14 @@ export class SalesforceAdapter implements CrmAdapter {
     try {
       const urlObj = new URL(resolvedUrl);
       if (!ALLOWED_SF_URLS.some(h => urlObj.hostname === h || urlObj.hostname.endsWith(`.${h}`))) {
-        return { success: false, error: 'Salesforce instance URL not in allowed hostnames' };
+        return { success: false, error: 'Salesforce instance URL not allowed' };
       }
     } catch {
       return { success: false, error: 'Invalid Salesforce instance URL' };
     }
 
     try {
-      const tokenRes = await fetch(`${resolvedUrl}/services/oauth2/token`, {
+      const tokenRes = await fetchWithTimeout(`${resolvedUrl}/services/oauth2/token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({ grant_type: 'password', client_id: clientId, client_secret: clientSecret, username, password }),
@@ -74,7 +86,7 @@ export class SalesforceAdapter implements CrmAdapter {
         fields[to as string] = lead[from as string] ?? lead.contact?.[from as string];
       }
 
-      const res = await fetch(`${tokenJson.instance_url}/services/data/v58.0/sobjects/Lead`, {
+      const res = await fetchWithTimeout(`${tokenJson.instance_url}/services/data/v58.0/sobjects/Lead`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tokenJson.access_token}` },
         body: JSON.stringify(fields),
       });
@@ -87,13 +99,19 @@ export class SalesforceAdapter implements CrmAdapter {
   }
 
   async healthCheck(config: any): Promise<boolean> {
-    const clientId = config?.clientId;
-    const clientSecret = config?.clientSecret;
+    const { clientId, clientSecret, username, password } = config || {};
     if (!clientId || !clientSecret) return false;
     try {
-      const res = await fetch('https://login.salesforce.com/services/oauth2/token', {
-        method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ grant_type: 'client_credentials', client_id: clientId, client_secret: clientSecret }),
+      const res = await fetchWithTimeout('https://login.salesforce.com/services/oauth2/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type: 'password',
+          client_id: clientId,
+          client_secret: clientSecret,
+          username: username || '',
+          password: password || '',
+        }),
       });
       return res.ok;
     } catch { return false; }
@@ -109,11 +127,11 @@ export class ZohoAdapter implements CrmAdapter {
     const orgId = mapping.config?.orgId || '';
 
     if (!refreshToken || !clientId || !clientSecret) {
-      return { success: false, error: 'Zoho credentials not configured (refreshToken, clientId, clientSecret required)' };
+      return { success: false, error: 'Zoho credentials not configured' };
     }
 
     try {
-      const tokenRes = await fetch('https://accounts.zoho.com/oauth/v2/token', {
+      const tokenRes = await fetchWithTimeout('https://accounts.zoho.com/oauth/v2/token', {
         method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: refreshToken, client_id: clientId, client_secret: clientSecret }),
       });
@@ -126,7 +144,7 @@ export class ZohoAdapter implements CrmAdapter {
       }
       const data = [{ ...fields, Owner: fields.Owner || orgId }];
 
-      const res = await fetch('https://www.zohoapis.com/crm/v2/Leads', {
+      const res = await fetchWithTimeout('https://www.zohoapis.com/crm/v2/Leads', {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Zoho-oauthtoken ${tokenJson.access_token}` },
         body: JSON.stringify({ data }),
       });
@@ -139,7 +157,22 @@ export class ZohoAdapter implements CrmAdapter {
     }
   }
 
-  async healthCheck(_config: any): Promise<boolean> {
-    return false;
+  async healthCheck(config: any): Promise<boolean> {
+    const { refreshToken, clientId, clientSecret } = config || {};
+    if (!refreshToken || !clientId || !clientSecret) return false;
+    try {
+      const res = await fetchWithTimeout('https://accounts.zoho.com/oauth/v2/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type: 'refresh_token',
+          refresh_token: refreshToken,
+          client_id: clientId,
+          client_secret: clientSecret,
+        }),
+      });
+      const json = await res.json();
+      return !!(json.access_token);
+    } catch { return false; }
   }
 }

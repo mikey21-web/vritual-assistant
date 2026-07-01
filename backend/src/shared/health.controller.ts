@@ -15,6 +15,14 @@ export class HealthController {
   @Get()
   check() { return this.health.shallow(); }
 
+  @Public()
+  @Get('live')
+  live() { return { status: 'ok', timestamp: new Date().toISOString() }; }
+
+  @Public()
+  @Get('ready')
+  ready() { return this.health.check(); }
+
   @Get('deep')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('OWNER', 'ADMIN')

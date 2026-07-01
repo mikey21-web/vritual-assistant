@@ -32,7 +32,7 @@ export class UsersService {
     const password = await bcrypt.hash(data.password, 12);
     const { role, active, ...safeData } = data;
     return this.prisma.user.create({
-      data: { ...safeData, password, role: (role as any) || 'SALES_AGENT', active: active !== false },
+      data: { ...safeData, password, role: (role as any) || 'SALES_AGENT', active: active !== false, tenantId: 'default-tenant' },
       select: SAFE_USER_SELECT,
     });
   }

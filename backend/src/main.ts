@@ -1,62 +1,49 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger, RequestTimeoutException } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { LoggingInterceptor } from './shared/logging.interceptor';
 import { GlobalExceptionFilter } from './shared/exception.filter';
+import { SentryService } from './shared/sentry.service';
+import { IdempotencyMiddleware } from './shared/idempotency.middleware';
+import { CorrelationIdMiddleware } from './shared/correlation-id.middleware';
+import { TenantResolverMiddleware } from './shared/tenant-resolver.middleware';
+import { validateEnv } from './config/env.validation';
 import helmet from 'helmet';
 import * as express from 'express';
 
-const DEFAULT_SECRETS = ['change-me', 'dev-secret', 'local-dev-jwt-secret-2024', 'local-dev-signed-url-secret'];
+const logger = new Logger('Bootstrap');
 
-function validateSecrets() {
-  const isDev = process.env.NODE_ENV !== 'production';
-  const requiredVars = ['JWT_SECRET', 'DATABASE_URL', 'REDIS_URL'];
-  const missing = requiredVars.filter(v => !process.env[v]);
-  if (missing.length > 0) {
-    throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
-  }
-  const jwtSecret = process.env.JWT_SECRET!;
-  const signedUrlSecret = process.env.SIGNED_URL_SECRET;
-  const integrationsKey = process.env.INTEGRATIONS_ENC_KEY;
-  const agentKey = process.env.AGENT_INBOUND_KEY;
-  const serviceJwt = process.env.AGENT_SERVICE_JWT;
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error(`Unhandled Rejection at: ${promise} reason: ${reason}`);
+});
 
-  for (const [name, value] of [['JWT_SECRET', jwtSecret], ['SIGNED_URL_SECRET', signedUrlSecret], ['INTEGRATIONS_ENC_KEY', integrationsKey]] as const) {
-    if (value && DEFAULT_SECRETS.includes(value) && !isDev) {
-      throw new Error(`${name} must be changed from the default value in production`);
-    }
-  }
-  if (jwtSecret === 'local-dev-jwt-secret-2024' && !isDev) {
-    throw new Error('JWT_SECRET must be changed from the default value in production');
-  }
-  if (!isDev) {
-    if (!agentKey) throw new Error('AGENT_INBOUND_KEY is required in production');
-    if (!serviceJwt) throw new Error('AGENT_SERVICE_JWT is required in production');
-    if (!integrationsKey) throw new Error('INTEGRATIONS_ENC_KEY is required in production');
-  }
-  if (jwtSecret.length < 16) {
-    throw new Error('JWT_SECRET must be at least 16 characters long');
-  }
-}
+process.on('uncaughtException', (error) => {
+  logger.error(`Uncaught Exception: ${error.message}`, error.stack);
+  process.exit(1);
+});
 
 async function bootstrap() {
-  validateSecrets();
+  validateEnv();
 
   const app = await NestFactory.create(AppModule, {
     rawBody: true,
     bodyParser: false,
   });
 
+  app.enableShutdownHooks();
+
+  const sentryService = app.get(SentryService);
+
   app.use(express.json({
-    limit: '1mb',
+    limit: '5mb',
     verify: (req: any, _res, buf: Buffer, _encoding: string) => {
       if (req.url?.startsWith('/webhooks/whatsapp') || req.url?.startsWith('/webhooks/payments')) {
         req.rawBody = buf;
       }
     },
   }));
-  app.use(express.urlencoded({ limit: '1mb', extended: true, verify: (req: any, _res, buf: Buffer, _encoding: string) => {
+  app.use(express.urlencoded({ limit: '5mb', extended: true, verify: (req: any, _res, buf: Buffer, _encoding: string) => {
     if (req.url?.startsWith('/webhooks/whatsapp') || req.url?.startsWith('/webhooks/payments')) {
       req.rawBody = buf;
     }
@@ -69,18 +56,52 @@ async function bootstrap() {
         scriptSrc: ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'"],
         imgSrc: ["'self'", "data:"],
+        objectSrc: ["'none'"],
+        frameAncestors: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
       },
     },
   }));
+  app.use(helmet.hsts({ maxAge: 31536000, includeSubDomains: true, preload: true }));
+
+  // Correlation ID for request tracing
+  const correlationMw = new CorrelationIdMiddleware();
+  app.use((req: any, res: any, next: any) => correlationMw.use(req, res, next));
+
+  // Tenant resolver
+  const tenantMw = new TenantResolverMiddleware();
+  app.use((req: any, _res: any, next: any) => tenantMw.use(req, _res, next));
+
+  // Idempotency middleware for write dedup
+  const idempotencyMw = new IdempotencyMiddleware();
+  app.use((req: any, res: any, next: any) => idempotencyMw.use(req, res, next));
+
   app.useGlobalInterceptors(new LoggingInterceptor());
   app.useGlobalFilters(new GlobalExceptionFilter());
 
   app.enableCors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    origin: process.env.CORS_ORIGIN || (process.env.NODE_ENV === 'production'
+      ? (() => { throw new Error('CORS_ORIGIN must be set in production'); })()
+      : 'http://localhost:3000'),
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key', 'stripe-signature', 'x-hub-signature-256'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key', 'stripe-signature', 'x-hub-signature-256', 'Idempotency-Key'],
     credentials: true,
     maxAge: 86400,
+  });
+
+  // Sentry error handler (after CORS, before error filter)
+  app.use(sentryService.getExpressErrorHandler());
+
+  // Global request timeout
+  app.use((req: any, res: any, next: any) => {
+    const timeout = parseInt(process.env.REQUEST_TIMEOUT || '30000', 10);
+    req.setTimeout(timeout, () => {
+      if (!res.headersSent) {
+        res.status(408).json({ statusCode: 408, message: 'Request timeout' });
+      }
+    });
+    next();
   });
 
   app.useGlobalPipes(
@@ -103,7 +124,27 @@ async function bootstrap() {
   }
 
   const port = process.env.BACKEND_PORT || 3001;
-  await app.listen(port);
-  console.log(`Backend running on port ${port}`);
+  const server = await app.listen(port);
+  server.keepAliveTimeout = 65000; // Slightly above ALB idle timeout (60s)
+  logger.log(`Backend running on port ${port}`);
+
+  // Graceful shutdown
+  const shutdown = async (signal: string) => {
+    logger.log(`Received ${signal}, shutting down gracefully...`);
+    server.close(async () => {
+      logger.log('HTTP server closed');
+      await app.close();
+      logger.log('Application closed');
+      process.exit(0);
+    });
+    // Force close after 10s
+    setTimeout(() => {
+      logger.error('Forced shutdown after timeout');
+      process.exit(1);
+    }, 10000);
+  };
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
 }
 bootstrap();

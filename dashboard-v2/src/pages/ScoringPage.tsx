@@ -1,37 +1,165 @@
 import React, { useState, useEffect } from 'react';
 import { fetchScoringRules, createScoringRule, deleteScoringRule } from '../lib/data';
-import { Plus, Trash2, Play, X } from 'lucide-react';
+import { Plus, Trash2, Play, X, TestTube, Gauge } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '../lib/api';
 
 export default function ScoringPage() {
   const [rules, setRules] = useState<any[]>([]);
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ name:'', field:'', operator:'contains', value:'', points: 0 });
+  const [form, setForm] = useState({ name: '', field: '', operator: 'contains', value: '', points: 0 });
   const [testResult, setTestResult] = useState<any>(null);
 
-  const refresh = () => fetchScoringRules().then((r:any) => setRules(r.data || r)).catch(() => {});
+  const refresh = () => fetchScoringRules().then((r: any) => setRules(r.data || r)).catch(() => {});
   useEffect(() => { refresh(); }, []);
 
-  const create = async (e: React.FormEvent) => { e.preventDefault(); try { await createScoringRule({...form, points: Number(form.points)}); setShowCreate(false); setForm({ name:'',field:'',operator:'contains',value:'',points:0 }); refresh(); toast.success('Created'); } catch(e:any) { toast.error(e.message); } };
-  const remove = async (id: string) => { try { await deleteScoringRule(id); refresh(); toast.success('Deleted'); } catch(e:any) { toast.error(e.message); } };
-  const test = async () => { const r = await api('/scoring-rules/test', { method:'POST', body: JSON.stringify({...form, points: Number(form.points), testValues: [{[form.field]: form.value}] }) }); setTestResult(r); };
+  const create = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await createScoringRule({ ...form, points: Number(form.points) });
+      setShowCreate(false);
+      setForm({ name: '', field: '', operator: 'contains', value: '', points: 0 });
+      refresh();
+      toast.success('Rule created');
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const remove = async (id: string) => {
+    try { await deleteScoringRule(id); refresh(); toast.success('Deleted'); } catch (e: any) { toast.error(e.message); }
+  };
+
+  const test = async () => {
+    try {
+      const r = await api('/scoring-rules/test', {
+        method: 'POST',
+        body: JSON.stringify({ ...form, points: Number(form.points), testValues: [{ [form.field]: form.value }] }),
+      });
+      setTestResult(r);
+    } catch {}
+  };
 
   return (
-    <div><div className="flex justify-between mb-4"><h2 className="text-lg font-semibold">Scoring Rules</h2><button onClick={()=>setShowCreate(true)} className="flex items-center gap-1 bg-blue-600 text-white px-3 py-2 rounded-lg text-sm"><Plus size={14}/>Add Rule</button></div>
-    {showCreate && <form onSubmit={create} className="bg-white border rounded-xl p-4 mb-4 grid grid-cols-5 gap-3">
-      <input placeholder="Name" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} className="border rounded-lg px-3 py-2 text-sm" required/>
-      <input placeholder="Field" value={form.field} onChange={e=>setForm({...form,field:e.target.value})} className="border rounded-lg px-3 py-2 text-sm" required/>
-      <select value={form.operator} onChange={e=>setForm({...form,operator:e.target.value})} className="border rounded-lg px-3 py-2 text-sm">{['equals','contains','starts_with','exists','gt','gte','lt','lte'].map(o=><option key={o} value={o}>{o}</option>)}</select>
-      <input placeholder="Value" value={form.value} onChange={e=>setForm({...form,value:e.target.value})} className="border rounded-lg px-3 py-2 text-sm"/>
-      <input type="number" placeholder="Points" value={form.points||''} onChange={e=>setForm({...form,points:parseInt(e.target.value)||0})} className="border rounded-lg px-3 py-2 text-sm"/>
-      <div className="flex gap-2 col-span-5"><button type="submit" className="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-sm">Save</button><button type="button" onClick={test} className="border px-4 py-1.5 rounded-lg text-sm flex items-center gap-1"><Play size={12}/>Test</button><button type="button" onClick={()=>setShowCreate(false)} className="border px-3 py-1.5 rounded-lg text-sm"><X size={14}/></button></div>
-      {testResult && <pre className="col-span-5 text-xs bg-gray-50 p-2 rounded">{JSON.stringify(testResult, null, 2)}</pre>}
-    </form>}
-    <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
-      <table className="w-full text-sm"><thead className="bg-gray-50 text-left"><tr><th className="px-4 py-3">Name</th><th className="px-4 py-3">Field</th><th className="px-4 py-3">Operator</th><th className="px-4 py-3">Value</th><th className="px-4 py-3">Points</th><th className="px-4 py-3">Active</th><th className="px-4 py-3"></th></tr></thead>
-      <tbody>{rules.map((r:any)=><tr key={r.id} className="border-t hover:bg-gray-50"><td className="px-4 py-3 font-medium text-xs">{r.name}</td><td className="px-4 py-3 text-xs">{r.field}</td><td className="px-4 py-3 text-xs">{r.operator}</td><td className="px-4 py-3 text-xs">{r.value}</td><td className="px-4 py-3 text-xs">{r.points}</td><td className="px-4 py-3 text-xs">{r.active?'Yes':'No'}</td><td className="px-4 py-3"><button onClick={()=>remove(r.id)} className="text-red-400 hover:text-red-600"><Trash2 size={14}/></button></td></tr>)}</tbody></table>
-      {rules.length===0 && <div className="p-8 text-center text-gray-400">No rules</div>}
-    </div></div>
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-[var(--foreground)]">Scoring Rules</h1>
+          <p className="text-sm text-[var(--muted-foreground)] mt-1">{rules.length} rules configured</p>
+        </div>
+        <button
+          onClick={() => setShowCreate(true)}
+          className="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90 transition-opacity shadow-sm"
+        >
+          <Plus size={16} /> Add Rule
+        </button>
+      </div>
+
+      {showCreate && (
+        <form onSubmit={create} className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 animate-scale-in">
+          <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
+            <input
+              placeholder="Rule name"
+              value={form.name}
+              onChange={e => setForm({ ...form, name: e.target.value })}
+              className="h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
+              required
+            />
+            <input
+              placeholder="Field name"
+              value={form.field}
+              onChange={e => setForm({ ...form, field: e.target.value })}
+              className="h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
+              required
+            />
+            <select
+              value={form.operator}
+              onChange={e => setForm({ ...form, operator: e.target.value })}
+              className="h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
+            >
+              {['equals', 'contains', 'starts_with', 'exists', 'gt', 'gte', 'lt', 'lte'].map(o => (
+                <option key={o} value={o}>{o}</option>
+              ))}
+            </select>
+            <input
+              placeholder="Value"
+              value={form.value}
+              onChange={e => setForm({ ...form, value: e.target.value })}
+              className="h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
+            />
+            <input
+              type="number"
+              placeholder="Points"
+              value={form.points || ''}
+              onChange={e => setForm({ ...form, points: parseInt(e.target.value) || 0 })}
+              className="h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
+            />
+          </div>
+          <div className="flex gap-2 mt-3">
+            <button type="submit" className="h-8 px-4 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90">Save</button>
+            <button type="button" onClick={test} className="h-8 px-4 rounded-lg border border-[var(--border)] text-sm text-[var(--foreground)] hover:bg-[var(--accent)] transition-colors flex items-center gap-1">
+              <TestTube size={12} /> Test
+            </button>
+            <button type="button" onClick={() => { setShowCreate(false); setTestResult(null); }} className="h-8 px-4 rounded-lg border border-[var(--border)] text-sm text-[var(--foreground)] hover:bg-[var(--accent)] transition-colors">
+              <X size={14} />
+            </button>
+          </div>
+          {testResult && (
+            <pre className="mt-3 text-xs bg-[var(--muted)] text-[var(--foreground)] p-3 rounded-lg border border-[var(--border)]">
+              {JSON.stringify(testResult, null, 2)}
+            </pre>
+          )}
+        </form>
+      )}
+
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-[var(--border)] bg-[var(--muted)]">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Name</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Field</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Operator</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Value</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Points</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Status</th>
+                <th className="px-4 py-3 w-10" />
+              </tr>
+            </thead>
+            <tbody>
+              {rules.length === 0 ? (
+                <tr><td colSpan={7} className="px-4 py-12 text-center text-[var(--muted-foreground)]">No scoring rules</td></tr>
+              ) : (
+                rules.map((r: any) => (
+                  <tr key={r.id} className="border-b border-[var(--border)] hover:bg-[var(--muted)]/50 transition-colors">
+                    <td className="px-4 py-3 font-medium text-[var(--foreground)]">{r.name}</td>
+                    <td className="px-4 py-3 text-sm text-[var(--muted-foreground)] font-mono">{r.field}</td>
+                    <td className="px-4 py-3">
+                      <span className="px-2 py-0.5 rounded-full bg-[var(--muted)] text-xs text-[var(--muted-foreground)]">{r.operator}</span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-[var(--foreground)]">{r.value}</td>
+                    <td className="px-4 py-3">
+                      <span className="font-semibold text-sm text-[var(--foreground)]">{r.points}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+                        r.active
+                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                          : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                      }`}>
+                        {r.active ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <button onClick={() => remove(r.id)} className="p-1.5 rounded-md hover:bg-[var(--accent)] text-red-400 hover:text-red-600 transition-colors">
+                        <Trash2 size={14} />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   );
 }

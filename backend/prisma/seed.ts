@@ -25,23 +25,30 @@ async function main() {
 
   const hashed = await bcrypt.hash(ownerPassword, 12);
 
-  await prisma.user.create({
-    data: {
-      email: ownerEmail,
-      name: ownerName,
-      password: hashed,
-      role: 'OWNER',
-      active: true,
-    },
+  // Ensure default tenant exists
+  await prisma.tenant.upsert({
+    where: { id: 'default-tenant' },
+    update: {},
+    create: { id: 'default-tenant', name: 'Default', slug: 'default' },
   });
 
-  await prisma.businessSettings.create({
-    data: {
-      businessName: 'My Business',
-      timezone: 'Asia/Kolkata',
-      defaultCurrency: 'INR',
-    },
+  // Use upsert for idempotency
+  await prisma.user.upsert({
+    where: { email: ownerEmail },
+    update: { name: ownerName, password: hashed, role: 'OWNER', active: true },
+    create: { email: ownerEmail, name: ownerName, password: hashed, role: 'OWNER', active: true, tenantId: 'default-tenant' },
   });
+
+  const businessSettings = await prisma.businessSettings.findFirst();
+  if (!businessSettings) {
+    await prisma.businessSettings.create({
+      data: {
+        businessName: 'My Business',
+        timezone: 'Asia/Kolkata',
+        defaultCurrency: 'INR',
+      },
+    });
+  }
 
   await prisma.scoringRule.createMany({
     data: [

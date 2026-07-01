@@ -37,7 +37,7 @@ export class CampaignsService {
         startDate: c.startDate, endDate: c.endDate, active: false, creatorId: c.creatorId,
         utmSource: c.utmSource, utmMedium: c.utmMedium, utmCampaign: c.utmCampaign,
         utmTerm: c.utmTerm, utmContent: c.utmContent,
-        formId: c.formId, qrCodeId: c.qrCodeId,
+        formId: c.formId, qrCodeId: c.qrCodeId, tenantId: 'default-tenant',
         nurtureId: c.nurtureId, assignedAgentId: c.assignedAgentId,
       },
     });

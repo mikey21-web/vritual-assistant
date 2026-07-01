@@ -1,16 +1,26 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
-export class AutomationSchedulerService {
+export class AutomationSchedulerService implements OnApplicationBootstrap {
   private readonly logger = new Logger(AutomationSchedulerService.name);
 
   constructor(
     private prisma: PrismaService,
     @InjectQueue('automation-schedule') private queue: Queue,
+    @InjectQueue('data-pruning') private pruningQueue: Queue,
   ) {}
+
+  async onApplicationBootstrap() {
+    // Schedule daily data pruning at midnight
+    const now = new Date();
+    const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0);
+    const delay = midnight.getTime() - now.getTime();
+    await this.pruningQueue.add('daily-prune', {}, { jobId: 'daily-prune', delay, attempts: 3, removeOnComplete: true, removeOnFail: false });
+    this.logger.log(`Daily data pruning scheduled for ${midnight.toISOString()}`);
+  }
 
   /**
    * Schedule a future action for a lead.

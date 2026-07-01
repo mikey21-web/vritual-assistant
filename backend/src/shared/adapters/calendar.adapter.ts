@@ -12,7 +12,7 @@ export class CalendlyAdapter implements CalendarAdapter {
     if (!token) return { error: 'CALENDLY_API_KEY not configured' };
 
     const eventTypeUuid = settings?.config?.eventTypeUuid;
-    if (!eventTypeUuid) return { error: 'Calendly eventTypeUuid not configured in booking settings' };
+    if (!eventTypeUuid) return { error: 'Calendly eventTypeUuid not configured' };
 
     try {
       const res = await fetch('https://api.calendly.com/scheduling_links', {
@@ -22,7 +22,19 @@ export class CalendlyAdapter implements CalendarAdapter {
       });
       const json = await res.json();
       if (!res.ok) return { error: json.message || 'Calendly booking link creation failed' };
-      return { link: json.resource?.booking_url };
+
+      let link = json.resource?.booking_url;
+      // Prefill lead data if available
+      if (link && lead?.contact) {
+        try {
+          const url = new URL(link);
+          if (lead.contact.name) url.searchParams.set('name', lead.contact.name);
+          if (lead.contact.email) url.searchParams.set('email', lead.contact.email);
+          if (lead.contact.phone) url.searchParams.set('a1', lead.contact.phone); // Calendly custom question
+          link = url.toString();
+        } catch {}
+      }
+      return { link };
     } catch (e: any) { return { error: e.message }; }
   }
 
@@ -89,6 +101,11 @@ export class GoogleCalendarAdapter implements CalendarAdapter {
   }
 
   private createJwt(clientEmail: string, privateKey: string): string {
+    // Handle escaped newlines (common when stored in JSON or .env)
+    const normalizedKey = privateKey.replace(/\\n/g, '\n');
+    if (!normalizedKey.includes('BEGIN PRIVATE KEY') && !normalizedKey.includes('BEGIN RSA PRIVATE KEY')) {
+      throw new Error('Invalid Google Calendar private key — must be a PKCS8 RSA private key');
+    }
     const header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');
     const now = Math.floor(Date.now() / 1000);
     const claims = Buffer.from(JSON.stringify({ iss: clientEmail, scope: 'https://www.googleapis.com/auth/calendar', aud: 'https://oauth2.googleapis.com/token', exp: now + 3600, iat: now })).toString('base64url');
@@ -97,6 +114,6 @@ export class GoogleCalendarAdapter implements CalendarAdapter {
       return crypto.createSign('RSA-SHA256').update(str).sign(key, 'base64url');
     };
     const unsigned = `${header}.${claims}`;
-    return `${unsigned}.${sign(unsigned, privateKey)}`;
+    return `${unsigned}.${sign(unsigned, normalizedKey)}`;
   }
 }

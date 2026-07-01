@@ -145,6 +145,7 @@ export class ConfigLoaderService implements OnApplicationBootstrap {
           password: hashedPassword,
           role: 'OWNER',
           active: true,
+          tenantId: 'default-tenant',
         },
       });
       this.logger.log(`Created admin user: ${user.email}`);

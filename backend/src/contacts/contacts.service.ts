@@ -1,7 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { AdvancedFeaturesService } from '../advanced-features/advanced-features.service';
+import { tenantConnect } from '../shared/tenant-helper';
 
 @Injectable()
 export class ContactsService {
@@ -13,7 +15,7 @@ export class ContactsService {
 
   async findAll(query: any = {}) {
     const { page = 1, limit = 20, search } = query;
-    const where: any = {};
+    const where: any = { deletedAt: null };
     if (search) {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
@@ -35,27 +37,29 @@ export class ContactsService {
   }
 
   async findOrCreate(data: { phone?: string; email?: string; name?: string; whatsapp?: string; company?: string }) {
-    if (data.phone) {
-      const existing = await this.prisma.contact.findFirst({ where: { phone: data.phone } });
-      if (existing) {
-        return this.prisma.contact.update({
-          where: { id: existing.id },
-          data: { name: data.name ?? existing.name, email: data.email ?? existing.email, whatsapp: data.whatsapp ?? existing.whatsapp, company: data.company ?? existing.company },
-        });
+    return this.prisma.$transaction(async (tx) => {
+      if (data.phone) {
+        const existing = await tx.contact.findFirst({ where: { phone: data.phone } });
+        if (existing) {
+          return tx.contact.update({
+            where: { id: existing.id },
+            data: { name: data.name ?? existing.name, email: data.email ?? existing.email, whatsapp: data.whatsapp ?? existing.whatsapp, company: data.company ?? existing.company },
+          });
+        }
       }
-    }
-    if (data.email) {
-      const existing = await this.prisma.contact.findFirst({ where: { email: data.email } });
-      if (existing) {
-        return this.prisma.contact.update({
-          where: { id: existing.id },
-          data: { name: data.name ?? existing.name, phone: data.phone ?? existing.phone, whatsapp: data.whatsapp ?? existing.whatsapp, company: data.company ?? existing.company },
-        });
+      if (data.email) {
+        const existing = await tx.contact.findFirst({ where: { email: data.email } });
+        if (existing) {
+          return tx.contact.update({
+            where: { id: existing.id },
+            data: { name: data.name ?? existing.name, phone: data.phone ?? existing.phone, whatsapp: data.whatsapp ?? existing.whatsapp, company: data.company ?? existing.company },
+          });
+        }
       }
-    }
-    return this.prisma.contact.create({
-      data: { name: data.name, email: data.email, phone: data.phone, whatsapp: data.whatsapp, company: data.company },
-    });
+      return tx.contact.create({
+        data: { name: data.name, email: data.email, phone: data.phone, whatsapp: data.whatsapp, company: data.company, tenantId: 'default-tenant' },
+      });
+    }, { isolationLevel: 'Serializable' });
   }
 
   async create(data: any) {
@@ -64,8 +68,26 @@ export class ContactsService {
   }
 
   async update(id: string, data: any) {
-    await this.findOne(id);
-    const c = await this.prisma.contact.update({ where: { id }, data });
-    return c;
+    const existing = await this.findOne(id);
+    try {
+      return await this.prisma.contact.update({
+        where: { id, version: existing.version },
+        data: { ...data, version: { increment: 1 } },
+      });
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
+        throw new ConflictException('Contact was modified by another request. Please refresh and retry.');
+      }
+      throw err;
+    }
+  }
+
+  async remove(id: string): Promise<{ message: string }> {
+    const existing = await this.findOne(id);
+    await this.prisma.contact.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+    return { message: 'Contact soft-deleted successfully.' };
   }
 }

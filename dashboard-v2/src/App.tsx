@@ -1,7 +1,8 @@
 import { useState, useEffect, lazy, Suspense } from "react";
-import { Toaster, toast } from "sonner";
+import { Toaster } from "react-hot-toast";
 import { useAuth } from "./lib/useAuth";
 import { AppProvider } from "./context/AppContext";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Sidebar } from "./components/layout/sidebar";
 import { Topbar } from "./components/layout/topbar";
 import { LoginPage } from "./pages/LoginPage";
@@ -37,7 +38,7 @@ const PageComponents: Record<string, React.LazyExoticComponent<React.ComponentTy
 
 function PageFallback() {
   return (
-    <div className="p-6 space-y-4">
+    <div className="p-6 space-y-4 animate-fade-in">
       <Skeleton className="h-8 w-48" />
       <Skeleton className="h-4 w-72" />
       <div className="grid grid-cols-3 gap-4 mt-6">
@@ -52,8 +53,7 @@ function PageFallback() {
 
 function getPageKey(path: string): string {
   const map: Record<string, string> = {
-    "/": "Overview",
-    "/leads": "Leads", "/contacts": "Contacts",
+    "/": "Overview", "/leads": "Leads", "/contacts": "Contacts",
     "/campaigns": "Campaigns", "/forms": "Forms", "/qr-codes": "QRCodes",
     "/conversations": "Messages", "/messages": "Messages",
     "/templates": "Templates", "/media": "Media",
@@ -62,20 +62,15 @@ function getPageKey(path: string): string {
     "/integrations": "Integrations", "/crm": "CRM", "/booking": "Booking",
     "/analytics": "Analytics", "/team": "Team",
     "/audit-logs": "AuditLogs", "/advanced": "Advanced",
-    "/settings": "Settings",
-    "/workspace": "Workspace", "/failures": "Failures", "/health": "Health",
+    "/settings": "Settings", "/workspace": "Workspace",
+    "/failures": "Failures", "/health": "Health",
   };
   return map[path] || "Overview";
 }
 
 const pageRoutes: Record<string, React.ComponentType<any>> = {
-  Overview: OverviewPage,
-  Leads: LeadsPage,
-  Contacts: ContactsPage,
-  Campaigns: CampaignsPage,
-  Forms: FormsPage,
-  QRCodes: QRCodesPage,
-  Messages: MessagesPage,
+  Overview: OverviewPage, Leads: LeadsPage, Contacts: ContactsPage,
+  Campaigns: CampaignsPage, Forms: FormsPage, QRCodes: QRCodesPage, Messages: MessagesPage,
 };
 
 export default function App() {
@@ -112,11 +107,11 @@ export default function App() {
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-[var(--background)]">
-        <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg bg-[var(--primary)] flex items-center justify-center">
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 rounded-xl bg-[var(--primary)] flex items-center justify-center shadow-lg shadow-[var(--primary)]/20">
             <span className="text-sm font-bold text-white">LA</span>
           </div>
-          <span className="font-display text-lg font-bold">LeadAuto</span>
+          <span className="text-lg font-bold text-[var(--foreground)]">LeadAuto</span>
         </div>
       </div>
     );
@@ -131,32 +126,25 @@ export default function App() {
   return (
     <AppProvider>
       <div className="flex h-screen bg-[var(--background)] text-[var(--foreground)]">
-        <Sidebar
-          collapsed={sidebarCollapsed}
-          onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-        />
-
+        <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} />
         <div className={`flex flex-1 flex-col transition-all duration-300 ${sidebarCollapsed ? "ml-16" : "ml-64"}`}>
-          <Topbar
-            onMenuToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-            dark={dark}
-            onThemeToggle={() => setDark(!dark)}
-          />
-
+          <Topbar onMenuToggle={() => setSidebarCollapsed(!sidebarCollapsed)} dark={dark} onThemeToggle={() => setDark(!dark)} />
           <main className="flex-1 overflow-auto p-6">
-            <Suspense fallback={<PageFallback />}>
-              {PageComponent ? (
-                <PageComponent />
-              ) : (
-                <div className="flex h-full items-center justify-center text-[var(--muted-foreground)]">
-                  Page not found
-                </div>
-              )}
-            </Suspense>
+            <ErrorBoundary>
+              <Suspense fallback={<PageFallback />}>
+                {PageComponent ? <PageComponent /> : (
+                  <div className="flex h-full items-center justify-center text-[var(--muted-foreground)]">Page not found</div>
+                )}
+              </Suspense>
+            </ErrorBoundary>
           </main>
         </div>
       </div>
-      <Toaster richColors position="top-right" />
+      <Toaster position="top-right" toastOptions={{
+        style: { borderRadius: '0.75rem', background: 'var(--card)', color: 'var(--foreground)', border: '1px solid var(--border)', fontSize: '14px' },
+        success: { iconTheme: { primary: '#10b981', secondary: '#fff' } },
+        error: { iconTheme: { primary: '#ef4444', secondary: '#fff' } },
+      }} />
     </AppProvider>
   );
 }

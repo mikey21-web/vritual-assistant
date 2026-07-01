@@ -1,0 +1,75 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "search": "Search...",
+    "filter": "Filter",
+    "export": "Export",
+    "import": "Import",
+    "settings": "Settings",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "submit": "Submit",
+    "close": "Close",
+    "yes": "Yes",
+    "no": "No",
+    "error": "Something went wrong",
+    "success": "Success"
+  },
+  "auth": {
+    "login": "Login",
+    "logout": "Logout",
+    "email": "Email",
+    "password": "Password",
+    "forgotPassword": "Forgot password?",
+    "resetPassword": "Reset password",
+    "welcomeBack": "Welcome back",
+    "signInToContinue": "Sign in to your account to continue"
+  },
+  "nav": {
+    "overview": "Overview",
+    "leads": "Leads",
+    "contacts": "Contacts",
+    "campaigns": "Campaigns",
+    "forms": "Forms",
+    "qrCodes": "QR Codes",
+    "messages": "Messages",
+    "templates": "Templates",
+    "settings": "Settings",
+    "analytics": "Analytics",
+    "integrations": "Integrations",
+    "team": "Team",
+    "auditLogs": "Audit Logs"
+  },
+  "leads": {
+    "new": "New Lead",
+    "hot": "Hot",
+    "warm": "Warm",
+    "cold": "Cold",
+    "converted": "Converted",
+    "score": "Score",
+    "status": "Status",
+    "source": "Source",
+    "assign": "Assign"
+  },
+  "status": {
+    "loading": "Loading...",
+    "saving": "Saving...",
+    "saved": "Saved",
+    "deleting": "Deleting...",
+    "deleted": "Deleted"
+  },
+  "errors": {
+    "networkError": "Network error. Please check your connection.",
+    "unauthorized": "Session expired. Please log in again.",
+    "forbidden": "You don't have permission to perform this action.",
+    "notFound": "Resource not found.",
+    "validation": "Please check the form for errors.",
+    "serverError": "Server error. Please try again later."
+  }
+}

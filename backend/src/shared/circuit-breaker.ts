@@ -2,17 +2,29 @@ import { Logger } from '@nestjs/common';
 
 type CircuitState = 'closed' | 'open' | 'half_open';
 
+export type CircuitBreakerOptions = {
+  name: string;
+  threshold?: number;
+  resetTimeoutMs?: number;
+};
+
 export class CircuitBreaker {
   private state: CircuitState = 'closed';
   private failureCount = 0;
   private lastFailureTime = 0;
   private readonly logger = new Logger(`CircuitBreaker`);
+  readonly threshold: number;
+  readonly resetTimeoutMs: number;
 
   constructor(
     private readonly name: string,
-    private readonly threshold: number = 5,
-    private readonly resetTimeoutMs: number = 30000,
-  ) {}
+    threshold?: number,
+    resetTimeoutMs?: number,
+  ) {
+    // Allow override via env vars: CIRCUIT_BREAKER_THRESHOLD, CIRCUIT_BREAKER_RESET_MS
+    this.threshold = threshold ?? parseInt(process.env.CIRCUIT_BREAKER_THRESHOLD || '5', 10);
+    this.resetTimeoutMs = resetTimeoutMs ?? parseInt(process.env.CIRCUIT_BREAKER_RESET_MS || '30000', 10);
+  }
 
   async call<T>(fn: () => Promise<T>, fallback?: () => Promise<T>): Promise<T> {
     if (this.state === 'open') {

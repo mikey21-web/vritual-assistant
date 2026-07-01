@@ -3,16 +3,19 @@ import { UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
+import { MfaService } from './mfa.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
+import { EmailAdapter } from '../shared/adapters/email.adapter';
 
 describe('AuthService', () => {
   let service: AuthService;
   let prisma: any;
   let jwtService: any;
   const auditLogs = { log: jest.fn().mockResolvedValue({}) };
+  const emailAdapter = { send: jest.fn().mockResolvedValue({ success: true }) };
 
   const mockUser = {
     id: 'user-1',
@@ -29,19 +32,35 @@ describe('AuthService', () => {
         findUnique: jest.fn(),
         findFirst: jest.fn().mockResolvedValue({ id: 'admin-1', role: 'OWNER' }),
         create: jest.fn(),
+        update: jest.fn(),
+      },
+      passwordResetToken: {
+        create: jest.fn().mockResolvedValue({}),
+        findFirst: jest.fn(),
+        updateMany: jest.fn(),
+      },
+      refreshToken: {
+        create: jest.fn().mockResolvedValue({}),
+        findFirst: jest.fn(),
+        update: jest.fn(),
+        updateMany: jest.fn(),
       },
     };
 
     jwtService = {
       sign: jest.fn().mockReturnValue('test-jwt-token'),
+      verify: jest.fn(),
     };
 
     const module = await Test.createTestingModule({
       providers: [
         AuthService,
+        MfaService,
         { provide: PrismaService, useValue: prisma },
         { provide: JwtService, useValue: jwtService },
         { provide: AuditLogsService, useValue: auditLogs },
+        { provide: EmailAdapter, useValue: emailAdapter },
+        { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('test') } },
       ],
     }).compile();
 
@@ -53,7 +72,7 @@ describe('AuthService', () => {
       prisma.user.findUnique.mockResolvedValue(null);
       prisma.user.create.mockResolvedValue(mockUser);
 
-      const result = await service.register({
+      const result: any = await service.register({
         email: 'test@example.com',
         password: 'password123',
         name: 'Test User',
@@ -76,15 +95,15 @@ describe('AuthService', () => {
   describe('login', () => {
     it('should login with valid credentials', async () => {
       const hashed = await bcrypt.hash('password123', 12);
-      prisma.user.findUnique.mockResolvedValue({ ...mockUser, password: hashed });
+      prisma.user.findUnique.mockResolvedValue({ ...mockUser, password: hashed, mfaEnabled: false });
 
-      const result = await service.login({ email: 'test@example.com', password: 'password123' });
+      const result: any = await service.login({ email: 'test@example.com', password: 'password123' });
       expect(result.accessToken).toBe('test-jwt-token');
     });
 
     it('should reject wrong password', async () => {
       const hashed = await bcrypt.hash('password123', 1);
-      prisma.user.findUnique.mockResolvedValue({ ...mockUser, password: hashed });
+      prisma.user.findUnique.mockResolvedValue({ ...mockUser, password: hashed, mfaEnabled: false });
 
       await expect(
         service.login({ email: 'test@example.com', password: 'wrongpassword' }),

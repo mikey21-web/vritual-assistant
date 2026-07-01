@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { setToken, clearToken, getToken, api } from './api';
+import { setToken, clearToken, getToken, api, setRefreshToken } from './api';
 
 export interface AuthUser {
   id: string;
@@ -20,8 +20,10 @@ export function useAuth() {
 
   async function login(email: string, password: string) {
     setLoading(true);
-    const { accessToken, user: u } = await api('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
-    setToken(accessToken);
+    const data = await api('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+    setToken(data.accessToken);
+    if (data.refreshToken) setRefreshToken(data.refreshToken);
+    const u = data.user;
     setUser(u);
     sessionStorage.setItem('user', JSON.stringify(u));
     setLoading(false);
@@ -35,10 +37,20 @@ export function useAuth() {
       setUser(u);
       sessionStorage.setItem('user', JSON.stringify(u));
       return u;
-    } catch { clearToken(); return null; }
+    } catch (err: any) {
+      // Only clear session on 401 (Unauthorized), not on transient 5xx
+      if (err.message === 'Session expired') {
+        clearToken();
+        sessionStorage.removeItem('user');
+        setUser(null);
+      }
+      return null;
+    }
   }
 
   function logout() {
+    // Attempt server-side logout (token revocation)
+    api('/auth/logout', { method: 'POST' }).catch(() => {});
     clearToken();
     sessionStorage.removeItem('user');
     setUser(null);

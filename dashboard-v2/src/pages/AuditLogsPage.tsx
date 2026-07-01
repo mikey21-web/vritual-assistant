@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../lib/api';
-import { Shield, Search, Filter, Calendar } from 'lucide-react';
+import { Shield, Search, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
 
 export default function AuditLogsPage() {
   const [data, setData] = useState<any>({ data: [], meta: {} });
@@ -12,38 +12,107 @@ export default function AuditLogsPage() {
     const params = new URLSearchParams({ limit: '50', page: String(page) });
     if (search) params.set('q', search);
     if (actionFilter) params.set('action', actionFilter);
-    api(`/audit-logs?${params}`).then((r:any) => setData(r.data ? r : { data: r })).catch(() => {});
+    api(`/audit-logs?${params}`).then((r: any) => setData(r.data ? r : { data: r })).catch(() => {});
   };
   useEffect(() => { refresh(); }, [page, actionFilter]);
 
   const items = data.data || data || [];
   const totalPages = Math.max(1, Math.ceil((data.meta?.total || items.length) / 50));
-
-  const actions = [...new Set((Array.isArray(items) ? items : []).map((a:any) => a.action))];
+  const actions = [...new Set((Array.isArray(items) ? items : []).map((a: any) => a.action))] as string[];
 
   return (
-    <div>
-      <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><Shield size={20}/>Audit Logs</h2>
-      <div className="flex gap-3 mb-4">
-        <div className="flex-1 relative"><Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/><input placeholder="Search logs..." value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>e.key==='Enter'&&refresh()} className="w-full border rounded-lg pl-9 pr-3 py-2 text-sm"/></div>
-        <select value={actionFilter} onChange={e=>{setActionFilter(e.target.value);setPage(1);}} className="border rounded-lg px-3 py-2 text-sm"><option value="">All Actions</option>{actions.map(a=><option key={a} value={a}>{a}</option>)}</select>
+    <div className="space-y-6 animate-fade-in">
+      <div>
+        <h1 className="text-2xl font-bold text-[var(--foreground)]">Audit Logs</h1>
+        <p className="text-sm text-[var(--muted-foreground)] mt-1">System activity trail</p>
       </div>
-      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
-        <table className="w-full text-sm"><thead className="bg-gray-50 text-left"><tr><th className="px-4 py-3">Action</th><th className="px-4 py-3">Entity</th><th className="px-4 py-3">Details</th><th className="px-4 py-3">User</th><th className="px-4 py-3">Time</th></tr></thead>
-        <tbody>{Array.isArray(items) && items.map((a:any) => <tr key={a.id} className="border-t hover:bg-gray-50">
-          <td className="px-4 py-3 text-xs"><span className="px-2 py-0.5 rounded-full bg-gray-100 font-mono">{a.action}</span></td>
-          <td className="px-4 py-3 text-xs">{a.entityType} #{a.entityId?.slice(0,8)}</td>
-          <td className="px-4 py-3 text-xs text-gray-500 max-w-xs truncate">{JSON.stringify(a.metadata||a.details||'').slice(0,100)}</td>
-          <td className="px-4 py-3 text-xs">{a.user?.email || a.user?.name || a.userId}</td>
-          <td className="px-4 py-3 text-xs whitespace-nowrap">{new Date(a.createdAt).toLocaleString()}</td>
-        </tr>)}</tbody></table>
-        {(!Array.isArray(items) || items.length===0) && <div className="p-8 text-center text-gray-400">No audit logs found</div>}
+
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex-1 relative">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted-foreground)]" />
+          <input
+            placeholder="Search logs..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && refresh()}
+            className="w-full h-9 pl-9 pr-3 rounded-lg border border-[var(--border)] bg-[var(--card)] text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
+          />
+        </div>
+        <select
+          value={actionFilter}
+          onChange={e => { setActionFilter(e.target.value); setPage(1); }}
+          className="h-9 rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
+        >
+          <option value="">All Actions</option>
+          {actions.map(a => <option key={a} value={a}>{a}</option>)}
+        </select>
       </div>
-      {totalPages > 1 && <div className="flex justify-center gap-2 mt-4">
-        <button onClick={()=>setPage(p=>Math.max(1,p-1))} disabled={page===1} className="border px-3 py-1.5 rounded-lg text-sm disabled:opacity-30">Prev</button>
-        <span className="px-3 py-1.5 text-sm text-gray-500">Page {page} of {totalPages}</span>
-        <button onClick={()=>setPage(p=>Math.min(totalPages,p+1))} disabled={page>=totalPages} className="border px-3 py-1.5 rounded-lg text-sm disabled:opacity-30">Next</button>
-      </div>}
+
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-[var(--border)] bg-[var(--muted)]">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Action</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Entity</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Details</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">User</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Time</th>
+              </tr>
+            </thead>
+            <tbody>
+              {!Array.isArray(items) || items.length === 0 ? (
+                <tr><td colSpan={5} className="px-4 py-12 text-center text-[var(--muted-foreground)]">No audit logs found</td></tr>
+              ) : (
+                Array.isArray(items) && items.map((a: any) => (
+                  <tr key={a.id} className="border-b border-[var(--border)] hover:bg-[var(--muted)]/50 transition-colors">
+                    <td className="px-4 py-3">
+                      <span className="px-2 py-0.5 rounded-full bg-[var(--muted)] text-xs font-mono text-[var(--foreground)]">
+                        {a.action}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-[var(--muted-foreground)]">
+                      {a.entityType} <span className="font-mono">#{a.entityId?.slice(0, 8)}</span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-[var(--muted-foreground)] max-w-xs truncate font-mono">
+                      {JSON.stringify(a.metadata || a.details || '').slice(0, 100)}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-[var(--muted-foreground)]">{a.user?.email || a.user?.name || a.userId}</td>
+                    <td className="px-4 py-3 text-xs text-[var(--muted-foreground)] whitespace-nowrap">
+                      <div className="flex items-center gap-1">
+                        <Clock size={12} />
+                        {new Date(a.createdAt).toLocaleString()}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-3">
+          <button
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-[var(--border)] text-sm text-[var(--foreground)] hover:bg-[var(--accent)] transition-colors disabled:opacity-40"
+          >
+            <ChevronLeft size={14} /> Previous
+          </button>
+          <span className="text-sm text-[var(--muted-foreground)]">
+            Page {page} of {totalPages}
+          </span>
+          <button
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            disabled={page >= totalPages}
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-[var(--border)] text-sm text-[var(--foreground)] hover:bg-[var(--accent)] transition-colors disabled:opacity-40"
+          >
+            Next <ChevronRight size={14} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

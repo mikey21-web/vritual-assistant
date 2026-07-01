@@ -1,9 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { fetchLeads, fetchLead, createLead, updateLead, scoreLead, assignLead, markSpam, getLeadTimeline } from '../lib/data';
+import { fetchLeads, getLeadTimeline } from '../lib/data';
 import { useApp } from '../context/AppContext';
-import { Search, Plus, RefreshCw } from 'lucide-react';
-import toast from 'react-hot-toast';
-import type { Lead, LeadStatus, LeadSegment } from '../lib/types';
+import { Search, RefreshCw, Phone, Mail, Calendar } from 'lucide-react';
+import type { Lead } from '../lib/types';
+
+const statusStyles: Record<string, string> = {
+  NEW: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+  CONTACTED: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  ENGAGED: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',
+  QUALIFYING: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+  QUALIFIED: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+  CONVERTED: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+  LOST: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+  COLD: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
+  SPAM: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',
+};
+
+const segmentStyles: Record<string, string> = {
+  HOT: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+  WARM: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
+  COLD: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
+  UNQUALIFIED: 'bg-gray-100 text-gray-400 dark:bg-gray-800',
+};
 
 export default function LeadsPage() {
   const { niche } = useApp();
@@ -19,10 +37,11 @@ export default function LeadsPage() {
   const refresh = async (page = 1) => {
     setLoading(true);
     try {
-      const filters: Record<string,string> = { search, status: statusFilter, segment: segmentFilter };
+      const filters: Record<string, string> = { search, status: statusFilter, segment: segmentFilter };
       const r = await fetchLeads(page, filters);
-      setData(r.data); setMeta(r.meta);
-    } catch (e: any) { toast.error(e.message); }
+      setData(r.data);
+      setMeta(r.meta);
+    } catch (e: any) { /* ignore */ }
     setLoading(false);
   };
 
@@ -34,64 +53,144 @@ export default function LeadsPage() {
     try { setTimeline(await getLeadTimeline(id)); } catch {}
   };
 
-  const statusBadge = (s: LeadStatus) => {
-    const m: Record<string,string> = { NEW: 'bg-blue-100 text-blue-700', CONTACTED: 'bg-amber-100 text-amber-700', ENGAGED: 'bg-indigo-100 text-indigo-700', QUALIFYING: 'bg-purple-100 text-purple-700', QUALIFIED: 'bg-emerald-100 text-emerald-700', CONVERTED: 'bg-green-100 text-green-700', LOST: 'bg-red-100 text-red-700', COLD: 'bg-gray-100 text-gray-600', SPAM: 'bg-rose-100 text-rose-700' };
-    return <span className={`px-2 py-0.5 rounded text-xs font-semibold ${m[s] || 'bg-gray-100'}`}>{s}</span>;
-  };
-
-  const segBadge = (s: LeadSegment) => {
-    const m: Record<string,string> = { HOT: 'bg-red-100 text-red-700', WARM: 'bg-yellow-100 text-yellow-700', COLD: 'bg-gray-100 text-gray-600', UNQUALIFIED: 'bg-gray-100 text-gray-400' };
-    return <span className={`px-2 py-0.5 rounded text-xs font-medium ${m[s] || 'bg-gray-100'}`}>{s}</span>;
-  };
-
   return (
-    <div>
-      <h2 className="text-lg font-semibold mb-4">{niche?.labels?.leads || 'Leads'} ({meta.total})</h2>
-      <div className="flex flex-wrap items-center gap-3 mb-4">
-        <div className="relative flex-1 max-w-xs">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input placeholder={`Search ${niche?.labels?.lead?.toLowerCase() || 'lead'}s...`} value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm" />
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-[var(--foreground)]">{niche?.labels?.leads || 'Leads'}</h1>
+          <p className="text-sm text-[var(--muted-foreground)] mt-1">{meta.total} total leads</p>
         </div>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="border rounded-lg px-3 py-2 text-sm"><option value="">All Status</option>{['NEW','CONTACTED','ENGAGED','QUALIFYING','QUALIFIED','CONVERTED','LOST','COLD','SPAM'].map(s => <option key={s} value={s}>{s}</option>)}</select>
-        <select value={segmentFilter} onChange={e => setSegmentFilter(e.target.value)} className="border rounded-lg px-3 py-2 text-sm"><option value="">All Segments</option>{['HOT','WARM','COLD','UNQUALIFIED'].map(s => <option key={s} value={s}>{s}</option>)}</select>
-        <button onClick={() => refresh()} className="p-2 border rounded-lg hover:bg-gray-50"><RefreshCw size={14} className={loading ? 'animate-spin' : ''} /></button>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200/50 shadow-sm overflow-hidden">
-        <table className="w-full text-sm"><thead className="bg-gray-50 text-left"><tr><th className="px-4 py-3">Contact</th><th className="px-4 py-3">Source</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Segment</th><th className="px-4 py-3">Score</th><th className="px-4 py-3">Agent</th><th className="px-4 py-3">Created</th></tr></thead>
-          <tbody>
-            {data.map(l => (
-              <React.Fragment key={l.id}>
-                <tr onClick={() => handleExpand(l.id)} className="border-t hover:bg-gray-50 cursor-pointer">
-                  <td className="px-4 py-3"><div className="font-medium text-xs">{l.contact?.name || 'Unknown'}</div><div className="text-xs text-gray-400">{l.contact?.phone || l.contact?.email}</div></td>
-                  <td className="px-4 py-3 text-xs">{l.source}</td>
-                  <td className="px-4 py-3">{statusBadge(l.status)}</td>
-                  <td className="px-4 py-3">{segBadge(l.segment)}</td>
-                  <td className="px-4 py-3 text-xs font-mono">{l.score}</td>
-                  <td className="px-4 py-3 text-xs">{l.assignedAgent?.name || '-'}</td>
-                  <td className="px-4 py-3 text-xs">{new Date(l.createdAt).toLocaleDateString()}</td>
-                </tr>
-                {expandedId === l.id && (
-                  <tr key={`${l.id}-exp`}><td colSpan={7} className="px-4 py-3 bg-gray-50">
-                    <div className="grid grid-cols-2 gap-4 text-xs">
-                      <div>
-                        <div className="font-semibold mb-1">Details</div>
-                        <p>Interest: {l.interest || '-'}</p>
-                        <p>Budget: {l.budget || '-'}</p>
-                        <p>Message: {l.message || '-'}</p>
-                      </div>
-                      <div>
-                        <div className="font-semibold mb-1">Timeline ({timeline.length} events)</div>
-                        {timeline.slice(0,5).map((t:any) => <p key={t.id} className="text-gray-500">{t.title} — {new Date(t.createdAt).toLocaleString()}</p>)}
-                      </div>
-                    </div>
-                  </td></tr>
-                )}
-              </React.Fragment>
-            ))}
-          </tbody>
-        </table>
-        {data.length === 0 && <div className="p-8 text-center text-gray-400">No {niche?.labels?.leads?.toLowerCase() || 'leads'} found</div>}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 max-w-xs">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted-foreground)]" />
+          <input
+            placeholder={`Search ${niche?.labels?.lead?.toLowerCase() || 'lead'}s...`}
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full h-9 pl-9 pr-3 rounded-lg border border-[var(--border)] bg-[var(--card)] text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20 focus:border-[var(--ring)] transition-colors"
+          />
+        </div>
+        <select
+          value={statusFilter}
+          onChange={e => setStatusFilter(e.target.value)}
+          className="h-9 rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
+        >
+          <option value="">All Status</option>
+          {['NEW','CONTACTED','ENGAGED','QUALIFYING','QUALIFIED','CONVERTED','LOST','COLD','SPAM'].map(s => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
+        <select
+          value={segmentFilter}
+          onChange={e => setSegmentFilter(e.target.value)}
+          className="h-9 rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
+        >
+          <option value="">All Segments</option>
+          {['HOT','WARM','COLD','UNQUALIFIED'].map(s => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
+        <button onClick={() => refresh()} className="h-9 px-3 rounded-lg border border-[var(--border)] bg-[var(--card)] hover:bg-[var(--accent)] text-[var(--muted-foreground)] transition-colors">
+          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+        </button>
+      </div>
+
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-[var(--border)] bg-[var(--muted)]">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Contact</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Source</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Status</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Segment</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Score</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Created</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i} className="border-b border-[var(--border)]">
+                    {Array.from({ length: 6 }).map((_, j) => (
+                      <td key={j} className="px-4 py-3"><div className="h-4 bg-[var(--muted)] rounded animate-pulse w-20" /></td>
+                    ))}
+                  </tr>
+                ))
+              ) : data.length === 0 ? (
+                <tr><td colSpan={6} className="px-4 py-12 text-center text-[var(--muted-foreground)]">No leads found</td></tr>
+              ) : (
+                data.map(l => (
+                  <React.Fragment key={l.id}>
+                    <tr
+                      onClick={() => handleExpand(l.id)}
+                      className="border-b border-[var(--border)] hover:bg-[var(--muted)]/50 cursor-pointer transition-colors"
+                    >
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-[var(--foreground)]">{l.contact?.name || 'Unknown'}</div>
+                        <div className="text-xs text-[var(--muted-foreground)]">{l.contact?.phone || l.contact?.email || ''}</div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-xs text-[var(--muted-foreground)]">{l.source}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${statusStyles[l.status] || ''}`}>{l.status}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${segmentStyles[l.segment] || ''}`}>{l.segment}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="font-mono text-sm font-semibold text-[var(--foreground)]">{l.score}</span>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-[var(--muted-foreground)]">
+                        {new Date(l.createdAt).toLocaleDateString()}
+                      </td>
+                    </tr>
+                    {expandedId === l.id && (
+                      <tr key={`${l.id}-exp`}>
+                        <td colSpan={6} className="px-4 py-4 bg-[var(--muted)] border-b border-[var(--border)]">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                              <h4 className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider mb-3">Lead Details</h4>
+                              <div className="space-y-2 text-sm">
+                                <div className="flex items-center gap-2 text-[var(--muted-foreground)]">
+                                  <Phone size={14} /><span>{l.contact?.phone || '-'}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-[var(--muted-foreground)]">
+                                  <Mail size={14} /><span>{l.contact?.email || '-'}</span>
+                                </div>
+                                {l.interest && <div className="mt-2"><span className="text-[var(--foreground)] font-medium">Interest:</span> <span className="text-[var(--muted-foreground)]">{l.interest}</span></div>}
+                                {l.budget && <div><span className="text-[var(--foreground)] font-medium">Budget:</span> <span className="text-[var(--muted-foreground)]">{l.budget}</span></div>}
+                                {l.message && <div><span className="text-[var(--foreground)] font-medium">Message:</span> <span className="text-[var(--muted-foreground)]">{l.message}</span></div>}
+                              </div>
+                            </div>
+                            <div>
+                              <h4 className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider mb-3">Timeline</h4>
+                              <div className="space-y-2">
+                                {timeline.length === 0 && <p className="text-sm text-[var(--muted-foreground)]">No activity yet</p>}
+                                {timeline.slice(0, 5).map((t: any) => (
+                                  <div key={t.id} className="flex items-start gap-2 text-sm">
+                                    <Calendar size={14} className="text-[var(--muted-foreground)] mt-0.5 shrink-0" />
+                                    <div>
+                                      <p className="text-[var(--foreground)]">{t.title}</p>
+                                      <p className="text-xs text-[var(--muted-foreground)]">{new Date(t.createdAt).toLocaleString()}</p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

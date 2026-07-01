@@ -1,41 +1,177 @@
 import React, { useState, useEffect } from 'react';
 import { fetchTemplates, createTemplate, previewTemplate } from '../lib/data';
-import { Plus, Eye, X } from 'lucide-react';
+import { Plus, Eye, X, FileText, MessageSquare, Mail } from 'lucide-react';
 import toast from 'react-hot-toast';
+
+const channelIcons: Record<string, any> = { WHATSAPP: MessageSquare, EMAIL: Mail, SMS: FileText };
 
 export default function TemplatesPage() {
   const [data, setData] = useState<any[]>([]);
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ name:'', type:'WELCOME', channel:'WHATSAPP', body:'', variables:'["contact.name","business.name"]' });
+  const [form, setForm] = useState({ name: '', type: 'WELCOME', channel: 'WHATSAPP', body: '', variables: '["contact.name","business.name"]' });
   const [selected, setSelected] = useState<any>(null);
-  const [previewVars, setPreviewVars] = useState<Record<string,string>>({});
+  const [previewVars, setPreviewVars] = useState<Record<string, string>>({});
   const [preview, setPreview] = useState('');
 
   const refresh = () => fetchTemplates().then(setData).catch(() => {});
   useEffect(() => { refresh(); }, []);
 
-  const create = async (e:React.FormEvent) => { e.preventDefault(); try { await createTemplate({...form, variables: JSON.parse(form.variables)}); setShowCreate(false); refresh(); toast.success('Created'); } catch(e:any) { toast.error(e.message); } };
-  const showPreview = async (id:string) => { try { const r = await previewTemplate(id, previewVars); setPreview(r.data?.rendered || r.rendered); } catch(e:any) { toast.error(e.message); } };
+  const create = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await createTemplate({ ...form, variables: JSON.parse(form.variables) });
+      setShowCreate(false);
+      refresh();
+      toast.success('Template created');
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const showPreview = async (id: string) => {
+    try {
+      const r = await previewTemplate(id, previewVars);
+      setPreview(r.data?.rendered || r.rendered);
+    } catch (e: any) { toast.error(e.message); }
+  };
 
   return (
-    <div><div className="flex justify-between mb-4"><h2 className="text-lg font-semibold">Message Templates</h2><button onClick={()=>setShowCreate(true)} className="flex items-center gap-1 bg-blue-600 text-white px-3 py-2 rounded-lg text-sm"><Plus size={14}/>Create</button></div>
-    {showCreate && <form onSubmit={create} className="bg-white border rounded-xl p-4 mb-4 grid grid-cols-2 gap-3">
-      <input placeholder="Name" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} className="border rounded-lg px-3 py-2 text-sm" required/>
-      <select value={form.type} onChange={e=>setForm({...form,type:e.target.value})} className="border rounded-lg px-3 py-2 text-sm">{['WELCOME','FOLLOW_UP','QUALIFICATION_QUESTION','RECONNECT','APPOINTMENT_LINK','THANK_YOU'].map(t=><option key={t} value={t}>{t}</option>)}</select>
-      <select value={form.channel} onChange={e=>setForm({...form,channel:e.target.value})} className="border rounded-lg px-3 py-2 text-sm">{['WHATSAPP','EMAIL','SMS'].map(c=><option key={c} value={c}>{c}</option>)}</select>
-      <input placeholder='Variables (JSON array)' value={form.variables} onChange={e=>setForm({...form,variables:e.target.value})} className="border rounded-lg px-3 py-2 text-sm"/>
-      <textarea placeholder="Message body with {{variables}}" value={form.body} onChange={e=>setForm({...form,body:e.target.value})} className="col-span-2 border rounded-lg px-3 py-2 text-sm h-24" required/>
-      <div className="flex gap-2 col-span-2"><button type="submit" className="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-sm">Save</button><button type="button" onClick={()=>setShowCreate(false)} className="border px-3 py-1.5 rounded-lg text-sm"><X size={14}/></button></div>
-    </form>}
-    <div className="space-y-3">{data.map(t=><div key={t.id} className="bg-white border rounded-xl p-4">
-      <div className="flex justify-between mb-2"><span className="font-medium text-sm">{t.name}</span><span className="text-xs text-gray-400">{t.type} · {t.channel} · v{t.version}</span>
-        <button onClick={()=>{setSelected(t.id===selected?.id?null:t); setPreviewVars({}); setPreview('');}} className="text-blue-600 text-xs"><Eye size={14}/></button></div>
-      <pre className="text-xs text-gray-600 bg-gray-50 p-2 rounded">{t.body}</pre>
-      {selected?.id===t.id && <div className="mt-3 pt-3 border-t">
-        {JSON.parse(t.variables||'[]').map((v:string)=><input key={v} placeholder={v} value={previewVars[v]||''} onChange={e=>setPreviewVars({...previewVars,[v]:e.target.value})} className="border rounded px-2 py-1 text-xs mr-2 mb-2"/>)}
-        <button onClick={()=>showPreview(t.id)} className="bg-blue-600 text-white px-3 py-1 rounded text-xs">Preview</button>
-        {preview && <div className="mt-2 text-sm bg-green-50 p-2 rounded">{preview}</div>}
-      </div>}
-    </div>)}</div></div>
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-[var(--foreground)]">Message Templates</h1>
+          <p className="text-sm text-[var(--muted-foreground)] mt-1">{data.length} templates</p>
+        </div>
+        <button
+          onClick={() => setShowCreate(true)}
+          className="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90 transition-opacity shadow-sm"
+        >
+          <Plus size={16} /> Create Template
+        </button>
+      </div>
+
+      {showCreate && (
+        <form onSubmit={create} className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 animate-scale-in">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <input
+              placeholder="Template name"
+              value={form.name}
+              onChange={e => setForm({ ...form, name: e.target.value })}
+              className="h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
+              required
+            />
+            <select
+              value={form.type}
+              onChange={e => setForm({ ...form, type: e.target.value })}
+              className="h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
+            >
+              {['WELCOME', 'FOLLOW_UP', 'QUALIFICATION_QUESTION', 'RECONNECT', 'APPOINTMENT_LINK', 'THANK_YOU'].map(t => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+            <select
+              value={form.channel}
+              onChange={e => setForm({ ...form, channel: e.target.value })}
+              className="h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
+            >
+              {['WHATSAPP', 'EMAIL', 'SMS'].map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <input
+              placeholder='Variables (JSON array)'
+              value={form.variables}
+              onChange={e => setForm({ ...form, variables: e.target.value })}
+              className="h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
+            />
+            <textarea
+              placeholder="Message body with {{variables}}"
+              value={form.body}
+              onChange={e => setForm({ ...form, body: e.target.value })}
+              className="col-span-2 h-24 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
+              required
+            />
+          </div>
+          <div className="flex gap-2 mt-3">
+            <button type="submit" className="h-8 px-4 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90">Save</button>
+            <button type="button" onClick={() => setShowCreate(false)} className="h-8 px-4 rounded-lg border border-[var(--border)] text-sm text-[var(--foreground)] hover:bg-[var(--accent)] transition-colors">
+              <X size={14} />
+            </button>
+          </div>
+        </form>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {data.length === 0 && (
+          <div className="col-span-full text-center py-12 text-[var(--muted-foreground)]">No templates yet</div>
+        )}
+        {data.map(t => {
+          const Icon = channelIcons[t.channel] || FileText;
+          const isSelected = selected?.id === t.id;
+          return (
+            <div key={t.id} className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden">
+              <div className="p-4">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-lg bg-[var(--muted)] flex items-center justify-center">
+                      <Icon size={14} className="text-[var(--muted-foreground)]" />
+                    </div>
+                    <div>
+                      <div className="font-medium text-sm text-[var(--foreground)]">{t.name}</div>
+                      <div className="text-xs text-[var(--muted-foreground)]">{t.type} · v{t.version}</div>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-mono text-[var(--muted-foreground)]">{t.channel}</span>
+                </div>
+
+                <pre className="text-xs text-[var(--muted-foreground)] bg-[var(--muted)] p-2 rounded-lg line-clamp-3">{t.body}</pre>
+
+                {isSelected && (
+                  <div className="mt-3 pt-3 border-t border-[var(--border)] animate-fade-in">
+                    <div className="flex flex-wrap gap-1.5 mb-2">
+                      {JSON.parse(t.variables || '[]').map((v: string) => (
+                        <input
+                          key={v}
+                          placeholder={v}
+                          value={previewVars[v] || ''}
+                          onChange={e => setPreviewVars({ ...previewVars, [v]: e.target.value })}
+                          className="flex-1 min-w-[100px] h-7 rounded border border-[var(--border)] bg-[var(--background)] px-2 text-xs text-[var(--foreground)] placeholder:text-[var(--muted-foreground)]"
+                        />
+                      ))}
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => showPreview(t.id)}
+                        className="h-7 px-3 rounded-lg bg-[var(--primary)] text-white text-xs font-medium hover:opacity-90"
+                      >
+                        Preview
+                      </button>
+                      <button
+                        onClick={() => setSelected(null)}
+                        className="h-7 px-3 rounded-lg border border-[var(--border)] text-xs text-[var(--foreground)] hover:bg-[var(--accent)] transition-colors"
+                      >
+                        Close
+                      </button>
+                    </div>
+                    {preview && (
+                      <div className="mt-2 text-sm bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 p-3 rounded-lg">
+                        {preview}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {!isSelected && (
+                <div className="border-t border-[var(--border)] px-4 py-2 bg-[var(--muted)]/30">
+                  <button
+                    onClick={() => { setSelected(t); setPreviewVars({}); setPreview(''); }}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-[var(--primary)] hover:text-[var(--primary)]/80 transition-colors"
+                  >
+                    <Eye size={12} /> Preview
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }

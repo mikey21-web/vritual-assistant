@@ -44,6 +44,10 @@ import { BillingModule } from './billing/billing.module';
 import { ComplianceModule } from './compliance/compliance.module';
 import { PermissionsModule } from './permissions/permissions.module';
 import { AgentModule } from './agent/agent.module';
+import { MonitoringModule } from './monitoring/monitoring.module';
+import { TenantsModule } from './tenants/tenants.module';
+import { AdminModule } from './admin/admin.module';
+import { RealtimeModule } from './realtime/realtime.module';
 
 @Module({
   imports: [
@@ -100,6 +104,10 @@ import { AgentModule } from './agent/agent.module';
     ComplianceModule,
     PermissionsModule,
     AgentModule,
+    MonitoringModule,
+    TenantsModule,
+    AdminModule,
+    RealtimeModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

@@ -25,7 +25,7 @@ beforeAll(async () => {
 
   const hashed = await bcrypt.hash('Test123456', 1);
   await prisma.user.create({
-    data: { email: 'e2e@test.com', name: 'E2E User', password: hashed, role: 'OWNER', active: true },
+    data: { email: 'e2e@test.com', name: 'E2E User', password: hashed, role: 'OWNER', active: true, tenantId: 'default-tenant' },
   });
 
   const login = await request(app.getHttpServer()).post('/auth/login').send({

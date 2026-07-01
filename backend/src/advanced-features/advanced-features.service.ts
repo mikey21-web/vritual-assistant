@@ -248,6 +248,7 @@ export class AdvancedFeaturesService {
                 phone: row.phone || null,
                 whatsapp: row.whatsapp || null,
                 company: row.company || null,
+                tenantId: 'default-tenant',
               },
             });
           }

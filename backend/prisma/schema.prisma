@@ -14,6 +14,29 @@ enum UserRole {
   SALES_AGENT
 }
 
+// === TENANT MODEL ===
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  domain    String?
+  plan      String   @default("starter")
+  active    Boolean  @default(true)
+  settings  Json     @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users      User[]
+  contacts   Contact[]
+  leads      Lead[]
+  campaigns  Campaign[]
+  integrations Integration[]
+
+  @@index([slug])
+  @@map("tenants")
+}
+
 enum LeadSource {
   CAMPAIGN
   QR_CODE
@@ -159,16 +182,54 @@ enum CustomFieldTarget {
   LEAD
 }
 
+// === REFRESH TOKENS ===
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  tokenHash String
+  userId    String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([tokenHash])
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+// === PASSWORD RESET TOKEN ===
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  email     String
+  tokenHash String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([tokenHash])
+  @@map("password_reset_tokens")
+}
+
 // === USER MODEL ===
 
 model User {
   id        String   @id @default(uuid())
+  tenantId  String  @map("tenant_id")
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
   name      String
   email     String   @unique
   phone     String?
   password  String
   role      UserRole @default(SALES_AGENT)
   active    Boolean  @default(true)
+  emailVerifiedAt DateTime?
+  mfaEnabled  Boolean  @default(false)
+  mfaSecret   String?
+  lockoutUntil    DateTime?
+  failedLoginAttempts Int @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -219,6 +280,10 @@ model BusinessSettings {
 
 model Contact {
   id               String   @id @default(uuid())
+  tenantId         String  @map("tenant_id")
+  tenant           Tenant   @relation(fields: [tenantId], references: [id])
+  version          Int      @default(0)
+  deletedAt        DateTime?
   name             String?
   email            String?
   phone            String?
@@ -252,6 +317,10 @@ model Contact {
 
 model Lead {
   id           String      @id @default(uuid())
+  tenantId     String  @map("tenant_id")
+  tenant       Tenant      @relation(fields: [tenantId], references: [id])
+  version      Int         @default(0)
+  deletedAt    DateTime?
   status       LeadStatus  @default(NEW)
   segment      LeadSegment @default(COLD)
   source       LeadSource
@@ -317,6 +386,8 @@ model ConsentEvent {
 
 model Campaign {
   id                String    @id @default(uuid())
+  tenantId          String  @map("tenant_id")
+  tenant            Tenant    @relation(fields: [tenantId], references: [id])
   name              String
   sourceType        LeadSource
   offer             String?
@@ -642,6 +713,8 @@ model Conversion {
 
 model Integration {
   id         String   @id @default(uuid())
+  tenantId   String  @map("tenant_id")
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
   type       String
   name       String
   config     Json
@@ -912,6 +985,35 @@ model ImportExportLog {
 
   @@index([userId])
   @@map("import_export_logs")
+}
+
+// === FEATURE FLAGS ===
+
+model FeatureFlag {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  description String?
+  enabled     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("feature_flags")
+}
+
+// === TENANT API KEYS ===
+
+model TenantApiKey {
+  id        String   @id @default(uuid())
+  tenantId  String  @map("tenant_id")
+  name      String
+  keyHash   String   @unique
+  prefix    String
+  lastUsedAt DateTime?
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@map("tenant_api_keys")
 }
 
 // === CORE ENGINE MODELS ===
