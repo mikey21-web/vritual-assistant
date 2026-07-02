@@ -8,7 +8,7 @@ set -euo pipefail
 # ──────────────────────────────────────────────
 
 REPO_URL="https://github.com/mikey21-web/vritual-assistant.git"
-DOMAIN="yourdomain.com"                                      # ← CHANGE THIS to your actual domain
+DOMAIN="deploysafe.in"
 ENV_FILE=".env"
 
 # ─── Colors ───
