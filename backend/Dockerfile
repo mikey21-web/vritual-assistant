@@ -14,9 +14,10 @@ COPY package*.json ./
 RUN npm ci --omit=dev
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=build /app/node_modules/prisma ./node_modules/prisma
 COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/package.json ./
 EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD curl -f http://localhost:3001/health || exit 1
-CMD npx prisma migrate deploy && node dist/main
+CMD ./node_modules/.bin/prisma migrate deploy && node dist/main
