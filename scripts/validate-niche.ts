@@ -12,13 +12,9 @@
  * CI must fail if any niche is invalid.
  */
 import { readFileSync, existsSync, readdirSync } from 'fs';
-import { resolve, extname, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { resolve, extname } from 'path';
 import * as yaml from 'js-yaml';
 import Ajv from 'ajv';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 const SCHEMA_PATH = resolve(__dirname, '..', 'config.schema.json');
 
