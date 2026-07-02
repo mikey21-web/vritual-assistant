@@ -2,6 +2,7 @@
   "name": "client-lead-automation",
   "version": "1.0.0",
   "private": true,
+  "type": "commonjs",
   "description": "Client Lead Automation Virtual Assistant",
   "scripts": {
     "dev:backend": "cd backend && npm run start:dev",

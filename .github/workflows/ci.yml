@@ -15,11 +15,11 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '20', cache: 'npm', cache-dependency-path: backend/package-lock.json }
       - run: cd backend && npm ci
-      - run: npx ts-node --transpile-only scripts/validate-niche.ts --file niche.config.yaml
+      - run: cd backend && npx ts-node --transpile-only ../scripts/validate-niche.ts --file ../niche.config.yaml
       - name: Verify validation fails on broken config
         run: |
           printf 'schema_version: 1\ninvalid_field: true\n' > /tmp/broken.yaml
-          npx ts-node --transpile-only scripts/validate-niche.ts --file /tmp/broken.yaml && exit 1 || echo "PASS: broken config correctly rejected"
+          cd backend && npx ts-node --transpile-only ../scripts/validate-niche.ts --file /tmp/broken.yaml && exit 1 || echo "PASS: broken config correctly rejected"
 
   backend:
     runs-on: ubuntu-latest
