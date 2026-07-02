@@ -7,9 +7,9 @@ COPY . .
 RUN npx prisma generate
 RUN npm run build
 
-FROM node:20-alpine AS production
+FROM node:20-bookworm-slim AS production
 WORKDIR /app
-RUN apk add --no-cache curl openssl
+RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends curl openssl && rm -rf /var/lib/apt/lists/*
 COPY package*.json ./
 RUN npm ci --omit=dev
 COPY --from=build /app/dist ./dist
