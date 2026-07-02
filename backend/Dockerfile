@@ -9,7 +9,7 @@ RUN npm run build
 
 FROM node:20-alpine AS production
 WORKDIR /app
-RUN apk add --no-cache curl
+RUN apk add --no-cache curl openssl
 COPY package*.json ./
 RUN npm ci --omit=dev
 COPY --from=build /app/dist ./dist
