@@ -103,10 +103,10 @@ export default function OverviewPage() {
           </h3>
           <div className="grid grid-cols-2 gap-3">
             {[
-            { label: 'View Leads', href: '#/leads', desc: 'Manage your leads', color: 'bg-[var(--primary)]' },
-            { label: 'Campaigns', href: '#/campaigns', desc: 'View campaigns', color: 'bg-emerald-600' },
-            { label: 'Tasks', href: '#/tasks', desc: 'Pending tasks', color: 'bg-violet-600' },
-            { label: 'Analytics', href: '#/analytics', desc: 'View reports', color: 'bg-amber-600' },
+            { label: 'View Leads', href: '#/leads', desc: 'Manage your leads', color: 'var(--primary)' },
+            { label: 'Campaigns', href: '#/campaigns', desc: 'View campaigns', color: '#059669' },
+            { label: 'Tasks', href: '#/tasks', desc: 'Pending tasks', color: '#d97706' },
+            { label: 'Analytics', href: '#/analytics', desc: 'View reports', color: '#0f766e' },
             ].map((action, i) => (
               <a
                 key={action.label}
