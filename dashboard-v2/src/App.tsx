@@ -39,8 +39,8 @@ const PageComponents: Record<string, React.LazyExoticComponent<React.ComponentTy
 function PageFallback() {
   return (
     <div className="p-6 space-y-4 animate-fade-in">
-      <Skeleton className="h-8 w-48" />
-      <Skeleton className="h-4 w-72" />
+      <Skeleton className="h-8 w-48 rounded-lg" />
+      <Skeleton className="h-4 w-72 rounded-lg" />
       <div className="grid grid-cols-3 gap-4 mt-6">
         <Skeleton className="h-24 rounded-lg" />
         <Skeleton className="h-24 rounded-lg" />
@@ -107,11 +107,18 @@ export default function App() {
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-[var(--background)]">
-        <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-xl bg-[var(--primary)] flex items-center justify-center shadow-lg shadow-[var(--primary)]/20">
-            <span className="text-sm font-bold text-white">LA</span>
+        <div className="flex flex-col items-center gap-3 animate-fade-up">
+          <div className="h-10 w-10 rounded-xl bg-[var(--primary)] flex items-center justify-center shadow-sm">
+            <span className="text-sm font-bold text-[var(--primary-foreground)]">LA</span>
           </div>
-          <span className="text-lg font-bold text-[var(--foreground)]">LeadAuto</span>
+          <div className="flex flex-col items-center gap-1">
+            <span className="text-base font-bold text-[var(--foreground)]">LeadAuto</span>
+            <div className="flex gap-1 mt-1">
+              <div className="h-1.5 w-1.5 rounded-full bg-[var(--primary)] animate-bounce" style={{ animationDelay: "0ms" }} />
+              <div className="h-1.5 w-1.5 rounded-full bg-[var(--primary)] animate-bounce" style={{ animationDelay: "150ms" }} />
+              <div className="h-1.5 w-1.5 rounded-full bg-[var(--primary)] animate-bounce" style={{ animationDelay: "300ms" }} />
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -127,7 +134,7 @@ export default function App() {
     <AppProvider>
       <div className="flex h-screen bg-[var(--background)] text-[var(--foreground)]">
         <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} />
-        <div className={`flex flex-1 flex-col transition-all duration-300 ${sidebarCollapsed ? "ml-16" : "ml-64"}`}>
+        <div className={`flex flex-1 flex-col transition-all duration-200 ${sidebarCollapsed ? "ml-16" : "ml-64"}`}>
           <Topbar onMenuToggle={() => setSidebarCollapsed(!sidebarCollapsed)} dark={dark} onThemeToggle={() => setDark(!dark)} />
           <main className="flex-1 overflow-auto p-6">
             <ErrorBoundary>
@@ -141,9 +148,9 @@ export default function App() {
         </div>
       </div>
       <Toaster position="top-right" toastOptions={{
-        style: { borderRadius: '0.75rem', background: 'var(--card)', color: 'var(--foreground)', border: '1px solid var(--border)', fontSize: '14px' },
-        success: { iconTheme: { primary: '#10b981', secondary: '#fff' } },
-        error: { iconTheme: { primary: '#ef4444', secondary: '#fff' } },
+        style: { borderRadius: 'var(--radius)', background: 'var(--card)', color: 'var(--foreground)', border: '1px solid var(--border)', fontSize: '14px' },
+        success: { iconTheme: { primary: '#0f766e', secondary: '#ffffff' } },
+        error: { iconTheme: { primary: '#dc2626', secondary: '#ffffff' } },
       }} />
     </AppProvider>
   );

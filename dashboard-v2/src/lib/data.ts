@@ -1,8 +1,6 @@
 import { api } from './api';
 import type { Lead, Contact, Campaign, Task, Message, Template, Integration, BookingSetting, CrmMapping, ScoringRule, RoutingRule, AutomationRule, PipelineStage, FailureRecord, User, HealthReport, AnalyticsOverview } from './types';
 
-const PAGE = (page = 1, limit = 20) => `?page=${page}&limit=${limit}`;
-
 export async function fetchAnalytics() { return api('/analytics/overview') as Promise<AnalyticsOverview>; }
 export async function fetchSources() { return api('/analytics/sources') as Promise<{ source: string; count: number }[]>; }
 export async function fetchAgents() { return api('/analytics/agents') as Promise<{ id: string; name: string; role: string; assignedLeads: number; converted: number }[]>; }

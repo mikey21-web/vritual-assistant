@@ -40,7 +40,7 @@ export default function WorkspacePage() {
 
       <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6">
         <div className="flex items-start gap-4">
-          <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-[var(--primary)] to-blue-700 flex items-center justify-center shadow-lg shadow-[var(--primary)]/20">
+          <div className="h-14 w-14 rounded-2xl bg-[var(--primary)] flex items-center justify-center shadow-sm">
             <Building2 size={28} className="text-white" />
           </div>
           <div className="flex-1">

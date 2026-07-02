@@ -37,9 +37,9 @@ export default function ConversionsPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
-          { label: 'Total Conversions', value: total, icon: Activity, color: 'from-blue-500 to-blue-600' },
+          { label: 'Total Conversions', value: total, icon: Activity, color: 'from-[var(--primary)] to-[var(--primary)]/70' },
           { label: 'Win Rate', value: `${rate}${typeof rate === 'number' ? '%' : ''}`, icon: TrendingUp, color: 'from-emerald-500 to-emerald-600' },
-          { label: 'Pipeline Value', value: `$${revenue.toLocaleString()}`, icon: DollarSign, color: 'from-violet-500 to-violet-600' },
+          { label: 'Pipeline Value', value: `$${revenue.toLocaleString()}`, icon: DollarSign, color: 'from-amber-500 to-amber-600' },
         ].map(m => (
           <div key={m.label} className="rounded-xl bg-[var(--card)] border border-[var(--border)] p-4">
             <div className={`w-9 h-9 rounded-lg bg-gradient-to-br ${m.color} flex items-center justify-center mb-3`}>

@@ -18,9 +18,9 @@ export default function AnalyticsPage() {
   );
 
   const metrics = [
-    { label: 'Total Leads', value: data.summary?.totalLeads || 0, icon: Users, color: 'from-blue-500 to-blue-600' },
+    { label: 'Total Leads', value: data.summary?.totalLeads || 0, icon: Users, color: 'from-[var(--primary)] to-[var(--primary)]/70' },
     { label: 'Conversion Rate', value: (data.summary?.conversionRate || 0) + '%', icon: TrendingUp, color: 'from-emerald-500 to-emerald-600' },
-    { label: 'Revenue', value: '$' + (data.summary?.revenue || 0).toLocaleString(), icon: DollarSign, color: 'from-violet-500 to-violet-600' },
+    { label: 'Revenue', value: '$' + (data.summary?.revenue || 0).toLocaleString(), icon: DollarSign, color: 'from-amber-500 to-amber-600' },
     { label: 'Active Campaigns', value: data.summary?.activeCampaigns || 0, icon: BarChart3, color: 'from-amber-500 to-amber-600' },
   ];
 

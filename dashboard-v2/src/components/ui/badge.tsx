@@ -1,12 +1,12 @@
 import * as React from "react";
 
 const badgeVariants = {
-  default: "border-transparent bg-[var(--primary)] text-[var(--primary-foreground)]",
+  default: "border-transparent bg-[var(--primary-light)] text-[var(--primary)]",
   secondary: "border-transparent bg-[var(--secondary)] text-[var(--secondary-foreground)]",
-  destructive: "border-transparent bg-[var(--destructive)] text-[var(--destructive-foreground)]",
+  destructive: "border-transparent bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
   outline: "text-[var(--foreground)]",
-  success: "border-transparent bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100",
-  warning: "border-transparent bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100",
+  success: "border-transparent bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+  warning: "border-transparent bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
 };
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -14,5 +14,5 @@ export interface BadgeProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 export const Badge = ({ className = "", variant = "default", ...props }: BadgeProps) => (
-  <div className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors ${badgeVariants[variant]} ${className}`} {...props} />
+  <div className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors ${badgeVariants[variant]} ${className}`} {...props} />
 );

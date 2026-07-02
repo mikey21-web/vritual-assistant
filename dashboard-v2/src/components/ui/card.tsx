@@ -1,11 +1,11 @@
 import * as React from "react";
 
 export const Card = ({ className = "", ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={`rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] text-[var(--card-foreground)] shadow-card ${className}`} {...props} />
+  <div className={`rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--card-foreground)] shadow-[var(--shadow-sm)] ${className}`} {...props} />
 );
 
 export const CardHeader = ({ className = "", ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={`flex flex-col space-y-1.5 p-6 ${className}`} {...props} />
+  <div className={`flex flex-col space-y-1.5 p-5 ${className}`} {...props} />
 );
 
 export const CardTitle = ({ className = "", ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
@@ -17,9 +17,9 @@ export const CardDescription = ({ className = "", ...props }: React.HTMLAttribut
 );
 
 export const CardContent = ({ className = "", ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={`p-6 pt-0 ${className}`} {...props} />
+  <div className={`p-5 pt-0 ${className}`} {...props} />
 );
 
 export const CardFooter = ({ className = "", ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={`flex items-center p-6 pt-0 ${className}`} {...props} />
+  <div className={`flex items-center p-5 pt-0 ${className}`} {...props} />
 );

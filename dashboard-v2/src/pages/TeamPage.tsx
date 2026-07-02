@@ -98,7 +98,7 @@ export default function TeamPage() {
                   <tr key={u.id} className="border-b border-[var(--border)] hover:bg-[var(--muted)]/50 transition-colors">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <div className="h-8 w-8 rounded-full bg-gradient-to-br from-[var(--primary)] to-blue-600 flex items-center justify-center text-xs font-medium text-white shadow-sm">
+                        <div className="h-8 w-8 rounded-full bg-[var(--primary)] flex items-center justify-center text-xs font-medium text-white shadow-sm">
                           {(u.name || '?').charAt(0).toUpperCase()}
                         </div>
                         <span className="font-medium text-[var(--foreground)]">{u.name}</span>

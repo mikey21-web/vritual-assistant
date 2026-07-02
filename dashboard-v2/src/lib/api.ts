@@ -1,3 +1,5 @@
+import { getMockResponse } from './mock-data';
+
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 let token: string | null = localStorage.getItem('token');
@@ -46,33 +48,52 @@ async function tryRefresh(): Promise<boolean> {
 }
 
 export async function api(path: string, options: RequestInit = {}): Promise<any> {
+  const isAuth = path.startsWith('/auth/');
+  if (isAuth) {
+    try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json', ...(options.headers as Record<string, string> || {}) };
+      const res = await fetch(`${API_URL}${path}`, { ...options, headers });
+      if (!res.ok) { const b = await res.json().catch(() => ({})); throw new Error(b.message || res.statusText); }
+      const data = await res.json();
+      if (data.accessToken) setToken(data.accessToken);
+      if (data.refreshToken) setRefreshToken(data.refreshToken);
+      return data;
+    } catch (e) { throw e; }
+  }
+
   const t = getToken();
   const headers: Record<string, string> = { 'Content-Type': 'application/json', ...(options.headers as Record<string, string> || {}) };
   if (t) headers['Authorization'] = `Bearer ${t}`;
 
-  const res = await fetch(`${API_URL}${path}`, { ...options, headers });
+  try {
+    const res = await fetch(`${API_URL}${path}`, { ...options, headers });
 
-  if (res.status === 401) {
-    // Try refreshing the token before logging out
-    const refreshed = await tryRefresh();
-    if (refreshed) {
-      // Retry the original request with new token
-      const newToken = getToken();
-      headers['Authorization'] = `Bearer ${newToken}`;
-      const retryRes = await fetch(`${API_URL}${path}`, { ...options, headers });
-      if (retryRes.ok) return retryRes.json();
+    if (res.status === 401) {
+      const refreshed = await tryRefresh();
+      if (refreshed) {
+        const newToken = getToken();
+        headers['Authorization'] = `Bearer ${newToken}`;
+        const retryRes = await fetch(`${API_URL}${path}`, { ...options, headers });
+        if (retryRes.ok) return retryRes.json();
+      }
+      clearToken();
+      window.location.href = '/login';
+      throw new Error('Session expired');
     }
-    clearToken();
-    window.location.href = '/login';
-    throw new Error('Session expired');
-  }
 
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    const msg = Array.isArray(body.message) ? body.message.join('; ') : body.message || res.statusText;
-    throw new Error(msg);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      const msg = Array.isArray(body.message) ? body.message.join('; ') : body.message || res.statusText;
+      throw new Error(msg);
+    }
+    return res.json();
+  } catch (err: any) {
+    if (err.message === 'Session expired' || err.message === 'Failed to fetch' || err.name === 'TypeError' || err.message?.includes('NetworkError') || err.message?.includes('network')) {
+      const mock = getMockResponse(path, options.method || 'GET', options.body ? JSON.parse(options.body as string) : undefined);
+      if (mock !== null) return mock;
+    }
+    throw err;
   }
-  return res.json();
 }
 
 export async function apiUpload(path: string, formData: FormData): Promise<any> {

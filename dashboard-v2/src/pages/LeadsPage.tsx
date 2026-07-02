@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { fetchLeads, getLeadTimeline } from '../lib/data';
 import { useApp } from '../context/AppContext';
-import { Search, RefreshCw, Phone, Mail, Calendar } from 'lucide-react';
+import { Search, RefreshCw, Phone, Mail, Calendar, Users } from 'lucide-react';
 import type { Lead } from '../lib/types';
 
 const statusStyles: Record<string, string> = {
@@ -18,7 +18,7 @@ const statusStyles: Record<string, string> = {
 
 const segmentStyles: Record<string, string> = {
   HOT: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-  WARM: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
+  WARM: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
   COLD: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
   UNQUALIFIED: 'bg-gray-100 text-gray-400 dark:bg-gray-800',
 };
@@ -57,19 +57,19 @@ export default function LeadsPage() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--foreground)]">{niche?.labels?.leads || 'Leads'}</h1>
-          <p className="text-sm text-[var(--muted-foreground)] mt-1">{meta.total} total leads</p>
+          <h1 className="text-xl font-bold text-[var(--foreground)]">{niche?.labels?.leads || 'Leads'}</h1>
+          <p className="text-sm text-[var(--muted-foreground)] mt-0.5">{meta.total} total leads</p>
         </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 max-w-xs">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted-foreground)]" />
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted-foreground)]" />
           <input
             placeholder={`Search ${niche?.labels?.lead?.toLowerCase() || 'lead'}s...`}
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full h-9 pl-9 pr-3 rounded-lg border border-[var(--border)] bg-[var(--card)] text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20 focus:border-[var(--ring)] transition-colors"
+            className="w-full h-9 pl-9 pr-3 rounded-lg border border-[var(--border)] bg-[var(--card)] text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20 focus:border-[var(--ring)] transition-all"
           />
         </div>
         <select
@@ -92,12 +92,13 @@ export default function LeadsPage() {
             <option key={s} value={s}>{s}</option>
           ))}
         </select>
-        <button onClick={() => refresh()} className="h-9 px-3 rounded-lg border border-[var(--border)] bg-[var(--card)] hover:bg-[var(--accent)] text-[var(--muted-foreground)] transition-colors">
+        <button onClick={() => refresh()}
+          className="h-9 px-3 rounded-lg border border-[var(--border)] bg-[var(--card)] hover:bg-[var(--accent)] text-[var(--muted-foreground)] transition-all">
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
         </button>
       </div>
 
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden">
+      <div className="rounded-lg border border-[var(--border)] bg-[var(--card)] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -120,7 +121,12 @@ export default function LeadsPage() {
                   </tr>
                 ))
               ) : data.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-12 text-center text-[var(--muted-foreground)]">No leads found</td></tr>
+                <tr><td colSpan={6} className="px-4 py-16 text-center text-[var(--muted-foreground)]">
+                  <div className="flex flex-col items-center gap-2">
+                    <Users size={28} className="text-[var(--muted-foreground)]/40" />
+                    <p className="text-sm">No leads found</p>
+                  </div>
+                </td></tr>
               ) : (
                 data.map(l => (
                   <React.Fragment key={l.id}>
@@ -136,10 +142,10 @@ export default function LeadsPage() {
                         <span className="text-xs text-[var(--muted-foreground)]">{l.source}</span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${statusStyles[l.status] || ''}`}>{l.status}</span>
+                        <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${statusStyles[l.status] || ''}`}>{l.status}</span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${segmentStyles[l.segment] || ''}`}>{l.segment}</span>
+                        <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${segmentStyles[l.segment] || ''}`}>{l.segment}</span>
                       </td>
                       <td className="px-4 py-3">
                         <span className="font-mono text-sm font-semibold text-[var(--foreground)]">{l.score}</span>
@@ -154,12 +160,12 @@ export default function LeadsPage() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                               <h4 className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider mb-3">Lead Details</h4>
-                              <div className="space-y-2 text-sm">
+                              <div className="space-y-2.5 text-sm">
                                 <div className="flex items-center gap-2 text-[var(--muted-foreground)]">
-                                  <Phone size={14} /><span>{l.contact?.phone || '-'}</span>
+                                  <Phone size={14} className="text-[var(--primary)]" /><span>{l.contact?.phone || '-'}</span>
                                 </div>
                                 <div className="flex items-center gap-2 text-[var(--muted-foreground)]">
-                                  <Mail size={14} /><span>{l.contact?.email || '-'}</span>
+                                  <Mail size={14} className="text-[var(--primary)]" /><span>{l.contact?.email || '-'}</span>
                                 </div>
                                 {l.interest && <div className="mt-2"><span className="text-[var(--foreground)] font-medium">Interest:</span> <span className="text-[var(--muted-foreground)]">{l.interest}</span></div>}
                                 {l.budget && <div><span className="text-[var(--foreground)] font-medium">Budget:</span> <span className="text-[var(--muted-foreground)]">{l.budget}</span></div>}
@@ -171,8 +177,8 @@ export default function LeadsPage() {
                               <div className="space-y-2">
                                 {timeline.length === 0 && <p className="text-sm text-[var(--muted-foreground)]">No activity yet</p>}
                                 {timeline.slice(0, 5).map((t: any) => (
-                                  <div key={t.id} className="flex items-start gap-2 text-sm">
-                                    <Calendar size={14} className="text-[var(--muted-foreground)] mt-0.5 shrink-0" />
+                                  <div key={t.id} className="flex items-start gap-2.5 text-sm">
+                                    <Calendar size={14} className="text-[var(--primary)] mt-0.5 shrink-0" />
                                     <div>
                                       <p className="text-[var(--foreground)]">{t.title}</p>
                                       <p className="text-xs text-[var(--muted-foreground)]">{new Date(t.createdAt).toLocaleString()}</p>

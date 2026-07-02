@@ -66,33 +66,33 @@ export default function DataTable<T extends Record<string, any>>({
             placeholder={searchPlaceholder}
             value={currentSearch}
             onChange={handleSearchChange}
-            className="w-full bg-[var(--card)] border border-[var(--border)] rounded-lg pl-9 pr-4 py-1.5 text-xs text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:border-[var(--ring)] focus:ring-1 focus:ring-[var(--ring)]/20 transition-colors"
+            className="w-full bg-[var(--card)] border border-[var(--border)] rounded-lg pl-9 pr-4 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:border-[var(--ring)] focus:ring-2 focus:ring-[var(--ring)]/20 transition-all"
           />
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {actions}
-          <button className="inline-flex items-center gap-1.5 border border-[var(--border)] bg-[var(--card)] rounded-lg px-2.5 py-1.5 text-xs font-medium text-[var(--foreground)] hover:bg-[var(--accent)] transition-colors">
+          <button className="inline-flex items-center gap-1.5 border border-[var(--border)] bg-[var(--card)] rounded-lg px-3 py-2 text-xs font-medium text-[var(--foreground)] hover:bg-[var(--accent)] transition-all">
             <SlidersHorizontal className="w-3.5 h-3.5 text-[var(--muted-foreground)]" />
             Filter
           </button>
         </div>
       </div>
 
-      <div className="border border-[var(--border)] bg-[var(--card)] rounded-xl overflow-hidden">
+      <div className="border border-[var(--border)] bg-[var(--card)] rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-[var(--foreground)]">
+          <table className="w-full text-left text-sm text-[var(--foreground)]">
             <thead>
               <tr className="border-b border-[var(--border)] bg-[var(--muted)]">
-                {renderExpandedRow && <th className="py-3 px-2 w-8 text-center" />}
+                {renderExpandedRow && <th className="py-3.5 px-2 w-8 text-center" />}
                 {hasSelectionField && (
-                  <th className="py-3 px-4 w-10 text-center">
+                  <th className="py-3.5 px-4 w-10 text-center">
                     <input type="checkbox" checked={isAllSelected} onChange={(e) => onSelectAll(e.target.checked)}
-                      className="w-3.5 h-3.5 rounded border-[var(--border)] text-[var(--primary)] focus:ring-[var(--ring)]/30" />
+                      className="w-4 h-4 rounded border-[var(--border)] text-[var(--primary)] focus:ring-[var(--ring)]/30" />
                   </th>
                 )}
                 {columns.map((col, index) => (
                   <th key={index}
-                    className={`py-3 px-4 font-semibold text-[var(--muted-foreground)] text-[10px] uppercase tracking-wider
+                    className={`py-3.5 px-4 font-semibold text-[var(--muted-foreground)] text-xs uppercase tracking-wider
                       ${col.align === 'center' ? 'text-center' : col.align === 'right' ? 'text-right' : 'text-left'}
                       ${col.className || ''}`}>
                     {col.header}
@@ -112,7 +112,7 @@ export default function DataTable<T extends Record<string, any>>({
                   </tr>
                 ))
               ) : paginatedData.length === 0 ? (
-                <tr><td colSpan={columns.length + (hasSelectionField ? 1 : 0) + (renderExpandedRow ? 1 : 0)} className="py-12">{emptyState}</td></tr>
+                <tr><td colSpan={columns.length + (hasSelectionField ? 1 : 0) + (renderExpandedRow ? 1 : 0)} className="py-16">{emptyState}</td></tr>
               ) : (
                 paginatedData.map((row, rIdx) => {
                   const rId = hasSelectionField ? String(row[rowIdAccessor]) : String(rIdx);
@@ -128,7 +128,7 @@ export default function DataTable<T extends Record<string, any>>({
 
                   return (
                     <React.Fragment key={`row-${rId}`}>
-                      <tr className={`border-b border-[var(--border)] transition-colors duration-150 group ${isSelected ? 'bg-[var(--primary)]/5' : 'hover:bg-[var(--muted)]/50'} ${isExpanded ? 'bg-[var(--muted)]/30' : ''}`}>
+                      <tr className={`border-b border-[var(--border)] transition-colors duration-150 group ${isSelected ? 'bg-[var(--primary-light)]' : 'hover:bg-[var(--muted)]/50'} ${isExpanded ? 'bg-[var(--muted)]/30' : ''}`}>
                         {renderExpandedRow && (
                           <td className="py-3 px-2 text-center">
                             <button type="button" onClick={toggleExpand}
@@ -141,12 +141,12 @@ export default function DataTable<T extends Record<string, any>>({
                           <td className="py-3 px-4 text-center">
                             <input type="checkbox" checked={isSelected}
                               onChange={(e) => onSelectRow(rId, e.target.checked)}
-                              className="w-3.5 h-3.5 rounded border-[var(--border)] text-[var(--primary)] focus:ring-[var(--ring)]/30" />
+                              className="w-4 h-4 rounded border-[var(--border)] text-[var(--primary)] focus:ring-[var(--ring)]/30" />
                           </td>
                         )}
                         {columns.map((col, cIdx) => (
                           <td key={cIdx}
-                            className={`py-2.5 px-4 text-[var(--foreground)] transition-colors
+                            className={`py-3 px-4 text-[var(--foreground)] transition-colors
                               ${col.align === 'center' ? 'text-center' : col.align === 'right' ? 'text-right' : 'text-left'}
                               ${col.className || ''}`}>
                             {col.cell ? col.cell(row) : <span className="font-medium">{row[col.accessorKey as string]}</span>}
@@ -178,14 +178,14 @@ export default function DataTable<T extends Record<string, any>>({
             </div>
             <div className="flex items-center gap-1">
               <button disabled={currentPage === 1} onClick={() => setCurrentPage(c => Math.max(1, c - 1))}
-                className="p-1 border border-[var(--border)] rounded bg-[var(--card)] text-[var(--muted-foreground)] enabled:hover:bg-[var(--accent)] disabled:opacity-40 transition-colors cursor-pointer disabled:cursor-not-allowed">
+                className="p-1.5 border border-[var(--border)] rounded bg-[var(--card)] text-[var(--muted-foreground)] enabled:hover:bg-[var(--accent)] enabled:hover:text-[var(--foreground)] disabled:opacity-40 transition-all cursor-pointer disabled:cursor-not-allowed">
                 <ChevronLeft className="w-3.5 h-3.5" />
               </button>
-              <div className="px-2 font-mono text-[11px] text-[var(--foreground)] whitespace-nowrap">
+              <div className="px-3 font-mono text-xs text-[var(--foreground)] whitespace-nowrap">
                 {currentPage} <span className="text-[var(--border)]">/</span> {totalPages}
               </div>
               <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(c => Math.min(totalPages, c + 1))}
-                className="p-1 border border-[var(--border)] rounded bg-[var(--card)] text-[var(--muted-foreground)] enabled:hover:bg-[var(--accent)] disabled:opacity-40 transition-colors cursor-pointer disabled:cursor-not-allowed">
+                className="p-1.5 border border-[var(--border)] rounded bg-[var(--card)] text-[var(--muted-foreground)] enabled:hover:bg-[var(--accent)] enabled:hover:text-[var(--foreground)] disabled:opacity-40 transition-all cursor-pointer disabled:cursor-not-allowed">
                 <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
