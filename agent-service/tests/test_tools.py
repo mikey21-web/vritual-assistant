@@ -1,7 +1,7 @@
 import pytest
 import httpx
 import respx
-from app.backend_client import BackendClient, BackendError
+from app.backend_client import BackendClient
 from app.tools import build_tools, ToolContext
 from app.config import Settings
 

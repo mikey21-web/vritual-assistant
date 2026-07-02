@@ -1,4 +1,4 @@
-from app.niche_config import normalize_niche_config, SAFE_DEFAULT_CONFIG
+from app.niche_config import normalize_niche_config
 
 
 def test_normalize_event_marketing():

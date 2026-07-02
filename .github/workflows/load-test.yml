@@ -1,0 +1,36 @@
+name: Load Test
+
+on:
+  schedule:
+    - cron: '0 3 * * 1' # weekly, Monday 03:00 UTC
+  workflow_dispatch: {}
+
+jobs:
+  webhook-intake:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      POSTGRES_PASSWORD: load-test-password
+      JWT_SECRET: load-test-secret
+      SIGNED_URL_SECRET: load-test-signed-url-secret
+      N8N_PASSWORD: load-test-n8n-password
+      AGENT_SERVICE_JWT: load-test-agent-jwt
+      AGENT_INBOUND_KEY: load-test-inbound-key
+      ANTHROPIC_API_KEY: load-test-anthropic-key
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose -f docker-compose.yml up -d postgres redis backend
+      - name: Wait for backend to be ready
+        run: |
+          npm install -g wait-on
+          wait-on http://localhost:3001/health/live -t 90000
+      - name: Run k6 load test
+        uses: grafana/k6-action@v0.3.1
+        with:
+          filename: load-tests/webhook-intake.js
+        env:
+          API_URL: http://localhost:3001
+      - if: always()
+        run: docker compose -f docker-compose.yml logs backend
+      - if: always()
+        run: docker compose -f docker-compose.yml down -v

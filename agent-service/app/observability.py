@@ -7,7 +7,7 @@ Observability helpers for the agent.
 from __future__ import annotations
 
 import re
-from typing import Any, Callable
+from typing import Callable
 
 import structlog
 
@@ -51,10 +51,14 @@ PII_PATTERNS = [
 def _has_pii(text: str) -> list[str]:
     """Scan text for common PII patterns. Returns list of matched types."""
     matches = []
-    if PII_PATTERNS[0].search(text): matches.append("credit_card")
-    if PII_PATTERNS[1].search(text): matches.append("ssn")
-    if PII_PATTERNS[2].search(text): matches.append("email")
-    if PII_PATTERNS[3].search(text): matches.append("phone")
+    if PII_PATTERNS[0].search(text):
+        matches.append("credit_card")
+    if PII_PATTERNS[1].search(text):
+        matches.append("ssn")
+    if PII_PATTERNS[2].search(text):
+        matches.append("email")
+    if PII_PATTERNS[3].search(text):
+        matches.append("phone")
     return matches
 
 

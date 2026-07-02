@@ -3,8 +3,7 @@ from __future__ import annotations
 import sys
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, BackgroundTasks, HTTPException, Header, Request
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, BackgroundTasks, HTTPException, Header
 
 from app.config import Settings
 from app.schemas import AgentRunRequest, AgentRunResponse

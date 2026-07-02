@@ -77,7 +77,7 @@ async def test_update_custom_fields_merges(client):
         respx.patch("http://test:3001/leads/lead-1").mock(
             return_value=httpx.Response(200, json={"metadata": {"phone": "+123", "email": "a@b.com"}})
         )
-        r = await client.update_custom_fields("lead-1", {"email": "a@b.com"})
+        await client.update_custom_fields("lead-1", {"email": "a@b.com"})
         patch_req = [c for c in respx.calls if c.request.method == "PATCH"][0]
         import json
         body = json.loads(patch_req.request.content)

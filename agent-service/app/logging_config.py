@@ -2,11 +2,9 @@ import uuid
 from datetime import datetime, timezone
 
 import structlog
-import logging
 
 
 def setup_logging() -> None:
-    import sys
     structlog.configure(
         processors=[
             structlog.dev.ConsoleRenderer(),

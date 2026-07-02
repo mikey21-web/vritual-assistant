@@ -5,7 +5,7 @@ import uuid
 from typing import Any
 
 from langgraph.graph import StateGraph, END
-from langgraph.prebuilt import ToolNode, tools_condition
+from langgraph.prebuilt import ToolNode
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, ToolMessage
 
@@ -45,11 +45,9 @@ def build_graph(tools: list, settings: Settings, client: BackendClient):
 
 
 async def _load_context(state: AgentState, config: dict) -> AgentState:
-    settings: Settings = config["configurable"]["settings"]
     client: BackendClient = config["configurable"]["client"]
 
     lead_id = state["lead_id"]
-    tenant_id = state["tenant_id"]
     nich = state.get("niche_config")
 
     try:
@@ -147,8 +145,6 @@ def _should_continue(state: AgentState, config: dict) -> str:
     if state.get("steps", 0) >= max_steps:
         return "persist"
 
-    steps = state.get("steps", 0)
-
     if messages:
         last = messages[-1]
         if hasattr(last, "tool_calls") and last.tool_calls:
@@ -177,7 +173,6 @@ async def _persist_node(state: AgentState, config: dict) -> AgentState:
     actions = state.get("actions_taken", [])
     messages = state.get("messages", [])
     resolved_actions = []
-    tool_idx = 0
     for act in actions:
         result_status = act.get("status", "called")
         if result_status == "pending":

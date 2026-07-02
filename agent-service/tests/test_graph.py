@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from langchain_core.messages import AIMessage, ToolMessage
+from langchain_core.messages import AIMessage
 from app.graph import build_graph, _load_context, _should_continue
 from app.config import Settings
 from app.backend_client import BackendClient, BackendError
@@ -179,7 +179,7 @@ async def test_graph_compiles_and_runs_load_context_only(settings):
     ctx = ToolContext(client=client, lead_id="lead-1", tenant_id="tenant-1")
     tools = build_tools(ctx)
 
-    graph = build_graph(tools=tools, settings=settings, client=client)
+    build_graph(tools=tools, settings=settings, client=client)
     state = {
         "tenant_id": "t-1",
         "lead_id": "lead-1",

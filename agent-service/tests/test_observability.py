@@ -1,6 +1,5 @@
 """Tests for agent observability module."""
 
-import pytest
 from app.observability import pre_send_guard, get_langfuse_handler
 
 
