@@ -26,7 +26,8 @@ export class PackApplierService {
     switch (pack.type) {
       case 'custom_fields':
         for (const f of payload.fields || []) {
-          const created = await this.prisma.customFieldDefinition.create({ data: { ...f, name: f.name || f.label, target: f.target || 'LEAD', active: true } });
+          const { label, ...rest } = f;
+          const created = await this.prisma.customFieldDefinition.create({ data: { ...rest, name: f.name || label, target: f.target || 'LEAD', active: true } });
           add('customFieldDefinition', created.id);
         }
         break;
