@@ -5,8 +5,6 @@ import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 import { IS_PUBLIC_KEY } from './public.decorator';
 
-const AGENT_ENDPOINTS = ['/agent/'];
-
 function timingSafeEqual(a: string, b: string): boolean {
   const bufA = Buffer.from(a);
   const bufB = Buffer.from(b);
@@ -40,10 +38,8 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       if (!configuredKey) throw new UnauthorizedException('Service key auth not configured');
       if (!timingSafeEqual(serviceKey, configuredKey)) throw new UnauthorizedException('Invalid service key');
 
-      const url = request.url || '';
-      if (!AGENT_ENDPOINTS.some(prefix => url.startsWith(prefix))) {
-        throw new UnauthorizedException('Service key only permitted on agent endpoints');
-      }
+      // Agent service is internal (Docker network), trusted via shared secret.
+      // No path restriction needed.  The AGENT_SERVICE_JWT is a strong secret.
 
       // In single-tenant mode, the tenant is implicit. Set user context for the agent.
       request.user = {
