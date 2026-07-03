@@ -66,15 +66,23 @@ fi
 # ─── 6. Create .env (skip if exists) ───
 if [ ! -f "$ENV_FILE" ]; then
   warn "Creating $ENV_FILE — REQUIRED: edit it before starting!"
-  cat > "$ENV_FILE" <<'EOF'
+  cat > "$ENV_FILE" <<EOF
 POSTGRES_PASSWORD=change-me-strong-password
 JWT_SECRET=change-me-jwt-secret-32-chars-min
+INTEGRATIONS_ENC_KEY=change-me-integrations-enc-key-32
 N8N_PASSWORD=change-me-n8n-password
 AGENT_SERVICE_JWT=change-me-agent-jwt
 AGENT_INBOUND_KEY=change-me-agent-inbound-key
 ANTHROPIC_API_KEY=sk-ant-xxxxxxxxxxx
 SEED_OWNER_EMAIL=admin@example.com
 SEED_OWNER_PASSWORD=change-me-admin-password
+# Domain / reverse-proxy wiring (same-origin under $DOMAIN)
+CORS_ORIGIN=https://$DOMAIN
+N8N_HOST=$DOMAIN
+N8N_PROTOCOL=https
+N8N_WEBHOOK_URL=https://$DOMAIN/n8n/
+N8N_PATH=/n8n/
+N8N_PROXY_HOPS=1
 EOF
 else
   info "$ENV_FILE already exists — keeping it"
@@ -95,18 +103,20 @@ info "Writing Caddyfile..."
 cat > /etc/caddy/Caddyfile <<CADDY
 $DOMAIN {
     encode gzip
-    # API calls are same-origin under /api/* — strip the prefix and proxy to the
-    # backend (which serves routes like /auth/login and /health without a prefix).
+    tls admin@$DOMAIN
+    # Everything is same-origin under path prefixes (stripped before proxying):
+    #   /api/*  -> backend (serves /auth/login, /health without a prefix)
+    #   /n8n/*  -> n8n (configured with N8N_PATH=/n8n/)
+    #   else    -> dashboard SPA
     handle_path /api/* {
         reverse_proxy localhost:3001
+    }
+    handle_path /n8n/* {
+        reverse_proxy localhost:5678
     }
     handle {
         reverse_proxy localhost:3000
     }
-}
-
-n8n.$DOMAIN {
-    reverse_proxy localhost:5678
 }
 CADDY
 systemctl reload caddy || true
@@ -125,7 +135,7 @@ echo ""
 echo "── URLs ─────────────────────────────"
 echo "  Dashboard:  https://$DOMAIN"
 echo "  API:        https://$DOMAIN/api"
-echo "  n8n:        https://n8n.$DOMAIN"
+echo "  n8n:        https://$DOMAIN/n8n/"
 echo "─────────────────────────────────────"
 echo ""
 echo -e "${YELLOW}IMPORTANT: Edit /opt/lead-automation/.env with real secrets before using!${NC}"

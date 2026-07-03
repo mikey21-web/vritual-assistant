@@ -55,7 +55,7 @@ services:
       SEED_OWNER_EMAIL: ${SEED_OWNER_EMAIL:-admin@localhost}
       SEED_OWNER_PASSWORD: ${SEED_OWNER_PASSWORD:-}
       INTEGRATIONS_ENC_KEY: ${INTEGRATIONS_ENC_KEY:?INTEGRATIONS_ENC_KEY must be set}
-      CORS_ORIGIN: ${CORS_ORIGIN:-https://deploysafe.in}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
     volumes:
       - uploads:/app/uploads
       - ./niche.config.yaml:/app/niche.config.yaml:ro
@@ -92,10 +92,15 @@ services:
       N8N_BASIC_AUTH_ACTIVE: "true"
       N8N_BASIC_AUTH_USER: ${N8N_BASIC_AUTH_USER:-admin}
       N8N_BASIC_AUTH_PASSWORD: ${N8N_PASSWORD:?N8N_PASSWORD must be set}
-      N8N_HOST: localhost
+      # Domain-aware: prod sets these in .env (N8N_HOST, N8N_PROTOCOL=https,
+      # N8N_WEBHOOK_URL, N8N_PATH, N8N_PROXY_HOPS); defaults keep local Docker usable.
+      N8N_HOST: ${N8N_HOST:-localhost}
       N8N_PORT: 5678
-      N8N_PROTOCOL: http
-      WEBHOOK_URL: http://localhost:5678
+      N8N_PROTOCOL: ${N8N_PROTOCOL:-http}
+      WEBHOOK_URL: ${N8N_WEBHOOK_URL:-http://localhost:5678/}
+      N8N_PATH: ${N8N_PATH:-/}
+      # Trust the reverse proxy (Caddy) so rate-limiting sees real client IPs.
+      N8N_PROXY_HOPS: ${N8N_PROXY_HOPS:-0}
       N8N_BACKEND_API_URL: http://backend:3001
     volumes:
       - n8ndata:/home/node/.n8n
