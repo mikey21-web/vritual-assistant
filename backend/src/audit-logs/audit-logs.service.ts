@@ -6,7 +6,14 @@ export class AuditLogsService {
   constructor(private prisma: PrismaService) {}
 
   async log(action: string, entity: string, entityId?: string, userId?: string, changes?: any, metadata?: any) {
-    return this.prisma.auditLog.create({ data: { action, entity, entityId, userId, changes, metadata } });
+    try {
+      return await this.prisma.auditLog.create({ data: { action, entity, entityId, userId, changes, metadata } });
+    } catch (e: any) {
+      if (e?.code === 'P2003') {
+        return null; // FK constraint failure — user might be a service account, skip audit
+      }
+      throw e;
+    }
   }
 
   findAll(query: any = {}) {
