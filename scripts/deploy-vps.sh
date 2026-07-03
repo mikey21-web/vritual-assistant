@@ -101,6 +101,15 @@ ufw --force enable
 # ─── 8. Caddy config ───
 info "Writing Caddyfile..."
 cat > /etc/caddy/Caddyfile <<CADDY
+{
+    # Disable HTTP/3 (QUIC/UDP): several mobile carriers (notably in India)
+    # throttle or silently drop UDP/443, which makes browsers hang forever
+    # trying to upgrade via the Alt-Svc header instead of falling back to TCP.
+    servers {
+        protocols h1 h2
+    }
+}
+
 $DOMAIN {
     encode gzip
     tls admin@$DOMAIN
