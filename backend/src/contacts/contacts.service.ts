@@ -65,7 +65,7 @@ export class ContactsService {
     }, { isolationLevel: 'Serializable' });
   }
 
-  async create(data: Prisma.ContactUncheckedCreateInput, req?: any) {
+  async create(data: Omit<Prisma.ContactUncheckedCreateInput, 'tenantId'> & { tenantId?: string }, req?: any) {
     // Pre-check for existing contact with same email or phone
     const orClauses: any[] = [];
     if (data.email) orClauses.push({ email: data.email });
