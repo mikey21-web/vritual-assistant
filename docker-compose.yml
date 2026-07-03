@@ -55,6 +55,7 @@ services:
       SEED_OWNER_EMAIL: ${SEED_OWNER_EMAIL:-admin@localhost}
       SEED_OWNER_PASSWORD: ${SEED_OWNER_PASSWORD:-}
       INTEGRATIONS_ENC_KEY: ${INTEGRATIONS_ENC_KEY:?INTEGRATIONS_ENC_KEY must be set}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
     volumes:
       - uploads:/app/uploads
       - ./niche.config.yaml:/app/niche.config.yaml:ro
