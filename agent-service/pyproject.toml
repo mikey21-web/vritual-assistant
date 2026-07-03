@@ -1,13 +1,13 @@
 [project]
 name = "agent-service"
 version = "1.0.0"
-description = "AI Lead Conversation Agent — LangGraph + Claude"
+description = "AI Lead Conversation Agent — LangGraph + DeepSeek"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",
     "langgraph>=0.2",
-    "langchain-anthropic>=0.3",
+    "langchain-openai>=0.2",
     "langchain-core>=0.3",
     "pydantic>=2",
     "pydantic-settings>=2",

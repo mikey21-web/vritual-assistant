@@ -6,7 +6,7 @@ from typing import Any
 
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode
-from langchain_anthropic import ChatAnthropic
+from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, ToolMessage
 
 from app.config import Settings
@@ -112,10 +112,11 @@ async def _agent_node(state: AgentState, config: dict) -> AgentState:
 
     tools = config["configurable"]["tools"]
 
-    model = ChatAnthropic(
+    model = ChatOpenAI(
         model=settings.agent_model,
         max_tokens=settings.agent_max_tokens,
-        anthropic_api_key=settings.anthropic_api_key,
+        api_key=settings.deepseek_api_key,
+        base_url=settings.deepseek_base_url,
     ).bind_tools(tools)
 
     response = await model.ainvoke(state["messages"])

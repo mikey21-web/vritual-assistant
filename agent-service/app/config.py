@@ -7,8 +7,9 @@ class Settings(BaseSettings):
     backend_api_url: str = "http://localhost:3001"
     agent_service_jwt: str = ""
     agent_inbound_key: str = ""
-    anthropic_api_key: str = ""
-    agent_model: str = "claude-sonnet-4-6"
+    deepseek_api_key: str = ""
+    deepseek_base_url: str = "https://api.deepseek.com/v1"
+    agent_model: str = "deepseek-chat"
     agent_max_tokens: int = 2048
     redis_url: str | None = None
     max_agent_steps: int = 12
