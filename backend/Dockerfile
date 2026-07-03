@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1
 FROM node:20-bookworm-slim AS build
 WORKDIR /app
+RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends openssl libssl-dev ca-certificates && rm -rf /var/lib/apt/lists/*
 COPY package*.json ./
 RUN npm ci
 COPY . .
@@ -20,4 +21,4 @@ COPY --from=build /app/package.json ./
 EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD curl -f http://localhost:3001/health || exit 1
-CMD ./node_modules/.bin/prisma migrate deploy && node dist/main
+CMD node dist/main
