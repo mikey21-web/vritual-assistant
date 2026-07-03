@@ -8,6 +8,7 @@ from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, ToolMessage
+from langchain_core.runnables import RunnableConfig
 
 from app.config import Settings
 from app.schemas import AgentState
@@ -44,7 +45,7 @@ def build_graph(tools: list, settings: Settings, client: BackendClient):
     return graph.compile()
 
 
-async def _load_context(state: AgentState, config: dict) -> AgentState:
+async def _load_context(state: AgentState, config: RunnableConfig) -> AgentState:
     client: BackendClient = config["configurable"]["client"]
 
     lead_id = state["lead_id"]
@@ -107,7 +108,7 @@ async def _load_context(state: AgentState, config: dict) -> AgentState:
     return state
 
 
-async def _agent_node(state: AgentState, config: dict) -> AgentState:
+async def _agent_node(state: AgentState, config: RunnableConfig) -> AgentState:
     settings: Settings = config["configurable"]["settings"]
 
     tools = config["configurable"]["tools"]
@@ -137,7 +138,7 @@ async def _agent_node(state: AgentState, config: dict) -> AgentState:
     return state
 
 
-def _should_continue(state: AgentState, config: dict) -> str:
+def _should_continue(state: AgentState, config: RunnableConfig) -> str:
     messages = state.get("messages", [])
     settings: Settings = config["configurable"]["settings"]
     max_steps = settings.max_agent_steps
@@ -167,7 +168,7 @@ def _should_continue(state: AgentState, config: dict) -> str:
     return "persist"
 
 
-async def _persist_node(state: AgentState, config: dict) -> AgentState:
+async def _persist_node(state: AgentState, config: RunnableConfig) -> AgentState:
     client: BackendClient = config["configurable"]["client"]
     settings: Settings = config["configurable"]["settings"]
     run_id = state.get("run_id", str(uuid.uuid4()))
