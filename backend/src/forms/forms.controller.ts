@@ -35,5 +35,5 @@ export class FormsController {
   @ApiBearerAuth() deleteField(@Param('id') id: string, @Param('fieldId') fieldId: string) { return this.service.deleteField(id, fieldId); }
 
   @Public()
-  @Post(':id/submit') @ApiOperation({ summary: 'Submit form (public)' }) submit(@Param('id') id: string, @Body() d: SubmitFormDto) { return this.service.submit(id, d); }
+  @Post(':id/submit') @ApiOperation({ summary: 'Submit form (public)' }) submit(@Param('id') id: string, @Body() d: SubmitFormDto, @Req() req) { return this.service.submit(id, d, req); }
 }

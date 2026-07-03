@@ -21,12 +21,12 @@ export class WebhooksService {
   private idempotencyKey(parts: string[]): string { return parts.join(':').slice(0, 255); }
   private payloadHash(payload: any): string { return crypto.createHash('md5').update(JSON.stringify(payload, Object.keys(payload).sort())).digest('hex'); }
 
-  async handleFormSubmit(provider: string, payload: any) {
+  async handleFormSubmit(provider: string, payload: any, req?: any) {
     const key = this.idempotencyKey([provider, 'form', payload.submissionId || this.payloadHash(payload)]);
     const existing = await this.prisma.webhookEvent.findUnique({ where: { idempotencyKey: key } });
     if (existing) return { status: 'duplicate', result: existing.processedResult };
 
-    const contact = await this.contactsService.findOrCreate({ name: payload.name, email: payload.email, phone: payload.phone, whatsapp: payload.whatsapp, company: payload.company });
+    const contact = await this.contactsService.findOrCreate({ name: payload.name, email: payload.email, phone: payload.phone, whatsapp: payload.whatsapp, company: payload.company }, req);
     const lead = await this.leadsService.create({ contactId: contact.id, source: 'FORM', message: payload.message, interest: payload.interest, metadata: payload });
     const result = { contact, lead };
     await this.prisma.webhookEvent.create({ data: { provider, eventType: 'form_submit', idempotencyKey: key, rawPayload: payload, processedResult: result } });
@@ -34,15 +34,30 @@ export class WebhooksService {
     return { data: result };
   }
 
-  async handleWhatsApp(provider: string, payload: any) {
+  async handleWhatsApp(provider: string, payload: any, req?: any) {
     const msgId = payload.messageId || payload.id;
     const key = this.idempotencyKey([provider, 'whatsapp', msgId || this.payloadHash(payload)]);
     const existing = await this.prisma.webhookEvent.findUnique({ where: { idempotencyKey: key } });
     if (existing) return { status: 'duplicate', result: existing.processedResult };
 
     const text = payload.text || payload.body || '';
-    const contact = await this.contactsService.findOrCreate({ name: payload.contactName, phone: payload.from, whatsapp: payload.from });
-    const lead = await this.leadsService.create({ contactId: contact.id, source: 'WHATSAPP', message: text, metadata: payload });
+    const contact = await this.contactsService.findOrCreate({ name: payload.contactName, phone: payload.from, whatsapp: payload.from }, req);
+
+    // Dedup: reuse existing active lead for this contact instead of creating new one per message
+    const existingLead = await this.prisma.lead.findFirst({
+      where: {
+        contactId: contact.id,
+        status: { notIn: ['LOST', 'CONVERTED', 'SPAM'] },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    let lead;
+    if (existingLead) {
+      lead = existingLead;
+    } else {
+      lead = await this.leadsService.create({ contactId: contact.id, source: 'WHATSAPP', message: text, metadata: payload });
+    }
 
     // Handle STOP commands for consent/opt-out
     const stopPattern = /^\s*(stop|unsubscribe|cancel|opt.?out)\s*$/i;

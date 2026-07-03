@@ -88,7 +88,7 @@ export async function api(path: string, options: RequestInit = {}): Promise<any>
     }
     return res.json();
   } catch (err: any) {
-    if (err.message === 'Session expired' || err.message === 'Failed to fetch' || err.name === 'TypeError' || err.message?.includes('NetworkError') || err.message?.includes('network')) {
+    if (import.meta.env.DEV && (err.message === 'Session expired' || err.message === 'Failed to fetch' || err.name === 'TypeError' || err.message?.includes('NetworkError') || err.message?.includes('network'))) {
       const mock = getMockResponse(path, options.method || 'GET', options.body ? JSON.parse(options.body as string) : undefined);
       if (mock !== null) return mock;
     }

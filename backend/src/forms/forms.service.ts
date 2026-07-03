@@ -27,11 +27,11 @@ export class FormsService {
   async updateField(formId: string, fieldId: string, data: any) { return this.prisma.leadFormField.update({ where: { id: fieldId }, data }); }
   async deleteField(formId: string, fieldId: string) { return this.prisma.leadFormField.delete({ where: { id: fieldId } }); }
 
-  async submit(formId: string, payload: any) {
+  async submit(formId: string, payload: any, req?: any) {
     await this.findOne(formId);
     const contact = await this.contactsService.findOrCreate({
       name: payload.name, email: payload.email, phone: payload.phone, whatsapp: payload.whatsapp, company: payload.company,
-    });
+    }, req);
     const lead = await this.leadsService.create({
       contactId: contact.id, source: 'FORM', message: payload.message, interest: payload.interest, metadata: payload,
     });

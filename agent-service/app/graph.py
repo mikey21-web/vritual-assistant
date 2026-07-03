@@ -158,7 +158,7 @@ def _should_continue(state: AgentState, config: dict) -> str:
                     return "persist"
 
                 send_count = sum(1 for a in state.get("actions_taken", []) if a.get("tool") == "send_message")
-                if name == "send_message" and send_count >= 2:
+                if name == "send_message" and send_count >= 5:
                     state["terminate"] = True
                     return "persist"
 

@@ -43,7 +43,15 @@ def get_langfuse_handler(settings) -> Callable | None:
 PII_PATTERNS = [
     re.compile(r"\b\d{16}\b"),               # credit card number (16 digits)
     re.compile(r"\b\d{3}-\d{2}-\d{4}\b"),     # SSN
+    # ⚠️  Email pattern: will flag legitimate business email addresses
+    # (e.g. "email us at support@example.com") and any quoted/forwarded email
+    # in a conversation. If false positives become a problem, consider:
+    # - allowlisting known business domains
+    # - checking only the assistant's outbound text, not the full history
     re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"),  # email
+    # ⚠️  10-digit phone pattern: will flag any 10-digit number sequence such
+    # as order IDs, tracking numbers, zip+4 codes, or lead IDs. Add a prefix
+    # requirement (e.g. \b\d{3}[-. ]\d{3}[-. ]\d{4}\b) if formatting is known.
     re.compile(r"\b\d{10}\b"),                # 10-digit phone
 ]
 

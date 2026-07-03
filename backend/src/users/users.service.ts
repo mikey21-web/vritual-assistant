@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { tenantConnect } from '../shared/tenant-helper';
 import * as bcrypt from 'bcryptjs';
 
 const SAFE_USER_SELECT = {
@@ -27,12 +28,12 @@ export class UsersService {
     return u;
   }
 
-  async create(data: { name: string; email: string; password?: string; role?: string; active?: boolean }) {
+  async create(data: { name: string; email: string; password?: string; role?: string; active?: boolean }, req?: any) {
     if (!data.password) throw new BadRequestException('Password is required');
     const password = await bcrypt.hash(data.password, 12);
     const { role, active, ...safeData } = data;
     return this.prisma.user.create({
-      data: { ...safeData, password, role: (role as any) || 'SALES_AGENT', active: active !== false, tenantId: 'default-tenant' },
+      data: { ...safeData, password, role: (role as any) || 'SALES_AGENT', active: active !== false, ...tenantConnect(req) },
       select: SAFE_USER_SELECT,
     });
   }

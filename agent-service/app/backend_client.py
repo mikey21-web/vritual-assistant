@@ -41,6 +41,28 @@ class BackendClient:
             return await self._get(url)
         return _do_get()
 
+    def _retry_post(self, url: str, body: dict | None = None) -> Coroutine[Any, Any, dict]:
+        @retry(
+            stop=stop_after_attempt(3),
+            wait=wait_exponential(multiplier=0.5, min=0.5, max=5),
+            retry=retry_if_exception_type((httpx.TimeoutException, httpx.ConnectError)),
+            reraise=True,
+        )
+        async def _do_post():
+            return await self._post(url, body)
+        return _do_post()
+
+    def _retry_patch(self, url: str, body: dict) -> Coroutine[Any, Any, dict]:
+        @retry(
+            stop=stop_after_attempt(3),
+            wait=wait_exponential(multiplier=0.5, min=0.5, max=5),
+            retry=retry_if_exception_type((httpx.TimeoutException, httpx.ConnectError)),
+            reraise=True,
+        )
+        async def _do_patch():
+            return await self._patch(url, body)
+        return _do_patch()
+
     async def _get(self, path: str) -> dict:
         r = await self.client.get(f"{self.base}{path}")
         if r.status_code >= 400:
@@ -95,48 +117,48 @@ class BackendClient:
         }
         if template_id:
             body["messageTemplateId"] = template_id
-        return await self._post("/conversations/messages", body)
+        return await self._retry_post("/conversations/messages", body)
 
     async def update_custom_fields(self, lead_id: str, fields: dict) -> dict:
-        r = await self._get(f"/leads/{lead_id}")
+        r = await self._retry_get(f"/leads/{lead_id}")
         current_meta = dict(r.get("metadata") or {})
         current_meta.update(fields)
-        return await self._patch(f"/leads/{lead_id}", {"metadata": current_meta})
+        return await self._retry_patch(f"/leads/{lead_id}", {"metadata": current_meta})
 
     async def update_score(self, lead_id: str) -> dict:
-        return await self._post(f"/leads/{lead_id}/score")
+        return await self._retry_post(f"/leads/{lead_id}/score")
 
     async def update_status(self, lead_id: str, status: str) -> dict:
-        return await self._patch(f"/leads/{lead_id}", {"status": status})
+        return await self._retry_patch(f"/leads/{lead_id}", {"status": status})
 
     async def set_segment(self, lead_id: str, segment: str) -> dict:
-        return await self._patch(f"/leads/{lead_id}", {"segment": segment})
+        return await self._retry_patch(f"/leads/{lead_id}", {"segment": segment})
 
     async def assign_agent(self, lead_id: str, agent_id: str | None = None) -> dict:
         body = {"agentId": agent_id} if agent_id else {}
-        return await self._post(f"/leads/{lead_id}/assign", body)
+        return await self._retry_post(f"/leads/{lead_id}/assign", body)
 
     async def create_task(self, lead_id: str, title: str, priority: str = "medium", due_at: str | None = None) -> dict:
         body = {"title": title, "priority": priority, "leadId": lead_id}
         if due_at:
             body["dueAt"] = due_at
-        return await self._post("/tasks", body)
+        return await self._retry_post("/tasks", body)
 
     async def book_appointment(self, lead_id: str, booking_type: str) -> dict:
-        return await self._post(f"/leads/{lead_id}/conversions", {
+        return await self._retry_post(f"/leads/{lead_id}/conversions", {
             "destination": "APPOINTMENT_BOOKING",
             "metadata": {"bookingType": booking_type},
         })
 
     async def push_to_crm(self, lead_id: str) -> dict:
-        return await self._post(f"/leads/{lead_id}/conversions", {
+        return await self._retry_post(f"/leads/{lead_id}/conversions", {
             "destination": "CRM_QUALIFIED_PUSH",
         })
 
     async def record_conversion(self, lead_id: str, destination: str) -> dict:
-        return await self._post(f"/leads/{lead_id}/conversions", {
+        return await self._retry_post(f"/leads/{lead_id}/conversions", {
             "destination": destination,
         })
 
     async def post_run_summary(self, payload: dict) -> dict:
-        return await self._post("/agent/run-summary", payload)
+        return await self._retry_post("/agent/run-summary", payload)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import sys
 from contextlib import asynccontextmanager
 
@@ -40,6 +41,19 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="AI Lead Agent Service", version="1.0.0", lifespan=lifespan)
 
 
+async def _retry_execute_run(settings: Settings, req: AgentRunRequest) -> None:
+    """Run execute_run with a single retry on failure."""
+    try:
+        await execute_run(settings, req)
+    except Exception:
+        logger.exception("execute_run_failed_first_attempt", lead_id=req.lead_id)
+        try:
+            await asyncio.sleep(2)
+            await execute_run(settings, req)
+        except Exception:
+            logger.exception("execute_run_failed_retry", lead_id=req.lead_id)
+
+
 @app.post("/agent/run", response_model=AgentRunResponse, status_code=202)
 async def agent_run(req: AgentRunRequest, background_tasks: BackgroundTasks, x_agent_key: str = Header(None)):
     if settings.agent_inbound_key and x_agent_key != settings.agent_inbound_key:
@@ -47,7 +61,7 @@ async def agent_run(req: AgentRunRequest, background_tasks: BackgroundTasks, x_a
 
     run_id = new_run_id()
 
-    background_tasks.add_task(execute_run, settings, req)
+    background_tasks.add_task(_retry_execute_run, settings, req)
 
     return AgentRunResponse(accepted=True, runId=run_id)
 
@@ -58,7 +72,9 @@ async def health():
 
 
 @app.get("/health/deep")
-async def health_deep():
+async def health_deep(x_agent_key: str = Header(None)):
+    if settings.agent_inbound_key and x_agent_key != settings.agent_inbound_key:
+        raise HTTPException(status_code=401, detail="Invalid agent key")
     checks = {}
     try:
         async with httpx.AsyncClient(timeout=5) as client:

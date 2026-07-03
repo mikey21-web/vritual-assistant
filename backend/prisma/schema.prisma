@@ -514,6 +514,7 @@ model ConversationMessage {
   createdAt         DateTime        @default(now())
 
   @@index([leadId])
+  @@index([contactId, createdAt])
   @@index([campaignId])
   @@index([providerMessageId])
   @@index([channel])

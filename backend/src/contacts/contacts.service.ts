@@ -1,9 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { AdvancedFeaturesService } from '../advanced-features/advanced-features.service';
-import { tenantConnect } from '../shared/tenant-helper';
+import { getTenantId } from '../shared/tenant-helper';
 
 @Injectable()
 export class ContactsService {
@@ -36,38 +36,51 @@ export class ContactsService {
     return c;
   }
 
-  async findOrCreate(data: { phone?: string; email?: string; name?: string; whatsapp?: string; company?: string }) {
+  async findOrCreate(data: { phone?: string; email?: string; name?: string; whatsapp?: string; company?: string }, req?: any) {
     return this.prisma.$transaction(async (tx) => {
-      if (data.phone) {
-        const existing = await tx.contact.findFirst({ where: { phone: data.phone } });
+      // Single OR query to avoid race condition between sequential lookups
+      const orClauses: any[] = [];
+      if (data.phone) orClauses.push({ phone: data.phone });
+      if (data.email) orClauses.push({ email: data.email });
+
+      if (orClauses.length > 0) {
+        const existing = await tx.contact.findFirst({ where: { OR: orClauses } });
         if (existing) {
           return tx.contact.update({
             where: { id: existing.id },
-            data: { name: data.name ?? existing.name, email: data.email ?? existing.email, whatsapp: data.whatsapp ?? existing.whatsapp, company: data.company ?? existing.company },
+            data: {
+              name: data.name ?? existing.name,
+              email: data.email ?? existing.email,
+              phone: data.phone ?? existing.phone,
+              whatsapp: data.whatsapp ?? existing.whatsapp,
+              company: data.company ?? existing.company,
+            },
           });
         }
       }
-      if (data.email) {
-        const existing = await tx.contact.findFirst({ where: { email: data.email } });
-        if (existing) {
-          return tx.contact.update({
-            where: { id: existing.id },
-            data: { name: data.name ?? existing.name, phone: data.phone ?? existing.phone, whatsapp: data.whatsapp ?? existing.whatsapp, company: data.company ?? existing.company },
-          });
-        }
-      }
+
       return tx.contact.create({
-        data: { name: data.name, email: data.email, phone: data.phone, whatsapp: data.whatsapp, company: data.company, tenantId: 'default-tenant' },
+        data: { name: data.name, email: data.email, phone: data.phone, whatsapp: data.whatsapp, company: data.company, tenantId: getTenantId(req) },
       });
     }, { isolationLevel: 'Serializable' });
   }
 
-  async create(data: any) {
-    const c = await this.prisma.contact.create({ data });
+  async create(data: Prisma.ContactCreateInput, req?: any) {
+    // Pre-check for existing contact with same email or phone
+    const orClauses: any[] = [];
+    if (data.email) orClauses.push({ email: data.email });
+    if (data.phone) orClauses.push({ phone: data.phone });
+    if (orClauses.length > 0) {
+      const existing = await this.prisma.contact.findFirst({ where: { OR: orClauses } });
+      if (existing) {
+        throw new ConflictException('Contact with this email or phone already exists');
+      }
+    }
+    const c = await this.prisma.contact.create({ data: { ...data, tenantId: getTenantId(req) } });
     return c;
   }
 
-  async update(id: string, data: any) {
+  async update(id: string, data: Prisma.ContactUpdateInput) {
     const existing = await this.findOne(id);
     try {
       return await this.prisma.contact.update({

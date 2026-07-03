@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime, timezone, timedelta
 from langchain_core.tools import tool
 from app.backend_client import BackendClient, BackendError
 
@@ -93,7 +94,6 @@ def build_tools(ctx: ToolContext) -> list:
     async def create_task(title: str, due_in_hours: int | None = None):
         """Create a follow-up task for this lead."""
         try:
-            from datetime import datetime, timezone, timedelta
             due_at = None
             if due_in_hours:
                 due_at = (datetime.now(timezone.utc) + timedelta(hours=due_in_hours)).isoformat()
