@@ -19,7 +19,7 @@ export class TenantsController {
 
   @Get('me')
   @ApiOperation({ summary: 'Get current tenant info' })
-  findMe(@Req() req: any) { return this.service.findOne(req.tenantId); }
+  findMe(@Req() req: any) { return this.service.findOne(req.user.tenantId); }
 
   @Get(':id')
   @Roles('OWNER', 'ADMIN')

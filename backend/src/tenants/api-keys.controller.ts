@@ -17,7 +17,7 @@ export class ApiKeysController {
   @Roles('OWNER', 'ADMIN')
   async list(@Req() req: any) {
     return this.prisma.tenantApiKey.findMany({
-      where: { tenantId: req.tenantId },
+      where: { tenantId: req.user.tenantId },
       select: { id: true, name: true, prefix: true, createdAt: true, lastUsedAt: true },
     });
   }
@@ -29,7 +29,7 @@ export class ApiKeysController {
     const hash = crypto.createHash('sha256').update(token).digest('hex');
     const prefix = token.substring(0, 7);
     const key = await this.prisma.tenantApiKey.create({
-      data: { tenantId: req.tenantId, name: body.name, keyHash: hash, prefix },
+      data: { tenantId: req.user.tenantId, name: body.name, keyHash: hash, prefix },
     });
     return { id: key.id, name: key.name, token: token, prefix, message: 'Save this token — it will not be shown again.' };
   }
@@ -38,7 +38,7 @@ export class ApiKeysController {
   @Roles('OWNER', 'ADMIN')
   async revoke(@Req() req: any, @Param('id') id: string) {
     await this.prisma.tenantApiKey.updateMany({
-      where: { id, tenantId: req.tenantId },
+      where: { id, tenantId: req.user.tenantId },
       data: { revokedAt: new Date() },
     });
     return { message: 'API key revoked.' };
