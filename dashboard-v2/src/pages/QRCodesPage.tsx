@@ -28,7 +28,7 @@ export default function QRCodesPage() {
     try {
       const r = await api(`/qr-codes/${id}/image`);
       setQrImage(r.image);
-    } catch {}
+    } catch (e: any) { toast.error(e?.message || 'Failed to load QR image'); }
   };
 
   return (
