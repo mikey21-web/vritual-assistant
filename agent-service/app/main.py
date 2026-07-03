@@ -27,8 +27,8 @@ async def lifespan(app: FastAPI):
         logger.error("agent_inbound_key_not_set", help="Set AGENT_INBOUND_KEY in environment")
         sys.exit(1)
 
-    if not settings.anthropic_api_key:
-        logger.error("anthropic_api_key_not_set", help="Set ANTHROPIC_API_KEY in environment")
+    if not settings.deepseek_api_key:
+        logger.error("deepseek_api_key_not_set", help="Set DEEPSEEK_API_KEY in environment")
         sys.exit(1)
 
     logger.info("agent_service_started", model=settings.agent_model)
@@ -67,7 +67,7 @@ async def health_deep():
     except Exception as e:
         checks["backend"] = f"error: {e}"
 
-    checks["model_key_present"] = bool(settings.anthropic_api_key)
+    checks["model_key_present"] = bool(settings.deepseek_api_key)
     checks["model"] = settings.agent_model
 
     return {
