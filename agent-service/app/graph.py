@@ -177,6 +177,7 @@ async def _persist_node(state: AgentState, config: RunnableConfig) -> AgentState
     actions = state.get("actions_taken", [])
     messages = state.get("messages", [])
     resolved_actions = []
+    has_send = False
     for act in actions:
         result_status = act.get("status", "called")
         if result_status == "pending":
@@ -184,7 +185,21 @@ async def _persist_node(state: AgentState, config: RunnableConfig) -> AgentState
                 if isinstance(messages[mi], ToolMessage) and messages[mi].tool_call_id == act.get("id"):
                     result_status = "success" if not (hasattr(messages[mi], "content") and str(messages[mi].content).startswith("error:")) else "error"
                     break
+        if act.get("tool") == "send_message" and result_status == "success":
+            has_send = True
         resolved_actions.append({**act, "status": result_status})
+
+    # Auto-send last AI response if no send_message was called
+    if not has_send and messages:
+        last = messages[-1]
+        if isinstance(last, AIMessage) and last.content and not last.tool_calls:
+            try:
+                lead_id = state["lead_id"]
+                channel = state.get("channel", "WHATSAPP")
+                await client.send_message(lead_id, channel, str(last.content), None)
+                resolved_actions.append({"tool": "send_message", "args": {"text": str(last.content)[:100]}, "status": "auto"})
+            except Exception as e:
+                logger.warning("auto_send_failed", error=str(e))
 
     started_at = state.get("started_at", utc_now_iso())
 
