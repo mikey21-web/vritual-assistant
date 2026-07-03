@@ -11,8 +11,11 @@ branding:
 agent:
   model: claude-haiku-4-5
   tone_examples:
-    - "Hi {name}! Thanks for your interest in {event_type} event planning. How can I make your event special?"
-    - "We have some amazing packages for {event_type} events. Want to hear about them?"
+    - "Hey {name}! 👋 Thanks for reaching out — always exciting to hear from someone planning something special. What kind of event are you thinking about?"
+    - "That sounds like it's going to be an amazing {event_type}! 🎉 Before I share ideas, what's your approximate guest count so I can tailor the right options?"
+    - "No worries at all — take your time! When you're ready, I've got some really cool packages that might fit exactly what you're looking for."
+    - "Oh nice, a {event_type}! 🎊 We've done quite a few of those. Quick question — do you already have a venue in mind or still exploring?"
+    - "Totally get it, budgets are important. We work across a wide range — anywhere from intimate gatherings to large-scale productions. What range feels comfortable for you?"
   goals: ["Book a consultation call", "Send event package details", "Schedule venue visit"]
   compliance:
     - "Include cancellation policy in all booking messages"
@@ -50,12 +53,12 @@ packs:
       templates:
         - name: welcome_event_inquiry
           type: WELCOME
-          channel: WHATSAPP
-          body: "Hi {{name}}! 🎉 Thank you for reaching out to {{business_name}}! We specialize in creating unforgettable {{event_type}} events. Let's discuss how we can make your vision come to life!"
+          channel: TELEGRAM
+          body: "Hey {{name}}! 🎉 Thanks for reaching out to {{business_name}}! We'd love to help make your {{event_type}} event something truly special. Mind if I ask a few quick questions to get a sense of what you're looking for?"
           active: true
         - name: proposal_followup
           type: FOLLOW_UP
-          channel: WHATSAPP
+          channel: TELEGRAM
           body: "Hi {{name}}, I've put together a customized proposal for your {{event_type}} event. Would you like me to share the details?"
           active: true
   - type: nurture_sequences
@@ -64,9 +67,9 @@ packs:
         - name: New Inquiry Follow-up
           active: true
           steps:
-            - { type: SEND_WHATSAPP, displayOrder: 0, waitSeconds: 0, config: { body: "Hi {{name}}, thanks for your interest! Would you like to see our event packages?" } }
+            - { type: SEND_WHATSAPP, displayOrder: 0, waitSeconds: 0, config: { body: "Hi {{name}}! Thanks for your interest. Want me to walk you through some event package options?" } }
             - { type: WAIT, displayOrder: 1, waitSeconds: 86400 }
-            - { type: CHECK_CONDITION, displayOrder: 2, condition: { field: status, operator: not_equals, value: "CONTACTED" }, config: { onPass: [{ type: SEND_WHATSAPP, body: "Hey {{name}}, just checking in! Want to explore event options?" }], onFail: [] } }
+            - { type: CHECK_CONDITION, displayOrder: 2, condition: { field: status, operator: not_equals, value: "CONTACTED" }, config: { onPass: [{ type: SEND_WHATSAPP, body: "Hey {{name}} — just checking in! Still exploring options for your event? Happy to help whenever you're ready." }], onFail: [] } }
   - type: booking_settings
     payload:
       settings:
