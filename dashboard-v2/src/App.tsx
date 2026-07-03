@@ -76,7 +76,7 @@ const pageRoutes: Record<string, React.ComponentType<any>> = {
 };
 
 export default function App() {
-  const { user, login, logout, fetchProfile, loading, isLoggedIn } = useAuth();
+  const { user, login, logout, fetchProfile, isLoggedIn } = useAuth();
   const [page, setPage] = useState("Overview");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -106,26 +106,6 @@ export default function App() {
   const handleLogin = async (email: string, password: string) => {
     await login(email, password);
   };
-
-  if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-[var(--background)]">
-        <div className="flex flex-col items-center gap-3 animate-fade-up">
-          <div className="h-10 w-10 rounded-xl bg-[var(--primary)] flex items-center justify-center shadow-sm">
-            <span className="text-sm font-bold text-[var(--primary-foreground)]">LA</span>
-          </div>
-          <div className="flex flex-col items-center gap-1">
-            <span className="text-base font-bold text-[var(--foreground)]">LeadAuto</span>
-            <div className="flex gap-1 mt-1">
-              <div className="h-1.5 w-1.5 rounded-full bg-[var(--primary)] animate-bounce" style={{ animationDelay: "0ms" }} />
-              <div className="h-1.5 w-1.5 rounded-full bg-[var(--primary)] animate-bounce" style={{ animationDelay: "150ms" }} />
-              <div className="h-1.5 w-1.5 rounded-full bg-[var(--primary)] animate-bounce" style={{ animationDelay: "300ms" }} />
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   if (!isLoggedIn) {
     return <LoginPage onLogin={handleLogin} />;
