@@ -61,11 +61,15 @@ const navGroups = [
   },
 ];
 
-export function Sidebar({ collapsed, onToggle, onMobileClose }: { collapsed: boolean; onToggle: () => void; onMobileClose?: () => void }) {
+export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { collapsed: boolean; onToggle: () => void; mobileOpen?: boolean; onMobileClose?: () => void }) {
   return (
     <>
-      {onMobileClose && <div className="fixed inset-0 z-40 bg-black/30 lg:hidden" onClick={onMobileClose} />}
-      <aside className={`fixed left-0 top-0 z-50 flex h-full flex-col border-r border-[var(--border)] bg-[var(--card)] transition-all duration-200 ${collapsed ? "w-16" : "w-64"}`}>
+      {mobileOpen && <div className="fixed inset-0 z-40 bg-black/30 lg:hidden" onClick={onMobileClose} />}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 flex h-full w-64 flex-col border-r border-[var(--border)] bg-[var(--card)] transition-transform duration-200 lg:transition-[width] ${
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        } lg:translate-x-0 ${collapsed ? "lg:w-16" : "lg:w-64"}`}
+      >
         <div className="flex h-14 items-center justify-between border-b border-[var(--border)] px-4">
           {!collapsed && (
             <div className="flex items-center gap-2.5">

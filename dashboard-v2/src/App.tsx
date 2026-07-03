@@ -79,6 +79,7 @@ export default function App() {
   const { user, login, logout, fetchProfile, loading, isLoggedIn } = useAuth();
   const [page, setPage] = useState("Overview");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [dark, setDark] = useState(() => localStorage.getItem("theme") === "dark");
 
   useEffect(() => {
@@ -135,10 +136,15 @@ export default function App() {
   return (
     <AppProvider>
       <div className="flex h-screen bg-[var(--background)] text-[var(--foreground)]">
-        <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} />
-        <div className={`flex flex-1 flex-col transition-all duration-200 ${sidebarCollapsed ? "ml-16" : "ml-64"}`}>
-          <Topbar onMenuToggle={() => setSidebarCollapsed(!sidebarCollapsed)} dark={dark} onThemeToggle={() => setDark(!dark)} />
-          <main className="flex-1 overflow-auto p-6">
+        <Sidebar
+          collapsed={sidebarCollapsed}
+          onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+          mobileOpen={mobileNavOpen}
+          onMobileClose={() => setMobileNavOpen(false)}
+        />
+        <div className={`flex flex-1 flex-col transition-all duration-200 ${sidebarCollapsed ? "lg:ml-16" : "lg:ml-64"}`}>
+          <Topbar onMenuToggle={() => setMobileNavOpen(!mobileNavOpen)} dark={dark} onThemeToggle={() => setDark(!dark)} />
+          <main className="flex-1 overflow-auto p-4 lg:p-6">
             <ErrorBoundary>
               <Suspense fallback={<PageFallback />}>
                 {PageComponent ? <PageComponent /> : (
