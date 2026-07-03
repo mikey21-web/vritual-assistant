@@ -102,6 +102,9 @@ services:
       # Trust the reverse proxy (Caddy) so rate-limiting sees real client IPs.
       N8N_PROXY_HOPS: ${N8N_PROXY_HOPS:-0}
       N8N_BACKEND_API_URL: http://backend:3001
+      # Shared secret the workflows send as `Bearer` to the backend; must match
+      # the backend's N8N_BACKEND_JWT (backend compares it with timingSafeEqual).
+      N8N_BACKEND_JWT: ${N8N_BACKEND_JWT:-}
     volumes:
       - n8ndata:/home/node/.n8n
       - ./n8n/workflows:/home/node/workflows
