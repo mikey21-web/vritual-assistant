@@ -112,6 +112,8 @@ async def _agent_node(state: AgentState, config: dict) -> AgentState:
 
     tools = config["configurable"]["tools"]
 
+    if not settings.deepseek_api_key:
+        raise RuntimeError("DEEPSEEK_API_KEY not configured — agent cannot run")
     model = ChatOpenAI(
         model=settings.agent_model,
         max_tokens=settings.agent_max_tokens,
