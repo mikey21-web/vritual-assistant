@@ -15,7 +15,7 @@ export class CampaignsController {
   constructor(private service: CampaignsService) {}
 
   @Get() @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT') findAll(@Query() q: PaginationDto) { return this.service.findAll(q); }
-  @Post() @Roles('OWNER', 'ADMIN', 'MANAGER') create(@Body() d: CreateCampaignDto, @Req() req) { return this.service.create({...d, creatorId: req.user.sub}, req.user.sub); }
+  @Post() @Roles('OWNER', 'ADMIN', 'MANAGER') create(@Body() d: CreateCampaignDto, @Req() req) { return this.service.create({...d, creatorId: req.user.sub, tenantId: req.user.tenantId || "default-tenant"}, req.user.sub); }
   @Get(':id') @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT', 'VIEWER') findOne(@Param('id') id: string) { return this.service.findOne(id); }
   @Patch(':id') @Roles('OWNER', 'ADMIN', 'MANAGER') update(@Param('id') id: string, @Body() d: UpdateCampaignDto, @Req() req) { return this.service.update(id, d, req.user.sub); }
   @Post(':id/pause') @Roles('OWNER', 'ADMIN', 'MANAGER') pause(@Param('id') id: string, @Req() req) { return this.service.pause(id, req.user.sub); }

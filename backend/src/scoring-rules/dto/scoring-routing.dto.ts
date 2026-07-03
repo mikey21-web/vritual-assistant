@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean, IsInt, IsObject } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsInt, IsObject, IsIn } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateScoringRuleDto {
@@ -33,7 +33,9 @@ export class CreateTaskDto {
 }
 
 export class CreateConversionDto {
-  @ApiProperty() @IsString() destination: string;
+  @ApiProperty({ enum: ['CRM_QUALIFIED_PUSH', 'APPOINTMENT_BOOKING', 'QUOTE_REQUEST'] })
+  @IsIn(['CRM_QUALIFIED_PUSH', 'APPOINTMENT_BOOKING', 'QUOTE_REQUEST'])
+  destination: string;
   @ApiPropertyOptional() @IsOptional() @IsString() leadId?: string;
   @ApiPropertyOptional() @IsOptional() @IsObject() metadata?: Record<string, unknown>;
 }

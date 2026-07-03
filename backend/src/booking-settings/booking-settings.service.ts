@@ -14,7 +14,7 @@ export class BookingSettingsService {
     const { page = 1, limit = 50 } = query;
     return Promise.all([this.prisma.bookingSetting.findMany({ skip: (+page - 1) * +limit, take: +limit, orderBy: { createdAt: 'desc' } }), this.prisma.bookingSetting.count()]).then(([data, total]) => ({ data, meta: { total, page: +page, limit: +limit } }));
   }
-  create(data: any) { return this.prisma.bookingSetting.create({ data }); }
+  create(data: any) { return this.prisma.bookingSetting.create({ data: { ...data, config: data.config ?? {} } }); }
   async update(id: string, data: any) { const b = await this.prisma.bookingSetting.findUnique({ where: { id } }); if (!b) throw new NotFoundException('Booking setting not found'); return this.prisma.bookingSetting.update({ where: { id }, data }); }
 
   async test(id: string) {

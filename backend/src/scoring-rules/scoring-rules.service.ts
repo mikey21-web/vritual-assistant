@@ -14,7 +14,7 @@ export class ScoringRulesService {
     ]).then(([data, total]) => ({ data, meta: { total, page: +page, limit: +limit } }));
   }
 
-  create(data: any) { return this.prisma.scoringRule.create({ data }); }
+  create(data: any) { return this.prisma.scoringRule.create({ data: { ...data, points: data.points ?? 0 } }); }
   async update(id: string, data: any) { const r = await this.prisma.scoringRule.findUnique({ where: { id } }); if (!r) throw new NotFoundException('Rule not found'); return this.prisma.scoringRule.update({ where: { id }, data }); }
   async remove(id: string) { const r = await this.prisma.scoringRule.findUnique({ where: { id } }); if (!r) throw new NotFoundException('Rule not found'); return this.prisma.scoringRule.delete({ where: { id } }); }
 

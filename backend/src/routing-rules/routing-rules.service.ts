@@ -13,7 +13,7 @@ export class RoutingRulesService {
     ]).then(([data, total]) => ({ data, meta: { total, page: +page, limit: +limit } }));
   }
 
-  create(data: any) { return this.prisma.routingRule.create({ data }); }
+  create(data: any) { return this.prisma.routingRule.create({ data: { ...data, conditions: data.conditions ?? {}, action: data.action ?? {} } }); }
   async update(id: string, data: any) { const r = await this.prisma.routingRule.findUnique({ where: { id } }); if (!r) throw new NotFoundException('Rule not found'); return this.prisma.routingRule.update({ where: { id }, data }); }
   async remove(id: string) { const r = await this.prisma.routingRule.findUnique({ where: { id } }); if (!r) throw new NotFoundException('Rule not found'); return this.prisma.routingRule.delete({ where: { id } }); }
 

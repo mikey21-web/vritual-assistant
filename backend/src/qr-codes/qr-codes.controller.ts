@@ -16,7 +16,11 @@ export class QrCodesController {
   constructor(private service: QrCodesService) {}
 
   @Get() @Roles('OWNER', 'ADMIN', 'MANAGER', 'VIEWER') findAll() { return this.service.findAll(); }
+<<<<<<< Updated upstream
   @Post() @Roles('OWNER', 'ADMIN', 'MANAGER') create(@Body() d: CreateQrCodeDto) { return this.service.create(d); }
+=======
+  @Post() @Roles('OWNER', 'ADMIN', 'MANAGER') create(@Body() d: CreateQrCodeDto, @Req() req) { return this.service.create(d); }
+>>>>>>> Stashed changes
   @Get(':id') @Roles('OWNER', 'ADMIN', 'MANAGER', 'VIEWER') findOne(@Param('id') id: string) { return this.service.findOne(id); }
   @Patch(':id') @Roles('OWNER', 'ADMIN', 'MANAGER') update(@Param('id') id: string, @Body() d: UpdateQrCodeDto) { return this.service.update(id, d); }
   @Get(':id/image') @Roles('OWNER', 'ADMIN', 'MANAGER', 'VIEWER') generateImage(@Param('id') id: string) { return this.service.generateImage(id); }

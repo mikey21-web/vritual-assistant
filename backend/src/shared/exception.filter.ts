@@ -32,6 +32,17 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         clientMessage = 'Request failed';
         logDetail = 'Unknown HttpException response';
       }
+    } else if (exception?.constructor?.name === 'PrismaClientValidationError') {
+      const msg = exception instanceof Error ? exception.message : 'Prisma validation error';
+      this.logger.warn(`Prisma validation: ${msg}`);
+      clientMessage = 'Validation failed: ' + msg;
+      logDetail = msg;
+      return response.status(400).json({
+        statusCode: 400,
+        message: isProduction ? 'Validation failed' : msg,
+        timestamp: new Date().toISOString(),
+        path: request.url,
+      });
     } else {
       const errorMsg = exception instanceof Error ? exception.message : String(exception);
       logDetail = errorMsg;

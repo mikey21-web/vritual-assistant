@@ -26,10 +26,15 @@ MAX_HISTORY_MESSAGES = 20
 
 def build_graph(tools: list, settings: Settings, client: BackendClient):
     graph = StateGraph(AgentState)
+    _tool_node = ToolNode(tools)
+
+    async def _tools_node(state: AgentState, config: RunnableConfig) -> dict:
+        result = await _tool_node.ainvoke(state)
+        return {"messages": state.get("messages", []) + list(result)}
 
     graph.add_node("load_context", _load_context)
     graph.add_node("agent", _agent_node)
-    graph.add_node("tools", ToolNode(tools))
+    graph.add_node("tools", _tools_node)
     graph.add_node("persist", _persist_node)
 
     graph.set_entry_point("load_context")
@@ -114,13 +119,17 @@ async def _agent_node(state: AgentState, config: RunnableConfig) -> AgentState:
     tools = config["configurable"]["tools"]
 
     if not settings.deepseek_api_key:
-        raise RuntimeError("DEEPSEEK_API_KEY not configured — agent cannot run")
+        raise RuntimeError("DEEPSEEK_API_KEY not configured â€” agent cannot run")
     model = ChatOpenAI(
         model=settings.agent_model,
         max_tokens=settings.agent_max_tokens,
         api_key=settings.deepseek_api_key,
         base_url=settings.deepseek_base_url,
     ).bind_tools(tools)
+
+    msg_types = [f"{type(m).__name__}(tool_calls={hasattr(m,'tool_calls') and bool(m.tool_calls)})" for m in state["messages"]]
+    has_tool = any(isinstance(m, ToolMessage) for m in state["messages"])
+    logger.warning("agent_node_call", msg_types=msg_types, has_tool_msg=has_tool, msg_count=len(state["messages"]))
 
     response = await model.ainvoke(state["messages"])
     state["messages"].append(response)

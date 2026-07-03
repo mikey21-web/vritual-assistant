@@ -15,7 +15,7 @@ export class CrmMappingsService {
     const { page = 1, limit = 50 } = query;
     return Promise.all([this.prisma.crmMapping.findMany({ skip: (+page - 1) * +limit, take: +limit, orderBy: { createdAt: 'desc' } }), this.prisma.crmMapping.count()]).then(([data, total]) => ({ data, meta: { total, page: +page, limit: +limit } }));
   }
-  create(data: any) { return this.prisma.crmMapping.create({ data }); }
+  create(data: any) { return this.prisma.crmMapping.create({ data: { ...data, fieldMappings: data.fieldMappings ?? {} } }); }
   async update(id: string, data: any) { const m = await this.prisma.crmMapping.findUnique({ where: { id } }); if (!m) throw new NotFoundException('CRM mapping not found'); return this.prisma.crmMapping.update({ where: { id }, data }); }
 
   async test(id: string) {

@@ -22,3 +22,5 @@ venv/
 # Build outputs
 dashboard-v2/dist/
 backend/dist/
+backend/prisma/seed-mock.*
+*.bak
