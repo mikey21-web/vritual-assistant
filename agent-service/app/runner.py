@@ -31,7 +31,7 @@ async def execute_run(settings: Settings, req: AgentRunRequest) -> str:
 
     client = BackendClient(settings)
 
-    ctx = ToolContext(client=client, lead_id=req.leadId, tenant_id=req.tenantId)
+    ctx = ToolContext(client=client, lead_id=req.leadId, tenant_id=req.tenantId, channel=req.channel)
     tools = build_tools(ctx)
 
     graph = build_graph(tools=tools, settings=settings, client=client)

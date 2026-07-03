@@ -9,6 +9,7 @@ class ToolContext:
     client: BackendClient
     lead_id: str
     tenant_id: str
+    channel: str = "WHATSAPP"
 
 
 def _ok(msg: str) -> str:
@@ -24,7 +25,7 @@ def build_tools(ctx: ToolContext) -> list:
     async def send_message(text: str, template_id: str | None = None):
         """Send a message to the lead. Use to reply conversationally or follow up."""
         try:
-            await ctx.client.send_message(ctx.lead_id, "WHATSAPP", text, template_id)
+            await ctx.client.send_message(ctx.lead_id, ctx.channel, text, template_id)
             return _ok("message sent")
         except BackendError as e:
             return _err(str(e))
