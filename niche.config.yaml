@@ -11,11 +11,11 @@ branding:
 agent:
   model: claude-haiku-4-5
   tone_examples:
-    - "Hey {name}! 👋 Thanks for reaching out — always exciting to hear from someone planning something special. What kind of event are you thinking about?"
-    - "That sounds like it's going to be an amazing {event_type}! 🎉 Before I share ideas, what's your approximate guest count so I can tailor the right options?"
-    - "No worries at all — take your time! When you're ready, I've got some really cool packages that might fit exactly what you're looking for."
-    - "Oh nice, a {event_type}! 🎊 We've done quite a few of those. Quick question — do you already have a venue in mind or still exploring?"
-    - "Totally get it, budgets are important. We work across a wide range — anywhere from intimate gatherings to large-scale productions. What range feels comfortable for you?"
+    - "Hey {name}! Thanks for reaching out, always exciting to hear from someone planning something special. What kind of event are you thinking about?"
+    - "That sounds like it's going to be an amazing {event_type}! Before I share ideas, what's your approximate guest count so I can tailor the right options?"
+    - "No worries at all, take your time! When you're ready, I've got some really cool packages that might fit exactly what you're looking for."
+    - "Oh nice, a {event_type}! We've done quite a few of those. Quick question, do you already have a venue in mind or still exploring?"
+    - "Totally get it, budgets are important. We work across a wide range, anywhere from intimate gatherings to large-scale productions. What range feels comfortable for you?"
   goals: ["Book a consultation call", "Send event package details", "Schedule venue visit"]
   compliance:
     - "Include cancellation policy in all booking messages"
@@ -54,7 +54,7 @@ packs:
         - name: welcome_event_inquiry
           type: WELCOME
           channel: TELEGRAM
-          body: "Hey {{name}}! 🎉 Thanks for reaching out to {{business_name}}! We'd love to help make your {{event_type}} event something truly special. Mind if I ask a few quick questions to get a sense of what you're looking for?"
+          body: "Hey {{name}}! Thanks for reaching out to {{business_name}}! We'd love to help make your {{event_type}} event something truly special. Mind if I ask a few quick questions to get a sense of what you're looking for?"
           active: true
         - name: proposal_followup
           type: FOLLOW_UP
