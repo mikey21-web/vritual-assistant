@@ -94,13 +94,15 @@ ufw --force enable
 info "Writing Caddyfile..."
 cat > /etc/caddy/Caddyfile <<CADDY
 $DOMAIN {
-    reverse_proxy localhost:3000
     encode gzip
-}
-
-api.$DOMAIN {
-    reverse_proxy localhost:3001
-    encode gzip
+    # API calls are same-origin under /api/* — strip the prefix and proxy to the
+    # backend (which serves routes like /auth/login and /health without a prefix).
+    handle_path /api/* {
+        reverse_proxy localhost:3001
+    }
+    handle {
+        reverse_proxy localhost:3000
+    }
 }
 
 n8n.$DOMAIN {
@@ -122,7 +124,7 @@ docker compose ps
 echo ""
 echo "── URLs ─────────────────────────────"
 echo "  Dashboard:  https://$DOMAIN"
-echo "  API:        https://api.$DOMAIN"
+echo "  API:        https://$DOMAIN/api"
 echo "  n8n:        https://n8n.$DOMAIN"
 echo "─────────────────────────────────────"
 echo ""

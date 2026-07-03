@@ -4,6 +4,10 @@ WORKDIR /app
 COPY package*.json ./
 RUN --mount=type=cache,target=/root/.npm npm ci
 COPY . .
+# Vite inlines VITE_* at build time, so the API URL must be set BEFORE `npm run build`.
+# Same-origin default: the frontend calls /api/* which the reverse proxy routes to the backend.
+ARG VITE_API_URL=/api
+ENV VITE_API_URL=$VITE_API_URL
 RUN npm run build
 
 FROM nginx:alpine AS production

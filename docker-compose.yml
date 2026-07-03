@@ -55,7 +55,7 @@ services:
       SEED_OWNER_EMAIL: ${SEED_OWNER_EMAIL:-admin@localhost}
       SEED_OWNER_PASSWORD: ${SEED_OWNER_PASSWORD:-}
       INTEGRATIONS_ENC_KEY: ${INTEGRATIONS_ENC_KEY:?INTEGRATIONS_ENC_KEY must be set}
-      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      CORS_ORIGIN: ${CORS_ORIGIN:-https://deploysafe.in}
     volumes:
       - uploads:/app/uploads
       - ./niche.config.yaml:/app/niche.config.yaml:ro
@@ -69,12 +69,14 @@ services:
     build:
       context: ./dashboard-v2
       dockerfile: Dockerfile
+      args:
+        # Build-time: Vite inlines this into the static bundle. Same-origin /api
+        # is routed to the backend by the reverse proxy (Caddy).
+        VITE_API_URL: ${VITE_API_URL:-/api}
     container_name: lead-automation-dashboard
     restart: unless-stopped
     ports:
       - "3000:3000"
-    environment:
-      VITE_API_URL: /api
     depends_on:
       - backend
 
