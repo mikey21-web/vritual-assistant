@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../lib/api';
 import { fetchQRCodes, createQRCode } from '../lib/data';
-import { Plus, QrCode, Image, X } from 'lucide-react';
+import { Plus, QrCode, Image } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function QRCodesPage() {
   const [data, setData] = useState<any[]>([]);
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ name: '', destinationType: 'form_link', destination: '' });
-  const [qrImage, setQrImage] = useState<string | null>(null);
+  const [form, setForm] = useState({ name: '', destinationType: 'website', destination: '' });
+  const [qrImages, setQrImages] = useState<Record<string, string>>({});
 
   const refresh = () => fetchQRCodes().then(setData);
   useEffect(() => { refresh(); }, []);
@@ -18,16 +18,17 @@ export default function QRCodesPage() {
     try {
       await createQRCode(form);
       setShowCreate(false);
-      setForm({ name: '', destinationType: 'form_link', destination: '' });
+      setForm({ name: '', destinationType: 'website', destination: '' });
       refresh();
       toast.success('QR Code created');
     } catch (e: any) { toast.error(e.message); }
   };
 
   const viewQr = async (id: string) => {
+    if (qrImages[id]) return;
     try {
       const r = await api(`/qr-codes/${id}/image`);
-      setQrImage(r.image);
+      setQrImages(prev => ({ ...prev, [id]: r.image }));
     } catch (e: any) { toast.error(e?.message || 'Failed to load QR image'); }
   };
 
@@ -61,9 +62,9 @@ export default function QRCodesPage() {
               onChange={e => setForm({ ...form, destinationType: e.target.value })}
               className="h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
             >
-              <option value="form_link">Form Link</option>
-              <option value="whatsapp">WhatsApp</option>
               <option value="website">Website</option>
+              <option value="form_link">Form Link</option>
+              <option value="telegram">Telegram</option>
             </select>
             <input
               placeholder="Destination URL"
@@ -97,16 +98,17 @@ export default function QRCodesPage() {
             <div className="text-xs text-[var(--muted-foreground)] mb-3">
               {q.destinationType}: <span className="truncate block">{q.destination}</span>
             </div>
-            <button
-              onClick={() => viewQr(q.id)}
-              className="inline-flex items-center gap-1 text-xs font-medium text-[var(--primary)] hover:text-[var(--primary)]/80 transition-colors"
-            >
-              <Image size={12} /> View QR Code
-            </button>
-            {qrImage && (
-              <div className="mt-3 pt-3 border-t border-[var(--border)] animate-fade-in">
-                <img src={qrImage} alt={q.name} className="w-32 h-32 mx-auto" />
+            {qrImages[q.id] ? (
+              <div className="mt-2 animate-fade-in">
+                <img src={qrImages[q.id]} alt={q.name} className="w-32 h-32 mx-auto" />
               </div>
+            ) : (
+              <button
+                onClick={() => viewQr(q.id)}
+                className="inline-flex items-center gap-1 text-xs font-medium text-[var(--primary)] hover:text-[var(--primary)]/80 transition-colors"
+              >
+                <Image size={12} /> View QR Code
+              </button>
             )}
           </div>
         ))}
