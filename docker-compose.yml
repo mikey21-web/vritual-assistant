@@ -54,6 +54,7 @@ services:
       NICHE_CONFIG_PATH: /app/niche.config.yaml
       SEED_OWNER_EMAIL: ${SEED_OWNER_EMAIL:-admin@localhost}
       SEED_OWNER_PASSWORD: ${SEED_OWNER_PASSWORD:-}
+      INTEGRATIONS_ENC_KEY: ${INTEGRATIONS_ENC_KEY:?INTEGRATIONS_ENC_KEY must be set}
     volumes:
       - uploads:/app/uploads
       - ./niche.config.yaml:/app/niche.config.yaml:ro
