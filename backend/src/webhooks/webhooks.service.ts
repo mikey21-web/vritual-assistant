@@ -91,7 +91,7 @@ export class WebhooksService {
     const result = { contact, lead };
     await this.prisma.webhookEvent.create({ data: { provider, eventType: 'whatsapp_message', idempotencyKey: key, rawPayload: payload, processedResult: result } });
 
-    this.agentClient.trigger(lead.id, msgId || key, 'WHATSAPP', text);
+    this.agentClient.trigger(lead.id, msgId || key, 'WHATSAPP', text, lead.tenantId || contact.tenantId);
 
     return { data: result };
   }
@@ -163,7 +163,7 @@ export class WebhooksService {
       data: { provider: 'telegram', eventType: 'telegram_message', idempotencyKey: key, rawPayload: payload, processedResult: result },
     });
 
-    this.agentClient.trigger(lead.id, msgId || key, 'TELEGRAM', text);
+    this.agentClient.trigger(lead.id, msgId || key, 'TELEGRAM', text, lead.tenantId || contact.tenantId);
 
     return { data: result };
   }

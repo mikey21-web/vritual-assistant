@@ -9,7 +9,7 @@ export class AgentClientService {
 
   constructor(private http: HttpService, private config: ConfigService) {}
 
-  async trigger(leadId: string, triggerId: string, channel: string, messageText: string, triggerType = 'inbound_message') {
+  async trigger(leadId: string, triggerId: string, channel: string, messageText: string, tenantId: string, triggerType = 'inbound_message') {
     const url = this.config.get<string>('AGENT_SERVICE_URL');
     const key = this.config.get<string>('AGENT_INBOUND_KEY');
     if (!url) { this.logger.debug('AGENT_SERVICE_URL not set, skipping agent trigger'); return; }
@@ -17,7 +17,7 @@ export class AgentClientService {
     try {
       await firstValueFrom(
         this.http.post(`${url}/agent/run`, {
-          leadId, triggerId, channel,
+          leadId, triggerId, channel, tenantId,
           trigger: triggerType,
           messageText,
         }, {
