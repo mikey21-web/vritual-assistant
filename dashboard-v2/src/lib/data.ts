@@ -4,7 +4,9 @@ import type { Lead, Contact, Campaign, Task, Message, Template, Integration, Boo
 export async function fetchAnalytics() { return api('/analytics/overview') as Promise<AnalyticsOverview>; }
 export async function fetchSources() { return api('/analytics/sources') as Promise<{ source: string; count: number }[]>; }
 export async function fetchAgents() { return api('/analytics/agents') as Promise<{ id: string; name: string; role: string; assignedLeads: number; converted: number }[]>; }
-export async function fetchHealth() { return api('/health') as Promise<any>; }
+// /health/ready is public and returns { status, checks: { database, uptime, memory } };
+// plain /health is the lightweight liveness probe with no `checks` (Overview needs checks.database).
+export async function fetchHealth() { return api('/health/ready') as Promise<any>; }
 export async function fetchDeepHealth() { return api('/health/deep') as Promise<HealthReport>; }
 
 export async function fetchLeads(page = 1, filters: Record<string, string> = {}) {
