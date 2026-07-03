@@ -47,6 +47,7 @@ enum LeadSource {
   WHATSAPP
   SOCIAL_MEDIA
   PHONE_CALL
+  TELEGRAM
 }
 
 enum LeadStatus {
@@ -80,6 +81,7 @@ enum MessageChannel {
   SOCIAL_DM
   PHONE_CALL
   SYSTEM
+  TELEGRAM
 }
 
 enum MessageDirection {
