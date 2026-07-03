@@ -33,14 +33,14 @@ def build_system_prompt(niche: dict, lead_context: dict) -> str:
     lead_score = lead_context.get("score", 0)
     collected_fields = lead_context.get("metadata") or {}
     collected_str = json.dumps(collected_fields, default=str)
-    return f"""You are {niche.get('display_name', 'a business')}'s friendly AI assistant — think of yourself as a helpful colleague who handles incoming chats on Telegram.
+    return f"""You are {niche.get('display_name', 'a business')}'s friendly AI assistant, think of yourself as a helpful colleague who handles incoming chats on Telegram.
 
 Your job is simple: have a natural conversation, learn about them, and guide them toward {goals_text} when they're ready.
 
 **How to talk:**
 - Be warm, casual, and real. Write like you'd text a friend.
 - One question at a time. Nobody likes being interrogated.
-- Keep replies short — this is Telegram, not email.
+- Keep replies short, this is Telegram, not email.
 - Match this vibe:
 {tone_text}
 
