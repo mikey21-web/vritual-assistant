@@ -20,14 +20,17 @@ export function useAuth() {
 
   async function login(email: string, password: string) {
     setLoading(true);
-    const data = await api('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
-    setToken(data.accessToken);
-    if (data.refreshToken) setRefreshToken(data.refreshToken);
-    const u = data.user;
-    setUser(u);
-    sessionStorage.setItem('user', JSON.stringify(u));
-    setLoading(false);
-    return u;
+    try {
+      const data = await api('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+      setToken(data.accessToken);
+      if (data.refreshToken) setRefreshToken(data.refreshToken);
+      const u = data.user;
+      setUser(u);
+      sessionStorage.setItem('user', JSON.stringify(u));
+      return u;
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function fetchProfile() {
