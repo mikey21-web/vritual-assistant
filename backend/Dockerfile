@@ -10,7 +10,8 @@ RUN node -e "console.log('OpenSSL:', process.versions.openssl)"
 RUN npx prisma --version
 RUN npx prisma generate --schema=prisma/schema.prisma
 COPY . .
-RUN npm run build
+RUN npm run build 2>&1
+RUN find /app/dist -type f -name "*.js" | head -20 && echo "---" && ls -la /app/dist/
 
 FROM node:20-bookworm-slim AS production
 WORKDIR /app
