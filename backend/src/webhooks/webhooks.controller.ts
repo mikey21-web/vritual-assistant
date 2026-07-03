@@ -5,7 +5,7 @@ import { Request } from 'express';
 import { WebhooksService } from './webhooks.service';
 import { WebhookSecurityService } from '../shared/webhook-security.service';
 import { Public } from '../auth/public.decorator';
-import { FormWebhookDto, WhatsAppWebhookDto, GenericWebhookDto } from './dto/webhook.dto';
+import { FormWebhookDto, WhatsAppWebhookDto, GenericWebhookDto, TelegramWebhookDto } from './dto/webhook.dto';
 
 @ApiTags('Webhooks')
 @Controller('webhooks')
@@ -41,6 +41,17 @@ export class WebhooksController {
       throw new UnauthorizedException('Invalid WhatsApp signature');
     }
     return this.service.handleWhatsApp('whatsapp', d, req);
+  }
+
+  @Public()
+  @Post('telegram') @HttpCode(200) @ApiOperation({ summary: 'Receive Telegram webhook (bot updates)' })
+  async telegramWebhook(
+    @Body() d: TelegramWebhookDto,
+    @Req() req?: RawBodyRequest<Request>,
+  ) {
+    // Verify the webhook has a message with text
+    if (!d.message?.chat?.id) return { status: 'ignored', reason: 'no chat message' };
+    return this.service.handleTelegram(d, req);
   }
 
   @Public()

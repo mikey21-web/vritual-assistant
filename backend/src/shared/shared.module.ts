@@ -10,7 +10,7 @@ import { NormalizationService } from './normalization.service';
 import { GracefulDegradationService } from './graceful-degradation.service';
 import { HubspotAdapter, SalesforceAdapter, ZohoAdapter } from './adapters/crm.adapter';
 import { CalendlyAdapter, GoogleCalendarAdapter } from './adapters/calendar.adapter';
-import { WhatsAppCloudAdapter } from './adapters/messaging.adapter';
+import { WhatsAppCloudAdapter, TelegramBotAdapter } from './adapters/messaging.adapter';
 import { TwilioSmsAdapter } from './adapters/sms.adapter';
 import { EmailAdapter } from './adapters/email.adapter';
 import { HealthController } from './health.controller';
@@ -24,7 +24,7 @@ import { SentryService } from './sentry.service';
     FeatureFlagsService, AlertingService, NormalizationService, GracefulDegradationService,
     HubspotAdapter, SalesforceAdapter, ZohoAdapter,
     CalendlyAdapter, GoogleCalendarAdapter,
-    WhatsAppCloudAdapter, TwilioSmsAdapter, EmailAdapter, OutboxService,
+    WhatsAppCloudAdapter, TelegramBotAdapter, TwilioSmsAdapter, EmailAdapter, OutboxService,
     SentryService,
   ],
   exports: [
@@ -32,7 +32,7 @@ import { SentryService } from './sentry.service';
     FeatureFlagsService, AlertingService, NormalizationService, GracefulDegradationService,
     HubspotAdapter, SalesforceAdapter, ZohoAdapter,
     CalendlyAdapter, GoogleCalendarAdapter,
-    WhatsAppCloudAdapter, TwilioSmsAdapter, EmailAdapter, OutboxService,
+    WhatsAppCloudAdapter, TelegramBotAdapter, TwilioSmsAdapter, EmailAdapter, OutboxService,
     SentryService,
   ],
 })

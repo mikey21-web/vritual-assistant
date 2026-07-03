@@ -38,13 +38,13 @@ async function bootstrap() {
   app.use(express.json({
     limit: '5mb',
     verify: (req: any, _res, buf: Buffer, _encoding: string) => {
-      if (req.url?.startsWith('/webhooks/whatsapp') || req.url?.startsWith('/webhooks/payments')) {
+      if (req.url?.startsWith('/webhooks/whatsapp') || req.url?.startsWith('/webhooks/telegram') || req.url?.startsWith('/webhooks/payments')) {
         req.rawBody = buf;
       }
     },
   }));
   app.use(express.urlencoded({ limit: '5mb', extended: true, verify: (req: any, _res, buf: Buffer, _encoding: string) => {
-    if (req.url?.startsWith('/webhooks/whatsapp') || req.url?.startsWith('/webhooks/payments')) {
+    if (req.url?.startsWith('/webhooks/whatsapp') || req.url?.startsWith('/webhooks/telegram') || req.url?.startsWith('/webhooks/payments')) {
       req.rawBody = buf;
     }
   }}));

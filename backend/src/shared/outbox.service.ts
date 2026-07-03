@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TwilioSmsAdapter } from './adapters/sms.adapter';
-import { WhatsAppCloudAdapter } from './adapters/messaging.adapter';
+import { WhatsAppCloudAdapter, TelegramBotAdapter } from './adapters/messaging.adapter';
 import { CircuitBreaker } from './circuit-breaker';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
@@ -11,15 +11,18 @@ export class OutboxService {
   private readonly logger = new Logger(OutboxService.name);
   private readonly smsBreaker: CircuitBreaker;
   private readonly waBreaker: CircuitBreaker;
+  private readonly tgBreaker: CircuitBreaker;
 
   constructor(
     private prisma: PrismaService,
     private smsAdapter: TwilioSmsAdapter,
     private whatsAppAdapter: WhatsAppCloudAdapter,
+    private telegramAdapter: TelegramBotAdapter,
     private config: ConfigService,
   ) {
     this.smsBreaker = new CircuitBreaker('outbox-sms', 5, 30000);
     this.waBreaker = new CircuitBreaker('outbox-whatsapp', 5, 30000);
+    this.tgBreaker = new CircuitBreaker('outbox-telegram', 5, 30000);
   }
 
   /**
@@ -86,6 +89,13 @@ export class OutboxService {
             accessToken: this.config.get<string>('WHATSAPP_ACCESS_TOKEN') || '',
           };
           result = await this.waBreaker.call(() => this.whatsAppAdapter.sendMessage(msg.recipient, msg.text, config));
+        } else if (channel === 'TELEGRAM') {
+          result = await this.tgBreaker.call(() =>
+            this.telegramAdapter.sendMessage(msg.recipient, msg.text, {
+              botToken: this.config.get<string>('TELEGRAM_BOT_TOKEN'),
+            }),
+            () => Promise.resolve({ success: false, error: 'Telegram circuit open' })
+          );
         } else {
           result = { success: false, error: `Unsupported channel: ${channel}` };
         }

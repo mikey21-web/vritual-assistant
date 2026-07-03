@@ -26,3 +26,14 @@ export class GenericWebhookDto {
   @ApiPropertyOptional() @IsObject() @IsOptional() data?: unknown;
   @ApiPropertyOptional() @IsString() @IsOptional() event?: string;
 }
+
+export class TelegramWebhookDto {
+  @ApiProperty() update_id: number;
+  @ApiPropertyOptional() @IsOptional() message?: {
+    message_id: number;
+    from?: { id: number; first_name?: string; last_name?: string; username?: string };
+    chat: { id: number; type: string; first_name?: string; username?: string };
+    text?: string;
+    date: number;
+  };
+}

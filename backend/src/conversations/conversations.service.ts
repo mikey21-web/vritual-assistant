@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { MessagePolicyService } from './message-policy.service';
 import { TwilioSmsAdapter } from '../shared/adapters/sms.adapter';
-import { WhatsAppCloudAdapter } from '../shared/adapters/messaging.adapter';
+import { WhatsAppCloudAdapter, TelegramBotAdapter } from '../shared/adapters/messaging.adapter';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
@@ -16,6 +16,7 @@ export class ConversationsService {
     private policy: MessagePolicyService,
     private smsAdapter: TwilioSmsAdapter,
     private whatsAppAdapter: WhatsAppCloudAdapter,
+    private telegramAdapter: TelegramBotAdapter,
     private config: ConfigService,
   ) {}
 
@@ -110,6 +111,27 @@ export class ConversationsService {
         accessToken: this.config.get<string>('WHATSAPP_ACCESS_TOKEN') || '',
       };
       const result = await this.whatsAppAdapter.sendMessage(to, text, config);
+      if (result.success) {
+        await this.prisma.conversationMessage.update({
+          where: { id: msg.id },
+          data: { deliveryStatus: 'delivered', providerMessageId: result.messageId },
+        });
+      } else {
+        await this.prisma.conversationMessage.update({
+          where: { id: msg.id },
+          data: { deliveryStatus: 'failed', metadata: { error: result.error } },
+        });
+      }
+    } else if (channel === 'TELEGRAM') {
+      if (!lead.contact.whatsapp && !lead.contact.phone) {
+        this.logger.warn(`Cannot dispatch Telegram for message ${msg.id}: contact has no identifier`);
+        return;
+      }
+      const chatId: string = lead.contact.whatsapp || lead.contact.phone || '';
+      if (!chatId) return;
+      const result = await this.telegramAdapter.sendMessage(chatId, text, {
+        botToken: this.config.get<string>('TELEGRAM_BOT_TOKEN'),
+      });
       if (result.success) {
         await this.prisma.conversationMessage.update({
           where: { id: msg.id },

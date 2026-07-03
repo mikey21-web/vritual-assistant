@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { HubspotAdapter, SalesforceAdapter, ZohoAdapter } from '../shared/adapters/crm.adapter';
-import { WhatsAppCloudAdapter } from '../shared/adapters/messaging.adapter';
+import { WhatsAppCloudAdapter, TelegramBotAdapter } from '../shared/adapters/messaging.adapter';
 import { TwilioSmsAdapter } from '../shared/adapters/sms.adapter';
 import { CalendlyAdapter, GoogleCalendarAdapter } from '../shared/adapters/calendar.adapter';
 import { CircuitBreaker } from '../shared/circuit-breaker';
@@ -65,6 +65,7 @@ export class IntegrationsService {
     private salesforce: SalesforceAdapter,
     private zoho: ZohoAdapter,
     private whatsApp: WhatsAppCloudAdapter,
+    private telegram: TelegramBotAdapter,
     private twilioSms: TwilioSmsAdapter,
     private calendly: CalendlyAdapter,
     private googleCalendar: GoogleCalendarAdapter,
@@ -121,6 +122,7 @@ export class IntegrationsService {
       case 'SALESFORCE': isHealthy = await breaker.call(() => this.salesforce.healthCheck(config), () => Promise.resolve(false)); break;
       case 'ZOHO': isHealthy = await breaker.call(() => this.zoho.healthCheck(config), () => Promise.resolve(false)); break;
       case 'WHATSAPP': isHealthy = await breaker.call(() => this.whatsApp.healthCheck(config), () => Promise.resolve(false)); break;
+      case 'TELEGRAM': isHealthy = await breaker.call(() => this.telegram.healthCheck(config), () => Promise.resolve(false)); break;
       case 'TWILIO_SMS':
         isHealthy = !!config?.TWILIO_ACCOUNT_SID;
         if (!isHealthy) this.logger.warn(`Twilio SMS health check: missing TWILIO_ACCOUNT_SID`);

@@ -3,8 +3,8 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateConversationMessageDto {
   @ApiProperty() @IsString() text: string;
-  @ApiProperty({ enum: ['WHATSAPP','EMAIL','SMS','CHATBOT','SOCIAL_DM','PHONE_CALL','SYSTEM'] })
-  @IsIn(['WHATSAPP','EMAIL','SMS','CHATBOT','SOCIAL_DM','PHONE_CALL','SYSTEM'])
+  @ApiProperty({ enum: ['TELEGRAM','WHATSAPP','EMAIL','SMS','CHATBOT','SOCIAL_DM','PHONE_CALL','SYSTEM'] })
+  @IsIn(['TELEGRAM','WHATSAPP','EMAIL','SMS','CHATBOT','SOCIAL_DM','PHONE_CALL','SYSTEM'])
   channel: string;
   @ApiProperty({ enum: ['INBOUND','OUTBOUND'] }) @IsIn(['INBOUND','OUTBOUND']) direction: string;
   @ApiProperty() @IsString() leadId: string;

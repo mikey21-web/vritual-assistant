@@ -96,6 +96,78 @@ export class WebhooksService {
     return { data: result };
   }
 
+  async handleTelegram(payload: any, req?: any) {
+    const msg = payload?.message;
+    if (!msg?.chat?.id) return { status: 'ignored', reason: 'no chat message' };
+
+    const chatId = String(msg.chat.id);
+    const text = msg.text || '';
+    const msgId = String(msg.message_id);
+    const key = this.idempotencyKey(['telegram', chatId, msgId]);
+
+    const existing = await this.prisma.webhookEvent.findUnique({ where: { idempotencyKey: key } });
+    if (existing) return { status: 'duplicate', result: existing.processedResult };
+
+    const firstName = msg.from?.first_name || msg.chat?.first_name || 'Telegram User';
+    const lastName = msg.from?.last_name || '';
+    const userName = msg.from?.username || '';
+
+    const contact = await this.contactsService.findOrCreate({
+      name: `${firstName}${lastName ? ' ' + lastName : ''}`.trim() || 'Telegram User',
+      phone: chatId,
+      whatsapp: chatId,
+    }, req);
+
+    const existingLead = await this.prisma.lead.findFirst({
+      where: {
+        contactId: contact.id,
+        status: { notIn: ['LOST', 'CONVERTED', 'SPAM'] },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    let lead;
+    if (existingLead) {
+      lead = existingLead;
+    } else {
+      lead = await this.leadsService.create({ contactId: contact.id, source: 'TELEGRAM', message: text, metadata: payload });
+    }
+
+    // Handle STOP commands for consent/opt-out
+    const stopPattern = /^\s*(stop|unsubscribe|cancel|opt.?out)\s*$/i;
+    if (stopPattern.test(text.trim())) {
+      await this.prisma.contact.update({
+        where: { id: contact.id },
+        data: { consentStatus: 'opted_out', optedOutAt: new Date() },
+      });
+      await this.prisma.consentEvent.create({
+        data: { contactId: contact.id, channel: 'TELEGRAM', action: 'opt_out', source: 'webhook' },
+      });
+      await this.conversationsService.create({
+        text: "You've been unsubscribed. You won't receive further messages from us.",
+        channel: 'TELEGRAM',
+        direction: 'OUTBOUND',
+        leadId: lead.id,
+        contactId: contact.id,
+      });
+    }
+
+    await this.conversationsService.create({
+      text, channel: 'TELEGRAM', direction: 'INBOUND',
+      providerMessageId: msgId, leadId: lead.id, contactId: contact.id,
+      metadata: payload,
+    });
+
+    const result = { contact, lead };
+    await this.prisma.webhookEvent.create({
+      data: { provider: 'telegram', eventType: 'telegram_message', idempotencyKey: key, rawPayload: payload, processedResult: result },
+    });
+
+    this.agentClient.trigger(lead.id, msgId || key, 'TELEGRAM', text);
+
+    return { data: result };
+  }
+
   async handlePayment(provider: string, payload: any) {
     const key = this.idempotencyKey([provider, 'payment', payload.paymentId || payload.id || this.payloadHash(payload)]);
     const existing = await this.prisma.webhookEvent.findUnique({ where: { idempotencyKey: key } });

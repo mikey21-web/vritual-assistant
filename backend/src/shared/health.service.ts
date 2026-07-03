@@ -60,6 +60,11 @@ export class HealthService {
       ? { status: 'ok', detail: 'app secret configured' }
       : { status: 'unconfigured', detail: 'WHATSAPP_APP_SECRET not set' };
 
+    const tgToken = this.config.get<string>('TELEGRAM_BOT_TOKEN');
+    deps.telegram = tgToken
+      ? { status: 'ok', detail: 'bot token configured' }
+      : { status: 'unconfigured', detail: 'TELEGRAM_BOT_TOKEN not set' };
+
     const stripeSecret = this.config.get<string>('STRIPE_WEBHOOK_SECRET');
     deps.stripe = stripeSecret
       ? { status: 'ok', detail: 'webhook secret configured' }

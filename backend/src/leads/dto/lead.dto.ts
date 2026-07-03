@@ -3,8 +3,8 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateLeadDto {
   @ApiProperty() @IsString() contactId: string;
-  @ApiProperty({ enum: ['CAMPAIGN','QR_CODE','FORM','CHATBOT','MOBILE_APP','WHATSAPP','SOCIAL_MEDIA','PHONE_CALL'] })
-  @IsIn(['CAMPAIGN','QR_CODE','FORM','CHATBOT','MOBILE_APP','WHATSAPP','SOCIAL_MEDIA','PHONE_CALL'])
+  @ApiProperty({ enum: ['TELEGRAM','CAMPAIGN','QR_CODE','FORM','CHATBOT','MOBILE_APP','WHATSAPP','SOCIAL_MEDIA','PHONE_CALL'] })
+  @IsIn(['TELEGRAM','CAMPAIGN','QR_CODE','FORM','CHATBOT','MOBILE_APP','WHATSAPP','SOCIAL_MEDIA','PHONE_CALL'])
   source: string;
   @ApiPropertyOptional() @IsOptional() @IsString() interest?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() budget?: string;
