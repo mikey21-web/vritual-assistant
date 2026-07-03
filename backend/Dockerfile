@@ -2,15 +2,19 @@
 FROM node:20-bookworm-slim AS build
 WORKDIR /app
 RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends openssl libssl-dev ca-certificates && rm -rf /var/lib/apt/lists/*
+ENV PRISMA_CLI_BINARY_TARGETS=debian-openssl-3.0.x
 COPY package*.json ./
-RUN npm ci
+COPY prisma ./prisma
+RUN npm ci --ignore-scripts
+RUN node -e "console.log('OpenSSL:', process.versions.openssl)"
+RUN npx prisma --version
+RUN npx prisma generate --schema=prisma/schema.prisma
 COPY . .
-RUN npx prisma generate
 RUN npm run build
 
 FROM node:20-bookworm-slim AS production
 WORKDIR /app
-RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends curl openssl && rm -rf /var/lib/apt/lists/*
+RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends curl openssl libssl3 ca-certificates && rm -rf /var/lib/apt/lists/*
 COPY package*.json ./
 RUN npm ci --omit=dev
 COPY --from=build /app/dist ./dist
