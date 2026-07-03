@@ -2,7 +2,7 @@ import {
   LayoutDashboard, Users, MessageSquare, BarChart3, Settings,
   Megaphone, FormInput, QrCode, FileText, Route, Target,
   ShoppingCart, Link, Calendar, Layers, ChevronLeft, ChevronRight,
-  UserCircle, CheckSquare,
+  UserCircle, CheckSquare, Sparkles,
 } from "lucide-react";
 
 const navGroups = [
@@ -34,6 +34,7 @@ const navGroups = [
       { label: "Nurture", icon: Route, path: "/nurture" },
       { label: "Scoring", icon: BarChart3, path: "/scoring" },
       { label: "Rules", icon: Target, path: "/rules" },
+      { label: "AI Campaigns", icon: Sparkles, path: "/ai-campaigns" },
     ],
   },
   {

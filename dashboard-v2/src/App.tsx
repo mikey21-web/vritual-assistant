@@ -34,6 +34,7 @@ const PageComponents: Record<string, React.LazyExoticComponent<React.ComponentTy
   Workspace: lazy(() => import("./pages/WorkspacePage")),
   Failures: lazy(() => import("./pages/FailuresPage")),
   Health: lazy(() => import("./pages/HealthPage")),
+  AICampaigns: lazy(() => import("./pages/AICampaignManager")),
 };
 
 function PageFallback() {
@@ -64,6 +65,7 @@ function getPageKey(path: string): string {
     "/audit-logs": "AuditLogs", "/advanced": "Advanced",
     "/settings": "Settings", "/workspace": "Workspace",
     "/failures": "Failures", "/health": "Health",
+    "/ai-campaigns": "AICampaigns",
   };
   return map[path] || "Overview";
 }

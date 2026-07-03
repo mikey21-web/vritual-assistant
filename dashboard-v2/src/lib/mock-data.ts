@@ -1,4 +1,4 @@
-import type { Lead, Message } from './types';
+import type { Lead, Message, AICampaignDraft } from './types';
 
 const firstNames = ['Emma', 'Liam', 'Olivia', 'Noah', 'Ava', 'Ethan', 'Sophia', 'Mason', 'Isabella', 'Logan', 'Mia', 'Lucas', 'Charlotte', 'James', 'Amelia', 'Benjamin', 'Harper', 'Elijah', 'Evelyn', 'Alexander'];
 const lastNames = ['Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez', 'Hernandez', 'Lopez', 'Gonzalez', 'Wilson', 'Anderson', 'Thomas', 'Taylor', 'Moore', 'Jackson', 'Martin', 'Lee'];
@@ -293,6 +293,7 @@ const mockResponseMap: Record<string, () => any> = {
   '/failures': () => mockFailures,
   '/failures/open': () => mockFailures.filter(f => f.status === 'OPEN'),
   '/campaigns': () => ({ data: mockCampaigns, meta: { total: mockCampaigns.length, page: 1, limit: 20 } }),
+  '/ai/campaigns': () => ({ data: mockAICampaigns, meta: { total: mockAICampaigns.length } }),
   '/tasks': () => ({ data: mockTasks, meta: { total: mockTasks.length, page: 1, limit: 20 } }),
   '/conversations': () => ({ data: mockMessages, meta: { total: mockMessages.length } }),
   '/message-templates': () => mockTemplates,
@@ -318,6 +319,127 @@ const mockResponseMap: Record<string, () => any> = {
   '/leads': () => ({ data: mockLeads, meta: { total: mockLeads.length, page: 1, limit: 20 } }),
 };
 
+export const mockAICampaigns: AICampaignDraft[] = [
+  {
+    id: 'ai-camp-1',
+    prompt: 'Diwali campaign targeting hot leads in Bangalore',
+    preview: {
+      name: 'Diwali Festive Offer — Bangalore',
+      segment: { filters: [{ field: 'segment', operator: 'equals', value: 'HOT' }, { field: 'location', operator: 'contains', value: 'Bangalore' }], estimatedLeads: 47 },
+      channels: ['WHATSAPP', 'SMS'],
+      message: '🪔 Happy Diwali from [Business Name]! ✨\n\nAs our valued customer, we have a special surprise for you — exclusive Diwali discounts on our premium packages.\n\n✨ Flat 25% OFF on all plans\n🎁 Free consultation worth ₹2,499\n📅 Limited period: Nov 10-15\n\nReply "YES" to claim your offer or visit: [Link]\n\nWishing you and your family a prosperous Diwali! 🌟',
+      schedule: { start: '2026-11-10T09:00:00Z', end: '2026-11-15T21:00:00Z', timezone: 'Asia/Kolkata' },
+      budget: 50000,
+      predictedROI: '12-15x',
+    },
+    status: 'draft',
+    createdAt: randomDate(3),
+  },
+  {
+    id: 'ai-camp-2',
+    prompt: 'Follow-up campaign for leads who opened but didn\'t reply',
+    preview: {
+      name: 'Gentle Reminder — No Reply Follow-up',
+      segment: { filters: [{ field: 'last_action', operator: 'equals', value: 'opened' }, { field: 'replied', operator: 'equals', value: 'false' }], estimatedLeads: 123 },
+      channels: ['EMAIL'],
+      message: 'Subject: Still thinking about it? 👋\n\nHi {{contact.name}},\n\nNoticed you checked out our offer — wanted to see if you had any questions.\n\nHere\'s a quick summary:\n✅ [Key Benefit 1]\n✅ [Key Benefit 2]\n✅ [Key Benefit 3]\n\nReply to this email or book a quick 10-min call: [Calendar Link]\n\nCheers,\n[Your Name]',
+      schedule: { start: new Date().toISOString(), end: new Date(Date.now() + 7 * 86400000).toISOString(), timezone: 'Asia/Kolkata' },
+      budget: 0,
+      predictedROI: '8-10x',
+    },
+    status: 'launched',
+    createdAt: randomDate(7),
+  },
+  {
+    id: 'ai-camp-3',
+    prompt: 'WhatsApp broadcast for new property listing in Whitefield',
+    preview: {
+      name: 'New Launch — Whitefield Luxury Apartments',
+      segment: { filters: [{ field: 'interest', operator: 'contains', value: 'property' }, { field: 'budget', operator: 'gte', value: '50000' }], estimatedLeads: 89 },
+      channels: ['WHATSAPP'],
+      message: '🏢 New Launch Alert! Premium Apartments in Whitefield\n\n[Business Name] presents:\n🌳 2/3 BHK Luxury Apartments\n📍 Whitefield, Bangalore\n\n✨ Starting at ₹75L\n🏊 Swimming Pool, Clubhouse, Gym\n🚇 500m from Metro\n🔑 Ready-to-move: Dec 2026\n\nInterested? Reply "YES" for a free site visit + brochure 📄\n\nLimited units available!',
+      schedule: { start: new Date().toISOString(), end: new Date(Date.now() + 30 * 86400000).toISOString(), timezone: 'Asia/Kolkata' },
+      budget: 35000,
+      predictedROI: '20-25x',
+    },
+    status: 'draft',
+    createdAt: randomDate(1),
+  },
+];
+
+function detectIntent(prompt: string): { intent: string; channels: string[]; targets: string; message: string; name: string } {
+  const lower = prompt.toLowerCase();
+  if (lower.includes('diwali') || lower.includes('festival') || lower.includes('festive')) {
+    return {
+      intent: 'festive_offer',
+      channels: ['WHATSAPP', 'SMS'],
+      targets: lower.includes('bangalore') ? 'HOT leads in Bangalore' : 'all active leads',
+      message: `🪔 Exclusive Festive Offer Just for You! ✨\n\nHi {{contact.name}},\n\n[Business Name] has a special festive surprise! 🎁\n\n✨ Flat 25% OFF on all plans\n🎁 Free consultation worth ₹2,499\n📅 Limited period offer\n\nReply "YES" to claim or visit: [Link]\n\nWishing you and your family a wonderful festive season! 🌟`,
+      name: lower.includes('bangalore') ? 'Festive Offer — Bangalore' : 'Festive Campaign',
+    };
+  }
+  if (lower.includes('follow') || lower.includes('reminder') || lower.includes('no reply') || lower.includes('didn\'t reply')) {
+    return {
+      intent: 'follow_up',
+      channels: ['EMAIL'],
+      targets: 'leads who opened but didn\'t reply',
+      message: `Subject: Still thinking? 👋\n\nHi {{contact.name}},\n\nNoticed you checked out our offer — just wanted to see if you had any questions.\n\nHere's a quick recap:\n✅ [Key Benefit 1]\n✅ [Key Benefit 2]\n✅ [Key Benefit 3]\n\nBook a quick call: [Calendar Link]\n\nCheers,\n[Your Name]`,
+      name: 'Follow-up — No Reply',
+    };
+  }
+  if (lower.includes('whatsapp') || lower.includes('broadcast')) {
+    return {
+      intent: 'whatsapp_broadcast',
+      channels: ['WHATSAPP'],
+      targets: lower.includes('property') || lower.includes('listing') ? 'leads interested in property' : 'all engaged leads',
+      message: `🚀 Exciting News from [Business Name]!\n\nHi {{contact.name}},\n\nWe have something special for you!\n\n${lower.includes('whitefield') ? '📍 Whitefield, Bangalore\n🏢 Luxury 2/3 BHK Apartments\n✨ Starting at ₹75L\n🔑 Ready-to-move Dec 2026' : '✨ Exclusive offer just for you\n🎯 Limited time deal\n💥 Don\'t miss out!'}\n\nReply "YES" to know more or visit: [Link]\n\n— Team [Business Name]`,
+      name: lower.includes('property') ? 'Property Broadcast — WhatsApp' : 'WhatsApp Broadcast',
+    };
+  }
+  if (lower.includes('re-engage') || lower.includes('win back') || lower.includes('cold') || lower.includes('inactive')) {
+    return {
+      intent: 're_engagement',
+      channels: ['SMS', 'EMAIL'],
+      targets: 'inactive/cold leads (no activity in 30+ days)',
+      message: `We miss you! 💙\n\nHi {{contact.name}},\n\nIt's been a while! We'd love to welcome you back with a special offer:\n\n🎁 Exclusive "Welcome Back" discount\n⏰ Limited time only\n\nVisit: [Link] or reply to this message.\n\n— [Business Name]`,
+      name: 'Re-engagement — Cold Leads',
+    };
+  }
+  return {
+    intent: 'general_promotion',
+    channels: lower.includes('whatsapp') ? ['WHATSAPP'] : lower.includes('email') ? ['EMAIL'] : ['SMS', 'WHATSAPP'],
+    targets: lower.includes('hot') ? 'HOT leads' : lower.includes('warm') ? 'WARM leads' : 'all active leads',
+    message: `Hi {{contact.name}}! 👋\n\n[Business Name] here with a special update just for you.\n\n${prompt.includes('offer') || prompt.includes('discount') ? '🎉 Exclusive offer: Limited time discount!\n⏰ Act fast — this won\'t last long!' : '✨ Check out what\'s new:\n📌 Latest updates and offers\n💡 Tailored just for you'}\n\nReply "YES" or visit: [Link]\n\n— Team [Business Name]`,
+    name: prompt.slice(0, 40) + (prompt.length > 40 ? '...' : ''),
+  };
+}
+
+function generateAICampaign(prompt: string) {
+  const { intent, channels, targets, message, name } = detectIntent(prompt);
+  return {
+    id: `ai-camp-${Date.now()}`,
+    prompt,
+    preview: {
+      name,
+      segment: {
+        filters: [{ field: 'segment', operator: 'equals', value: targets.includes('HOT') ? 'HOT' : targets.includes('WARM') ? 'WARM' : 'ALL' }],
+        estimatedLeads: randomInt(30, 200),
+      },
+      channels,
+      message,
+      schedule: {
+        start: new Date().toISOString(),
+        end: new Date(Date.now() + 14 * 86400000).toISOString(),
+        timezone: 'Asia/Kolkata',
+      },
+      budget: intent === 'festive_offer' ? randomInt(25000, 75000) : intent === 'whatsapp_broadcast' ? randomInt(15000, 50000) : randomInt(0, 15000),
+      predictedROI: `${randomInt(5, 25)}-${randomInt(12, 40)}x`,
+    },
+    status: 'draft',
+    createdAt: new Date().toISOString(),
+  };
+}
+
 export function getMockResponse(path: string, method: string, body?: any): any | null {
   const normalized = path.split('?')[0];
   const handler = mockResponseMap[normalized];
@@ -341,6 +463,9 @@ export function getMockResponse(path: string, method: string, body?: any): any |
     if (normalized.startsWith('/rules/test')) return { matched: true, score: 75 };
     if (normalized.startsWith('/message-templates') && normalized.endsWith('/preview')) {
       return { preview: 'Mock preview of the template with your variables.' };
+    }
+    if (normalized.endsWith('/ai/campaigns/generate')) {
+      return generateAICampaign(body?.prompt || '');
     }
     return { success: true, id: `mock-${Date.now()}` };
   }

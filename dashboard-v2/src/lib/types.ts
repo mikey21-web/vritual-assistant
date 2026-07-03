@@ -194,9 +194,25 @@ export interface AnalyticsOverview {
   conversionRate: string;
 }
 
+export interface AICampaignDraft {
+  id: string;
+  prompt: string;
+  preview: {
+    name: string;
+    segment: { filters: Array<{ field: string; operator: string; value: string }>; estimatedLeads: number };
+    channels: string[];
+    message: string;
+    schedule: { start: string; end: string; timezone: string };
+    budget: number;
+    predictedROI: string;
+  };
+  status: 'draft' | 'launched';
+  createdAt: string;
+}
+
 export type NavigationPage = 
   | 'Overview' | 'Leads' | 'Contacts' | 'Campaigns' | 'Forms' | 'QR Codes'
   | 'Messages' | 'Templates' | 'Media' | 'Nurture' | 'Scoring' | 'Routing'
   | 'Tasks' | 'Conversions' | 'Integrations' | 'CRM' | 'Booking' | 'Analytics'
   | 'Team' | 'Audit Logs' | 'Advanced' | 'Settings' | 'Workspace'
-  | 'Failures' | 'Health';
+  | 'Failures' | 'Health' | 'AICampaigns';
