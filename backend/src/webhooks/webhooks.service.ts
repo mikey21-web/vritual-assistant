@@ -133,6 +133,17 @@ export class WebhooksService {
       lead = await this.leadsService.create({ contactId: contact.id, source: 'TELEGRAM', message: text, metadata: payload });
     }
 
+    // Handle /start for consent opt-in
+    if (text.trim().toLowerCase() === '/start') {
+      await this.prisma.contact.update({
+        where: { id: contact.id },
+        data: { consentStatus: 'opted_in' },
+      });
+      await this.prisma.consentEvent.create({
+        data: { contactId: contact.id, channel: 'TELEGRAM', action: 'opt_in', source: 'webhook' },
+      });
+    }
+
     // Handle STOP commands for consent/opt-out
     const stopPattern = /^\s*(stop|unsubscribe|cancel|opt.?out)\s*$/i;
     if (stopPattern.test(text.trim())) {
