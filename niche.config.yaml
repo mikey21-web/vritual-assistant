@@ -1,232 +1,80 @@
-# Niche Configuration File
-# This is the ONLY file an operator edits to configure a deployment.
-# Validated against config.schema.json at boot — invalid configs HARD FAIL.
 schema_version: 1
 core_engine_version: "1.4.2"
-
 niche:
-  key: realestate-acme
-  industry: real_estate
-  display_name: "Acme Realty"
-
+  key: event-marketing-agency
+  industry: events
+  display_name: "EventPro Marketing"
 branding:
-  logo_url: "https://example.com/logo.png"
-  primary_color: "#0B5B7A"
-  labels:
-    lead: "Buyer"
-    leads: "Buyers"
-    contact: "Contact"
-    conversion: "Deal"
-
+  logo_url: "https://example.com/eventpro-logo.png"
+  primary_color: "#7C3AED"
+  labels: { lead: "Client", leads: "Clients", contact: "Contact", conversion: "Booking" }
 agent:
   model: claude-haiku-4-5
   tone_examples:
-    - "Hi {name}! Thanks for reaching out about {property}. Would you like to schedule a site visit?"
-    - "Great news — I found some properties that match your criteria. Let me share them with you."
-    - "No pressure at all! When you're ready to explore options, I'm here to help."
-  goals:
-    - "Book a site visit"
-    - "Schedule a consultation call"
-    - "Qualify budget and timeline"
-    - "Send property recommendations"
-  prompts:
-    welcome: "You are a friendly real estate assistant for {display_name}. Help buyers find their dream home."
+    - "Hi {name}! Thanks for your interest in {event_type} event planning. How can I make your event special?"
+    - "We have some amazing packages for {event_type} events. Want to hear about them?"
+  goals: ["Book a consultation call", "Send event package details", "Schedule venue visit"]
   compliance:
-    - "RERA: Include project registration number in all property-specific messages"
-    - "DPDP: Require explicit opt-in before sending property updates"
-
+    - "Include cancellation policy in all booking messages"
+    - "DPDP: Require explicit opt-in before sending promotional content"
 packs:
   - type: custom_fields
     payload:
       fields:
-        - key: property_type
-          label: Property Type
-          type: DROPDOWN
-          options: ["Apartment", "Villa", "Plot", "Commercial"]
-          required: true
-        - key: budget_range
-          label: Budget Range
-          type: TEXT
-          required: true
-        - key: bedrooms
-          label: Preferred Bedrooms
-          type: DROPDOWN
-          options: ["1", "2", "3", "4", "4+"]
-        - key: location
-          label: Preferred Location
-          type: TEXT
-        - key: move_in_timeline
-          label: Move-in Timeline
-          type: DROPDOWN
-          options: ["Immediate", "1-3 months", "3-6 months", "6+ months"]
-        - key: financing_status
-          label: Financing Status
-          type: DROPDOWN
-          options: ["Pre-approved", "In Process", "Not Started", "Cash Buyer"]
-        - key: site_visit_interest
-          label: Site Visit Interest
-          type: BOOLEAN
-
+        - { key: event_type, label: "Event Type", type: DROPDOWN, options: ["Wedding", "Corporate", "Birthday", "Conference", "Exhibition"], required: true }
+        - { key: guest_count, label: "Expected Guests", type: NUMBER, required: true }
+        - { key: event_date, label: "Event Date", type: DATE }
+        - { key: budget, label: "Budget Range", type: DROPDOWN, options: ["Under 1L", "1L-5L", "5L-15L", "15L+"] }
+        - { key: venue_preference, label: "Venue Preference", type: DROPDOWN, options: ["Indoor", "Outdoor", "Both", "Not Decided"] }
+        - { key: services_needed, label: "Services Needed", type: MULTI_SELECT, options: ["Catering", "Decoration", "Photography", "Music", "Transport"] }
   - type: pipeline_stages
     payload:
       stages:
-        - name: New Inquiry
-          order: 0
-          color: "#3B82F6"
-          isDefault: true
-        - name: Contacted
-          order: 1
-          color: "#8B5CF6"
-        - name: Qualified
-          order: 2
-          color: "#06B6D4"
-        - name: Site Visit Scheduled
-          order: 3
-          color: "#F59E0B"
-        - name: Negotiation
-          order: 4
-          color: "#F97316"
-        - name: Deal Closed
-          order: 5
-          color: "#10B981"
-          isEnd: true
-        - name: Lost
-          order: 6
-          color: "#EF4444"
-          isEnd: true
-
+        - { name: "New Inquiry", order: 0, color: "#7C3AED", isDefault: true }
+        - { name: "Contacted", order: 1, color: "#F59E0B" }
+        - { name: "Proposal Sent", order: 2, color: "#3B82F6" }
+        - { name: "Negotiation", order: 3, color: "#F97316" }
+        - { name: "Deposit Paid", order: 4, color: "#06B6D4" }
+        - { name: "Event Confirmed", order: 5, color: "#10B981", isEnd: true }
+        - { name: "Post-Event Follow-up", order: 6, color: "#8B5CF6" }
+        - { name: "Cancelled", order: 7, color: "#EF4444", isEnd: true }
   - type: scoring_rules
     payload:
       rules:
-        - field: budget_range
-          operator: gte
-          value: "5000000"
-          points: 30
-          name: "High Budget"
-        - field: move_in_timeline
-          operator: equals
-          value: "Immediate"
-          points: 25
-          name: "Urgent Buyer"
-        - field: financing_status
-          operator: equals
-          value: "Pre-approved"
-          points: 20
-          name: "Pre-approved"
-        - field: site_visit_interest
-          operator: equals
-          value: "true"
-          points: 15
-          name: "Site Visit Interest"
-
-  - type: routing_rules
-    payload:
-      rules:
-        - name: "High Budget to Senior Agent"
-          conditions:
-            - field: score
-              operator: gte
-              value: "50"
-          action:
-            type: assign_to_agent
-            agent_role: MANAGER
-        - name: "Urgent to Fast Response"
-          conditions:
-            - field: move_in_timeline
-              operator: equals
-              value: "Immediate"
-          action:
-            type: priority_queue
-            priority: high
-
+        - { field: event_date, operator: exists, value: "", points: 30, name: "Has Date" }
+        - { field: budget, operator: gte, value: "5L-15L", points: 25, name: "High Budget" }
+        - { field: event_type, operator: equals, value: "Wedding", points: 20, name: "Wedding Lead" }
+        - { field: guest_count, operator: gte, value: "100", points: 15, name: "Large Event" }
   - type: message_templates
     payload:
       templates:
-        - name: welcome_inquiry
+        - name: welcome_event_inquiry
           type: WELCOME
           channel: WHATSAPP
-          body: "Hi {{name}}! 👋 Thanks for reaching out to {{business_name}}. I'd love to help you find the perfect property. Could you tell me a bit more about what you're looking for?"
+          body: "Hi {{name}}! 🎉 Thank you for reaching out to {{business_name}}! We specialize in creating unforgettable {{event_type}} events. Let's discuss how we can make your vision come to life!"
           active: true
-        - name: site_visit_invite
+        - name: proposal_followup
           type: FOLLOW_UP
           channel: WHATSAPP
-          body: "Hi {{name}}, based on your preferences, I have a few properties that might interest you. Would you like to schedule a site visit this weekend?"
+          body: "Hi {{name}}, I've put together a customized proposal for your {{event_type}} event. Would you like me to share the details?"
           active: true
-
   - type: nurture_sequences
     payload:
       sequences:
         - name: New Inquiry Follow-up
           active: true
           steps:
-            - type: SEND_WHATSAPP
-              displayOrder: 0
-              waitSeconds: 0
-              templateId: null
-              config:
-                body: "Hi {{name}}, thanks for your interest! Let me know if you have any questions about properties in {{location}}."
-            - type: WAIT
-              displayOrder: 1
-              waitSeconds: 86400
-            - type: CHECK_CONDITION
-              displayOrder: 2
-              condition:
-                field: status
-                operator: not_equals
-                value: "CONTACTED"
-              config:
-                onPass:
-                  - type: SEND_WHATSAPP
-                    body: "Hey {{name}}, just checking in! Found anything interesting yet? I'm here to help with any questions."
-                onFail: []
-
+            - { type: SEND_WHATSAPP, displayOrder: 0, waitSeconds: 0, config: { body: "Hi {{name}}, thanks for your interest! Would you like to see our event packages?" } }
+            - { type: WAIT, displayOrder: 1, waitSeconds: 86400 }
+            - { type: CHECK_CONDITION, displayOrder: 2, condition: { field: status, operator: not_equals, value: "CONTACTED" }, config: { onPass: [{ type: SEND_WHATSAPP, body: "Hey {{name}}, just checking in! Want to explore event options?" }], onFail: [] } }
   - type: booking_settings
     payload:
       settings:
-        - name: Property Site Visit
-          provider: calendar
-          config:
-            duration: 45
-            type: in_person
-        - name: Consultation Call
-          provider: calendar
-          config:
-            duration: 15
-            type: video
-
-  - type: crm_mappings
-    payload:
-      mappings:
-        - name: Default CRM Sync
-          crmType: hubspot
-          active: true
-          fieldMappings:
-            - source: name
-              target: first_name
-            - source: phone
-              target: phone
-            - source: email
-              target: email
-            - source: property_type
-              target: custom_property_type
-            - source: budget_range
-              target: custom_budget
-
+        - { name: "Consultation Call", provider: calendar, config: { duration: 30, type: video } }
+        - { name: "Venue Visit", provider: calendar, config: { duration: 60, type: in_person } }
   - type: conversion_goals
     payload:
       goals:
-        - name: Site Visit Booked
-          destination: APPOINTMENT_BOOKING
-        - name: Property Shortlisted
-          destination: CRM_QUALIFIED_PUSH
-        - name: Quote Requested
-          destination: QUOTE_REQUEST
-        - name: Deal Closed
-          destination: PURCHASE_ONLINE
-
-  - type: dashboard_labels
-    payload:
-      lead: "Buyer"
-      leads: "Buyers"
-      conversion: "Deal"
-      pipeline: "Buyer Journey"
+        - { name: "Consultation Booked", destination: APPOINTMENT_BOOKING }
+        - { name: "Proposal Accepted", destination: QUOTE_REQUEST }
+        - { name: "Deposit Paid", destination: PURCHASE_ONLINE }
