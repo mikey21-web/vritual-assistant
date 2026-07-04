@@ -45,6 +45,9 @@ def normalize_niche_config(raw: dict | None) -> dict:
             return SAFE_DEFAULT_CONFIG
 
     template = raw.get("template") or {}
+    niche_meta = raw.get("niche") or {}
+    agent_cfg = raw.get("agent") or {}
+    branding = raw.get("branding") or {}
     packs = cfg.get("packs") or cfg.get("templatePacks") or []
 
     fields = []
@@ -80,13 +83,23 @@ def normalize_niche_config(raw: dict | None) -> dict:
                 if body and isinstance(body, str):
                     tone_examples.append(body[:300])
         elif ptype in ("conversion_goals", "conversionGoals", "CONVERSION_GOALS"):
-            goals = payload.get("goals") or payload.get("items") or []
+            raw_goals = payload.get("goals") or payload.get("items") or []
+            goals = [g if isinstance(g, str) else g.get("name", "") for g in raw_goals]
         elif ptype in ("pipeline_stages", "pipelineStages", "PIPELINE_STAGES"):
             stages = [s.get("name", "") for s in (payload.get("stages") or [])]
         elif ptype in ("booking_settings", "bookingSettings", "BOOKING_SETTINGS"):
             booking_types = [b.get("name") or b.get("provider", "Consultation") for b in (payload.get("providers") or payload.get("settings") or [{"name": "Consultation"}])]
         elif ptype == "labels" or ptype == "LABELS":
             labels = payload
+
+    if agent_cfg.get("tone_examples"):
+        tone_examples = agent_cfg["tone_examples"]
+    if agent_cfg.get("goals"):
+        goals = agent_cfg["goals"]
+    if agent_cfg.get("compliance"):
+        compliance = agent_cfg["compliance"]
+    if not labels:
+        labels = branding.get("labels") or {}
 
     if not fields:
         fields = SAFE_DEFAULT_CONFIG["fields_to_collect"]
@@ -102,8 +115,8 @@ def normalize_niche_config(raw: dict | None) -> dict:
         booking_types = SAFE_DEFAULT_CONFIG["booking_types"]
 
     return {
-        "industry": template.get("industry") or raw.get("industry", "generic"),
-        "display_name": template.get("name") or raw.get("name", "Business"),
+        "industry": template.get("industry") or niche_meta.get("industry") or raw.get("industry", "generic"),
+        "display_name": template.get("name") or niche_meta.get("display_name") or raw.get("name", "Business"),
         "fields_to_collect": fields,
         "scoring_signals": scoring_signals,
         "conversion_goals": goals,
