@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { IntegrationsService } from './integrations.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { HubspotAdapter, SalesforceAdapter, ZohoAdapter } from '../shared/adapters/crm.adapter';
-import { WhatsAppCloudAdapter } from '../shared/adapters/messaging.adapter';
+import { WhatsAppCloudAdapter, TelegramBotAdapter } from '../shared/adapters/messaging.adapter';
 import { TwilioSmsAdapter } from '../shared/adapters/sms.adapter';
 import { CalendlyAdapter, GoogleCalendarAdapter } from '../shared/adapters/calendar.adapter';
 import { ConfigService } from '@nestjs/config';
@@ -27,6 +27,7 @@ describe('IntegrationsService', () => {
         { provide: SalesforceAdapter, useValue: { healthCheck: jest.fn() } },
         { provide: ZohoAdapter, useValue: { healthCheck: jest.fn() } },
         { provide: WhatsAppCloudAdapter, useValue: { healthCheck: jest.fn() } },
+        { provide: TelegramBotAdapter, useValue: { healthCheck: jest.fn() } },
         { provide: TwilioSmsAdapter, useValue: {} },
         { provide: CalendlyAdapter, useValue: { healthCheck: jest.fn() } },
         { provide: GoogleCalendarAdapter, useValue: { healthCheck: jest.fn() } },

@@ -28,6 +28,7 @@ describe('ContactsService', () => {
         update: jest.fn().mockResolvedValue(mockContact),
         count: jest.fn().mockResolvedValue(1),
       },
+      $transaction: jest.fn().mockImplementation((cb: any) => cb(prisma)),
     };
 
     const module = await Test.createTestingModule({

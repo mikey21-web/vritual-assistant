@@ -43,3 +43,43 @@ export function decrypt(data: string): string {
   decipher.setAuthTag(tag);
   return decipher.update(ciphertext) + decipher.final('utf8');
 }
+
+const SECRET_FIELDS = ['apiKey', 'apiSecret', 'secret', 'token', 'password', 'accessToken', 'privateKey', 'clientSecret', 'authToken', 'refreshToken'];
+
+function isSecretField(key: string): boolean {
+  return SECRET_FIELDS.includes(key);
+}
+
+export function envelopeEncrypt(config: any): any {
+  if (!config || typeof config !== 'object') return config;
+  const result: any = Array.isArray(config) ? [] : {};
+  for (const [key, value] of Object.entries(config)) {
+    if (isSecretField(key) && typeof value === 'string' && value) {
+      result[key] = encrypt(value);
+    } else if (typeof value === 'object' && value !== null) {
+      result[key] = envelopeEncrypt(value);
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
+export function envelopeDecrypt(config: any): any {
+  if (!config || typeof config !== 'object') return config;
+  const result: any = Array.isArray(config) ? [] : {};
+  for (const [key, value] of Object.entries(config)) {
+    if (isSecretField(key) && typeof value === 'string' && value) {
+      try {
+        result[key] = decrypt(value);
+      } catch {
+        result[key] = value;
+      }
+    } else if (typeof value === 'object' && value !== null) {
+      result[key] = envelopeDecrypt(value);
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+}

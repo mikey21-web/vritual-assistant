@@ -37,3 +37,38 @@ export class TelegramWebhookDto {
     date: number;
   };
 }
+
+export class SocialWebhookDto {
+  @ApiPropertyOptional() @IsString() @IsOptional() name?: string;
+  @ApiPropertyOptional() @IsEmail() @IsOptional() email?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() phone?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() message?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() source?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() leadId?: string;
+  @ApiPropertyOptional() @IsObject() @IsOptional() metadata?: Record<string, unknown>;
+}
+
+export class VoiceIncomingWebhookDto {
+  @ApiPropertyOptional() @IsString() @IsOptional() CallSid?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() From?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() To?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() CallStatus?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() Direction?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() callerName?: string;
+  @ApiPropertyOptional() @IsObject() @IsOptional() metadata?: Record<string, unknown>;
+}
+
+export class VoiceStatusWebhookDto {
+  @ApiPropertyOptional() @IsString() @IsOptional() CallSid?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() From?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() To?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() CallStatus?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() Direction?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() Duration?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() RecordingUrl?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() RecordingSid?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() AnsweredBy?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() CallDuration?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() Timestamp?: string;
+  @ApiPropertyOptional() @IsObject() @IsOptional() metadata?: Record<string, unknown>;
+}

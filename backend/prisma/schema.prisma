@@ -1020,6 +1020,29 @@ model TenantApiKey {
   @@map("tenant_api_keys")
 }
 
+// === SUBSCRIPTION / BILLING ===
+
+model Subscription {
+  id                    String    @id @default(uuid())
+  tenantId              String    @map("tenant_id")
+  stripeCustomerId      String?
+  stripeSubscriptionId  String?
+  planId                String
+  status                String    @default("incomplete")  // incomplete | active | past_due | canceled | trialing
+  currentPeriodStart    DateTime?
+  currentPeriodEnd      DateTime?
+  trialEndsAt           DateTime?
+  canceledAt            DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([tenantId])
+  @@index([stripeSubscriptionId])
+  @@index([stripeCustomerId])
+  @@index([status])
+  @@map("subscriptions")
+}
+
 // === CORE ENGINE MODELS ===
 
 model SystemEvent {
@@ -1184,6 +1207,21 @@ model WorkflowStepRun {
   @@index([stepKey])
   @@index([status])
   @@map("workflow_step_runs")
+}
+
+// === MONITORING ===
+
+model HealthCheck {
+  id        String   @id @default(uuid())
+  service   String
+  status    String   // ok | degraded | down
+  latencyMs Int?
+  detail    String?
+  checkedAt DateTime @default(now())
+
+  @@index([service, checkedAt])
+  @@index([checkedAt])
+  @@map("health_checks")
 }
 
 model OutboxMessage {

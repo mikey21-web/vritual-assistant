@@ -12,6 +12,8 @@ import { HubspotAdapter, SalesforceAdapter, ZohoAdapter } from './adapters/crm.a
 import { CalendlyAdapter, GoogleCalendarAdapter } from './adapters/calendar.adapter';
 import { WhatsAppCloudAdapter, TelegramBotAdapter } from './adapters/messaging.adapter';
 import { TwilioSmsAdapter } from './adapters/sms.adapter';
+import { TwilioVoiceAdapter } from './adapters/voice.adapter';
+import { TwiMLGenerator } from './adapters/twiml.generator';
 import { EmailAdapter } from './adapters/email.adapter';
 import { HealthController } from './health.controller';
 import { SentryService } from './sentry.service';
@@ -24,16 +26,16 @@ import { SentryService } from './sentry.service';
     FeatureFlagsService, AlertingService, NormalizationService, GracefulDegradationService,
     HubspotAdapter, SalesforceAdapter, ZohoAdapter,
     CalendlyAdapter, GoogleCalendarAdapter,
-    WhatsAppCloudAdapter, TelegramBotAdapter, TwilioSmsAdapter, EmailAdapter, OutboxService,
-    SentryService,
+    WhatsAppCloudAdapter, TelegramBotAdapter, TwilioSmsAdapter, TwilioVoiceAdapter, TwiMLGenerator,
+    EmailAdapter, OutboxService, SentryService,
   ],
   exports: [
     SignedUrlService, WebhookSecurityService, HealthService, PackApplierService,
     FeatureFlagsService, AlertingService, NormalizationService, GracefulDegradationService,
     HubspotAdapter, SalesforceAdapter, ZohoAdapter,
     CalendlyAdapter, GoogleCalendarAdapter,
-    WhatsAppCloudAdapter, TelegramBotAdapter, TwilioSmsAdapter, EmailAdapter, OutboxService,
-    SentryService,
+    WhatsAppCloudAdapter, TelegramBotAdapter, TwilioSmsAdapter, TwilioVoiceAdapter, TwiMLGenerator,
+    EmailAdapter, OutboxService, SentryService,
   ],
 })
 export class SharedModule {}

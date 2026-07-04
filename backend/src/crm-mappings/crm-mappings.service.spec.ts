@@ -22,6 +22,9 @@ describe('CrmMappingsService', () => {
         update: jest.fn().mockResolvedValue(mockMapping),
         count: jest.fn().mockResolvedValue(1),
       },
+      integration: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'int-1', type: 'HUBSPOT', config: { apiKey: 'test-key' } }),
+      },
     };
     hubspot = { healthCheck: jest.fn().mockResolvedValue(true) };
     salesforce = { healthCheck: jest.fn().mockResolvedValue(false) };

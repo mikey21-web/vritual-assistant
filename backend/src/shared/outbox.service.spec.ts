@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { OutboxService } from './outbox.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { TwilioSmsAdapter } from './adapters/sms.adapter';
-import { WhatsAppCloudAdapter } from './adapters/messaging.adapter';
+import { WhatsAppCloudAdapter, TelegramBotAdapter } from './adapters/messaging.adapter';
 
 describe('OutboxService', () => {
   let service: OutboxService;
@@ -31,6 +31,7 @@ describe('OutboxService', () => {
         { provide: PrismaService, useValue: prisma },
         { provide: TwilioSmsAdapter, useValue: smsAdapter },
         { provide: WhatsAppCloudAdapter, useValue: { sendMessage: jest.fn() } },
+        { provide: TelegramBotAdapter, useValue: { sendMessage: jest.fn() } },
         { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('test') } },
       ],
     }).compile();

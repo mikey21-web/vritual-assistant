@@ -188,6 +188,156 @@ export class WebhooksService {
     return { data: result };
   }
 
+  async handleSocialWebhook(payload: any, req?: any) {
+    const source = (payload.source || 'social').toLowerCase();
+    const key = this.idempotencyKey([source, 'social_lead', payload.leadId || payload.email || payload.phone || this.payloadHash(payload)]);
+    const existing = await this.prisma.webhookEvent.findUnique({ where: { idempotencyKey: key } });
+    if (existing) return { status: 'duplicate', result: existing.processedResult };
+
+    const contact = await this.contactsService.findOrCreate({
+      name: payload.name,
+      email: payload.email,
+      phone: payload.phone,
+    }, req);
+
+    const mappedSource = this.mapSocialSource(source);
+
+    const lead = await this.leadsService.create({
+      contactId: contact.id,
+      source: mappedSource,
+      message: payload.message || '',
+      metadata: {
+        socialSource: source,
+        originalPayload: payload,
+        ...(payload.metadata || {}),
+      },
+    });
+
+    await this.conversationsService.create({
+      text: payload.message || 'Social media lead captured',
+      channel: 'SOCIAL_DM',
+      direction: 'INBOUND',
+      leadId: lead.id,
+      contactId: contact.id,
+      metadata: { source, originalPayload: payload },
+    });
+
+    const result = { contact, lead };
+    await this.prisma.webhookEvent.create({
+      data: { provider: source, eventType: 'social_lead', idempotencyKey: key, rawPayload: payload, processedResult: result },
+    });
+    await this.auditLogs.log('webhook_processed', 'WebhookEvent', key, undefined, { provider: source, eventType: 'social_lead' });
+
+    this.agentClient.trigger(lead.id, key, 'SOCIAL_DM', payload.message || '', lead.tenantId || contact.tenantId);
+
+    return { data: { leadId: lead.id, contactId: contact.id } };
+  }
+
+  async handleVoiceIncoming(payload: any, req?: any) {
+    const callSid = payload.CallSid || payload.callSid;
+    if (!callSid) return { status: 'ignored', reason: 'no CallSid' };
+
+    const key = this.idempotencyKey(['twilio', 'voice_incoming', callSid]);
+    const existing = await this.prisma.webhookEvent.findUnique({ where: { idempotencyKey: key } });
+    if (existing) return { status: 'duplicate', result: existing.processedResult };
+
+    const fromNumber = payload.From || payload.from || '';
+    const toNumber = payload.To || payload.to || '';
+
+    // Find or create a contact by phone number
+    const contact = await this.contactsService.findOrCreate({
+      name: payload.callerName || `Caller ${fromNumber}`,
+      phone: fromNumber,
+    }, req);
+
+    // Check for an active lead or create one
+    const existingLead = await this.prisma.lead.findFirst({
+      where: {
+        contactId: contact.id,
+        status: { notIn: ['LOST', 'CONVERTED', 'SPAM'] },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    let lead;
+    if (existingLead) {
+      lead = existingLead;
+    } else {
+      lead = await this.leadsService.create({
+        contactId: contact.id,
+        source: 'PHONE_CALL',
+        message: `Incoming call from ${fromNumber}`,
+        metadata: { callSid, from: fromNumber, to: toNumber, callStatus: payload.CallStatus },
+      });
+    }
+
+    await this.conversationsService.create({
+      text: `Incoming call from ${fromNumber} (SID: ${callSid})`,
+      channel: 'PHONE_CALL',
+      direction: 'INBOUND',
+      providerMessageId: callSid,
+      leadId: lead.id,
+      contactId: contact.id,
+      metadata: payload,
+    });
+
+    const result = { contact, lead, callSid };
+    await this.prisma.webhookEvent.create({
+      data: { provider: 'twilio', eventType: 'voice_incoming', idempotencyKey: key, rawPayload: payload, processedResult: result },
+    });
+    await this.auditLogs.log('webhook_processed', 'WebhookEvent', key, undefined, { provider: 'twilio', eventType: 'voice_incoming' });
+
+    this.agentClient.trigger(lead.id, callSid, 'PHONE_CALL', `Incoming call from ${fromNumber}`, lead.tenantId || contact.tenantId);
+
+    return { data: result };
+  }
+
+  async handleVoiceStatus(payload: any) {
+    const callSid = payload.CallSid || payload.callSid;
+    if (!callSid) return { status: 'ignored', reason: 'no CallSid' };
+
+    const key = this.idempotencyKey(['twilio', 'voice_status', callSid, payload.CallStatus || 'status']);
+    const existing = await this.prisma.webhookEvent.findUnique({ where: { idempotencyKey: key } });
+    if (existing) return { status: 'duplicate', result: existing.processedResult };
+
+    const result = {
+      callSid,
+      status: payload.CallStatus,
+      direction: payload.Direction,
+      from: payload.From,
+      to: payload.To,
+      duration: payload.CallDuration || payload.Duration,
+      recordingUrl: payload.RecordingUrl,
+      answeredBy: payload.AnsweredBy,
+      timestamp: payload.Timestamp,
+    };
+
+    // Find the conversation message associated with this call to update delivery status
+    if (payload.CallStatus === 'completed') {
+      await this.prisma.conversationMessage.updateMany({
+        where: { providerMessageId: callSid },
+        data: { deliveryStatus: 'delivered' },
+      });
+    } else if (payload.CallStatus === 'busy' || payload.CallStatus === 'failed' || payload.CallStatus === 'no-answer') {
+      await this.prisma.conversationMessage.updateMany({
+        where: { providerMessageId: callSid },
+        data: { deliveryStatus: 'failed' },
+      });
+    }
+
+    await this.prisma.webhookEvent.create({
+      data: {
+        provider: 'twilio',
+        eventType: `voice_status_${payload.CallStatus || 'unknown'}`,
+        idempotencyKey: key,
+        rawPayload: payload,
+        processedResult: result,
+      },
+    });
+
+    return { data: result };
+  }
+
   async handleGeneric(provider: string, eventType: string, payload: any) {
     const key = this.idempotencyKey([provider, eventType, payload.id || payload.eventId || this.payloadHash(payload)]);
     const existing = await this.prisma.webhookEvent.findUnique({ where: { idempotencyKey: key } });
@@ -195,5 +345,19 @@ export class WebhooksService {
     const result = { received: true, eventType };
     await this.prisma.webhookEvent.create({ data: { provider, eventType, idempotencyKey: key, rawPayload: payload, processedResult: result } });
     return { data: result };
+  }
+
+  // -- Private helpers --
+
+  private mapSocialSource(source: string): any {
+    const map: Record<string, any> = {
+      facebook: 'SOCIAL_MEDIA',
+      instagram: 'SOCIAL_MEDIA',
+      linkedin: 'SOCIAL_MEDIA',
+      twitter: 'SOCIAL_MEDIA',
+      tiktok: 'SOCIAL_MEDIA',
+      social: 'SOCIAL_MEDIA',
+    };
+    return map[source] || 'SOCIAL_MEDIA';
   }
 }

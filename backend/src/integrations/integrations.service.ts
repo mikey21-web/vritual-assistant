@@ -1,12 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { HubspotAdapter, SalesforceAdapter, ZohoAdapter } from '../shared/adapters/crm.adapter';
 import { WhatsAppCloudAdapter, TelegramBotAdapter } from '../shared/adapters/messaging.adapter';
 import { TwilioSmsAdapter } from '../shared/adapters/sms.adapter';
 import { CalendlyAdapter, GoogleCalendarAdapter } from '../shared/adapters/calendar.adapter';
 import { CircuitBreaker } from '../shared/circuit-breaker';
-import { encrypt, decrypt, isEncrypted } from '../shared/crypto.util';
-import { Logger } from '@nestjs/common';
+import { envelopeEncrypt, envelopeDecrypt, isEncrypted } from '../shared/crypto.util';
 
 const SECRET_FIELDS = ['apiKey', 'apiSecret', 'secret', 'token', 'password', 'accessToken', 'privateKey', 'clientSecret', 'authToken', 'refreshToken'];
 
@@ -17,40 +16,6 @@ function redactSecrets(config: any): any {
     if (SECRET_FIELDS.includes(key)) result[key] = '***REDACTED***';
     else if (typeof value === 'object' && value !== null) result[key] = redactSecrets(value);
     else result[key] = value;
-  }
-  return result;
-}
-
-function envelopeEncrypt(config: any): any {
-  if (!config || typeof config !== 'object') return config;
-  const result: any = Array.isArray(config) ? [] : {};
-  for (const [key, value] of Object.entries(config)) {
-    if (SECRET_FIELDS.includes(key) && typeof value === 'string' && value) {
-      result[key] = encrypt(value);
-    } else if (typeof value === 'object' && value !== null) {
-      result[key] = envelopeEncrypt(value);
-    } else {
-      result[key] = value;
-    }
-  }
-  return result;
-}
-
-function envelopeDecrypt(config: any): any {
-  if (!config || typeof config !== 'object') return config;
-  const result: any = Array.isArray(config) ? [] : {};
-  for (const [key, value] of Object.entries(config)) {
-    if (SECRET_FIELDS.includes(key) && typeof value === 'string' && value) {
-      try {
-        result[key] = decrypt(value);
-      } catch {
-        result[key] = value;
-      }
-    } else if (typeof value === 'object' && value !== null) {
-      result[key] = envelopeDecrypt(value);
-    } else {
-      result[key] = value;
-    }
   }
   return result;
 }

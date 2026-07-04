@@ -25,6 +25,9 @@ describe('WebhooksService', () => {
         findUnique: jest.fn().mockResolvedValue(null),
         create: jest.fn().mockResolvedValue({}),
       },
+      lead: {
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
     };
     contacts = {
       findOrCreate: jest.fn().mockResolvedValue(mockContact),

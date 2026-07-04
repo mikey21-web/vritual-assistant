@@ -1,11 +1,11 @@
-import { Controller, Post, Body, HttpCode, Headers, UnauthorizedException, Req, RawBodyRequest } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { Controller, Post, Body, HttpCode, Headers, UnauthorizedException, Req, RawBodyRequest, Res } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiExcludeEndpoint } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { Request } from 'express';
+import { Request, Response } from 'express';
 import { WebhooksService } from './webhooks.service';
 import { WebhookSecurityService } from '../shared/webhook-security.service';
 import { Public } from '../auth/public.decorator';
-import { FormWebhookDto, WhatsAppWebhookDto, GenericWebhookDto, TelegramWebhookDto } from './dto/webhook.dto';
+import { FormWebhookDto, WhatsAppWebhookDto, GenericWebhookDto, TelegramWebhookDto, SocialWebhookDto, VoiceIncomingWebhookDto, VoiceStatusWebhookDto } from './dto/webhook.dto';
 
 @ApiTags('Webhooks')
 @Controller('webhooks')
@@ -55,20 +55,28 @@ export class WebhooksController {
   }
 
   @Public()
-  @Post('social') @HttpCode(200)
+  @Post('social') @HttpCode(200) @ApiOperation({ summary: 'Receive social media lead (Facebook/Instagram/LinkedIn) — API key auth' })
   async socialWebhook(
-    @Body() d: GenericWebhookDto,
+    @Body() d: SocialWebhookDto,
     @Headers('x-api-key') apiKey?: string,
     @Req() req?: RawBodyRequest<Request>,
   ) {
     if (!this.security.verifyWebhookApiKey(apiKey || '', 'social')) {
       throw new UnauthorizedException('Invalid webhook API key');
     }
-    return this.service.handleGeneric('social', 'social_message', d);
+    return this.service.handleSocialWebhook({
+      name: d.name,
+      email: d.email,
+      phone: d.phone,
+      message: d.message,
+      source: d.source || 'social',
+      leadId: d.leadId,
+      metadata: d.metadata,
+    }, req);
   }
 
   @Public()
-  @Post('calls') @HttpCode(200)
+  @Post('calls') @HttpCode(200) @ApiOperation({ summary: 'Receive phone call webhook (API key auth)' })
   async callWebhook(
     @Body() d: GenericWebhookDto,
     @Headers('x-api-key') apiKey?: string,
@@ -78,6 +86,52 @@ export class WebhooksController {
       throw new UnauthorizedException('Invalid webhook API key');
     }
     return this.service.handleGeneric('phone', 'phone_call', d);
+  }
+
+  // ─── Twilio Voice Webhooks ──────────────────────────────────────────
+
+  @Public()
+  @Post('voice/incoming') @HttpCode(200)
+  @ApiOperation({ summary: 'Twilio Voice — incoming call webhook (returns TwiML)' })
+  @ApiExcludeEndpoint()
+  async voiceIncoming(
+    @Body() d: VoiceIncomingWebhookDto,
+    @Req() req?: RawBodyRequest<Request>,
+    @Res() res?: Response,
+  ) {
+    // Process asynchronously (fire & forget the lead/conversation creation)
+    const resultPromise = this.service.handleVoiceIncoming(d, req);
+
+    // Return TwiML that connects the caller to the configured agent number
+    const agentNumber = process.env.TWILIO_VOICE_AGENT_NUMBER || '';
+    const twiml = agentNumber
+      ? `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Dial timeout="30" record="true">${agentNumber}</Dial>
+</Response>`
+      : `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="Polly.Joanna-Neural" language="en-US">
+    Thank you for calling. We are not able to take your call right now. Please try again later. Goodbye.
+  </Say>
+</Response>`;
+
+    // Set response type for Twilio
+    res?.set('Content-Type', 'text/xml');
+    res?.send(twiml);
+
+    // Await processing after response sent (non-blocking)
+    resultPromise.catch((err) => console.error('Voice incoming processing error:', err));
+  }
+
+  @Public()
+  @Post('voice/status') @HttpCode(200)
+  @ApiOperation({ summary: 'Twilio Voice — call status callback webhook' })
+  @ApiExcludeEndpoint()
+  async voiceStatus(
+    @Body() d: VoiceStatusWebhookDto,
+  ) {
+    return this.service.handleVoiceStatus(d);
   }
 
   @Public()

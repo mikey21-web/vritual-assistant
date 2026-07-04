@@ -38,6 +38,7 @@ describe('LeadsService', () => {
       scoreLog: {
         create: jest.fn().mockResolvedValue({}),
       },
+      $transaction: jest.fn().mockImplementation((cb: any) => cb(prisma)),
     };
 
     const module = await Test.createTestingModule({

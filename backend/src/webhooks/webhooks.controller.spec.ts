@@ -13,6 +13,9 @@ describe('WebhooksController', () => {
     handleTelegram: jest.fn().mockResolvedValue({ data: { contact: { id: 'c-3' }, lead: { id: 'l-3' } } }),
     handleGeneric: jest.fn().mockResolvedValue({ data: { received: true } }),
     handlePayment: jest.fn().mockResolvedValue({ data: { payment: {}, status: 'received' } }),
+    handleSocialWebhook: jest.fn().mockResolvedValue({ data: { lead: { id: 'l-4' } } }),
+    handleVoiceIncoming: jest.fn().mockResolvedValue({ data: { lead: { id: 'l-5' } } }),
+    handleVoiceStatus: jest.fn().mockResolvedValue({ data: { received: true } }),
   };
 
   const webhookSecurity = {
@@ -121,11 +124,11 @@ describe('WebhooksController', () => {
 
   describe('POST /webhooks/social', () => {
     it('should process social webhook with valid API key', async () => {
-      const dto = { data: { message: 'Hello' }, event: 'social_message' };
+      const dto = { name: 'John', email: 'john@test.com', source: 'facebook' };
       const result: any = await controller.socialWebhook(dto as any, 'valid-key', mockReq());
-      expect(result.data.received).toBe(true);
+      expect(result.data.lead.id).toBe('l-4');
       expect(webhookSecurity.verifyWebhookApiKey).toHaveBeenCalledWith('valid-key', 'social');
-      expect(webhooksService.handleGeneric).toHaveBeenCalledWith('social', 'social_message', dto);
+      expect(webhooksService.handleSocialWebhook).toHaveBeenCalled();
     });
 
     it('should throw UnauthorizedException when API key is invalid', async () => {
