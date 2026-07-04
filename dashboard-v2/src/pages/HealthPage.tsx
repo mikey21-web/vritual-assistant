@@ -29,7 +29,7 @@ export default function HealthPage() {
 
   if (!health) return (
     <div className="space-y-6 animate-fade-in">
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {[1,2,3,4].map(i => <div key={i} className="h-20 rounded-xl bg-[var(--card)] border border-[var(--border)] animate-pulse" />)}
       </div>
     </div>
@@ -75,7 +75,7 @@ export default function HealthPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           { label: 'Healthy', count: okCount, color: 'text-emerald-600' },
           { label: 'Degraded', count: degradedCount, color: 'text-amber-600' },

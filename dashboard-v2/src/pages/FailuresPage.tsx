@@ -41,7 +41,7 @@ export default function FailuresPage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           { label: 'Total', count: data.length, filter: 'all', color: 'text-[var(--foreground)]', bg: 'bg-[var(--card)]' },
           { label: 'Open', count: openCount, filter: 'OPEN', color: 'text-red-600 dark:text-red-400', bg: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' },

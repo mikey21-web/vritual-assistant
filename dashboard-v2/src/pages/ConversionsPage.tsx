@@ -106,38 +106,61 @@ export default function ConversionsPage() {
         ))}
       </div>
 
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-[var(--border)] bg-[var(--muted)]">
-                <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Lead</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Stage</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Value</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(!Array.isArray(items) || items.length === 0) ? (
-                <tr><td colSpan={4} className="px-4 py-12 text-center text-[var(--muted-foreground)]">No conversions</td></tr>
-              ) : (
-                Array.isArray(items) && items.map((c: any) => (
-                  <tr key={c.id} className="border-b border-[var(--border)] hover:bg-[var(--muted)]/50 transition-colors">
-                    <td className="px-4 py-3 font-medium text-[var(--foreground)]">{c.lead?.contact?.name || c.leadId}</td>
-                    <td className="px-4 py-3">
-                      <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-[var(--primary)]/10 text-[var(--primary)]">
-                        {c.stage}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 font-semibold text-[var(--foreground)]">${c.value?.toLocaleString() || '--'}</td>
-                    <td className="px-4 py-3 text-xs text-[var(--muted-foreground)]">{new Date(c.createdAt).toLocaleDateString()}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      {(!Array.isArray(items) || items.length === 0) ? (
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] py-12 text-center text-[var(--muted-foreground)]">
+          No conversions
         </div>
-      </div>
+      ) : (
+        <>
+          {/* Desktop table */}
+          <div className="hidden sm:block rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[var(--border)] bg-[var(--muted)]">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Lead</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Stage</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Value</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((c: any) => (
+                    <tr key={c.id} className="border-b border-[var(--border)] hover:bg-[var(--muted)]/50 transition-colors">
+                      <td className="px-4 py-3 font-medium text-[var(--foreground)]">{c.lead?.contact?.name || c.leadId}</td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-[var(--primary)]/10 text-[var(--primary)]">
+                          {c.stage}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 font-semibold text-[var(--foreground)]">${c.value?.toLocaleString() || '--'}</td>
+                      <td className="px-4 py-3 text-xs text-[var(--muted-foreground)]">{new Date(c.createdAt).toLocaleDateString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Mobile cards */}
+          <div className="block sm:hidden space-y-3">
+            {items.map((c: any) => (
+              <div key={c.id} className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="font-medium text-[var(--foreground)]">{c.lead?.contact?.name || c.leadId}</div>
+                  <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-[var(--primary)]/10 text-[var(--primary)] shrink-0 ml-2">
+                    {c.stage}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-lg font-bold text-[var(--foreground)]">${c.value?.toLocaleString() || '--'}</span>
+                  <span className="text-xs text-[var(--muted-foreground)]">{new Date(c.createdAt).toLocaleDateString()}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

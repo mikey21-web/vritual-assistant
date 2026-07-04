@@ -282,6 +282,93 @@ describe('Integration Tests', () => {
     });
   });
 
+  describe('Campaigns', () => {
+    let testCampaignId: string;
+
+    it('POST /campaigns — creates campaign with full data', async () => {
+      const res = await request(app.getHttpServer()).post('/campaigns').set('Authorization', `Bearer ${jwtToken}`).send({
+        name: 'Nested Campaign Test',
+        sourceType: 'FORM',
+        offer: 'Special Offer',
+        landingUrl: 'https://example.com/offer',
+        conversionGoal: 'sale',
+        active: true,
+      });
+      expect(res.status).toBe(201);
+      expect(res.body.name).toBe('Nested Campaign Test');
+      expect(res.body.sourceType).toBe('FORM');
+      expect(res.body.active).toBe(true);
+      testCampaignId = res.body.id;
+    });
+
+    it('GET /campaigns — returns paginated list', async () => {
+      const res = await request(app.getHttpServer()).get('/campaigns').set('Authorization', `Bearer ${jwtToken}`);
+      expect(res.status).toBe(200);
+      expect(res.body.data).toBeDefined();
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body.meta.total).toBeGreaterThanOrEqual(1);
+    });
+
+    it('GET /campaigns — filters by active status', async () => {
+      const res = await request(app.getHttpServer()).get('/campaigns?active=true').set('Authorization', `Bearer ${jwtToken}`);
+      expect(res.status).toBe(200);
+      expect(res.body.data).toBeDefined();
+    });
+
+    it('GET /campaigns/:id — returns single campaign', async () => {
+      if (!testCampaignId) return;
+      const res = await request(app.getHttpServer()).get(`/campaigns/${testCampaignId}`).set('Authorization', `Bearer ${jwtToken}`);
+      expect(res.status).toBe(200);
+      expect(res.body.id).toBe(testCampaignId);
+    });
+
+    it('GET /campaigns/:id — invalid id returns 404', async () => {
+      const res = await request(app.getHttpServer()).get('/campaigns/nonexistent-id').set('Authorization', `Bearer ${jwtToken}`);
+      expect(res.status).toBe(404);
+    });
+
+    it('POST /campaigns/:id/pause — pauses campaign', async () => {
+      if (!testCampaignId) return;
+      const res = await request(app.getHttpServer()).post(`/campaigns/${testCampaignId}/pause`).set('Authorization', `Bearer ${jwtToken}`);
+      expect(res.status).toBe(201);
+      expect(res.body.active).toBe(false);
+    });
+
+    it('POST /campaigns/:id/activate — reactivates campaign', async () => {
+      if (!testCampaignId) return;
+      const res = await request(app.getHttpServer()).post(`/campaigns/${testCampaignId}/activate`).set('Authorization', `Bearer ${jwtToken}`);
+      expect(res.status).toBe(201);
+      expect(res.body.active).toBe(true);
+    });
+
+    it('POST /campaigns/:id/duplicate — duplicates campaign with (copy) suffix', async () => {
+      if (!testCampaignId) return;
+      const res = await request(app.getHttpServer()).post(`/campaigns/${testCampaignId}/duplicate`).set('Authorization', `Bearer ${jwtToken}`);
+      expect(res.status).toBe(201);
+      expect(res.body.name).toContain('(copy)');
+      expect(res.body.active).toBe(false);
+    });
+
+    it('POST /campaigns/:id/performance — returns campaign metrics', async () => {
+      if (!testCampaignId) return;
+      const res = await request(app.getHttpServer()).get(`/campaigns/${testCampaignId}/performance`).set('Authorization', `Bearer ${jwtToken}`);
+      expect(res.status).toBe(200);
+      expect(res.body.data).toBeDefined();
+      expect(res.body.data.totalLeads).toBeDefined();
+      expect(res.body.data.conversionRate).toBeDefined();
+    });
+
+    it('POST /campaigns/:id/pause — non-existent campaign returns 404', async () => {
+      const res = await request(app.getHttpServer()).post('/campaigns/nonexistent-id/pause').set('Authorization', `Bearer ${jwtToken}`);
+      expect(res.status).toBe(404);
+    });
+
+    it('POST /campaigns/:id/duplicate — non-existent campaign returns 404', async () => {
+      const res = await request(app.getHttpServer()).post('/campaigns/nonexistent-id/duplicate').set('Authorization', `Bearer ${jwtToken}`);
+      expect(res.status).toBe(404);
+    });
+  });
+
   describe('Permission enforcement', () => {
     let viewerToken: string;
     let salesToken: string;

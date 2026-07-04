@@ -119,6 +119,16 @@ code, pre, .font-mono {
   outline-offset: 2px;
 }
 
+/* Mobile touch-friendly sizing */
+@media (hover: none) and (pointer: coarse) {
+  button, select, input, textarea, a, [role="button"] {
+    min-height: 44px;
+  }
+  button, select, a, [role="button"] {
+    min-width: 44px;
+  }
+}
+
 @media print {
   aside, nav, .no-print, [data-no-print], button, .print-hidden { display: none !important; }
   body { background: white !important; color: black !important; font-size: 11pt; }

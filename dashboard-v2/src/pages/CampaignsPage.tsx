@@ -70,67 +70,114 @@ export default function CampaignsPage() {
         </form>
       )}
 
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-[var(--border)] bg-[var(--muted)]">
-                <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Name</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Source</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Leads</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 ? (
-                <tr><td colSpan={5} className="px-4 py-12 text-center text-[var(--muted-foreground)]">No campaigns yet</td></tr>
-              ) : (
-                items.map((c: any) => (
-                  <tr key={c.id} className="border-b border-[var(--border)] hover:bg-[var(--muted)]/50 transition-colors">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <Megaphone size={14} className="text-[var(--muted-foreground)]" />
-                        <span className="font-medium text-[var(--foreground)]">{c.name}</span>
-                      </div>
-                      {c.offer && <div className="text-xs text-[var(--muted-foreground)] mt-0.5">{c.offer}</div>}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-[var(--muted-foreground)]">{c.sourceType}</td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
-                        c.active
-                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-                          : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
-                      }`}>
-                        {c.active ? 'Active' : 'Paused'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm font-semibold text-[var(--foreground)]">{c._count?.leads || 0}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => toggleCampaign(c.id, c.active).then(refresh)}
-                          className="p-1.5 rounded-md hover:bg-[var(--accent)] text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors"
-                          title={c.active ? 'Pause' : 'Activate'}
-                        >
-                          {c.active ? <Pause size={14} /> : <Play size={14} />}
-                        </button>
-                        <button
-                          onClick={() => duplicateCampaign(c.id).then(refresh)}
-                          className="p-1.5 rounded-md hover:bg-[var(--accent)] text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors"
-                          title="Duplicate"
-                        >
-                          <Copy size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      {items.length === 0 ? (
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] py-12 text-center text-[var(--muted-foreground)]">
+          No campaigns yet
         </div>
-      </div>
+      ) : (
+        <>
+          {/* Desktop table */}
+          <div className="hidden sm:block rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[var(--border)] bg-[var(--muted)]">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Name</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Source</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Status</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Leads</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((c: any) => (
+                    <tr key={c.id} className="border-b border-[var(--border)] hover:bg-[var(--muted)]/50 transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <Megaphone size={14} className="text-[var(--muted-foreground)]" />
+                          <span className="font-medium text-[var(--foreground)]">{c.name}</span>
+                        </div>
+                        {c.offer && <div className="text-xs text-[var(--muted-foreground)] mt-0.5">{c.offer}</div>}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-[var(--muted-foreground)]">{c.sourceType}</td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+                          c.active
+                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                            : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                        }`}>
+                          {c.active ? 'Active' : 'Paused'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm font-semibold text-[var(--foreground)]">{c._count?.leads || 0}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => toggleCampaign(c.id, c.active).then(refresh)}
+                            className="p-1.5 rounded-md hover:bg-[var(--accent)] text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors"
+                            title={c.active ? 'Pause' : 'Activate'}
+                          >
+                            {c.active ? <Pause size={14} /> : <Play size={14} />}
+                          </button>
+                          <button
+                            onClick={() => duplicateCampaign(c.id).then(refresh)}
+                            className="p-1.5 rounded-md hover:bg-[var(--accent)] text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors"
+                            title="Duplicate"
+                          >
+                            <Copy size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Mobile cards */}
+          <div className="block sm:hidden space-y-3">
+            {items.map((c: any) => (
+              <div key={c.id} className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <Megaphone size={14} className="text-[var(--muted-foreground)] shrink-0" />
+                      <span className="font-medium text-[var(--foreground)]">{c.name}</span>
+                    </div>
+                    {c.offer && <div className="text-xs text-[var(--muted-foreground)] ml-6 mt-0.5">{c.offer}</div>}
+                  </div>
+                  <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ml-2 ${
+                    c.active
+                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                      : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                  }`}>
+                    {c.active ? 'Active' : 'Paused'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-[var(--muted-foreground)]">{c.sourceType}</span>
+                  <span className="font-semibold text-[var(--foreground)]">{c._count?.leads || 0} leads</span>
+                </div>
+                <div className="flex items-center gap-2 mt-3 pt-3 border-t border-[var(--border)]">
+                  <button
+                    onClick={() => toggleCampaign(c.id, c.active).then(refresh)}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border border-[var(--border)] text-xs font-medium text-[var(--foreground)] hover:bg-[var(--accent)] transition-colors"
+                  >
+                    {c.active ? <><Pause size={14} /> Pause</> : <><Play size={14} /> Activate</>}
+                  </button>
+                  <button
+                    onClick={() => duplicateCampaign(c.id).then(refresh)}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border border-[var(--border)] text-xs font-medium text-[var(--foreground)] hover:bg-[var(--accent)] transition-colors"
+                  >
+                    <Copy size={14} /> Duplicate
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
