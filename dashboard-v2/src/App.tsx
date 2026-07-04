@@ -6,6 +6,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Sidebar } from "./components/layout/sidebar";
 import { Topbar } from "./components/layout/topbar";
 import { LoginPage } from "./pages/LoginPage";
+import LandingPage from "./pages/LandingPage";
 import { Skeleton } from "./components/ui/skeleton";
 import OverviewPage from "./pages/OverviewPage";
 import LeadsPage from "./pages/LeadsPage";
@@ -35,6 +36,7 @@ const PageComponents: Record<string, React.LazyExoticComponent<React.ComponentTy
   Failures: lazy(() => import("./pages/FailuresPage")),
   Health: lazy(() => import("./pages/HealthPage")),
   AICampaigns: lazy(() => import("./pages/AICampaignManager")),
+  Rules: lazy(() => import("./pages/RulesPage")),
 };
 
 function PageFallback() {
@@ -81,11 +83,13 @@ export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [dark, setDark] = useState(() => localStorage.getItem("theme") === "dark");
+  const [publicRoute, setPublicRoute] = useState(() => window.location.hash.replace("#", "") || "/");
 
   useEffect(() => {
     fetchProfile();
     const onHash = () => {
       const hash = window.location.hash.replace("#", "") || "/";
+      setPublicRoute(hash);
       setPage(getPageKey(hash));
     };
     onHash();
@@ -105,10 +109,14 @@ export default function App() {
 
   const handleLogin = async (email: string, password: string) => {
     await login(email, password);
+    window.location.hash = '/';
   };
 
   if (!isLoggedIn) {
-    return <LoginPage onLogin={handleLogin} />;
+    if (publicRoute === '/login') {
+      return <LoginPage onLogin={handleLogin} />;
+    }
+    return <LandingPage onLogin={() => { window.location.hash = '/login'; }} />;
   }
 
   const PageComponent = pageRoutes[page] || PageComponents[page];
