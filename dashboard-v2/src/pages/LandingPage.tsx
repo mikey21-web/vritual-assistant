@@ -1,69 +1,38 @@
-import { ArrowRight, Bolt, Shield, BarChart3, MessageSquare, Users, Zap, CheckCircle, Bot, Globe, QrCode, Phone, ChartColumn, CircleCheck, CircleX, Sparkles, Target, Clock, Blocks, Scan, Workflow, GitBranch, Webhook, Gauge, Eye, Mail, type LucideIcon } from 'lucide-react';
+import { ArrowRight, Check, Bot, MessageSquare, BarChart3, Globe, Gauge, Workflow, Shield, Users, Blocks, Zap, ExternalLink } from 'lucide-react';
 
-const fadeUp = `@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes scaleIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}`;
+const fadeUp = `@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}@keyframes fadeIn{from{opacity:0}to{opacity:1}}`;
 
-function SectionLabel({ children }: { children: string }) {
-  return <span className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: '#e8643c' }}>{children}</span>;
+function Label({ children }: { children: string }) {
+  return <span className="text-[11px] font-mono uppercase tracking-[0.15em]" style={{ color: '#0d6b6b' }}>{children}</span>;
 }
 
-function FeatureCard({ icon: Icon, title, desc }: { icon: LucideIcon; title: string; desc: string }) {
-  return (
-    <div className="group rounded-[18px] p-8 transition-all duration-300 hover:-translate-y-0.5"
-      style={{
-        background: 'rgba(255,255,255,0.03)',
-        border: '1px solid rgba(255,255,255,0.06)',
-      }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; }}
-    >
-      <div className="h-11 w-11 rounded-xl flex items-center justify-center mb-5" style={{ background: 'rgba(232,100,60,0.1)' }}>
-        <Icon size={20} style={{ color: '#e8643c' }} />
-      </div>
-      <h3 className="text-base font-semibold mb-3 leading-snug" style={{ color: '#f0eff0' }}>{title}</h3>
-      <p className="text-sm leading-relaxed" style={{ color: '#71717a' }}>{desc}</p>
-    </div>
-  );
+function FadeIn({ children, delay = '0s', className = '' }: { children: React.ReactNode; delay?: string; className?: string }) {
+  return <div className={className} style={{ animation: `fadeUp 0.7s ease forwards`, animationDelay: delay, opacity: 0 }}>{children}</div>;
 }
 
-function UseCaseCard({ title, items }: { title: string; items: string[] }) {
-  return (
-    <div className="rounded-[18px] p-8 transition-all duration-300"
-      style={{
-        background: 'rgba(255,255,255,0.03)',
-        border: '1px solid rgba(255,255,255,0.06)',
-      }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; }}
-    >
-      <h3 className="text-base font-semibold mb-6 leading-snug" style={{ color: '#f0eff0' }}>{title}</h3>
-      <ul className="space-y-3">
-        {items.map((item, i) => (
-          <li key={i} className="flex items-start gap-3">
-            <CircleCheck size={15} className="mt-0.5 shrink-0" style={{ color: '#e8643c' }} />
-            <span className="text-sm leading-relaxed" style={{ color: '#a1a1aa' }}>{item}</span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
+const text = '#1a1a1a';
+const muted = '#6b7280';
+const accent = '#0d6b6b';
+const border = '#e5e7eb';
+const bgCard = '#ffffff';
+const bgSection = '#faf9f6';
 
 export default function LandingPage({ onLogin }: { onLogin?: () => void }) {
   const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
 
   return (
-    <div style={{ background: '#17171c', color: '#fafafa', fontFamily: "'DM Sans', sans-serif", minHeight: '100vh' }}>
+    <div style={{ background: bgSection, color: text, fontFamily: "'DM Sans', sans-serif", minHeight: '100vh' }}>
       <style>{fadeUp}</style>
-      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
       {/* NAV */}
-      <nav className="fixed top-0 left-0 right-0 z-50 h-16" style={{ background: 'rgba(23,23,28,0.85)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+      <nav className="fixed top-0 left-0 right-0 z-50 h-16" style={{ background: 'rgba(250,249,246,0.9)', backdropFilter: 'blur(12px)', borderBottom: `1px solid ${border}` }}>
         <div className="max-w-6xl mx-auto px-6 h-full flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="h-7 w-7 rounded-md flex items-center justify-center" style={{ background: '#e8643c' }}>
-              <span className="text-[10px] font-bold font-['Space_Grotesk']" style={{ color: '#17171c' }}>LA</span>
+            <div className="h-7 w-7 rounded-md flex items-center justify-center" style={{ background: accent }}>
+              <span className="text-[10px] font-bold font-['Space_Grotesk']" style={{ color: '#ffffff' }}>LA</span>
             </div>
-            <span className="text-sm font-bold font-['Space_Grotesk']" style={{ color: '#fafafa' }}>LeadAuto</span>
+            <span className="text-sm font-bold font-['Space_Grotesk']">LeadAuto</span>
           </div>
           <div className="hidden md:flex items-center gap-8">
             {[
@@ -73,264 +42,369 @@ export default function LandingPage({ onLogin }: { onLogin?: () => void }) {
               { label: 'Pricing', target: 'pricing' },
             ].map(item => (
               <button key={item.target} onClick={() => scrollTo(item.target)}
-                className="text-[11px] font-mono uppercase tracking-[0.2em] transition-colors duration-200 hover:text-white"
-                style={{ color: '#a1a1aa' }}>
+                className="text-sm transition-colors duration-200 hover:text-black" style={{ color: muted }}>
                 {item.label}
               </button>
             ))}
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={onLogin}
-              className="text-sm font-medium px-4 py-2 rounded-lg transition-all duration-200 hover:opacity-80"
-              style={{ color: '#a1a1aa' }}>
-              Sign in
-            </button>
-            <button onClick={onLogin}
-              className="text-sm font-medium px-5 py-2 rounded-lg transition-all duration-200 hover:opacity-90"
-              style={{ background: '#e8643c', color: '#fafafa' }}>
-              Get Started
-            </button>
+            <button onClick={onLogin} className="text-sm font-medium px-4 py-2 rounded-lg transition-all duration-200 hover:opacity-80" style={{ color: muted }}>Sign in</button>
+            <button onClick={onLogin} className="text-sm font-medium px-5 py-2 rounded-lg transition-all duration-200 hover:opacity-90" style={{ background: accent, color: '#ffffff' }}>Get Started</button>
           </div>
         </div>
       </nav>
 
       {/* HERO */}
-      <section className="min-h-screen flex items-center relative overflow-hidden pt-16">
-        <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 80% 50% at 50% -10%, rgba(232,100,60,0.06) 0%, transparent 70%)' }} />
-        <div className="max-w-6xl mx-auto px-6 py-24 w-full">
-          <div className="max-w-3xl">
-            <div className="animate-fade-up opacity-0" style={{ animation: 'fadeUp 0.6s ease forwards', animationDelay: '0.1s' }}>
-              <span className="inline-flex items-center gap-2 text-[11px] font-mono uppercase tracking-[0.2em] mb-8 px-3 py-1.5 rounded-full" style={{ color: '#e8643c', background: 'rgba(232,100,60,0.08)', border: '1px solid rgba(232,100,60,0.15)' }}>
-                <span className="h-1.5 w-1.5 rounded-full" style={{ background: '#e8643c' }} />
-                AI Lead Automation
-              </span>
+      <section className="min-h-[85vh] flex items-center pt-24 pb-16">
+        <div className="max-w-6xl mx-auto px-6 w-full">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div>
+              <FadeIn delay="0.1s">
+                <Label>Lead automation platform</Label>
+              </FadeIn>
+              <FadeIn delay="0.2s">
+                <h1 className="text-[clamp(2.2rem,5.5vw,4rem)] font-bold font-['Space_Grotesk'] leading-[1.05] tracking-[-0.03em] mt-5 mb-6">
+                  Capture, qualify, and convert leads — on autopilot
+                </h1>
+              </FadeIn>
+              <FadeIn delay="0.3s">
+                <p className="text-base sm:text-lg leading-relaxed mb-8" style={{ color: muted, maxWidth: '480px' }}>
+                  AI that responds to every lead in under 30 seconds. Qualifies them, scores them, 
+                  follows up automatically, and pushes everything to your CRM. Works across WhatsApp, 
+                  web, email, and every channel your customers use.
+                </p>
+              </FadeIn>
+              <FadeIn delay="0.4s" className="flex flex-wrap items-center gap-4">
+                <button onClick={onLogin}
+                  className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:opacity-90"
+                  style={{ background: accent, color: '#ffffff' }}>
+                  Start Free <ArrowRight size={15} />
+                </button>
+                <button onClick={() => scrollTo('how')}
+                  className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl text-sm font-medium transition-all duration-200"
+                  style={{ border: `1px solid ${border}`, color: muted }}>
+                  See how it works
+                </button>
+              </FadeIn>
             </div>
 
-            <h1 className="font-['Space_Grotesk'] font-bold leading-none tracking-[-0.03em] mb-6"
-              style={{ fontSize: 'clamp(2.5rem, 7vw, 4.5rem)', animation: 'fadeUp 0.6s ease forwards', animationDelay: '0.2s', opacity: 0 }}>
-              Never lose a<br/>
-              <span style={{ color: '#e8643c' }}>lead again</span>
-            </h1>
-
-            <p className="text-base leading-relaxed max-w-xl mb-10"
-              style={{ color: '#a1a1aa', animation: 'fadeUp 0.6s ease forwards', animationDelay: '0.3s', opacity: 0 }}>
-              AI that captures, qualifies, and converts your leads automatically —<br/>
-              from first message to CRM. Works across WhatsApp, web, email, and every channel your customers use.
-            </p>
-
-            <div style={{ animation: 'fadeUp 0.6s ease forwards', animationDelay: '0.4s', opacity: 0 }}
-              className="flex flex-wrap items-center gap-4">
-              <button onClick={onLogin}
-                className="inline-flex items-center gap-2 px-7 py-3 rounded-xl text-sm font-semibold transition-all duration-200 hover:opacity-90"
-                style={{ background: '#e8643c', color: '#fafafa' }}>
-                Start Free <ArrowRight size={15} />
-              </button>
-              <button onClick={() => scrollTo('how')}
-                className="inline-flex items-center gap-2 px-7 py-3 rounded-xl text-sm font-medium transition-all duration-200"
-                style={{ border: '1px solid rgba(255,255,255,0.1)', color: '#a1a1aa' }}>
-                See how it works
-              </button>
-            </div>
+            {/* HERO DASHBOARD MOCKUP */}
+            <FadeIn delay="0.5s">
+              <div className="rounded-2xl overflow-hidden shadow-[0_0_0_1px_rgba(0,0,0,0.04),0_20px_40px_-12px_rgba(0,0,0,0.1)]">
+                <div className="flex items-center gap-1.5 px-4 py-2.5" style={{ background: '#f3f2ef', borderBottom: `1px solid ${border}` }}>
+                  {['#e8643c', '#fbbf24', '#22c55e'].map((c, i) => <div key={i} className="h-2.5 w-2.5 rounded-full" style={{ background: c }} />)}
+                  <span className="text-[10px] font-mono ml-2" style={{ color: '#9ca3af' }}>leads — LeadAuto</span>
+                </div>
+                <div style={{ background: '#ffffff' }}>
+                  <div className="p-4 border-b" style={{ borderColor: border }}>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-xs font-semibold" style={{ color: muted }}>Recent Leads</h3>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full" style={{ background: '#ecfdf5', color: '#059669' }}>12 new today</span>
+                    </div>
+                    {[
+                      { name: 'Rahul Mehta', source: 'WhatsApp', status: 'Qualified', score: '85', time: '2m ago' },
+                      { name: 'Ananya Sharma', source: 'Web Form', status: 'New', score: '42', time: '15m ago' },
+                      { name: 'Vikram Patel', source: 'QR Code', status: 'Engaged', score: '68', time: '1h ago' },
+                    ].map((lead, i) => (
+                      <div key={i} className="flex items-center justify-between py-2.5 border-b last:border-0" style={{ borderColor: border }}>
+                        <div className="flex items-center gap-3">
+                          <div className="h-7 w-7 rounded-full flex items-center justify-center text-[10px] font-semibold" style={{ background: '#eef2ff', color: '#4f46e5' }}>
+                            {lead.name.split(' ').map(n => n[0]).join('')}
+                          </div>
+                          <div>
+                            <div className="text-sm font-medium">{lead.name}</div>
+                            <div className="text-[11px]" style={{ color: muted }}>{lead.source} · {lead.time}</div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-[11px] font-mono" style={{ color: accent }}>{lead.score}</span>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full font-medium"
+                            style={{
+                              background: lead.status === 'Qualified' ? '#ecfdf5' : lead.status === 'New' ? '#eff6ff' : '#fffbeb',
+                              color: lead.status === 'Qualified' ? '#059669' : lead.status === 'New' ? '#2563eb' : '#d97706',
+                            }}>
+                            {lead.status}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                    <div className="mt-3 pt-3 border-t text-center" style={{ borderColor: border }}>
+                      <button className="text-xs font-medium" style={{ color: accent }}>View all 48 leads →</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </FadeIn>
           </div>
         </div>
       </section>
 
-      {/* STATS */}
-      <section className="py-20" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <div className="max-w-4xl mx-auto px-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-12">
-            {[
-              { value: '15.2%', label: 'avg conversion lift' },
-              { value: '30s', label: 'first response time' },
-              { value: '24/7', label: 'lead engagement' },
-              { value: '400+', label: 'tool integrations' },
-            ].map((s, i) => (
-              <div key={i} className="text-center" style={{ animation: 'fadeUp 0.6s ease forwards', animationDelay: `${0.1 + i * 0.1}s`, opacity: 0 }}>
-                <div className="text-3xl sm:text-4xl font-bold font-['Space_Grotesk'] mb-1 tracking-tight" style={{ color: '#e8643c' }}>{s.value}</div>
-                <div className="text-xs font-mono uppercase tracking-widest" style={{ color: '#71717a' }}>{s.label}</div>
-              </div>
+      {/* SOCIAL PROOF */}
+      <section className="py-14" style={{ borderTop: `1px solid ${border}` }}>
+        <div className="max-w-5xl mx-auto px-6">
+          <p className="text-xs font-mono uppercase tracking-[0.15em] text-center mb-8" style={{ color: muted }}>Trusted by agencies and businesses</p>
+          <div className="flex flex-wrap justify-center gap-8 opacity-50">
+            {['Agency 1', 'Agency 2', 'Company 3', 'Brand 4', 'Studio 5', 'Firm 6'].map((name, i) => (
+              <span key={i} className="text-sm font-semibold font-['Space_Grotesk']" style={{ color: muted }}>{name}</span>
             ))}
           </div>
         </div>
       </section>
 
       {/* HOW IT WORKS */}
-      <section className="py-24" id="how" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+      <section className="py-24" id="how">
         <div className="max-w-6xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <SectionLabel>How it works</SectionLabel>
-            <h2 className="text-[30px] sm:text-[42px] font-bold font-['Space_Grotesk'] mt-5 leading-[1.05] tracking-[-0.025em]" style={{ color: '#fafafa' }}>
-              From lead to customer —<br/>fully automatic
+          <div className="text-center max-w-2xl mx-auto mb-16">
+            <Label>How it works</Label>
+            <h2 className="text-[28px] sm:text-[38px] font-bold font-['Space_Grotesk'] mt-5 leading-[1.1] tracking-[-0.02em]">
+              From lead to customer in 5 steps
             </h2>
-            <p className="text-sm mt-4" style={{ color: '#71717a', maxWidth: '440px', margin: '1rem auto 0' }}>
-              One system handles the entire journey. No stitching tools together. No manual work.
+            <p className="text-sm mt-4" style={{ color: muted }}>
+              One system handles everything. No stitching tools together. No manual data entry.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-5 gap-6 items-start">
+          {/* STEP BY STEP */}
+          <div className="space-y-20">
             {[
-              { step: '01', title: 'Lead arrives', desc: 'Website, WhatsApp, QR code, Telegram, campaign link, or chatbot.', icon: Globe },
-              { step: '02', title: 'AI engages', desc: 'AI replies instantly, asks qualifying questions, extracts key data.', icon: Bot },
-              { step: '03', title: 'Scored & routed', desc: 'Auto-scored hot/warm/cold. Routed to the right team member.', icon: Gauge },
-              { step: '04', title: 'Auto follow-up', desc: 'Drip sequences send WhatsApp, email, and booking links on schedule.', icon: Workflow },
-              { step: '05', title: 'Pushed to CRM', desc: 'Enriched lead lands in HubSpot, Salesforce, Sheets — or your tool.', icon: ArrowRight },
+              {
+                num: '01', title: 'Lead arrives from any channel',
+                desc: 'WhatsApp, web forms, QR codes, Telegram, Instagram, phone calls, campaign links — all captured in one place. Each lead gets a unified profile with full context.',
+                icon: Globe,
+                mockup: (
+                  <div className="space-y-2">
+                    {[
+                      { icon: '💬', label: 'WhatsApp', count: '23 leads' },
+                      { icon: '📋', label: 'Web Forms', count: '12 leads' },
+                      { icon: '📱', label: 'QR Codes', count: '8 leads' },
+                      { icon: '✈️', label: 'Telegram', count: '5 leads' },
+                    ].map((ch, i) => (
+                      <div key={i} className="flex items-center justify-between px-4 py-2.5 rounded-lg" style={{ background: '#f3f2ef' }}>
+                        <div className="flex items-center gap-2.5">
+                          <span>{ch.icon}</span>
+                          <span className="text-sm font-medium">{ch.label}</span>
+                        </div>
+                        <span className="text-xs font-mono" style={{ color: accent }}>{ch.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                ),
+              },
+              {
+                num: '02', title: 'AI engages and qualifies',
+                desc: 'An AI agent responds in under 30 seconds. It asks qualifying questions, extracts contact info, budget, timeline, and pain points. Trained on your business, your tone.',
+                icon: Bot,
+                mockup: (
+                  <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${border}` }}>
+                    <div className="px-4 py-2.5 text-xs font-semibold" style={{ background: '#f3f2ef', borderBottom: `1px solid ${border}`, color: muted }}>AI Conversation</div>
+                    <div className="p-4 space-y-3">
+                      {[
+                        { role: 'Lead', msg: 'Hi, I\'m looking for event planning for our annual conference. About 500 attendees.' },
+                        { role: 'AI', msg: 'Great! We\'d love to help. Could you share your preferred dates and approximate budget range?' },
+                        { role: 'Lead', msg: 'Looking at March 2027. Budget is around $50k-$75k.' },
+                        { role: 'AI', msg: 'Perfect. Based on that, I\'ve marked you as a hot lead. Let me share our premium packages and book a call with our senior planner.' },
+                      ].map((m, i) => (
+                        <div key={i} className="flex items-start gap-2.5">
+                          <div className={`h-6 w-6 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0 mt-0.5 ${m.role === 'AI' ? 'bg-teal-100' : 'bg-gray-100'}`}
+                            style={{ background: m.role === 'AI' ? '#ccfbf1' : '#f3f2ef', color: m.role === 'AI' ? accent : muted }}>
+                            {m.role === 'AI' ? 'AI' : 'L'}
+                          </div>
+                          <div>
+                            <div className="text-xs font-semibold mb-0.5" style={{ color: m.role === 'AI' ? accent : text }}>{m.role}</div>
+                            <div className="text-xs leading-relaxed" style={{ color: muted }}>{m.msg}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ),
+              },
+              {
+                num: '03', title: 'Scored, segmented, and routed',
+                desc: 'Leads are scored automatically based on your rules. Hot leads go to senior reps instantly. Warm leads enter nurture. Cold leads get re-engagement sequences.',
+                icon: Gauge,
+                mockup: (
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      { label: 'Hot', count: '18', color: '#dc2626', bg: '#fef2f2' },
+                      { label: 'Warm', count: '42', color: '#d97706', bg: '#fffbeb' },
+                      { label: 'Cold', count: '76', color: '#6b7280', bg: '#f3f2ef' },
+                    ].map((s, i) => (
+                      <div key={i} className="text-center p-4 rounded-xl" style={{ background: s.bg }}>
+                        <div className="text-2xl font-bold font-['Space_Grotesk'] mb-1" style={{ color: s.color }}>{s.count}</div>
+                        <div className="text-xs font-mono uppercase tracking-wider" style={{ color: s.color }}>{s.label}</div>
+                      </div>
+                    ))}
+                  </div>
+                ),
+              },
+              {
+                num: '04', title: 'Automated follow-ups',
+                desc: 'Drip sequences send WhatsApp messages, emails, and SMS on schedule. Follow-ups, reminders, re-engagement — all on autopilot.',
+                icon: Workflow,
+                mockup: (
+                  <div className="space-y-1.5">
+                    {[
+                      { day: 'Day 1', action: 'WhatsApp welcome message', done: true },
+                      { day: 'Day 3', action: 'Email with case studies', done: true },
+                      { day: 'Day 5', action: 'WhatsApp: "Still interested?"', done: true },
+                      { day: 'Day 7', action: 'Send booking link', done: false },
+                      { day: 'Day 14', action: 'Final re-engagement email', done: false },
+                    ].map((s, i) => (
+                      <div key={i} className="flex items-center gap-3 px-4 py-2.5 rounded-lg" style={{ background: s.done ? '#faf9f6' : '#ffffff', border: `1px solid ${s.done ? 'transparent' : border}` }}>
+                        <div className={`h-5 w-5 rounded-full flex items-center justify-center ${s.done ? '' : 'border-2'}`}
+                          style={{ background: s.done ? accent : 'transparent', borderColor: s.done ? 'transparent' : border }}>
+                          {s.done && <Check size={10} color="#ffffff" />}
+                        </div>
+                        <span className="text-[10px] font-mono" style={{ color: muted }}>{s.day}</span>
+                        <span className="text-xs" style={{ color: s.done ? muted : text }}>{s.action}</span>
+                      </div>
+                    ))}
+                  </div>
+                ),
+              },
+              {
+                num: '05', title: 'Pushed to your CRM',
+                desc: 'Every enriched lead lands in HubSpot, Salesforce, Zoho, Google Sheets — or any of 400+ tools via n8n. Custom field mapping included.',
+                icon: Shield,
+                mockup: (
+                  <div className="flex items-center gap-4 flex-wrap justify-center">
+                    {[
+                      { name: 'HubSpot', color: '#ff7a59' },
+                      { name: 'Salesforce', color: '#00a1e0' },
+                      { name: 'Zoho', color: '#e42527' },
+                      { name: 'Google Sheets', color: '#34a853' },
+                      { name: 'Slack', color: '#4a154b' },
+                    ].map((crm, i) => (
+                      <div key={i} className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold" style={{ background: '#ffffff', border: `1px solid ${border}`, color: crm.color }}>
+                        <span>{crm.name}</span>
+                      </div>
+                    ))}
+                    <div className="text-xs" style={{ color: muted }}>+ 400+ more</div>
+                  </div>
+                ),
+              },
             ].map((s, i) => (
-              <div key={i} className="text-center md:text-left"
-                style={{ animation: 'fadeUp 0.6s ease forwards', animationDelay: `${0.1 + i * 0.1}s`, opacity: 0 }}>
-                <div className="h-11 w-11 rounded-xl flex items-center justify-center mx-auto md:mx-0 mb-4" style={{ background: 'rgba(232,100,60,0.1)' }}>
-                  <s.icon size={18} style={{ color: '#e8643c' }} />
+              <div key={i} className="grid md:grid-cols-2 gap-10 items-center" style={{ animation: `fadeUp 0.7s ease forwards`, animationDelay: `${i * 0.1}s`, opacity: 0 }}>
+                <div className={i % 2 === 1 ? 'md:order-2' : ''}>
+                  <div className="text-[11px] font-mono font-semibold mb-2" style={{ color: accent }}>{s.num}</div>
+                  <h3 className="text-xl font-bold font-['Space_Grotesk'] mb-3">{s.title}</h3>
+                  <p className="text-sm leading-relaxed" style={{ color: muted }}>{s.desc}</p>
                 </div>
-                <div className="text-[11px] font-mono font-semibold mb-1.5" style={{ color: '#e8643c' }}>{s.step}</div>
-                <h3 className="text-sm font-semibold mb-2" style={{ color: '#fafafa' }}>{s.title}</h3>
-                <p className="text-xs leading-relaxed" style={{ color: '#71717a' }}>{s.desc}</p>
+                <div className={i % 2 === 1 ? 'md:order-1' : ''}>
+                  {s.mockup}
+                </div>
               </div>
             ))}
-          </div>
-
-          {/* CODE CREDIBILITY BLOCK */}
-          <div className="mt-16 rounded-[18px] overflow-hidden"
-            style={{
-              background: 'rgba(0,0,0,0.5)',
-              border: '1px solid rgba(255,255,255,0.06)',
-              fontFamily: "'JetBrains Mono', monospace",
-            }}>
-            <div className="flex items-center gap-1.5 px-5 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-              {['#e8643c', '#fbbf24', '#22c55e'].map((c, i) => (
-                <div key={i} className="h-2.5 w-2.5 rounded-full" style={{ background: c }} />
-              ))}
-              <span className="text-[10px] ml-2" style={{ color: '#52525b' }}>lead-agent.ts</span>
-            </div>
-            <div className="p-5 text-[11px] leading-relaxed" style={{ color: '#a1a1aa' }}>
-              <span style={{ color: '#60a5fa' }}>export</span> <span style={{ color: '#4ade80' }}>async function</span> <span style={{ color: '#fbbf24' }}>handleNewLead</span>(lead: Lead) {'{'}
-              <br/>  <span style={{ color: '#818cf8' }}>const</span> profile = <span style={{ color: '#f472b6' }}>await</span> agent.chat(lead)
-              <br/>  <span style={{ color: '#818cf8' }}>const</span> score = <span style={{ color: '#f472b6' }}>await</span> scoringEngine.evaluate(profile)
-              <br/>  <span style={{ color: '#f472b6' }}>await</span> crm.sync(profile)
-              <br/>  <span style={{ color: '#818cf8' }}>return</span> <span style={{ color: '#34d399' }}>Response</span>.json({'{'} assigned: true, score {'}'})
-              <br/>{'}'}
-            </div>
           </div>
         </div>
       </section>
 
       {/* FEATURES */}
-      <section className="py-24" id="features" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+      <section className="py-24" id="features" style={{ borderTop: `1px solid ${border}` }}>
         <div className="max-w-6xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <SectionLabel>Everything included</SectionLabel>
-            <h2 className="text-[30px] sm:text-[42px] font-bold font-['Space_Grotesk'] mt-5 leading-[1.05] tracking-[-0.025em]" style={{ color: '#fafafa' }}>
-              A complete lead<br/>operating system
+          <div className="text-center max-w-2xl mx-auto mb-16">
+            <Label>Everything included</Label>
+            <h2 className="text-[28px] sm:text-[38px] font-bold font-['Space_Grotesk'] mt-5 leading-[1.1] tracking-[-0.02em]">
+              A complete lead operating system
             </h2>
           </div>
-          <div className="grid md:grid-cols-3 gap-4">
-            <FeatureCard icon={Bot} title="AI Lead Agent" desc="Conversational AI that chats with leads, extracts contact details, scores them, and books appointments. Trained on your business, your voice." />
-            <FeatureCard icon={Blocks} title="Multi-channel intake" desc="Capture leads from WhatsApp, web forms, QR codes, Telegram, Instagram, phone calls, and campaign links — all routed to one inbox." />
-            <FeatureCard icon={Gauge} title="Smart scoring" desc="Rule-based scoring that assigns points by budget, interest, behavior. 70+ = hot, 40+ = warm. Auto-routes to the right sales rep." />
-            <FeatureCard icon={Workflow} title="Nurture sequences" desc="Drip campaigns over WhatsApp, email, and SMS. Set conditions, wait steps, booking links. Runs on autopilot forever." />
-            <FeatureCard icon={BarChart3} title="Pipeline analytics" desc="Real-time conversion tracking, source performance, team metrics, revenue. Know exactly where every lead is." />
-            <FeatureCard icon={Shield} title="CRM sync" desc="Push enriched leads to HubSpot, Salesforce, Zoho, Google Sheets, or 400+ tools via n8n. Field mapping in 2 clicks." />
+          <div className="grid md:grid-cols-3 gap-5">
+            {[
+              { icon: Bot, title: 'AI Lead Agent', desc: 'Conversational AI that chats with leads 24/7. Extracts data, scores, and books appointments. Trained on your business voice.' },
+              { icon: Blocks, title: 'Multi-channel intake', desc: 'WhatsApp, web forms, QR codes, Telegram, phone. All channels route to one inbox. No lead slips through.' },
+              { icon: Gauge, title: 'Smart scoring', desc: 'Rule-based scoring by budget, interest, behavior. 70+ = hot, 40+ = warm. Auto-routes to the right rep.' },
+              { icon: Workflow, title: 'Nurture sequences', desc: 'Automated drip campaigns over WhatsApp, email, SMS. Conditions, wait steps, booking links. Set once, runs forever.' },
+              { icon: BarChart3, title: 'Pipeline analytics', desc: 'Conversion tracking, source performance, team metrics, revenue. Know where every lead is in real time.' },
+              { icon: Shield, title: 'CRM sync', desc: 'Push enriched leads to HubSpot, Salesforce, Zoho, Sheets, or 400+ tools. Field mapping in 2 clicks.' },
+            ].map((f, i) => (
+              <div key={i} className="p-6 sm:p-8 rounded-2xl transition-all duration-200 hover:shadow-sm" style={{ background: bgCard, border: `1px solid ${border}` }}>
+                <div className="h-10 w-10 rounded-xl flex items-center justify-center mb-4" style={{ background: '#ecfdf5' }}>
+                  <f.icon size={18} style={{ color: accent }} />
+                </div>
+                <h3 className="text-base font-semibold mb-2">{f.title}</h3>
+                <p className="text-sm leading-relaxed" style={{ color: muted }}>{f.desc}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
       {/* USE CASES */}
-      <section className="py-24" id="use-cases" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+      <section className="py-24" id="use-cases">
         <div className="max-w-6xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <SectionLabel>Use cases</SectionLabel>
-            <h2 className="text-[30px] sm:text-[42px] font-bold font-['Space_Grotesk'] mt-5 leading-[1.05] tracking-[-0.025em]" style={{ color: '#fafafa' }}>
-              Built for businesses that<br/>live and die by leads
+          <div className="text-center max-w-2xl mx-auto mb-16">
+            <Label>Use cases</Label>
+            <h2 className="text-[28px] sm:text-[38px] font-bold font-['Space_Grotesk'] mt-5 leading-[1.1] tracking-[-0.02em]">
+              Built for businesses that live and die by leads
             </h2>
           </div>
-          <div className="grid md:grid-cols-3 gap-4">
-            <UseCaseCard title="Marketing Agencies" items={[
-              'White-label dashboard for your clients',
-              'Deploy in 1 hour per client',
-              'Charge $500–2,000/mo per deployment',
-              'Client manages everything themselves',
-              'Zero ongoing dev work for you',
-            ]} />
-            <UseCaseCard title="Real Estate & Consulting" items={[
-              'QR codes on flyers → AI books visits',
-              'WhatsApp auto-reply for property inquiries',
-              'Score by budget, timeline, location',
-              'Auto-sync to your CRM',
-              'Follow-up sequences for past clients',
-            ]} />
-            <UseCaseCard title="Service Businesses" items={[
-              'Web form or call → AI qualifies & schedules',
-              'Auto-booking via Calendly/Google Calendar',
-              'Review & referral follow-up automation',
-              'Abandoned lead recovery',
-              'Daily summary of all activity',
-            ]} />
+          <div className="grid md:grid-cols-3 gap-5">
+            {[
+              {
+                title: 'Marketing Agencies',
+                items: ['White-label dashboard for your clients', 'Deploy in 1 hour per client', 'Charge $500–2,000/mo per deployment', 'Client manages everything themselves'],
+              },
+              {
+                title: 'Real Estate & Consulting',
+                items: ['QR codes on flyers → AI books visits', 'WhatsApp auto-reply for inquiries', 'Score by budget, timeline, location', 'Auto-sync to your CRM'],
+              },
+              {
+                title: 'Service Businesses',
+                items: ['Web form → AI qualifies & schedules', 'Auto-booking via Calendly/Google', 'Review & referral follow-up automation', 'Abandoned lead recovery'],
+              },
+            ].map((u, i) => (
+              <div key={i} className="p-6 sm:p-8 rounded-2xl" style={{ background: bgCard, border: `1px solid ${border}` }}>
+                <h3 className="text-base font-semibold mb-5">{u.title}</h3>
+                <ul className="space-y-3">
+                  {u.items.map((item, j) => (
+                    <li key={j} className="flex items-start gap-2.5 text-sm" style={{ color: muted }}>
+                      <Check size={14} className="mt-0.5 shrink-0" style={{ color: accent }} />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* WHY IT MATTERS */}
-      <section className="py-24" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="grid md:grid-cols-2 gap-16 items-center">
-            <div>
-              <SectionLabel>Why it matters</SectionLabel>
-              <h2 className="text-[30px] sm:text-[42px] font-bold font-['Space_Grotesk'] mt-5 leading-[1.05] tracking-[-0.025em] mb-6" style={{ color: '#fafafa' }}>
-                Every lead that comes in tonight gets answered — while you sleep
-              </h2>
-              <p className="text-sm leading-relaxed mb-8" style={{ color: '#a1a1aa' }}>
-                The difference between a lead that converts and one that goes cold is often just speed. 
-                Our AI responds in under 30 seconds, 24/7. It asks the right questions, captures the data 
-                you need, and puts every lead in front of the right person — instantly.
-              </p>
-              <div className="space-y-3">
-                {[
-                  'No more missed WhatsApp messages after hours',
-                  'No more "I forgot to follow up"',
-                  'No more leads stored across random spreadsheets',
-                  'No more paying for 5 different tools',
-                ].map((text, i) => (
-                  <div key={i} className="flex items-start gap-3">
-                    <CircleCheck size={16} className="mt-0.5 shrink-0" style={{ color: '#e8643c' }} />
-                    <span className="text-sm" style={{ color: '#d4d4d8' }}>{text}</span>
-                  </div>
-                ))}
+      {/* TESTIMONIAL */}
+      <section className="py-24" style={{ borderTop: `1px solid ${border}` }}>
+        <div className="max-w-4xl mx-auto px-6">
+          <div className="text-center mb-12">
+            <Label>Testimonials</Label>
+          </div>
+          <div className="grid md:grid-cols-2 gap-6">
+            {[
+              { name: 'Amit Kapoor', role: 'Real Estate Agency Owner', text: 'We were losing leads on WhatsApp because nobody replied after hours. Now the AI handles everything at 2 AM. We closed 3 deals from midnight inquiries in the first week.' },
+              { name: 'Priya Sharma', role: 'Marketing Agency Founder', text: 'We deployed this for 12 clients in a month. Each one thinks it\'s custom-built for them. The white-label dashboard is a game changer for our agency.' },
+              { name: 'Rahul Verma', role: 'Consulting Firm Partner', text: 'Setup took one day. We went from missing 40% of our leads to responding to every single one within 30 seconds. Our conversion rate doubled in 3 weeks.' },
+              { name: 'Neha Gupta', role: 'Event Management CEO', text: 'The QR code feature alone changed our business. Flyers now lead to AI conversations that book consultations automatically. Best ROI we\'ve seen.' },
+            ].map((t, i) => (
+              <div key={i} className="p-6 rounded-2xl" style={{ background: bgCard, border: `1px solid ${border}` }}>
+                <p className="text-sm leading-relaxed mb-4" style={{ color: muted }}>"{t.text}"</p>
+                <div>
+                  <div className="text-sm font-semibold">{t.name}</div>
+                  <div className="text-xs" style={{ color: muted }}>{t.role}</div>
+                </div>
               </div>
-            </div>
-
-            {/* TESTIMONIAL */}
-            <div className="rounded-[18px] p-10" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-              <div className="space-y-6">
-                {[
-                  { initials: 'AK', name: 'Amit Kapoor', role: 'Real Estate Agency Owner', text: '"We were losing leads on WhatsApp because nobody replied after hours. Now the AI handles everything at 2 AM. We closed 3 deals from midnight inquiries in the first week."' },
-                  { initials: 'PS', name: 'Priya Sharma', role: 'Marketing Agency Founder', text: '"We deployed this for 12 clients in a month. Each one thinks it\'s custom-built for them. The white-label dashboard is a game changer for our agency."' },
-                ].map((t, i) => (
-                  <div key={i} className={`flex items-start gap-4 ${i === 0 ? 'pb-6' : ''}`} style={i === 0 ? { borderBottom: '1px solid rgba(255,255,255,0.06)' } : {}}>
-                    <div className="h-10 w-10 rounded-full flex items-center justify-center text-xs font-bold shrink-0 font-['Space_Grotesk']"
-                      style={{ background: i === 0 ? '#e8643c' : 'rgba(232,100,60,0.15)', color: i === 0 ? '#fafafa' : '#e8643c' }}>
-                      {t.initials}
-                    </div>
-                    <div>
-                      <div className="text-sm font-semibold mb-1" style={{ color: '#fafafa' }}>{t.name}</div>
-                      <div className="text-[11px] font-mono mb-1" style={{ color: '#e8643c' }}>{t.role}</div>
-                      <div className="text-xs leading-relaxed" style={{ color: '#71717a' }}>{t.text}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       </section>
 
       {/* PRICING */}
-      <section className="py-24" id="pricing" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+      <section className="py-24" id="pricing" style={{ borderTop: `1px solid ${border}` }}>
         <div className="max-w-6xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <SectionLabel>Pricing</SectionLabel>
-            <h2 className="text-[30px] sm:text-[42px] font-bold font-['Space_Grotesk'] mt-5 leading-[1.05] tracking-[-0.025em]" style={{ color: '#fafafa' }}>
+          <div className="text-center max-w-2xl mx-auto mb-16">
+            <Label>Pricing</Label>
+            <h2 className="text-[28px] sm:text-[38px] font-bold font-['Space_Grotesk'] mt-5 leading-[1.1] tracking-[-0.02em]">
               Simple, transparent pricing
             </h2>
           </div>
-          <div className="grid md:grid-cols-3 gap-4 max-w-4xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-5 max-w-4xl mx-auto">
             {[
               {
                 name: 'Starter', price: '$500', period: '/mo', desc: 'For individual businesses',
@@ -338,7 +412,7 @@ export default function LandingPage({ onLogin }: { onLogin?: () => void }) {
               },
               {
                 name: 'Growth', price: '$1,000', period: '/mo', desc: 'For growing teams',
-                features: ['Up to 3 deployments', '2,000 leads/mo', 'Advanced scoring rules', 'CRM sync (HubSpot/SF/Zoho)', 'Nurture sequences', 'Priority support'],
+                features: ['Up to 3 deployments', '2,000 leads/mo', 'Advanced scoring', 'CRM sync (HubSpot/SF/Zoho)', 'Nurture sequences', 'Priority support'],
                 featured: true,
               },
               {
@@ -346,37 +420,32 @@ export default function LandingPage({ onLogin }: { onLogin?: () => void }) {
                 features: ['Unlimited deployments', 'Unlimited leads', 'White-label dashboard', 'Custom n8n workflows', 'Dedicated infrastructure', '24/7 phone support'],
               },
             ].map((plan, i) => (
-              <div key={i} className="rounded-[18px] p-8 transition-all duration-300 relative"
-                style={{
-                  background: plan.featured ? 'rgba(232,100,60,0.06)' : 'rgba(255,255,255,0.03)',
-                  border: plan.featured ? '1px solid rgba(232,100,60,0.25)' : '1px solid rgba(255,255,255,0.06)',
-                }}>
+              <div key={i} className="p-6 sm:p-8 rounded-2xl transition-all duration-200 relative" style={{
+                background: plan.featured ? '#ffffff' : bgCard,
+                border: plan.featured ? `2px solid ${accent}` : `1px solid ${border}`,
+                boxShadow: plan.featured ? '0 4px 20px rgba(13,107,107,0.08)' : 'none',
+              }}>
                 {plan.featured && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full text-[10px] font-mono font-semibold uppercase tracking-widest"
-                    style={{ background: '#e8643c', color: '#fafafa' }}>
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full text-[10px] font-mono font-semibold uppercase tracking-wider" style={{ background: accent, color: '#ffffff' }}>
                     Most popular
                   </div>
                 )}
-                <div className="text-sm font-semibold mb-1" style={{ color: '#fafafa' }}>{plan.name}</div>
-                <div className="text-xs mb-5" style={{ color: '#71717a' }}>{plan.desc}</div>
+                <div className="text-base font-semibold mb-1">{plan.name}</div>
+                <div className="text-xs mb-5" style={{ color: muted }}>{plan.desc}</div>
                 <div className="mb-6">
-                  <span className="text-3xl font-bold font-['Space_Grotesk']" style={{ color: '#fafafa' }}>{plan.price}</span>
-                  <span className="text-sm" style={{ color: '#71717a' }}>{plan.period}</span>
+                  <span className="text-3xl font-bold font-['Space_Grotesk']">{plan.price}</span>
+                  <span className="text-sm" style={{ color: muted }}>{plan.period}</span>
                 </div>
                 <button onClick={onLogin}
                   className="w-full py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:opacity-90 mb-6"
-                  style={{
-                    background: plan.featured ? '#e8643c' : 'rgba(255,255,255,0.06)',
-                    color: plan.featured ? '#fafafa' : '#a1a1aa',
-                    border: plan.featured ? 'none' : '1px solid rgba(255,255,255,0.1)',
-                  }}>
+                  style={{ background: plan.featured ? accent : '#f3f2ef', color: plan.featured ? '#ffffff' : text }}>
                   Get Started
                 </button>
                 <ul className="space-y-2.5">
                   {plan.features.map((f, j) => (
-                    <li key={j} className="flex items-start gap-2.5">
-                      <CircleCheck size={13} className="mt-0.5 shrink-0" style={{ color: '#e8643c' }} />
-                      <span className="text-xs" style={{ color: '#a1a1aa' }}>{f}</span>
+                    <li key={j} className="flex items-start gap-2.5 text-xs" style={{ color: muted }}>
+                      <Check size={12} className="mt-0.5 shrink-0" style={{ color: accent }} />
+                      {f}
                     </li>
                   ))}
                 </ul>
@@ -387,30 +456,28 @@ export default function LandingPage({ onLogin }: { onLogin?: () => void }) {
       </section>
 
       {/* FAQ */}
-      <section className="py-24" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+      <section className="py-24" style={{ borderTop: `1px solid ${border}` }}>
         <div className="max-w-3xl mx-auto px-6">
           <div className="text-center mb-12">
-            <SectionLabel>FAQ</SectionLabel>
-            <h2 className="text-[30px] sm:text-[42px] font-bold font-['Space_Grotesk'] mt-5 leading-[1.05] tracking-[-0.025em]" style={{ color: '#fafafa' }}>
+            <Label>FAQ</Label>
+            <h2 className="text-[28px] sm:text-[38px] font-bold font-['Space_Grotesk'] mt-5 leading-[1.1] tracking-[-0.02em]">
               Common questions
             </h2>
           </div>
-          <div className="space-y-3">
+          <div className="space-y-2">
             {[
               { q: 'How long does setup take?', a: 'First deployment takes about a day. Subsequent ones take under an hour. We have a template system that automates most of the configuration.' },
-              { q: 'Can I connect my existing CRM?', a: 'Yes. We have direct integrations with HubSpot, Salesforce, and Zoho. For anything else (Google Sheets, Pipedrive, etc.), our n8n engine connects to 400+ tools.' },
+              { q: 'Can I connect my existing CRM?', a: 'Yes. We have direct integrations with HubSpot, Salesforce, and Zoho. For anything else, our n8n engine connects to 400+ tools.' },
               { q: 'Do I need a developer?', a: 'No. The dashboard lets you control everything — forms, scoring rules, templates, workflows. No coding required.' },
-              { q: 'What happens to my data?', a: 'The system runs on your own infrastructure (your VPS or cloud account). We never see your data. Full encryption at rest and in transit.' },
-              { q: 'Can I white-label this for my agency?', a: 'Yes. The Agency plan gives you a fully white-label dashboard. Your clients see your brand, not ours.' },
+              { q: 'What about my data privacy?', a: 'The system runs on your own infrastructure. We never see your data. Full encryption at rest and in transit.' },
+              { q: 'Can I white-label for my agency?', a: 'Yes. The Agency plan gives you a fully white-label dashboard. Your clients see your brand, not ours.' },
             ].map((faq, i) => (
-              <details key={i} className="group rounded-xl overflow-hidden transition-all duration-200"
-                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                <summary className="flex items-center justify-between px-6 py-4 cursor-pointer text-sm font-medium list-none"
-                  style={{ color: '#d4d4d8' }}>
+              <details key={i} className="group rounded-xl overflow-hidden transition-all duration-200" style={{ background: bgCard, border: `1px solid ${border}` }}>
+                <summary className="flex items-center justify-between px-5 py-3.5 cursor-pointer text-sm font-medium list-none">
                   {faq.q}
-                  <span className="transition-transform duration-200 group-open:rotate-180 text-xs" style={{ color: '#71717a' }}>▾</span>
+                  <span className="transition-transform duration-200 group-open:rotate-180 text-xs" style={{ color: muted }}>▾</span>
                 </summary>
-                <div className="px-6 pb-4 text-sm leading-relaxed" style={{ color: '#71717a' }}>{faq.a}</div>
+                <div className="px-5 pb-3.5 text-sm leading-relaxed" style={{ color: muted }}>{faq.a}</div>
               </details>
             ))}
           </div>
@@ -418,34 +485,32 @@ export default function LandingPage({ onLogin }: { onLogin?: () => void }) {
       </section>
 
       {/* CTA */}
-      <section className="py-24" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+      <section className="py-24" style={{ background: accent }}>
         <div className="max-w-3xl mx-auto px-6 text-center">
-          <h2 className="text-[30px] sm:text-[42px] font-bold font-['Space_Grotesk'] mb-6 leading-[1.05] tracking-[-0.025em]" style={{ color: '#fafafa' }}>
+          <h2 className="text-[28px] sm:text-[36px] font-bold font-['Space_Grotesk'] mb-6 leading-[1.1] tracking-[-0.02em]" style={{ color: '#ffffff' }}>
             Ready to stop losing leads?
           </h2>
-          <p className="text-sm mb-10" style={{ color: '#71717a', maxWidth: '400px', margin: '0 auto 2.5rem' }}>
+          <p className="text-sm mb-10" style={{ color: 'rgba(255,255,255,0.7)', maxWidth: '400px', margin: '0 auto 2.5rem' }}>
             Set up in one day. Start converting leads the same week. Your first deployment is on us.
           </p>
           <button onClick={onLogin}
-            className="inline-flex items-center gap-3 px-10 py-4 rounded-xl text-base font-semibold transition-all duration-200 hover:opacity-90 hover:scale-[1.02]"
-            style={{ background: '#e8643c', color: '#fafafa' }}>
+            className="inline-flex items-center gap-3 px-10 py-4 rounded-xl text-base font-semibold transition-all duration-200 hover:opacity-90"
+            style={{ background: '#ffffff', color: accent }}>
             Get Started <ArrowRight size={18} />
           </button>
         </div>
       </section>
 
       {/* FOOTER */}
-      <footer className="py-12" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+      <footer className="py-12" style={{ borderTop: `1px solid ${border}` }}>
         <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
-            <div className="h-6 w-6 rounded-md flex items-center justify-center" style={{ background: '#e8643c' }}>
-              <span className="text-[8px] font-bold font-['Space_Grotesk']" style={{ color: '#17171c' }}>LA</span>
+            <div className="h-6 w-6 rounded-md flex items-center justify-center" style={{ background: accent }}>
+              <span className="text-[8px] font-bold font-['Space_Grotesk']" style={{ color: '#ffffff' }}>LA</span>
             </div>
-            <span className="text-xs font-bold font-['Space_Grotesk']" style={{ color: '#fafafa' }}>LeadAuto</span>
+            <span className="text-xs font-bold font-['Space_Grotesk']">LeadAuto</span>
           </div>
-          <div className="text-[11px] font-mono" style={{ color: '#52525b' }}>
-            &copy; 2026 LeadAuto
-          </div>
+          <div className="text-xs" style={{ color: muted }}>© 2026 LeadAuto. All rights reserved.</div>
         </div>
       </footer>
     </div>
