@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Users, MessageSquare, BarChart3, Settings,
   Megaphone, FormInput, QrCode, FileText, Route, Target,
   ShoppingCart, Link, Calendar, Layers, ChevronLeft, ChevronRight,
-  UserCircle, CheckSquare, Sparkles, Phone, Bot, MessageCircle, Smartphone, Webhook,
+  UserCircle, CheckSquare, Sparkles, Phone,   Bot, MessageCircle, Smartphone, Webhook, Globe,
 } from "lucide-react";
 import { fetchProfile, fetchBusinessSettings } from "../../lib/data";
 
@@ -45,6 +45,7 @@ const navGroups = [
     items: [
       { label: "Webhooks", icon: Webhook, path: "/webhooks" },
       { label: "SMS", icon: Smartphone, path: "/sms" },
+      { label: "Chat Widget", icon: Globe, path: "/widget" },
       { label: "Phone Calls", icon: Phone, path: "/integrations" },
       { label: "Social Media", icon: MessageCircle, path: "/integrations" },
       { label: "Mobile App", icon: Smartphone, path: "/integrations" },

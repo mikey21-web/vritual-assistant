@@ -40,6 +40,7 @@ const PageComponents: Record<string, React.LazyExoticComponent<React.ComponentTy
   AIAgent: lazy(() => import("./pages/AIAgentPage")),
   Webhooks: lazy(() => import("./pages/WebhookPage")),
   SMS: lazy(() => import("./pages/SMSSettingsPage")),
+  Widget: lazy(() => import("./pages/WidgetPage")),
 };
 
 function PageFallback() {
@@ -71,7 +72,7 @@ function getPageKey(path: string): string {
     "/settings": "Settings", "/workspace": "Workspace",
     "/failures": "Failures", "/health": "Health",
     "/ai-campaigns": "AICampaigns", "/ai-agent": "AIAgent",
-    "/webhooks": "Webhooks", "/sms": "SMS",
+    "/webhooks": "Webhooks", "/sms": "SMS", "/widget": "Widget",
   };
   return map[path] || "Overview";
 }
