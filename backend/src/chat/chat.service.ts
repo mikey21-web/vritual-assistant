@@ -29,6 +29,16 @@ export class ChatService {
       phone: d.phone,
     }, req);
 
+    if (contact.consentStatus !== 'opted_in') {
+      await this.prisma.contact.update({
+        where: { id: contact.id },
+        data: { consentStatus: 'opted_in' },
+      });
+      await this.prisma.consentEvent.create({
+        data: { contactId: contact.id, channel: 'CHATBOT', action: 'opt_in', source: 'chat_widget' },
+      });
+    }
+
     const existingLead = await this.prisma.lead.findFirst({
       where: {
         contactId: contact.id,
