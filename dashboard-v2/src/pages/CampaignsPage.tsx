@@ -5,8 +5,17 @@ import toast from 'react-hot-toast';
 
 export default function CampaignsPage() {
   const [items, setItems] = useState<any[]>([]);
+  const [search, setSearch] = useState('');
   const [show, setShow] = useState(false);
   const [form, setForm] = useState({ name: '', sourceType: 'FORM', offer: '' });
+
+  const filtered = items.filter(c => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return (c.name || '').toLowerCase().includes(q)
+      || (c.sourceType || '').toLowerCase().includes(q)
+      || (c.offer || '').toLowerCase().includes(q);
+  });
 
   const refresh = () => fetchCampaigns().then((r: any) => setItems(r.data || r)).catch(e => toast.error(e.message));
   useEffect(() => { refresh(); }, []);
@@ -24,17 +33,26 @@ export default function CampaignsPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-[var(--foreground)]">Campaigns</h1>
-          <p className="text-sm text-[var(--muted-foreground)] mt-1">{items.length} campaigns</p>
+          <p className="text-sm text-[var(--muted-foreground)] mt-1">{filtered.length} campaigns</p>
         </div>
-        <button
-          onClick={() => setShow(true)}
-          className="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90 transition-opacity shadow-sm"
-        >
-          <Plus size={16} /> Create Campaign
-        </button>
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            placeholder="Search campaigns..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="h-9 w-48 rounded-lg border border-[var(--input)] bg-[var(--card)] px-3 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
+          />
+          <button
+            onClick={() => setShow(true)}
+            className="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90 transition-opacity shadow-sm"
+          >
+            <Plus size={16} /> Create
+          </button>
+        </div>
       </div>
 
       {show && (
@@ -70,9 +88,13 @@ export default function CampaignsPage() {
         </form>
       )}
 
-      {items.length === 0 ? (
+      {filtered.length === 0 && !search ? (
         <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] py-12 text-center text-[var(--muted-foreground)]">
           No campaigns yet
+        </div>
+      ) : filtered.length === 0 && search ? (
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] py-12 text-center text-[var(--muted-foreground)]">
+          No campaigns match your search
         </div>
       ) : (
         <>
@@ -90,7 +112,7 @@ export default function CampaignsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((c: any) => (
+                  {filtered.map((c: any) => (
                     <tr key={c.id} className="border-b border-[var(--border)] hover:bg-[var(--muted)]/50 transition-colors">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
@@ -137,7 +159,7 @@ export default function CampaignsPage() {
 
           {/* Mobile cards */}
           <div className="block sm:hidden space-y-3">
-            {items.map((c: any) => (
+            {filtered.map((c: any) => (
               <div key={c.id} className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
                 <div className="flex items-start justify-between mb-2">
                   <div className="min-w-0 flex-1">

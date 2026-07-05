@@ -10,17 +10,35 @@ const channelIcons: Record<string, any> = {
 
 export default function MessagesPage() {
   const [data, setData] = useState<any[]>([]);
+  const [search, setSearch] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchMessages().then((r: any) => setData(r.data || r)).catch(() => {});
   }, []);
 
+  const filtered = data.filter((m: any) => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return (m.text || m.body || '').toLowerCase().includes(q)
+      || (m.channel || '').toLowerCase().includes(q)
+      || (m.direction || '').toLowerCase().includes(q);
+  });
+
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-bold text-[var(--foreground)]">Conversations</h1>
-        <p className="text-sm text-[var(--muted-foreground)] mt-1">{data.length} messages</p>
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold text-[var(--foreground)]">Conversations</h1>
+          <p className="text-sm text-[var(--muted-foreground)] mt-1">{filtered.length} messages</p>
+        </div>
+        <input
+          type="text"
+          placeholder="Search messages..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="h-9 w-64 rounded-lg border border-[var(--input)] bg-[var(--card)] px-3 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
+        />
       </div>
 
       <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden">
@@ -36,10 +54,10 @@ export default function MessagesPage() {
               </tr>
             </thead>
             <tbody>
-              {data.length === 0 ? (
-                <tr><td colSpan={5} className="px-4 py-12 text-center text-[var(--muted-foreground)]">No messages yet</td></tr>
+              {filtered.length === 0 ? (
+                <tr><td colSpan={5} className="px-4 py-12 text-center text-[var(--muted-foreground)]">{search ? 'No messages match your search' : 'No messages yet'}</td></tr>
               ) : (
-                data.slice(0, 50).map((m: any) => {
+                filtered.slice(0, 50).map((m: any) => {
                   const Icon = channelIcons[m.channel] || MessageSquare;
                   const isExpanded = expandedId === m.id;
                   return (

@@ -14,6 +14,7 @@ const typeIcons: Record<string, any> = {
 export default function MediaPage() {
   const [data, setData] = useState<any>({ data: [], meta: {} });
   const [uploading, setUploading] = useState(false);
+  const [preview, setPreview] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const refresh = () => fetchMedia().then(setData).catch(() => {});
@@ -31,6 +32,12 @@ export default function MediaPage() {
       toast.success('Uploaded');
     } catch (e: any) { toast.error(e.message); }
     setUploading(false);
+  };
+
+  const getUrl = async (m: any) => {
+    if (m.url) return m.url;
+    const r = await api('/media/' + m.id + '/download-url');
+    return r.url;
   };
 
   const items = data.data || [];
@@ -64,7 +71,12 @@ export default function MediaPage() {
           const Icon = typeIcons[fileType] || FileText;
           return (
             <div key={m.id} className="group rounded-xl border border-[var(--border)] bg-[var(--card)] p-3 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200">
-              <div className="aspect-square rounded-lg bg-[var(--muted)] flex items-center justify-center mb-3 overflow-hidden">
+              <div
+                className="aspect-square rounded-lg bg-[var(--muted)] flex items-center justify-center mb-3 overflow-hidden cursor-pointer"
+                onClick={async () => {
+                  if (fileType === 'image') setPreview(await getUrl(m));
+                }}
+              >
                 {fileType === 'image' ? (
                   <img src={m.url || `/api/media/${m.id}/download-url`} alt={m.originalName} className="w-full h-full object-cover" />
                 ) : (
@@ -95,6 +107,20 @@ export default function MediaPage() {
           );
         })}
       </div>
+
+      {preview && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={() => setPreview(null)}>
+          <div className="relative max-w-4xl max-h-[90vh] w-full h-full flex items-center justify-center" onClick={e => e.stopPropagation()}>
+            <img src={preview} alt="Preview" className="max-w-full max-h-full object-contain rounded-lg" />
+            <button
+              onClick={() => setPreview(null)}
+              className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70 transition-colors text-lg"
+            >
+              &times;
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
