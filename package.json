@@ -22,6 +22,23 @@
     "docker:build": "docker compose build"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
-  }
+    "@playwright/test": "^1.61.1",
+    "concurrently": "^8.2.2",
+    "playwright": "^1.61.1"
+  },
+  "main": "verify-audit.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mikey21-web/vritual-assistant.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/mikey21-web/vritual-assistant/issues"
+  },
+  "homepage": "https://github.com/mikey21-web/vritual-assistant#readme"
 }

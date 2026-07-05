@@ -15,7 +15,7 @@ export class ChatSendDto {
 
 @ApiTags('Chat')
 @Controller('chat')
-@Throttle({ default: { limit: 30, ttl: 60000 } })
+@Throttle({ default: { limit: 120, ttl: 60000 } })
 export class ChatController {
   private readonly logger = new Logger(ChatController.name);
 
