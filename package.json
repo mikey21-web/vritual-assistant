@@ -40,5 +40,8 @@
   "bugs": {
     "url": "https://github.com/mikey21-web/vritual-assistant/issues"
   },
-  "homepage": "https://github.com/mikey21-web/vritual-assistant#readme"
+  "homepage": "https://github.com/mikey21-web/vritual-assistant#readme",
+  "dependencies": {
+    "ssh2": "^1.17.0"
+  }
 }

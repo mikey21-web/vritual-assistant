@@ -3,9 +3,10 @@ import {
   LayoutDashboard, Users, MessageSquare, BarChart3, Settings,
   Megaphone, FormInput, QrCode, FileText, Route, Target,
   ShoppingCart, Link, Calendar, Layers, ChevronLeft, ChevronRight,
-  UserCircle, CheckSquare, Sparkles, Phone,   Bot, MessageCircle, Smartphone, Webhook, Globe,
+  UserCircle, CheckSquare, Sparkles, Phone,   Bot, MessageCircle, Smartphone, Webhook, Globe, LogOut,
 } from "lucide-react";
 import { fetchProfile, fetchBusinessSettings } from "../../lib/data";
+import { useAuth } from "../../lib/useAuth";
 
 const navGroups = [
   {
@@ -76,6 +77,7 @@ const navGroups = [
 ];
 
 export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { collapsed: boolean; onToggle: () => void; mobileOpen?: boolean; onMobileClose?: () => void }) {
+  const { logout } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -161,6 +163,13 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { co
                 <p className="text-xs text-[var(--muted-foreground)] truncate">{userEmail}</p>
               </div>
             )}
+            <button
+              onClick={(e) => { e.preventDefault(); logout(); }}
+              className="rounded-md p-1.5 hover:bg-red-100 dark:hover:bg-red-900/20 text-[var(--muted-foreground)] hover:text-red-600 transition-colors"
+              title="Sign out"
+            >
+              <LogOut size={15} />
+            </button>
           </div>
         </div>
       </aside>
