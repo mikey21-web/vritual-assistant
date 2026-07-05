@@ -86,14 +86,22 @@ export class IntegrationsService {
       case 'HUBSPOT': isHealthy = await breaker.call(() => this.hubspot.healthCheck(config), () => Promise.resolve(false)); break;
       case 'SALESFORCE': isHealthy = await breaker.call(() => this.salesforce.healthCheck(config), () => Promise.resolve(false)); break;
       case 'ZOHO': isHealthy = await breaker.call(() => this.zoho.healthCheck(config), () => Promise.resolve(false)); break;
-      case 'WHATSAPP': isHealthy = await breaker.call(() => this.whatsApp.healthCheck(config), () => Promise.resolve(false)); break;
+      case 'WHATSAPP':
+      case 'WHATSAPP_CLOUD_API': isHealthy = await breaker.call(() => this.whatsApp.healthCheck(config), () => Promise.resolve(false)); break;
       case 'TELEGRAM': isHealthy = await breaker.call(() => this.telegram.healthCheck(config), () => Promise.resolve(false)); break;
+      case 'TWILIO':
       case 'TWILIO_SMS':
         isHealthy = !!config?.TWILIO_ACCOUNT_SID;
         if (!isHealthy) this.logger.warn(`Twilio SMS health check: missing TWILIO_ACCOUNT_SID`);
         break;
       case 'CALENDLY': isHealthy = await breaker.call(() => this.calendly.healthCheck(config), () => Promise.resolve(false)); break;
       case 'GOOGLE_CALENDAR': isHealthy = await breaker.call(() => this.googleCalendar.healthCheck(config), () => Promise.resolve(false)); break;
+      case 'STRIPE':
+        isHealthy = !!config?.secretKey || !!config?.STRIPE_SECRET_KEY;
+        break;
+      case 'SMTP':
+        isHealthy = !!config?.host && !!config?.port;
+        break;
       default: return { name: integration.name, type: integration.type, status: 'unsupported' as const, testedAt: new Date() };
     }
 

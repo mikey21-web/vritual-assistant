@@ -2,7 +2,7 @@ import {
   LayoutDashboard, Users, MessageSquare, BarChart3, Settings,
   Megaphone, FormInput, QrCode, FileText, Route, Target,
   ShoppingCart, Link, Calendar, Layers, ChevronLeft, ChevronRight,
-  UserCircle, CheckSquare, Sparkles,
+  UserCircle, CheckSquare, Sparkles, Phone, Bot, MessageCircle, Smartphone,
 } from "lucide-react";
 
 const navGroups = [
@@ -23,7 +23,7 @@ const navGroups = [
   {
     label: "Outreach",
     items: [
-      { label: "Conversations", icon: MessageSquare, path: "/conversations" },
+      { label: "Message Log", icon: MessageSquare, path: "/conversations" },
       { label: "Templates", icon: FileText, path: "/templates" },
       { label: "Media", icon: Layers, path: "/media" },
     ],
@@ -35,6 +35,16 @@ const navGroups = [
       { label: "Scoring", icon: BarChart3, path: "/scoring" },
       { label: "Rules", icon: Target, path: "/rules" },
       { label: "AI Campaigns", icon: Sparkles, path: "/ai-campaigns" },
+      { label: "AI Agent", icon: Bot, path: "/ai-campaigns" },
+    ],
+  },
+  {
+    label: "Channels",
+    items: [
+      { label: "Webhooks", icon: Link, path: "/integrations" },
+      { label: "Phone Calls", icon: Phone, path: "/integrations" },
+      { label: "Social Media", icon: MessageCircle, path: "/integrations" },
+      { label: "Mobile App", icon: Smartphone, path: "/integrations" },
     ],
   },
   {
