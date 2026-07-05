@@ -114,23 +114,61 @@ async def agent_get_config(x_agent_key: str = Header(None)):
     return runtime_config
 
 
+@app.post("/agent/chat")
+async def agent_chat(req: AgentRunRequest, x_agent_key: str = Header(None)):
+    """Synchronous chat endpoint — runs the agent and returns the response."""
+    if settings.agent_inbound_key and x_agent_key != settings.agent_inbound_key:
+        raise HTTPException(status_code=401, detail="Invalid agent key")
+
+    try:
+        response_text = await asyncio.wait_for(
+            execute_run_and_get_response(settings, req),
+            timeout=25.0,
+        )
+        return {"response": response_text}
+    except asyncio.TimeoutError:
+        logger.warning("agent_chat_timeout", lead_id=req.lead_id)
+        return await _agent_test_response_fallback(req.messageText or "")
+
+
 @app.post("/agent/test")
 async def agent_test(body: dict, x_agent_key: str = Header(None)):
     """Test endpoint that returns a response without running full agent."""
     if settings.agent_inbound_key and x_agent_key != settings.agent_inbound_key:
         raise HTTPException(status_code=401, detail="Invalid agent key")
 
-    # Return a contextual response based on config if available
+    return await _agent_test_response_fallback(body.get("message", ""))
+
+
+async def _agent_test_response_fallback(message: str = ""):
     biz_name = runtime_config.get("businessName", "our service")
     industry = runtime_config.get("industry", "this space")
     tone = runtime_config.get("toneStyle", "professional")
-
+    custom_prompt = runtime_config.get("customPrompt", "")
     questions = runtime_config.get("qualificationQuestions", [])
+
     question_hint = ""
     if questions:
         question_hint = f" You might want to ask about {questions[0].lower()}."
 
-    return {
-        "response": f"Thanks for reaching out! I'm the AI assistant for {biz_name} ({industry}). I can help answer your questions, qualify your needs, and schedule a consultation.{question_hint} What can I help you with today?",
-        "config": {"tone": tone, "businessName": biz_name},
+    style_hints = {
+        "professional": "Keep it polished and concise.",
+        "friendly": "Be warm and approachable.",
+        "enthusiastic": "Show energy and excitement.",
+        "formal": "Use formal business language.",
+        "casual": "Keep it relaxed and conversational.",
     }
+    style = style_hints.get(tone, "Be natural and helpful.")
+
+    if custom_prompt:
+        response = custom_prompt.replace("{message}", message).replace("{businessName}", biz_name).replace("{industry}", industry)
+    else:
+        response = (
+            f"Hey! Thanks for reaching out to {biz_name}. "
+            f"I'd love to help you out. "
+            f"{'We specialize in ' + industry + '.' if industry else ''} "
+            f"{question_hint} "
+            f"What's on your mind?"
+        )
+
+    return {"response": response, "config": {"tone": tone, "businessName": biz_name}}

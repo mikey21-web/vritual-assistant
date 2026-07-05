@@ -343,6 +343,56 @@ export class WebhooksService {
     const key = this.idempotencyKey([provider, eventType, payload.id || payload.eventId || this.payloadHash(payload)]);
     const existing = await this.prisma.webhookEvent.findUnique({ where: { idempotencyKey: key } });
     if (existing) return { status: 'duplicate', result: existing.processedResult };
+
+    // For chatbot messages, create contact+lead+conversation and trigger agent
+    if (provider === 'chatbot' && eventType === 'chatbot_message') {
+      const text = payload.message || payload.text || '';
+      const contactName = payload.name || payload.contactName || 'Chat Visitor';
+      const contact = await this.contactsService.findOrCreate({
+        name: contactName,
+        email: payload.email,
+        phone: payload.phone || payload.telephone,
+      });
+
+      const existingLead = await this.prisma.lead.findFirst({
+        where: {
+          contactId: contact.id,
+          status: { notIn: ['LOST', 'CONVERTED', 'SPAM'] },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      let lead;
+      if (existingLead) {
+        lead = existingLead;
+      } else {
+        lead = await this.leadsService.create({
+          contactId: contact.id,
+          source: 'CHATBOT',
+          message: text,
+          metadata: { ...payload, channel: 'chat_widget' },
+        });
+      }
+
+      await this.conversationsService.create({
+        text,
+        channel: 'CHATBOT',
+        direction: 'INBOUND',
+        leadId: lead.id,
+        contactId: contact.id,
+        metadata: payload,
+      });
+
+      const result = { contact, lead };
+      await this.prisma.webhookEvent.create({
+        data: { provider, eventType, idempotencyKey: key, rawPayload: payload, processedResult: result },
+      });
+
+      this.agentClient.trigger(lead.id, key, 'CHATBOT', text, lead.tenantId || contact.tenantId);
+
+      return { data: result };
+    }
+
     const result = { received: true, eventType };
     await this.prisma.webhookEvent.create({ data: { provider, eventType, idempotencyKey: key, rawPayload: payload, processedResult: result } });
     return { data: result };

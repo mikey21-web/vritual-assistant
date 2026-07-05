@@ -77,6 +77,7 @@ export async function fetchRevenue() { return api('/revenue') as Promise<any>; }
 export async function fetchUsers() { return api('/users') as Promise<User[]>; }
 export async function fetchAuditLogs() { return api('/audit-logs') as Promise<any>; }
 
+export async function fetchProfile() { return api('/auth/me') as Promise<any>; }
 export async function fetchBusinessSettings() { return api('/business-settings') as Promise<any>; }
 export async function updateBusinessSettings(data: any) { return api('/business-settings', { method: 'PATCH', body: JSON.stringify(data) }); }
 

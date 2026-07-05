@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { fetchIntegrations, createIntegration, testIntegration, sendTestSMS } from '../lib/data';
+import { fetchIntegrations, createIntegration, testIntegration, sendTestSMS, updateBusinessSettings } from '../lib/data';
 import { Smartphone, Send, CheckCircle, XCircle, RefreshCw, Key, Settings } from 'lucide-react';
 import toast from 'react-hot-toast';
 

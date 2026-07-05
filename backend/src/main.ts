@@ -81,10 +81,8 @@ async function bootstrap() {
   app.useGlobalFilters(new GlobalExceptionFilter());
 
   app.enableCors({
-    origin: process.env.CORS_ORIGIN || (process.env.NODE_ENV === 'production'
-      ? (() => { throw new Error('CORS_ORIGIN must be set in production'); })()
-      : 'http://localhost:3000'),
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+    origin: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key', 'stripe-signature', 'x-hub-signature-256', 'Idempotency-Key'],
     credentials: true,
     maxAge: 86400,

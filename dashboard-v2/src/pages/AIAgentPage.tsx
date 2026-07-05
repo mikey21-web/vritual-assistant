@@ -11,7 +11,7 @@ export default function AIAgentPage() {
   const [testResult, setTestResult] = useState<string | null>(null);
   const [testing, setTesting] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'configure' | 'conversations'>('overview');
-  const [config, setConfig] = useState({ businessName: '', industry: '', toneStyle: '', qualificationQuestions: [''] });
+  const [config, setConfig] = useState({ businessName: '', industry: '', toneStyle: '', customPrompt: '', qualificationQuestions: [''] });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,6 +38,7 @@ export default function AIAgentPage() {
         businessName: status.tone.businessName || '',
         industry: status.tone.industry || '',
         toneStyle: status.tone.style || 'professional',
+        customPrompt: status.tone.customPrompt || '',
         qualificationQuestions: status.qualificationQuestions?.length ? status.qualificationQuestions : [''],
       });
     }
@@ -66,6 +67,7 @@ export default function AIAgentPage() {
         businessName: config.businessName,
         industry: config.industry,
         toneStyle: config.toneStyle,
+        customPrompt: config.customPrompt,
         qualificationQuestions: cleanQuestions,
       });
       toast.success('Agent configuration saved');
@@ -305,6 +307,18 @@ export default function AIAgentPage() {
                   <option value="formal">Formal</option>
                   <option value="casual">Casual</option>
                 </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-[var(--muted-foreground)] mb-1">
+                  Custom Prompt <span className="text-[var(--muted-foreground)] font-normal">(use &#123;message&#125;, &#123;businessName&#125;, &#123;industry&#125; as variables)</span>
+                </label>
+                <textarea
+                  value={config.customPrompt}
+                  onChange={e => setConfig(p => ({ ...p, customPrompt: e.target.value }))}
+                  rows={4}
+                  className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20 resize-vertical"
+                  placeholder="e.g. Hey {message} 🤙 Welcome to {businessName}! How can I help you today?"
+                />
               </div>
             </div>
           </div>

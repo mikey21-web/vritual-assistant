@@ -1,9 +1,11 @@
+import { useState, useEffect } from "react";
 import {
   LayoutDashboard, Users, MessageSquare, BarChart3, Settings,
   Megaphone, FormInput, QrCode, FileText, Route, Target,
   ShoppingCart, Link, Calendar, Layers, ChevronLeft, ChevronRight,
   UserCircle, CheckSquare, Sparkles, Phone, Bot, MessageCircle, Smartphone, Webhook,
 } from "lucide-react";
+import { fetchProfile, fetchBusinessSettings } from "../../lib/data";
 
 const navGroups = [
   {
@@ -73,6 +75,26 @@ const navGroups = [
 ];
 
 export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { collapsed: boolean; onToggle: () => void; mobileOpen?: boolean; onMobileClose?: () => void }) {
+  const [profile, setProfile] = useState<any>(null);
+  const [settings, setSettings] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      fetchProfile().catch(() => null),
+      fetchBusinessSettings().catch(() => null),
+    ]).then(([p, s]) => {
+      setProfile(p);
+      setSettings(s);
+      setLoading(false);
+    });
+  }, []);
+
+  const companyName = settings?.businessName || profile?.tenant?.name || "LeadFlow";
+  const initials = companyName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase() || 'LF';
+  const userName = profile?.name || "User";
+  const userEmail = profile?.email || "user@local";
+
   return (
     <>
       {mobileOpen && <div className="fixed inset-0 z-40 bg-black/30 lg:hidden" onClick={onMobileClose} />}
@@ -85,9 +107,9 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { co
           {!collapsed && (
             <div className="flex items-center gap-2.5">
               <div className="h-7 w-7 rounded-md bg-[var(--primary)] flex items-center justify-center">
-                <span className="text-[10px] font-bold text-[var(--primary-foreground)]">LA</span>
+                <span className="text-[10px] font-bold text-[var(--primary-foreground)]">{initials}</span>
               </div>
-              <span className="text-sm font-bold text-[var(--foreground)]">LeadAuto</span>
+              <span className="text-sm font-bold text-[var(--foreground)]">{companyName}</span>
             </div>
           )}
           <button onClick={onToggle} className="rounded-md p-1.5 hover:bg-[var(--accent)] text-[var(--muted-foreground)] transition-colors">
@@ -130,12 +152,12 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { co
         <div className="border-t border-[var(--border)] p-3">
           <div className="flex items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-[var(--accent)] transition-colors cursor-pointer">
             <div className="h-7 w-7 rounded-full bg-[var(--primary)] flex items-center justify-center text-xs font-medium text-[var(--primary-foreground)] shrink-0">
-              A
+              {profile?.name?.[0] || 'U'}
             </div>
             {!collapsed && (
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-[var(--foreground)] truncate">Admin</p>
-                <p className="text-xs text-[var(--muted-foreground)] truncate">admin@local</p>
+                <p className="text-sm font-medium text-[var(--foreground)] truncate">{userName}</p>
+                <p className="text-xs text-[var(--muted-foreground)] truncate">{userEmail}</p>
               </div>
             )}
           </div>
