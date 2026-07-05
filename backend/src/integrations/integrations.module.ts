@@ -1,9 +1,10 @@
 import { Module } from '@nestjs/common';
 import { IntegrationsService } from './integrations.service';
 import { IntegrationsController } from './integrations.controller';
+import { SmsController } from './sms.controller';
 
 @Module({
-  controllers: [IntegrationsController],
+  controllers: [IntegrationsController, SmsController],
   providers: [IntegrationsService],
   exports: [IntegrationsService],
 })

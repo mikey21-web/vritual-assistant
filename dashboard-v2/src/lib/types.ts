@@ -210,9 +210,28 @@ export interface AICampaignDraft {
   createdAt: string;
 }
 
+export interface AIAgentStatus {
+  online: boolean;
+  model: string;
+  apiKeyConfigured: boolean;
+  tone: { style: string; businessName: string; industry: string; customPrompt?: string };
+  qualificationQuestions: string[];
+  stats: { conversationsHandled: number; leadsQualified: number; appointmentsBooked: number };
+}
+
+export interface WebhookEndpoint {
+  type: string;
+  url: string;
+  label: string;
+  description: string;
+  auth: string;
+  status: 'configured' | 'available' | 'error' | 'active';
+  lastReceived: string | null;
+}
+
 export type NavigationPage = 
   | 'Overview' | 'Leads' | 'Contacts' | 'Campaigns' | 'Forms' | 'QR Codes'
   | 'Messages' | 'Templates' | 'Media' | 'Nurture' | 'Scoring' | 'Routing'
   | 'Tasks' | 'Conversions' | 'Integrations' | 'CRM' | 'Booking' | 'Analytics'
   | 'Team' | 'Audit Logs' | 'Advanced' | 'Settings' | 'Workspace'
-  | 'Failures' | 'Health' | 'AICampaigns';
+  | 'Failures' | 'Health' | 'AICampaigns' | 'AIAgent' | 'Webhooks' | 'SMS';

@@ -5,6 +5,7 @@ import { LeadsService } from '../leads/leads.service';
 import { ConversationsService } from '../conversations/conversations.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { AgentClientService } from '../agent/agent-client.service';
+import { envelopeDecrypt } from '../shared/crypto.util';
 import * as crypto from 'crypto';
 
 @Injectable()
@@ -359,5 +360,146 @@ export class WebhooksService {
       social: 'SOCIAL_MEDIA',
     };
     return map[source] || 'SOCIAL_MEDIA';
+  }
+
+  async findWebhookStatuses() {
+    const providers = ['whatsapp', 'telegram', 'social', 'voice', 'forms', 'chatbot', 'mobile-app', 'payments'];
+    const apiUrl = process.env.API_URL || 'http://localhost:3001';
+
+    const results = await Promise.all(
+      providers.map(async (type) => {
+        const lastEvent = await this.prisma.webhookEvent.findFirst({
+          where: { provider: type },
+          orderBy: { createdAt: 'desc' },
+          select: { createdAt: true, status: true },
+        });
+
+        const integration = await this.prisma.integration.findFirst({
+          where: {
+            OR: [
+              { type: type.toUpperCase() },
+              { type: { contains: type, mode: 'insensitive' } },
+            ],
+          },
+          select: { isActive: true, status: true, config: true },
+        });
+
+        const hasEvents = lastEvent !== null;
+        const isConfigured = integration?.isActive ?? hasEvents;
+
+        // Probe external connectivity for configured integrations
+        let connectivityStatus: 'ok' | 'unreachable' | 'unknown' = 'unknown';
+        if (integration?.isActive) {
+          connectivityStatus = await this.probeProvider(type, integration.config as any);
+        }
+
+        return {
+          type,
+          url: `${apiUrl}/webhooks/${type}`,
+          status: isConfigured ? (hasEvents ? 'active' : 'configured') : 'available',
+          lastReceived: lastEvent?.createdAt?.toISOString() || null,
+          connectivity: connectivityStatus,
+        };
+      }),
+    );
+
+    return results;
+  }
+
+  private async probeProvider(type: string, config: any): Promise<'ok' | 'unreachable' | 'unknown'> {
+    const decrypted = typeof config === 'object' ? config : {};
+    const timeoutMs = 5000;
+
+    try {
+      switch (type) {
+        case 'whatsapp': {
+          const token = decrypted?.WHATSAPP_ACCESS_TOKEN || decrypted?.accessToken;
+          const phoneId = decrypted?.WHATSAPP_PHONE_ID || decrypted?.phoneId;
+          if (!token || !phoneId) return 'unknown';
+          const resp = await this.fetchWithTimeout(
+            `https://graph.facebook.com/v18.0/${phoneId}`,
+            { headers: { Authorization: `Bearer ${token}` }, timeout: timeoutMs },
+          );
+          return resp?.status === 200 ? 'ok' : 'unreachable';
+        }
+        case 'telegram': {
+          const botToken = decrypted?.TELEGRAM_BOT_TOKEN || decrypted?.botToken;
+          if (!botToken) return 'unknown';
+          const resp = await this.fetchWithTimeout(
+            `https://api.telegram.org/bot${botToken}/getMe`,
+            { timeout: timeoutMs },
+          );
+          return resp?.status === 200 ? 'ok' : 'unreachable';
+        }
+        case 'payments': {
+          const secretKey = decrypted?.STRIPE_SECRET_KEY || decrypted?.secretKey;
+          if (!secretKey) return 'unknown';
+          const resp = await this.fetchWithTimeout(
+            `https://api.stripe.com/v1/account`,
+            { headers: { Authorization: `Bearer ${secretKey}` }, timeout: timeoutMs },
+          );
+          return resp?.status === 200 ? 'ok' : 'unreachable';
+        }
+        case 'voice': {
+          const accountSid = decrypted?.TWILIO_ACCOUNT_SID || decrypted?.accountSid;
+          const authToken = decrypted?.TWILIO_AUTH_TOKEN || decrypted?.authToken;
+          if (!accountSid || !authToken) return 'unknown';
+          const auth = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
+          const resp = await this.fetchWithTimeout(
+            `https://api.twilio.com/2010-04-01/Accounts/${accountSid}.json`,
+            { headers: { Authorization: `Basic ${auth}` }, timeout: timeoutMs },
+          );
+          return resp?.status === 200 ? 'ok' : 'unreachable';
+        }
+        default:
+          return 'unknown';
+      }
+    } catch {
+      return 'unreachable';
+    }
+  }
+
+  private async fetchWithTimeout(url: string, opts: { headers?: Record<string, string>; timeout: number }): Promise<Response | null> {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), opts.timeout);
+      const response = await fetch(url, {
+        headers: opts.headers,
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+      return response;
+    } catch {
+      return null;
+    }
+  }
+
+  async testWebhookEndpoint(type: string) {
+    const lastEvent = await this.prisma.webhookEvent.findFirst({
+      where: { provider: type },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const integration = await this.prisma.integration.findFirst({
+      where: {
+        OR: [
+          { type: type.toUpperCase() },
+          { type: { contains: type, mode: 'insensitive' } },
+        ],
+      },
+      select: { isActive: true, config: true },
+    });
+
+    const connectivity = await this.probeProvider(type, integration?.config as any || {});
+    const isReachable = lastEvent || integration?.isActive;
+
+    return {
+      status: isReachable ? 'ok' : 'not_configured',
+      message: isReachable
+        ? `${type} webhook is configured and receiving data`
+        : `${type} webhook is not yet configured. Set up the endpoint URL in your external service.`,
+      lastEvent: lastEvent?.createdAt?.toISOString() || null,
+      connectivity,
+    };
   }
 }

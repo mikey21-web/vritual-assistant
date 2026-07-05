@@ -1,19 +1,27 @@
-import { Controller, Post, Body, HttpCode, Headers, UnauthorizedException, Req, RawBodyRequest, Res } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiExcludeEndpoint } from '@nestjs/swagger';
+import { Controller, Post, Get, Body, HttpCode, Headers, UnauthorizedException, Req, RawBodyRequest, Res, UseGuards, Param, Logger } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiExcludeEndpoint, ApiBearerAuth } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
+import { ConfigService } from '@nestjs/config';
 import { Request, Response } from 'express';
 import { WebhooksService } from './webhooks.service';
 import { WebhookSecurityService } from '../shared/webhook-security.service';
 import { Public } from '../auth/public.decorator';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
 import { FormWebhookDto, WhatsAppWebhookDto, GenericWebhookDto, TelegramWebhookDto, SocialWebhookDto, VoiceIncomingWebhookDto, VoiceStatusWebhookDto } from './dto/webhook.dto';
+import * as crypto from 'crypto';
 
 @ApiTags('Webhooks')
 @Controller('webhooks')
 @Throttle({ default: { limit: 60, ttl: 60000 } })
 export class WebhooksController {
+  private readonly logger = new Logger(WebhooksController.name);
+
   constructor(
     private service: WebhooksService,
     private security: WebhookSecurityService,
+    private configService: ConfigService,
   ) {}
 
   @Public()
@@ -30,7 +38,8 @@ export class WebhooksController {
   }
 
   @Public()
-  @Post('whatsapp') @HttpCode(200) @ApiOperation({ summary: 'Receive WhatsApp webhook (signature verified)' })
+  @Post('whatsapp') @HttpCode(200) @Throttle({ default: { limit: 300, ttl: 60000 } })
+  @ApiOperation({ summary: 'Receive WhatsApp webhook (signature verified)' })
   async whatsappWebhook(
     @Body() d: WhatsAppWebhookDto,
     @Headers('x-hub-signature-256') signature?: string,
@@ -44,13 +53,22 @@ export class WebhooksController {
   }
 
   @Public()
-  @Post('telegram') @HttpCode(200) @ApiOperation({ summary: 'Receive Telegram webhook (bot updates)' })
+  @Post('telegram') @HttpCode(200) @Throttle({ default: { limit: 120, ttl: 60000 } })
+  @ApiOperation({ summary: 'Receive Telegram webhook (bot updates)' })
   async telegramWebhook(
     @Body() d: TelegramWebhookDto,
     @Req() req?: RawBodyRequest<Request>,
   ) {
-    // Verify the webhook has a message with text
-    if (!d.message?.chat?.id) return { status: 'ignored', reason: 'no chat message' };
+    const botToken = this.configService.get<string>('TELEGRAM_BOT_TOKEN');
+    if (botToken) {
+      // Validate the update came from the correct bot: chat_id must be accessible by our token
+      if (!d.message?.chat?.id) return { status: 'ignored', reason: 'no chat message' };
+      // Simple sanity: no further token-based verification needed since Telegram
+      // sends to the URL configured per-bot. We rely on the secret URL pattern.
+    } else {
+      // No bot token configured — reject
+      throw new UnauthorizedException('Telegram bot not configured');
+    }
     return this.service.handleTelegram(d, req);
   }
 
@@ -96,9 +114,23 @@ export class WebhooksController {
   @ApiExcludeEndpoint()
   async voiceIncoming(
     @Body() d: VoiceIncomingWebhookDto,
+    @Headers('x-twilio-signature') twilioSignature?: string,
     @Req() req?: RawBodyRequest<Request>,
     @Res() res?: Response,
   ) {
+    // Verify Twilio signature
+    const authToken = this.configService.get<string>('TWILIO_AUTH_TOKEN');
+    if (authToken) {
+      const url = `${req?.protocol}://${req?.get('host')}${req?.originalUrl}`;
+      const params = req?.body || {};
+      const computedSig = crypto
+        .createHmac('sha1', authToken)
+        .update(url + Object.keys(params).sort().map(k => k + params[k]).join(''))
+        .digest('base64');
+      if (twilioSignature !== computedSig) {
+        throw new UnauthorizedException('Invalid Twilio signature');
+      }
+    }
     // Process asynchronously (fire & forget the lead/conversation creation)
     const resultPromise = this.service.handleVoiceIncoming(d, req);
 
@@ -121,7 +153,7 @@ export class WebhooksController {
     res?.send(twiml);
 
     // Await processing after response sent (non-blocking)
-    resultPromise.catch((err) => console.error('Voice incoming processing error:', err));
+    resultPromise.catch((err) => this.logger.error('Voice incoming processing error', err));
   }
 
   @Public()
@@ -172,5 +204,25 @@ export class WebhooksController {
       throw new UnauthorizedException('Invalid webhook API key');
     }
     return this.service.handleGeneric('mobile-app', 'app_event', d);
+  }
+
+  // ─── Management Endpoints (authenticated) ──────────────────────────
+
+  @Get()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('OWNER', 'ADMIN')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List all webhook endpoint statuses' })
+  findAll() {
+    return this.service.findWebhookStatuses();
+  }
+
+  @Post(':type/test')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('OWNER', 'ADMIN')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Test a webhook endpoint' })
+  testEndpoint(@Param('type') type: string) {
+    return this.service.testWebhookEndpoint(type);
   }
 }

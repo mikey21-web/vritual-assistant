@@ -258,6 +258,44 @@ export const mockBusinessSettings = {
   language: 'en', currency: 'USD',
 };
 
+export const mockAgentStatus = {
+  online: true,
+  model: 'gemini-2.5-flash',
+  apiKeyConfigured: true,
+  tone: {
+    style: 'professional',
+    businessName: 'LeadAuto',
+    industry: 'SaaS',
+    customPrompt: 'You are a helpful sales assistant for LeadAuto. Help qualify leads and book appointments.',
+  },
+  qualificationQuestions: [
+    'What is your budget range?',
+    'How many users do you need?',
+    'What is your timeline for implementation?',
+    'Are you currently using any similar solution?',
+  ],
+  stats: { conversationsHandled: 1247, leadsQualified: 312, appointmentsBooked: 89 },
+};
+
+export const mockAgentStats = {
+  conversationsHandled: 1247,
+  leadsQualified: 312,
+  appointmentsBooked: 89,
+  conversionRate: 15.2,
+  avgResponseTimeSec: 3.2,
+};
+
+export const mockWebhookEndpoints = [
+  { type: 'whatsapp', url: 'http://localhost:3001/webhooks/whatsapp', status: 'configured', lastReceived: new Date(Date.now() - 300000).toISOString() },
+  { type: 'telegram', url: 'http://localhost:3001/webhooks/telegram', status: 'available', lastReceived: null },
+  { type: 'social', url: 'http://localhost:3001/webhooks/social', status: 'configured', lastReceived: new Date(Date.now() - 7200000).toISOString() },
+  { type: 'voice', url: 'http://localhost:3001/webhooks/voice/incoming', status: 'configured', lastReceived: new Date(Date.now() - 86400000).toISOString() },
+  { type: 'forms', url: 'http://localhost:3001/webhooks/forms', status: 'configured', lastReceived: new Date(Date.now() - 600000).toISOString() },
+  { type: 'chatbot', url: 'http://localhost:3001/webhooks/chatbot', status: 'active', lastReceived: new Date(Date.now() - 60000).toISOString() },
+  { type: 'mobile-app', url: 'http://localhost:3001/webhooks/mobile-app', status: 'available', lastReceived: null },
+  { type: 'payments', url: 'http://localhost:3001/webhooks/payments', status: 'configured', lastReceived: new Date(Date.now() - 3600000).toISOString() },
+];
+
 export const mockForms = [
   { id: 'form-1', name: 'Contact Us', type: 'EMBEDDED', active: true, _count: { submissions: 234 }, createdAt: randomDate(45), fields: [{ name: 'name', type: 'text', required: true }, { name: 'email', type: 'email', required: true }, { name: 'phone', type: 'phone', required: false }] },
   { id: 'form-2', name: 'Newsletter Signup', type: 'POPUP', active: true, _count: { submissions: 567 }, createdAt: randomDate(30), fields: [{ name: 'email', type: 'email', required: true }] },
@@ -317,6 +355,9 @@ const mockResponseMap: Record<string, () => any> = {
   '/media': () => ({ data: mockMedia, meta: { total: mockMedia.length } }),
   '/contacts': () => ({ data: mockContacts, meta: { total: mockContacts.length, page: 1, limit: 20 } }),
   '/leads': () => ({ data: mockLeads, meta: { total: mockLeads.length, page: 1, limit: 20 } }),
+  '/agent/status': () => mockAgentStatus,
+  '/agent/stats': () => mockAgentStats,
+  '/webhooks': () => mockWebhookEndpoints,
 };
 
 export const mockAICampaigns: AICampaignDraft[] = [
@@ -467,10 +508,26 @@ export function getMockResponse(path: string, method: string, body?: any): any |
     if (normalized.endsWith('/ai/campaigns/generate')) {
       return generateAICampaign(body?.prompt || '');
     }
+    if (normalized === '/agent/test') {
+      const responses = [
+        'Thanks for reaching out! Our pricing depends on your specific needs. Would you like a free consultation where we can discuss your requirements and provide a custom quote?',
+        'Great question! I can help with that. Could you tell me a bit more about what you\'re looking for — specifically your timeline and budget?',
+        'I\'d be happy to schedule a demo for you! What day works best — I can do Tuesday or Thursday afternoon this week.',
+        'We offer several plans starting at $49/month. Which features are most important to you?',
+      ];
+      return { response: randomItem(responses), conversationId: `test-${Date.now()}` };
+    }
+    if (normalized.startsWith('/webhooks/') && normalized.endsWith('/test')) {
+      return { status: 'success', message: 'Webhook test completed successfully' };
+    }
+    if (normalized === '/sms/test') {
+      return { status: 'success', message: 'Test SMS sent successfully', sid: `SM${randomInt(100000, 999999)}` };
+    }
     return { success: true, id: `mock-${Date.now()}` };
   }
 
   if (method === 'PATCH') {
+    if (normalized === '/agent/config') return { success: true, message: 'Configuration saved' };
     return { success: true };
   }
 

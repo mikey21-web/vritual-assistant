@@ -50,6 +50,9 @@ export class IntegrationsService {
   async remove(id: string) { await this.findOne(id); return this.prisma.integration.delete({ where: { id } }); }
 
   async migratePlaintextConfigs(): Promise<{ migrated: number; skipped: number }> {
+    if (process.env.NODE_ENV === 'production' && process.env.ALLOW_MIGRATE_ENCRYPT !== 'true') {
+      throw new NotFoundException('This operation requires ALLOW_MIGRATE_ENCRYPT=true in production');
+    }
     const all = await this.prisma.integration.findMany();
     let migrated = 0;
     let skipped = 0;
@@ -108,5 +111,32 @@ export class IntegrationsService {
     const newStatus = isHealthy ? 'connected' : 'disconnected';
     await this.prisma.integration.update({ where: { id }, data: { lastTested: new Date(), status: newStatus } });
     return { name: integration.name, type: integration.type, status: newStatus, testedAt: new Date() };
+  }
+
+  async testSms(to: string, message: string) {
+    const twilioIntegration = await this.prisma.integration.findFirst({
+      where: { OR: [{ type: 'TWILIO' }, { type: 'TWILIO_SMS' }] },
+    });
+
+    if (!twilioIntegration) {
+      return { status: 'error', message: 'Twilio integration not configured. Set up Twilio in Integrations first.' };
+    }
+
+    const config = envelopeDecrypt(twilioIntegration.config as any);
+    const accountSid = config?.TWILIO_ACCOUNT_SID || config?.accountSid;
+    const authToken = config?.TWILIO_AUTH_TOKEN || config?.authToken;
+    const fromNumber = config?.TWILIO_PHONE_NUMBER || config?.fromNumber;
+
+    if (!accountSid || !authToken || !fromNumber) {
+      return { status: 'error', message: 'Twilio credentials incomplete (need Account SID, Auth Token, and From Number).' };
+    }
+
+    try {
+      await this.twilioSms.send(to, message);
+      return { status: 'success', message: `Test SMS sent to ${to}` };
+    } catch (err: any) {
+      this.logger.error(`SMS test failed: ${err.message}`);
+      return { status: 'error', message: `SMS send failed: ${err.message}` };
+    }
   }
 }

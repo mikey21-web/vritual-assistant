@@ -98,3 +98,13 @@ export async function deleteNurtureStep(seqId: string, stepId: string) { return 
 export async function deleteNurtureSequence(seqId: string) { return api(`/nurture-sequences/${seqId}`, { method: 'DELETE' }); }
 
 export async function triggerAgent(leadId: string) { return api('/agent/run-summary', { method: 'POST', body: JSON.stringify({ leadId, action: 'manual_trigger' }) }); }
+
+export async function fetchAgentStatus() { return api('/agent/status') as Promise<any>; }
+export async function fetchAgentStats() { return api('/agent/stats') as Promise<any>; }
+export async function testAgent(message: string) { return api('/agent/test', { method: 'POST', body: JSON.stringify({ message }) }); }
+export async function updateAgentConfig(config: any) { return api('/agent/config', { method: 'PATCH', body: JSON.stringify(config) }); }
+
+export async function fetchWebhooks() { return api('/webhooks') as Promise<any>; }
+export async function testWebhook(type: string) { return api(`/webhooks/${type}/test`, { method: 'POST' }); }
+
+export async function sendTestSMS(to: string, message: string) { return api('/sms/test', { method: 'POST', body: JSON.stringify({ to, message }) }); }

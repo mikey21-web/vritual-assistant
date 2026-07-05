@@ -3,7 +3,7 @@
 [cmd]: https://commandcode.ai/
 
 # workflow
-- Prioritize completing planned work over verbose reasoning; stay focused on execution. Avoid speculative parallel exploration that can fail or be interrupted. Confidence: 0.80
+- Prioritize completing planned work over verbose reasoning; stay focused on execution. Avoid speculative parallel exploration that can fail or be interrupted. Do not hallucinate or fabricate details about the codebase. Confidence: 0.82
 - When given a batch of items to fix, complete ALL of them without stopping partway — don't leave remaining items unaddressed unless explicitly asked to stop. Confidence: 0.80
 
 # code-style

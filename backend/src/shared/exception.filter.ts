@@ -32,11 +32,26 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         clientMessage = 'Request failed';
         logDetail = 'Unknown HttpException response';
       }
+    } else if (exception?.constructor?.name === 'PrismaClientKnownRequestError') {
+      const code = (exception as any).code;
+      // Map Prisma error codes to proper HTTP statuses
+      const prismaMap: Record<string, { status: number; message: string }> = {
+        P2002: { status: 409, message: 'A record with this value already exists' },
+        P2003: { status: 400, message: 'Referenced record not found' },
+        P2025: { status: 404, message: 'Record not found' },
+      };
+      const mapped = prismaMap[code] || { status: 400, message: 'Database constraint error' };
+      logDetail = (exception as any).message;
+      this.logger.warn(`Prisma error ${code}: ${logDetail}`);
+      return response.status(mapped.status).json({
+        statusCode: mapped.status,
+        message: isProduction ? mapped.message : `${mapped.message} (${code})`,
+        timestamp: new Date().toISOString(),
+        path: request.url,
+      });
     } else if (exception?.constructor?.name === 'PrismaClientValidationError') {
       const msg = exception instanceof Error ? exception.message : 'Prisma validation error';
       this.logger.warn(`Prisma validation: ${msg}`);
-      clientMessage = 'Validation failed: ' + msg;
-      logDetail = msg;
       return response.status(400).json({
         statusCode: 400,
         message: isProduction ? 'Validation failed' : msg,

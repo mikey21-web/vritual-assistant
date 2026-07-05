@@ -16,6 +16,7 @@ from app.backend_client import BackendClient, BackendError
 from app.niche_config import normalize_niche_config, load_niche_config_from_file
 from app.prompt import build_system_prompt
 from app.logging_config import utc_now_iso
+from app.main import runtime_config
 
 import structlog
 
@@ -78,6 +79,19 @@ async def _load_context(state: AgentState, config: RunnableConfig) -> AgentState
 
     if not nich:
         nich = normalize_niche_config(niche_raw)
+
+    # Merge dashboard runtime config into niche config for prompt
+    rc = runtime_config or {}
+    if rc.get("businessName"):
+        nich["display_name"] = rc["businessName"]
+    if rc.get("industry"):
+        nich["industry"] = rc["industry"]
+    if rc.get("qualificationQuestions"):
+        nich["qualification_questions"] = rc["qualificationQuestions"]
+    if rc.get("toneStyle"):
+        nich["tone_style"] = rc["toneStyle"]
+    if rc.get("customPrompt"):
+        nich["custom_prompt"] = rc["customPrompt"]
 
     prior_messages: list[dict] = []
     messages_list = conversations if isinstance(conversations, list) else conversations.get("data", [])

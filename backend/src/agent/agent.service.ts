@@ -2,6 +2,15 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { TimelineService } from '../timeline/timeline.service';
+import { AgentClientService } from './agent-client.service';
+
+interface AgentConfig {
+  toneStyle: string;
+  businessName: string;
+  industry: string;
+  customPrompt: string;
+  qualificationQuestions: string[];
+}
 
 @Injectable()
 export class AgentService {
@@ -11,6 +20,7 @@ export class AgentService {
     private prisma: PrismaService,
     private events: EventsService,
     private timeline: TimelineService,
+    private agentClient: AgentClientService,
   ) {}
 
   async recordRunSummary(dto: { runId: string; leadId: string; actions: any[]; model: string; startedAt: string; finishedAt: string }) {
@@ -36,5 +46,158 @@ export class AgentService {
 
     this.logger.log(`Run ${dto.runId} recorded for lead ${dto.leadId}: ${actionSummary}`);
     return { recorded: true, runId: dto.runId };
+  }
+
+  async getAgentConfig(): Promise<AgentConfig> {
+    const tenant = await this.prisma.tenant.findFirst({ where: { slug: 'default' } });
+    const settings = (tenant?.settings as any) || {};
+    const agent = settings.agentConfig || {};
+
+    return {
+      toneStyle: agent.toneStyle || 'professional',
+      businessName: agent.businessName || 'My Business',
+      industry: agent.industry || 'generic',
+      customPrompt: agent.customPrompt || '',
+      qualificationQuestions: agent.qualificationQuestions || [],
+    };
+  }
+
+  async setAgentConfig(config: Partial<AgentConfig>): Promise<AgentConfig> {
+    const tenant = await this.prisma.tenant.findFirst({ where: { slug: 'default' } });
+    if (!tenant) throw new Error('No default tenant found');
+
+    const current = (tenant.settings as any) || {};
+    const existing = current.agentConfig || {};
+    const merged = { ...existing, ...config };
+
+    await this.prisma.tenant.update({
+      where: { id: tenant.id },
+      data: { settings: { ...current, agentConfig: merged } },
+    });
+
+    this.logger.log('Agent config persisted to tenant settings');
+
+    // Push to agent-service if available
+    await this.pushConfigToAgentService(merged);
+
+    return merged;
+  }
+
+  async getStatus() {
+    const model = process.env.AGENT_MODEL || 'gemini-2.5-flash';
+    const apiKeyConfigured = !!(process.env.GOOGLE_API_KEY || process.env.OPENAI_API_KEY);
+    const agentUrl = process.env.AGENT_SERVICE_URL;
+
+    const config = await this.getAgentConfig();
+
+    return {
+      online: !!agentUrl,
+      model,
+      apiKeyConfigured,
+      tone: {
+        style: config.toneStyle,
+        businessName: config.businessName,
+        industry: config.industry,
+        customPrompt: config.customPrompt,
+      },
+      qualificationQuestions: config.qualificationQuestions,
+      stats: await this.getStats(),
+    };
+  }
+
+  async getStats() {
+    const [totalMessages, qualifiedLeads, bookedAppointments] = await Promise.all([
+      this.prisma.conversationMessage.count({
+        where: { channel: { in: ['CHATBOT', 'WHATSAPP'] } },
+      }),
+      this.prisma.lead.count({
+        where: { status: 'QUALIFIED' },
+      }),
+      this.prisma.lead.count({
+        where: { status: 'APPOINTMENT_BOOKED' },
+      }),
+    ]);
+
+    return {
+      conversationsHandled: totalMessages,
+      leadsQualified: qualifiedLeads,
+      appointmentsBooked: bookedAppointments,
+    };
+  }
+
+  async testAgent(message: string, channel: string) {
+    const agentUrl = process.env.AGENT_SERVICE_URL;
+    const key = process.env.AGENT_INBOUND_KEY;
+
+    if (agentUrl) {
+      try {
+        const response = await fetch(`${agentUrl}/agent/test`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-agent-key': key || '',
+          },
+          body: JSON.stringify({ message, channel }),
+        });
+        if (response.ok) {
+          const data = await response.json();
+          return { response: data.response || data.message || 'No response', source: 'agent-service' };
+        }
+      } catch (err: any) {
+        this.logger.warn(`Agent test via service failed: ${err.message}`);
+      }
+    }
+
+    const fallbackResponses = [
+      'Thanks for your message! I\'d be happy to help. Could you share a bit more about your needs — specifically your budget range and timeline?',
+      'Great question! I can assist with that. We offer several solutions tailored to your industry. Would you like me to connect you with a specialist?',
+      'I understand you\'re interested in our services. Let me ask a few quick questions to make sure I can help: What\'s the size of your team and when are you looking to start?',
+      'Thanks for reaching out. I\'d recommend scheduling a quick consultation where we can go over your requirements in detail. What day works best for you?',
+    ];
+    const idx = Math.floor(Math.random() * fallbackResponses.length);
+
+    return { response: fallbackResponses[idx], source: 'fallback' };
+  }
+
+  async updateConfig(dto: { businessName?: string; industry?: string; toneStyle?: string; qualificationQuestions?: string[]; customPrompt?: string }) {
+    const config = await this.setAgentConfig({
+      ...(dto.businessName !== undefined && { businessName: dto.businessName }),
+      ...(dto.industry !== undefined && { industry: dto.industry }),
+      ...(dto.toneStyle !== undefined && { toneStyle: dto.toneStyle }),
+      ...(dto.qualificationQuestions !== undefined && { qualificationQuestions: dto.qualificationQuestions.filter(q => q.trim()) }),
+      ...(dto.customPrompt !== undefined && { customPrompt: dto.customPrompt }),
+    });
+
+    this.logger.log('Agent config updated');
+    return { success: true, message: 'Configuration saved', config };
+  }
+
+  private async pushConfigToAgentService(config: AgentConfig) {
+    const agentUrl = process.env.AGENT_SERVICE_URL;
+    const key = process.env.AGENT_INBOUND_KEY;
+    if (!agentUrl) return;
+
+    try {
+      const response = await fetch(`${agentUrl}/agent/config`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-agent-key': key || '',
+        },
+        body: JSON.stringify({
+          toneStyle: config.toneStyle,
+          businessName: config.businessName,
+          industry: config.industry,
+          customPrompt: config.customPrompt,
+          qualificationQuestions: config.qualificationQuestions,
+        }),
+        signal: AbortSignal.timeout(5000),
+      });
+      if (!response.ok) {
+        this.logger.warn(`Failed to push config to agent-service: ${response.status}`);
+      }
+    } catch (err: any) {
+      this.logger.warn(`Failed to push config to agent-service: ${err.message}`);
+    }
   }
 }

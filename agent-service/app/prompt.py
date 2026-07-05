@@ -16,7 +16,31 @@ def build_system_prompt(niche: dict, lead_context: dict) -> str:
     stages_text = " → ".join(stages) if stages else "Standard pipeline"
 
     tone = niche.get("tone_examples", [])
-    tone_text = "\n".join(f'  - "{t}"' for t in tone[:3]) if tone else "  - Be friendly and helpful"
+    tone_style = niche.get("tone_style", "professional")
+    custom_prompt = niche.get("custom_prompt", "")
+
+    # Build tone section from dashboard config or niche config
+    if tone_style and not tone:
+        tone_map = {
+            "professional": '  - "Hi [Name], thanks for reaching out. How can I help?"',
+            "friendly": '  - "Hey [Name]! Great to hear from you 😊 What can I do for you today?"',
+            "enthusiastic": '  - "Hi [Name]!! So excited to connect 🎉 Tell me what you\'re looking for!"',
+            "formal": '  - "Good day [Name]. I appreciate your inquiry. How may I assist?"',
+            "casual": '  - "Hey [Name], what\'s up? Got any questions about what we do?"',
+        }
+        tone = [tone_map.get(tone_style, tone_map["professional"])]
+    tone_text = "\n".join(f'  - "{t}"' for t in (tone[:3] if tone else ["Be friendly and helpful"]))
+
+    # Dashboard qualification questions
+    qual_questions = niche.get("qualification_questions", [])
+    qual_text = ""
+    if qual_questions:
+        qual_text = "\n**Key questions to work into the conversation naturally:**\n" + "\n".join(f"  - {q}" for q in qual_questions[:8])
+
+    # Custom prompt override
+    custom_text = ""
+    if custom_prompt:
+        custom_text = f"\n\n**Additional instructions from your team:**\n{custom_prompt}"
 
     compliance_notes = ""
     compliance_rules = niche.get("compliance", [])
@@ -48,7 +72,7 @@ Your job is simple: have a natural conversation, learn about them, and guide the
 {tone_text}
 
 **What to learn naturally** (don't quiz, just notice when they mention it):
-{field_list}
+{field_list}{qual_text}
 
 **What catches your attention** (quietly note when these come up):
 {signals_text}
@@ -71,7 +95,7 @@ Your job is simple: have a natural conversation, learn about them, and guide the
 - Never claim you did something unless the tool actually confirmed it worked
 
 **Pipeline stages (they don't need to know about this):**
-When someone is qualified, use update_status to move them along: {stages_text}{compliance_notes}
+When someone is qualified, use update_status to move them along: {stages_text}{compliance_notes}{custom_text}
 
 ---
 
