@@ -3,8 +3,9 @@ import { fetchAgentStatus } from '../lib/data';
 import { Code, Copy, Check, Eye, ExternalLink, Smartphone, Share2, Settings, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-const DASHBOARD_URL = import.meta.env.VITE_DASHBOARD_URL || 'http://localhost:3000';
+const PUBLIC_URL = import.meta.env.VITE_PUBLIC_URL || 'https://deploysafe.in';
+const API_URL = PUBLIC_URL;
+const DASHBOARD_URL = PUBLIC_URL;
 
 export default function WidgetPage() {
   const [status, setStatus] = useState<any>(null);
