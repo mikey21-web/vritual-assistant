@@ -85,7 +85,7 @@ export class AgentService {
 
   async getStatus() {
     const model = process.env.AGENT_MODEL || 'gemini-2.5-flash';
-    const apiKeyConfigured = !!(process.env.GOOGLE_API_KEY || process.env.OPENAI_API_KEY);
+    const apiKeyConfigured = !!(process.env.GOOGLE_API_KEY || process.env.OPENAI_API_KEY || process.env.DEEPSEEK_API_KEY);
     const agentUrl = process.env.AGENT_SERVICE_URL;
 
     const config = await this.getAgentConfig();

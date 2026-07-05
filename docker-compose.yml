@@ -73,6 +73,8 @@ services:
       INTEGRATIONS_ENC_KEY: ${INTEGRATIONS_ENC_KEY:?INTEGRATIONS_ENC_KEY must be set}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
       WEBHOOK_API_KEYS: ${WEBHOOK_API_KEYS:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      AGENT_MODEL: ${AGENT_MODEL:-deepseek-chat}
     volumes:
       - uploads:/app/uploads
       - ./niche.config.yaml:/app/niche.config.yaml:ro
