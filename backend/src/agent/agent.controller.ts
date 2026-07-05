@@ -39,7 +39,7 @@ export class AgentController {
 
   @Patch('config')
   @Roles('OWNER', 'ADMIN')
-  updateConfig(@Body() d: UpdateAgentConfigDto) {
+  async updateConfig(@Body() d: UpdateAgentConfigDto) {
     return this.agent.updateConfig(d);
   }
 }

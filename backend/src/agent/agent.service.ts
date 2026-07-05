@@ -4,7 +4,7 @@ import { EventsService } from '../events/events.service';
 import { TimelineService } from '../timeline/timeline.service';
 import { AgentClientService } from './agent-client.service';
 
-interface AgentConfig {
+export interface AgentConfig {
   toneStyle: string;
   businessName: string;
   industry: string;
