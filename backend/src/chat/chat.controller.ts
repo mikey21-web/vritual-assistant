@@ -1,15 +1,16 @@
 import { Controller, Post, Body, Headers, Req, RawBodyRequest, Logger } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
+import { IsOptional, IsString } from 'class-validator';
 import { ChatService } from './chat.service';
 import { Public } from '../auth/public.decorator';
 
 export class ChatSendDto {
-  sessionId?: string;
-  name?: string;
-  email?: string;
-  phone?: string;
-  message: string;
+  @IsOptional() @IsString() sessionId?: string;
+  @IsOptional() @IsString() name?: string;
+  @IsOptional() @IsString() email?: string;
+  @IsOptional() @IsString() phone?: string;
+  @IsString() message: string;
 }
 
 @ApiTags('Chat')
