@@ -1,9 +1,17 @@
-import { render, screen } from '@testing-library/react';
+import { vi } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 
 const ThrowError = () => {
   throw new Error('Test error');
 };
+
+// jsdom doesn't support spying on window.location.reload
+const mockReload = vi.fn();
+Object.defineProperty(window, 'location', {
+  value: { reload: mockReload, href: '' },
+  writable: true,
+});
 
 describe('ErrorBoundary', () => {
   it('renders children when no error', () => {
@@ -16,7 +24,7 @@ describe('ErrorBoundary', () => {
   });
 
   it('catches errors and shows fallback UI', () => {
-    const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
     render(
       <ErrorBoundary>
         <ThrowError />
@@ -27,16 +35,16 @@ describe('ErrorBoundary', () => {
     spy.mockRestore();
   });
 
-  it('renders reload button', () => {
-    const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    const reloadSpy = jest.spyOn(window.location, 'reload').mockImplementation(() => {});
+  it('renders reload button that resets state', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
     render(
       <ErrorBoundary>
         <ThrowError />
       </ErrorBoundary>
     );
-    expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
+    const reloadBtn = screen.getByRole('button', { name: /reload page/i });
+    fireEvent.click(reloadBtn);
+    expect(mockReload).toHaveBeenCalled();
     spy.mockRestore();
-    reloadSpy.mockRestore();
   });
 });

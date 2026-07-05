@@ -11,9 +11,20 @@ interface StatCardProps {
   sparklineData?: number[];
 }
 
-export default function StatCard({
+export function StatCard({
   id, title, value, change, changeDirection = 'neutral', timeframe = 'vs last week', isHero = false, sparklineData,
-}: StatCardProps) {
+  loading = false,
+}: StatCardProps & { loading?: boolean }) {
+  if (loading) {
+    return (
+      <div id={id} className="relative rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
+        <div className="space-y-3">
+          <div className="h-3 bg-[var(--muted)] rounded animate-pulse w-1/3" />
+          <div className="h-6 bg-[var(--muted)] rounded animate-pulse w-1/2" />
+        </div>
+      </div>
+    );
+  }
   const generateSparklinePath = (data: number[]) => {
     if (!data || data.length < 2) return '';
     const width = 80, height = 24, padding = 2;

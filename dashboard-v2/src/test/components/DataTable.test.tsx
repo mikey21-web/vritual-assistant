@@ -1,9 +1,9 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { DataTable } from '../../components/DataTable';
+import DataTable from '../../components/DataTable';
 
 const columns = [
-  { key: 'name', label: 'Name' },
-  { key: 'email', label: 'Email' },
+  { header: 'Name', accessorKey: 'name' },
+  { header: 'Email', accessorKey: 'email' },
 ];
 
 const data = [
@@ -30,13 +30,13 @@ describe('DataTable', () => {
   });
 
   it('shows loading skeleton when loading', () => {
-    const { container } = render(<DataTable columns={columns} data={[]} loading />);
+    const { container } = render(<DataTable columns={columns} data={[]} isLoading />);
     const skeletons = container.querySelectorAll('.animate-pulse');
     expect(skeletons.length).toBeGreaterThan(0);
   });
 
   it('filters data on search', () => {
-    render(<DataTable columns={columns} data={data} searchable />);
+    const { container } = render(<DataTable columns={columns} data={data} />);
     const searchInput = screen.getByPlaceholderText(/search/i);
     fireEvent.change(searchInput, { target: { value: 'Alice' } });
     expect(screen.getByText('Alice')).toBeInTheDocument();
@@ -44,7 +44,7 @@ describe('DataTable', () => {
   });
 
   it('shows pagination info', () => {
-    render(<DataTable columns={columns} data={data} pageSize={1} />);
+    render(<DataTable columns={columns} data={data} />);
     expect(screen.getByText(/showing/i)).toBeInTheDocument();
   });
 });

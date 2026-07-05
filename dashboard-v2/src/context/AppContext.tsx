@@ -22,7 +22,7 @@ interface AppContextType {
   isClientUser: boolean;
 }
 
-const AppContext = createContext<AppContextType>({ niche: null, loading: true, isSuperAdmin: false, isClientUser: false });
+export const AppContext = createContext<AppContextType>({ niche: null, loading: true, isSuperAdmin: false, isClientUser: false });
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const { user, isLoggedIn } = useAuth();

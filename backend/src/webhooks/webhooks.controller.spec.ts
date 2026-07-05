@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { WebhooksController } from './webhooks.controller';
 import { WebhooksService } from './webhooks.service';
 import { WebhookSecurityService } from '../shared/webhook-security.service';
+import { ConfigService } from '@nestjs/config';
 import { UnauthorizedException } from '@nestjs/common';
 
 describe('WebhooksController', () => {
@@ -35,6 +36,7 @@ describe('WebhooksController', () => {
       providers: [
         { provide: WebhooksService, useValue: webhooksService },
         { provide: WebhookSecurityService, useValue: webhookSecurity },
+        { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('mock-token') } },
       ],
     }).compile();
 

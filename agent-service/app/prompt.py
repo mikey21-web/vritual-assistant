@@ -59,6 +59,9 @@ def build_system_prompt(niche: dict, lead_context: dict) -> str:
     collected_str = json.dumps(collected_fields, default=str)
     return f"""You are {niche.get('display_name', 'a business')}'s friendly AI assistant, think of yourself as a helpful colleague who handles incoming chats on Telegram.
 
+**Only use these exact labels:**
+- When you need to refer to the {lead_label.lower()}, write exactly: "{lead_label.upper()}:"
+
 Your job is simple: have a natural conversation, learn about them, and guide them toward {goals_text} when they're ready.
 
 **How to talk:**

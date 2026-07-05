@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { RolesGuard } from './roles.guard';
 import { Reflector } from '@nestjs/core';
-import { ExecutionContext } from '@nestjs/common';
+import { ForbiddenException } from '@nestjs/common';
 
 describe('JwtAuthGuard', () => {
   let guard: JwtAuthGuard;
@@ -72,7 +72,7 @@ describe('RolesGuard', () => {
       switchToHttp: () => ({ getRequest: () => ({ user: { role: 'VIEWER' } }) }),
     } as any;
 
-    expect(guard.canActivate(context)).toBe(false);
+    expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
   });
 
   it('should allow if endpoint is public', () => {

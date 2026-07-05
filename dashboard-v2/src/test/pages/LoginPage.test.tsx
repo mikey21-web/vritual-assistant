@@ -1,21 +1,22 @@
+import { vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { LoginPage } from '../../pages/LoginPage';
 
 describe('LoginPage', () => {
   it('renders login form', () => {
-    render(<LoginPage onLogin={jest.fn()} />);
-    expect(screen.getByPlaceholderText(/email/i)).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/password/i)).toBeInTheDocument();
+    render(<LoginPage onLogin={vi.fn()} />);
+    expect(screen.getByPlaceholderText(/name@example/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/enter your password/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument();
   });
 
   it('calls onLogin on form submission', async () => {
-    const onLogin = jest.fn();
+    const onLogin = vi.fn();
     render(<LoginPage onLogin={onLogin} />);
 
-    const emailInput = screen.getByPlaceholderText(/email/i);
-    const passwordInput = screen.getByPlaceholderText(/password/i);
+    const emailInput = screen.getByPlaceholderText(/name@example/i);
+    const passwordInput = screen.getByPlaceholderText(/enter your password/i);
     const submitBtn = screen.getByRole('button', { name: /sign in/i });
 
     await userEvent.type(emailInput, 'test@test.com');
@@ -28,11 +29,11 @@ describe('LoginPage', () => {
   });
 
   it('shows error message when onLogin throws', async () => {
-    const onLogin = jest.fn().mockRejectedValue(new Error('Invalid credentials'));
+    const onLogin = vi.fn().mockRejectedValue(new Error('Invalid credentials'));
     render(<LoginPage onLogin={onLogin} />);
 
-    await userEvent.type(screen.getByPlaceholderText(/email/i), 'test@test.com');
-    await userEvent.type(screen.getByPlaceholderText(/password/i), 'wrong');
+    await userEvent.type(screen.getByPlaceholderText(/name@example/i), 'test@test.com');
+    await userEvent.type(screen.getByPlaceholderText(/enter your password/i), 'wrong');
     fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
     await waitFor(() => {
@@ -41,11 +42,11 @@ describe('LoginPage', () => {
   });
 
   it('disables button while loading', async () => {
-    const onLogin = jest.fn().mockImplementation(() => new Promise(() => {}));
+    const onLogin = vi.fn().mockImplementation(() => new Promise(() => {}));
     render(<LoginPage onLogin={onLogin} />);
 
-    await userEvent.type(screen.getByPlaceholderText(/email/i), 'test@test.com');
-    await userEvent.type(screen.getByPlaceholderText(/password/i), 'pass');
+    await userEvent.type(screen.getByPlaceholderText(/name@example/i), 'test@test.com');
+    await userEvent.type(screen.getByPlaceholderText(/enter your password/i), 'pass');
     fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
     await waitFor(() => {
@@ -54,7 +55,7 @@ describe('LoginPage', () => {
   });
 
   it('does not have create account link', () => {
-    render(<LoginPage onLogin={jest.fn()} />);
+    render(<LoginPage onLogin={vi.fn()} />);
     expect(screen.queryByText(/create account/i)).not.toBeInTheDocument();
   });
 });

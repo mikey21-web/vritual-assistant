@@ -112,7 +112,7 @@ export default function DataTable<T extends Record<string, any>>({
                   </tr>
                 ))
               ) : paginatedData.length === 0 ? (
-                <tr><td colSpan={columns.length + (hasSelectionField ? 1 : 0) + (renderExpandedRow ? 1 : 0)} className="py-16">{emptyState}</td></tr>
+                <tr><td colSpan={columns.length + (hasSelectionField ? 1 : 0) + (renderExpandedRow ? 1 : 0)} className="py-16 text-center text-[var(--muted-foreground)] text-sm">{emptyState || 'No data'}</td></tr>
               ) : (
                 paginatedData.map((row, rIdx) => {
                   const rId = hasSelectionField ? String(row[rowIdAccessor]) : String(rIdx);
