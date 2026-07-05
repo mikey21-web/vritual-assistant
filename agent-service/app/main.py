@@ -9,6 +9,7 @@ from fastapi import FastAPI, BackgroundTasks, HTTPException, Header
 from app.config import Settings
 from app.schemas import AgentRunRequest, AgentRunResponse
 from app.runner import execute_run
+from app.config_runtime import runtime_config
 from app.idempotency import init as idempotency_init, close as idempotency_close
 from app.logging_config import setup_logging, new_run_id
 
@@ -36,16 +37,6 @@ async def lifespan(app: FastAPI):
     yield
     await idempotency_close()
     logger.info("agent_service_stopped")
-
-
-# Runtime config pushed from dashboard
-runtime_config: dict = {
-    "toneStyle": "professional",
-    "businessName": "",
-    "industry": "generic",
-    "customPrompt": "",
-    "qualificationQuestions": [],
-}
 
 
 app = FastAPI(title="AI Lead Agent Service", version="1.0.0", lifespan=lifespan)
@@ -108,8 +99,9 @@ async def agent_config(body: dict, x_agent_key: str = Header(None)):
     if settings.agent_inbound_key and x_agent_key != settings.agent_inbound_key:
         raise HTTPException(status_code=401, detail="Invalid agent key")
 
-    global runtime_config
-    runtime_config = {**runtime_config, **body}
+    from app.config_runtime import runtime_config as rc
+
+    rc.update(body)
     logger.info("agent_config_updated", keys=list(body.keys()))
     return {"status": "ok", "accepted": list(body.keys())}
 

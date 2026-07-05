@@ -16,7 +16,7 @@ from app.backend_client import BackendClient, BackendError
 from app.niche_config import normalize_niche_config, load_niche_config_from_file
 from app.prompt import build_system_prompt
 from app.logging_config import utc_now_iso
-from app.main import runtime_config
+from app.config_runtime import runtime_config
 
 import structlog
 
