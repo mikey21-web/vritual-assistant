@@ -1,33 +1,21 @@
 import { Client } from 'ssh2';
-
 const HOST = '160.250.204.162';
 const PASS = 'Maheshwari21!';
-
 const commands = [
-  'cd /opt/lead-automation && git log --oneline -3',
-  'cd /opt/lead-automation && git pull origin single-tenant-arch',
-  'cd /opt/lead-automation && docker compose up -d --no-deps --build backend 2>&1',
-  'cd /opt/lead-automation && docker compose ps --filter "status=running" --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"',
+  'cd /opt/lead-automation && grep -A2 "dashboard" docker-compose.yml | head -10',
+  'cd /opt/lead-automation && docker compose up -d --no-deps --build dashboard 2>&1 | tail -10',
 ];
-
 const conn = new Client();
 conn.on('ready', () => {
   let i = 0;
   function next() {
-    if (i >= commands.length) {
-      conn.end();
-      return;
-    }
+    if (i >= commands.length) { conn.end(); return; }
     const cmd = commands[i++];
     console.log('\n=== ' + cmd + ' ===');
     conn.exec(cmd, (err, stream) => {
       if (err) { console.error(err); conn.end(); return; }
       let output = '';
-      stream.on('close', (code) => {
-        console.log(output.trim());
-        console.log('-> exit code ' + code);
-        next();
-      });
+      stream.on('close', (code) => { console.log(output.trim()); next(); });
       stream.stderr.on('data', (d) => { output += d.toString(); });
       stream.on('data', (d) => { output += d.toString(); });
     });
