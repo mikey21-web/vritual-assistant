@@ -49,6 +49,8 @@ async function bootstrap() {
     }
   }}));
 
+  app.use('/favicon.ico', (_req, res) => res.status(204).end());
+
   app.use(helmet({
     contentSecurityPolicy: {
       directives: {
