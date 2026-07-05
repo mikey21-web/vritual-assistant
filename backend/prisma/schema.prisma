@@ -178,6 +178,7 @@ enum CustomFieldType {
   DATE
   BOOLEAN
   DROPDOWN
+  MULTI_SELECT
 }
 
 enum CustomFieldTarget {
