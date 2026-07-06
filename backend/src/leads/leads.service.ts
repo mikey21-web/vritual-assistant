@@ -72,6 +72,20 @@ export class LeadsService {
         }
         throw err;
       });
+
+      // Propagate extracted fields from metadata to contact
+      if (data.metadata && lead.contactId) {
+        const contactUpdate: any = {};
+        if (data.metadata.email) contactUpdate.email = data.metadata.email;
+        if (data.metadata.name) contactUpdate.name = data.metadata.name;
+        if (data.metadata.phone) contactUpdate.phone = data.metadata.phone;
+        if (Object.keys(contactUpdate).length > 0) {
+          try {
+            await tx.contact.update({ where: { id: lead.contactId }, data: contactUpdate });
+          } catch { /* ignore contact update errors */ }
+        }
+      }
+
       await this.auditLogs.log('lead_updated', 'Lead', id, userId, data);
       if (data.status) await this.events.emit({ type: 'lead.status_changed', leadId: id, entityType: 'lead', entityId: id, payload: { from: null, to: data.status }, createdById: userId });
       if (data.segment) await this.events.emit({ type: 'lead.segment_changed', leadId: id, entityType: 'lead', entityId: id, payload: { to: data.segment }, createdById: userId });

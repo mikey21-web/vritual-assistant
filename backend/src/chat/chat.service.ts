@@ -72,17 +72,6 @@ export class ChatService {
 
     const agentResponse = await this.callAgentSync(lead.id, d.sessionId || 'chat', d.message, tenantId);
 
-    if (agentResponse) {
-      await this.conversationsService.create({
-        text: agentResponse,
-        channel: 'CHATBOT',
-        direction: 'OUTBOUND',
-        leadId: lead.id,
-        contactId: contact.id,
-        metadata: { sessionId: d.sessionId, source: 'chat_widget_ai' },
-      });
-    }
-
     return {
       response: agentResponse || 'Thanks for reaching out! Our team will get back to you shortly.',
       contactId: contact.id,

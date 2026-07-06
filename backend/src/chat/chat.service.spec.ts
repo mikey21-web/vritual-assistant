@@ -135,20 +135,11 @@ describe('ChatService', () => {
         message: 'I need help with pricing',
       }),
     );
-    expect(conversationsService.create).toHaveBeenCalledTimes(2);
-    expect(conversationsService.create).toHaveBeenNthCalledWith(1,
+    expect(conversationsService.create).toHaveBeenCalledTimes(1);
+    expect(conversationsService.create).toHaveBeenCalledWith(
       expect.objectContaining({
         text: 'I need help with pricing',
         direction: 'INBOUND',
-        channel: 'CHATBOT',
-        leadId: 'lead-1',
-        contactId: 'contact-1',
-      }),
-    );
-    expect(conversationsService.create).toHaveBeenNthCalledWith(2,
-      expect.objectContaining({
-        text: 'Hello! How can I help you today?',
-        direction: 'OUTBOUND',
         channel: 'CHATBOT',
         leadId: 'lead-1',
         contactId: 'contact-1',
@@ -393,14 +384,9 @@ describe('ChatService', () => {
       message: 'I need support',
     });
 
-    expect(conversationsService.create).toHaveBeenNthCalledWith(1,
+    expect(conversationsService.create).toHaveBeenCalledWith(
       expect.objectContaining({
         metadata: { sessionId: 'sess-999', source: 'chat_widget' },
-      }),
-    );
-    expect(conversationsService.create).toHaveBeenNthCalledWith(2,
-      expect.objectContaining({
-        metadata: { sessionId: 'sess-999', source: 'chat_widget_ai' },
       }),
     );
   });

@@ -31,7 +31,8 @@ def build_graph(tools: list, settings: Settings, client: BackendClient):
 
     async def _tools_node(state: AgentState, config: RunnableConfig) -> dict:
         result = await _tool_node.ainvoke(state)
-        return {"messages": state.get("messages", []) + list(result)}
+        new_messages = result.get("messages", result) if isinstance(result, dict) else list(result)
+        return {"messages": state.get("messages", []) + list(new_messages)}
 
     graph.add_node("load_context", _load_context)
     graph.add_node("agent", _agent_node)
@@ -78,7 +79,7 @@ async def _load_context(state: AgentState, config: RunnableConfig) -> AgentState
         niche_raw = {}
 
     if not nich:
-        nich = normalize_niche_config(niche_raw)
+        nich = niche_raw if niche_raw and "display_name" in niche_raw else normalize_niche_config(niche_raw)
 
     # Merge dashboard runtime config into niche config for prompt
     rc = runtime_config or {}
@@ -188,6 +189,14 @@ def _should_continue(state: AgentState, config: RunnableConfig) -> str:
 
             return "tools"
 
+        # After tool results: if last AI msg had tool_calls, let it respond in text
+        if isinstance(last, ToolMessage):
+            for m in reversed(messages):
+                if isinstance(m, AIMessage):
+                    if m.tool_calls:
+                        return "agent"
+                    break
+
     return "persist"
 
 
@@ -212,17 +221,18 @@ async def _persist_node(state: AgentState, config: RunnableConfig) -> AgentState
             has_send = True
         resolved_actions.append({**act, "status": result_status})
 
-    # Auto-send last AI response if no send_message was called
+    # Auto-send last text-only AI response if no send_message was called
     if not has_send and messages:
-        last = messages[-1]
-        if isinstance(last, AIMessage) and last.content and not last.tool_calls:
-            try:
-                lead_id = state["lead_id"]
-                channel = state.get("channel", "WHATSAPP")
-                await client.send_message(lead_id, channel, str(last.content), None)
-                resolved_actions.append({"tool": "send_message", "args": {"text": str(last.content)[:100]}, "status": "auto"})
-            except Exception as e:
-                logger.warning("auto_send_failed", error=str(e))
+        for m in reversed(messages):
+            if isinstance(m, AIMessage) and m.content and not m.tool_calls:
+                try:
+                    lead_id = state["lead_id"]
+                    channel = state.get("channel", "WHATSAPP")
+                    await client.send_message(lead_id, channel, str(m.content), None)
+                    resolved_actions.append({"tool": "send_message", "args": {"text": str(m.content)[:100]}, "status": "auto"})
+                except Exception as e:
+                    logger.warning("auto_send_failed", error=str(e))
+                break
 
     started_at = state.get("started_at", utc_now_iso())
 

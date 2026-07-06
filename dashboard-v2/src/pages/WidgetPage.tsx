@@ -24,7 +24,7 @@ export default function WidgetPage() {
 window.LEADFLOW_URL = '${API_URL}';
 window.LEADFLOW_PRIMARY = '${primaryColor}';
 window.LEADFLOW_COMPANY = '${bizName}';
-window.LEADFLOW_WELCOME = 'Hi there! 👋 Welcome to ${bizName}. How can I help you today?';
+window.LEADFLOW_WELCOME = 'Hi there! Welcome to ${bizName}. How can I help you today?';
 </script>
 <script src="${DASHBOARD_URL}/widget/embed.js"></script>`;
 

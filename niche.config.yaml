@@ -33,14 +33,14 @@ packs:
   - type: pipeline_stages
     payload:
       stages:
-        - { name: "New Inquiry", order: 0, color: "#7C3AED", isDefault: true }
-        - { name: "Contacted", order: 1, color: "#F59E0B" }
-        - { name: "Proposal Sent", order: 2, color: "#3B82F6" }
-        - { name: "Negotiation", order: 3, color: "#F97316" }
-        - { name: "Deposit Paid", order: 4, color: "#06B6D4" }
-        - { name: "Event Confirmed", order: 5, color: "#10B981", isEnd: true }
-        - { name: "Post-Event Follow-up", order: 6, color: "#8B5CF6" }
-        - { name: "Cancelled", order: 7, color: "#EF4444", isEnd: true }
+        - { name: "NEW", order: 0, color: "#7C3AED", isDefault: true }
+        - { name: "CONTACTED", order: 1, color: "#F59E0B" }
+        - { name: "ENGAGED", order: 2, color: "#3B82F6" }
+        - { name: "QUALIFYING", order: 3, color: "#F97316" }
+        - { name: "QUALIFIED", order: 4, color: "#06B6D4" }
+        - { name: "APPOINTMENT_BOOKED", order: 5, color: "#10B981" }
+        - { name: "CONVERTED", order: 6, color: "#8B5CF6", isEnd: true }
+        - { name: "LOST", order: 7, color: "#EF4444", isEnd: true }
   - type: scoring_rules
     payload:
       rules:

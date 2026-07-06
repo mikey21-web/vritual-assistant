@@ -27,7 +27,10 @@ export class ConversationsService {
     if (campaignId) where.campaignId = campaignId;
     if (channel) where.channel = channel;
     return Promise.all([
-      this.prisma.conversationMessage.findMany({ where, skip: (+page - 1) * +limit, take: +limit, orderBy: { createdAt: 'desc' } }),
+      this.prisma.conversationMessage.findMany({
+        where, skip: (+page - 1) * +limit, take: +limit, orderBy: { createdAt: 'desc' },
+        include: { lead: { include: { contact: true } } },
+      }),
       this.prisma.conversationMessage.count({ where }),
     ]).then(([data, total]) => ({ data, meta: { total, page: +page, limit: +limit } }));
   }

@@ -20,7 +20,7 @@ SAFE_DEFAULT_CONFIG = {
         "Asks about pricing → +5",
     ],
     "conversion_goals": ["Book a consultation call", "Schedule a demo"],
-    "pipeline_stages": ["New", "Contacted", "Qualified", "Proposal Sent", "Won", "Lost"],
+    "pipeline_stages": ["NEW", "CONTACTED", "ENGAGED", "QUALIFYING", "QUALIFIED", "PROPOSAL_SENT", "APPOINTMENT_BOOKED", "CONVERTED", "LOST"],
     "booking_types": ["Consultation", "Demo"],
     "tone_examples": [
         "Hi {name}! Thanks for reaching out. How can I help you today?",

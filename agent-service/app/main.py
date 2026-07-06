@@ -8,7 +8,7 @@ from fastapi import FastAPI, BackgroundTasks, HTTPException, Header
 
 from app.config import Settings
 from app.schemas import AgentRunRequest, AgentRunResponse
-from app.runner import execute_run
+from app.runner import execute_run, execute_run_and_get_response
 from app.config_runtime import runtime_config
 from app.idempotency import init as idempotency_init, close as idempotency_close
 from app.logging_config import setup_logging, new_run_id
@@ -152,13 +152,13 @@ async def _agent_test_response_fallback(message: str = ""):
         question_hint = f" You might want to ask about {questions[0].lower()}."
 
     style_hints = {
-        "professional": "Keep it polished and concise.",
-        "friendly": "Be warm and approachable.",
-        "enthusiastic": "Show energy and excitement.",
-        "formal": "Use formal business language.",
-        "casual": "Keep it relaxed and conversational.",
+        "professional": "Keep it polished and concise. Never use emojis or em dashes.",
+        "friendly": "Be warm and approachable. Never use emojis or em dashes.",
+        "enthusiastic": "Show energy and excitement. Never use emojis or em dashes.",
+        "formal": "Use formal business language. Never use emojis or em dashes.",
+        "casual": "Keep it relaxed and conversational. Never use emojis or em dashes.",
     }
-    style = style_hints.get(tone, "Be natural and helpful.")
+    style = style_hints.get(tone, "Be natural and helpful. Never use emojis or em dashes.")
 
     if custom_prompt:
         response = custom_prompt.replace("{message}", message).replace("{businessName}", biz_name).replace("{industry}", industry)

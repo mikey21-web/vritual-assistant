@@ -140,6 +140,7 @@ export default function LeadsPage() {
                 <thead>
                   <tr className="border-b border-[var(--border)] bg-[var(--muted)]">
                     <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Contact</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Event</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Source</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Status</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Segment</th>
@@ -148,48 +149,46 @@ export default function LeadsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {data.map(l => (
+                  {data.map(l => {
+                    const meta = l.metadata as Record<string, string> | undefined;
+                    const eventType = meta?.event_type || '';
+                    const budget = meta?.budget || l.budget || '';
+                    return (
                     <React.Fragment key={l.id}>
-                      <tr
-                        onClick={() => handleExpand(l.id)}
-                        className="border-b border-[var(--border)] hover:bg-[var(--muted)]/50 cursor-pointer transition-colors"
-                      >
+                      <tr onClick={() => handleExpand(l.id)} className="border-b border-[var(--border)] hover:bg-[var(--muted)]/50 cursor-pointer transition-colors">
                         <td className="px-4 py-3">
                           <div className="font-medium text-[var(--foreground)]">{l.contact?.name || 'Unknown'}</div>
                           <div className="text-xs text-[var(--muted-foreground)]">{l.contact?.phone || l.contact?.email || ''}</div>
+                          {(l.segment === 'HOT' || l.segment === 'WARM') && (
+                            <span className="inline-flex mt-1 px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Potential Client</span>
+                          )}
                         </td>
-                        <td className="px-4 py-3">
-                          <span className="text-xs text-[var(--muted-foreground)]">{l.source}</span>
+                        <td className="px-4 py-3 text-xs text-[var(--foreground)]">
+                          {eventType && <div>{eventType}</div>}
+                          {budget && <div className="text-[var(--muted-foreground)]">{budget}</div>}
+                          {!eventType && !budget && <span className="text-[var(--muted-foreground)]">-</span>}
                         </td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${statusStyles[l.status] || ''}`}>{l.status}</span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${segmentStyles[l.segment] || ''}`}>{l.segment}</span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="font-mono text-sm font-semibold text-[var(--foreground)]">{l.score}</span>
-                        </td>
-                        <td className="px-4 py-3 text-xs text-[var(--muted-foreground)]">
-                          {new Date(l.createdAt).toLocaleDateString()}
-                        </td>
+                        <td className="px-4 py-3"><span className="text-xs text-[var(--muted-foreground)]">{l.source}</span></td>
+                        <td className="px-4 py-3"><span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${statusStyles[l.status] || ''}`}>{l.status}</span></td>
+                        <td className="px-4 py-3"><span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${segmentStyles[l.segment] || ''}`}>{l.segment}</span></td>
+                        <td className="px-4 py-3"><span className="font-mono text-sm font-semibold text-[var(--foreground)]">{l.score}</span></td>
+                        <td className="px-4 py-3 text-xs text-[var(--muted-foreground)]">{new Date(l.createdAt).toLocaleDateString()}</td>
                       </tr>
                       {expandedId === l.id && (
                         <tr key={`${l.id}-exp`}>
-                          <td colSpan={6} className="px-4 py-4 bg-[var(--muted)] border-b border-[var(--border)]">
+                          <td colSpan={7} className="px-4 py-4 bg-[var(--muted)] border-b border-[var(--border)]">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                               <div>
                                 <h4 className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider mb-3">Lead Details</h4>
                                 <div className="space-y-2.5 text-sm">
-                                  <div className="flex items-center gap-2 text-[var(--muted-foreground)]">
-                                    <Phone size={14} className="text-[var(--primary)]" /><span>{l.contact?.phone || '-'}</span>
-                                  </div>
-                                  <div className="flex items-center gap-2 text-[var(--muted-foreground)]">
-                                    <Mail size={14} className="text-[var(--primary)]" /><span>{l.contact?.email || '-'}</span>
-                                  </div>
+                                  <div className="flex items-center gap-2 text-[var(--muted-foreground)]"><Phone size={14} className="text-[var(--primary)]" /><span>{l.contact?.phone || '-'}</span></div>
+                                  <div className="flex items-center gap-2 text-[var(--muted-foreground)]"><Mail size={14} className="text-[var(--primary)]" /><span>{l.contact?.email || '-'}</span></div>
                                   {l.interest && <div className="mt-2"><span className="text-[var(--foreground)] font-medium">Interest:</span> <span className="text-[var(--muted-foreground)]">{l.interest}</span></div>}
                                   {l.budget && <div><span className="text-[var(--foreground)] font-medium">Budget:</span> <span className="text-[var(--muted-foreground)]">{l.budget}</span></div>}
                                   {l.message && <div><span className="text-[var(--foreground)] font-medium">Message:</span> <span className="text-[var(--muted-foreground)]">{l.message}</span></div>}
+                                  {meta && Object.entries(meta).filter(([k]) => !['email','phone','name'].includes(k)).map(([k, v]) => (
+                                    <div key={k}><span className="text-[var(--foreground)] font-medium capitalize">{k.replace(/_/g, ' ')}:</span> <span className="text-[var(--muted-foreground)]">{String(v)}</span></div>
+                                  ))}
                                 </div>
                               </div>
                               <div>
@@ -212,7 +211,8 @@ export default function LeadsPage() {
                         </tr>
                       )}
                     </React.Fragment>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -220,7 +220,10 @@ export default function LeadsPage() {
 
           {/* Mobile cards */}
           <div className="block sm:hidden space-y-3">
-            {data.map(l => (
+            {data.map(l => {
+              const meta = l.metadata as Record<string, string> | undefined;
+              const eventType = meta?.event_type || '';
+              return (
               <div
                 key={l.id}
                 onClick={() => handleExpand(l.id)}
@@ -230,9 +233,13 @@ export default function LeadsPage() {
                   <div className="min-w-0 flex-1">
                     <div className="font-medium text-[var(--foreground)]">{l.contact?.name || 'Unknown'}</div>
                     <div className="text-xs text-[var(--muted-foreground)] truncate">{l.contact?.phone || l.contact?.email || ''}</div>
+                    {(l.segment === 'HOT' || l.segment === 'WARM') && (
+                      <span className="inline-flex mt-1 px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Potential Client</span>
+                    )}
                   </div>
                   <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ml-2 ${segmentStyles[l.segment] || ''}`}>{l.segment}</span>
                 </div>
+                {eventType && <div className="text-xs text-[var(--foreground)] mb-1.5">Event: {eventType}</div>}
                 <div className="flex flex-wrap items-center gap-2 text-xs">
                   <span className="text-[var(--muted-foreground)]">{l.source}</span>
                   <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${statusStyles[l.status] || ''}`}>{l.status}</span>
@@ -252,6 +259,9 @@ export default function LeadsPage() {
                       {l.interest && <div><span className="text-[var(--foreground)] font-medium">Interest:</span> <span className="text-[var(--muted-foreground)]">{l.interest}</span></div>}
                       {l.budget && <div><span className="text-[var(--foreground)] font-medium">Budget:</span> <span className="text-[var(--muted-foreground)]">{l.budget}</span></div>}
                       {l.message && <div><span className="text-[var(--foreground)] font-medium">Message:</span> <span className="text-[var(--muted-foreground)]">{l.message}</span></div>}
+                      {meta && Object.entries(meta).filter(([k]) => !['email','phone','name'].includes(k)).map(([k, v]) => (
+                        <div key={k}><span className="text-[var(--foreground)] font-medium capitalize">{k.replace(/_/g, ' ')}:</span> <span className="text-[var(--muted-foreground)]">{String(v)}</span></div>
+                      ))}
                     </div>
                     <div className="mt-3 pt-3 border-t border-[var(--border)]">
                       <h4 className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider mb-2">Timeline</h4>
@@ -271,7 +281,8 @@ export default function LeadsPage() {
                   </div>
                 )}
               </div>
-            ))}
+            );
+          })}
           </div>
         </>
       )}

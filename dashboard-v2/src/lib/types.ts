@@ -71,12 +71,14 @@ export interface Task {
 
 export interface Message {
   id: string;
-  text: string;
+  text?: string;
+  body?: string;
   channel: string;
   direction: string;
   leadId: string;
   contactId?: string;
   createdAt: string;
+  lead?: { id: string; status: string; contact?: { id: string; name?: string; phone?: string } };
 }
 
 export interface Template {
