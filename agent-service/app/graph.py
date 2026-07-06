@@ -146,11 +146,28 @@ async def _agent_node(state: AgentState, config: RunnableConfig) -> AgentState:
     has_tool = any(isinstance(m, ToolMessage) for m in state["messages"])
     logger.warning("agent_node_call", msg_types=msg_types, has_tool_msg=has_tool, msg_count=len(state["messages"]))
 
-    response = await model.ainvoke(state["messages"])
+    try:
+        response = await model.ainvoke(state["messages"])
+    except Exception as e:
+        logger.error("agent_model_error", error=str(e))
+        response = AIMessage(
+            content=f"Thanks for reaching out! I'm here to help you with event planning. What kind of event are you looking to plan?",
+            tool_calls=[],
+        )
+
     has_content = bool(response.content)
-    has_tc = bool(response.tool_calls)
+    has_tc = bool(response.tool_calls) if hasattr(response, "tool_calls") else False
     content_preview = str(response.content)[:200] if response.content else "(empty)"
     logger.warning("agent_model_response", has_content=has_content, has_tool_calls=has_tc, content_preview=content_preview)
+
+    # Fallback: if model returned empty content with no tool calls, use a default greeting
+    if not has_content and not has_tc:
+        logger.warning("agent_empty_response_fallback")
+        response = AIMessage(
+            content=f"Thanks for messaging! I'd love to help you plan your event. What type of event are you thinking about?",
+            tool_calls=[],
+        )
+
     state["messages"].append(response)
     state["steps"] = state.get("steps", 0) + 1
 
