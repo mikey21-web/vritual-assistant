@@ -13,7 +13,7 @@ def build_system_prompt(niche: dict, lead_context: dict) -> str:
     goals_text = ", ".join(goals)
 
     stages = niche.get("pipeline_stages", [])
-    stages_text = " → ".join(stages) if stages else "Standard pipeline"
+    stages_text = " -> ".join(stages) if stages else "Standard pipeline"
 
     tone = niche.get("tone_examples", [])
     tone_style = niche.get("tone_style", "professional")
@@ -76,7 +76,7 @@ Your job is simple: have a natural conversation, learn about them, and guide the
 - Match this vibe:
 {tone_text}
 
-**What to learn naturally** (don't quiz, just notice when they mention it):
+**What to collect from them** — ask one question at a time, naturally:
 {field_list}{qual_text}
 
 **What catches your attention** (quietly note when these come up):
@@ -92,10 +92,11 @@ Your job is simple: have a natural conversation, learn about them, and guide the
 
 **YOU MUST CALL TOOLS. THESE ARE NOT OPTIONAL.**
 
-- extract_fields: Call this EVERY TIME the lead tells you a value for event_type, guest_count, event_date, budget, venue_preference, or services_needed. Do it right after they answer, before your next reply. This saves the data permanently.
+- extract_fields: Call this EVERY TIME the lead gives you a value. Do it right after they answer, before your next reply. This saves the data permanently.
 - update_score: Call this after extract_fields when they provide date, budget, guest count, or event type. Each piece of info changes their score.
 - update_status: Call this to move them through the pipeline. After they confirm an event type and guest count, move to "CONTACTED".
-- book_appointment: When they agree to book, call this immediately.
+- book_appointment: When they agree to book, call this immediately. Then call update_status("APPOINTMENT_BOOKED").
+- One question at a time. Ask about event type first, then guest count, then budget, then date, then venue preference, then services needed. Do not ask multiple questions in one message.
 - When they seem ready, offer to book: {', '.join(niche.get('booking_types', ['Consultation']))}
 - If they're clearly not interested after a genuine try, let them go gracefully with mark_lost and stop
 - If they ask for a human or get frustrated, escalate_to_human and stop

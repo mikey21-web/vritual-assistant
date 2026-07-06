@@ -134,8 +134,8 @@ export class WebhooksService {
       lead = await this.leadsService.create({ contactId: contact.id, source: 'TELEGRAM', message: text, metadata: payload });
     }
 
-    // Handle /start for consent opt-in
-    if (text.trim().toLowerCase() === '/start') {
+    // Auto opt-in on any inbound message (implicit consent via Telegram message)
+    if (contact.consentStatus !== 'opted_in') {
       await this.prisma.contact.update({
         where: { id: contact.id },
         data: { consentStatus: 'opted_in' },

@@ -2,8 +2,10 @@ import { Client } from 'ssh2';
 const HOST = '160.250.204.162';
 const PASS = 'Maheshwari21!';
 const commands = [
-  'cd /opt/lead-automation && git pull origin single-tenant-arch',
+  'cd /opt/lead-automation && git stash && git pull origin single-tenant-arch && git stash pop',
   'cd /opt/lead-automation && docker compose up -d --no-deps --build dashboard 2>&1 | tail -5',
+  'cd /opt/lead-automation && docker compose up -d --no-deps --build backend 2>&1 | tail -5',
+  'cd /opt/lead-automation && docker compose up -d --no-deps --build agent-service 2>&1 | tail -5',
 ];
 const conn = new Client();
 conn.on('ready', () => {
