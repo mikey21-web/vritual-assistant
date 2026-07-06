@@ -147,6 +147,10 @@ async def _agent_node(state: AgentState, config: RunnableConfig) -> AgentState:
     logger.warning("agent_node_call", msg_types=msg_types, has_tool_msg=has_tool, msg_count=len(state["messages"]))
 
     response = await model.ainvoke(state["messages"])
+    has_content = bool(response.content)
+    has_tc = bool(response.tool_calls)
+    content_preview = str(response.content)[:200] if response.content else "(empty)"
+    logger.warning("agent_model_response", has_content=has_content, has_tool_calls=has_tc, content_preview=content_preview)
     state["messages"].append(response)
     state["steps"] = state.get("steps", 0) + 1
 
