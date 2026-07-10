@@ -4,11 +4,12 @@ import {
   Megaphone, FormInput, QrCode, FileText, Route, Target,
   ShoppingCart, Link, Calendar, Layers, ChevronLeft, ChevronRight,
   UserCircle, CheckSquare, Sparkles, Phone,   Bot, MessageCircle, Smartphone, Webhook, Globe, LogOut, Columns3,
-  LifeBuoy, BookOpen, Puzzle,
+  LifeBuoy, BookOpen, Puzzle, Download,
 } from "lucide-react";
 import { fetchProfile, fetchBusinessSettings } from "../../lib/data";
 import { useAuth } from "../../lib/useAuth";
 import { useBranding } from "../../lib/useBranding";
+import BrandLogo from "../BrandLogo";
 import { isFeatureEnabled, getLabel, getBusinessName } from "../../lib/niche-config";
 
 const featureMap: Record<string, string> = {
@@ -103,6 +104,7 @@ const rawNavGroups = [
       { label: "Reports", icon: BarChart3, path: "/reports" },
       { label: "Studio", icon: Puzzle, path: "/studio" },
       { label: "Settings", icon: Settings, path: "/settings" },
+      { label: "Import Data", icon: Download, path: "/import" },
     ],
   },
 ];
