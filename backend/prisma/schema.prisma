@@ -59,6 +59,7 @@ model Tenant {
   savedReports SavedReport[]
   callLogs     CallLog[]
   notifications Notification[]
+  adCampaigns AdCampaign[]
 
   @@index([slug])
   @@map("tenants")
