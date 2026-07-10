@@ -105,6 +105,7 @@ const rawNavGroups = [
       { label: "Studio", icon: Puzzle, path: "/studio" },
       { label: "Settings", icon: Settings, path: "/settings" },
       { label: "Import Data", icon: Download, path: "/import" },
+      { label: "Ad Integrations", icon: BarChart3, path: "/ads" },
     ],
   },
 ];

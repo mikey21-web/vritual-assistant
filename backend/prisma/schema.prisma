@@ -75,6 +75,8 @@ enum LeadSource {
   PHONE_CALL
   TELEGRAM
   EMAIL
+  META_ADS
+  GOOGLE_ADS
 }
 
 enum LeadStatus {
@@ -853,8 +855,8 @@ model AdCampaign {
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
-  @@index([tenantId, platform])
-  @@index([externalId])
+  @@unique([tenantId, externalId])
+  @@index([platform])
   @@map("ad_campaigns")
 }
 

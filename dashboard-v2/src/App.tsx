@@ -37,6 +37,7 @@ const PageComponents: Record<string, React.LazyExoticComponent<React.ComponentTy
   Advanced: lazy(() => import("./pages/AdvancedPage")),
   Settings: lazy(() => import("./pages/SettingsPage")),
   Workspace: lazy(() => import("./pages/WorkspacePage")),
+  AdIntegrations: lazy(() => import("./pages/AdIntegrationsPage")),
   Failures: lazy(() => import("./pages/FailuresPage")),
   Health: lazy(() => import("./pages/HealthPage")),
   AICampaigns: lazy(() => import("./pages/AICampaignManager")),
@@ -82,7 +83,7 @@ function getPageKey(path: string): string {
     "/settings": "Settings", "/workspace": "Workspace", "/import": "Import",
     "/failures": "Failures", "/health": "Health",
     "/ai-campaigns": "AICampaigns", "/ai-agent": "AIAgent",
-    "/webhooks": "Webhooks", "/sms": "SMS", "/widget": "Widget",
+    "/webhooks": "Webhooks", "/sms": "SMS", "/widget": "Widget", "/ads": "AdIntegrations",
     "/tickets": "Tickets", "/knowledge-base": "KnowledgeBase",
     "/copilot": "Mikey",     "/studio": "Studio", "/reports": "Reports",
   };
