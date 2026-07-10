@@ -33,6 +33,11 @@ jobs:
       redis:
         image: redis:7-alpine
         ports: ['6379:6379']
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lead_automation
+      JWT_SECRET: ci-test-secret
+      SIGNED_URL_SECRET: ci-test-signed-url-secret
+      REDIS_URL: redis://localhost:6379
 
     steps:
       - uses: actions/checkout@v4
@@ -49,11 +54,6 @@ jobs:
       - run: cd backend && npx prisma migrate deploy
       - run: cd backend && npm run build
       - run: cd backend && npm test -- --runInBand --forceExit
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lead_automation
-          JWT_SECRET: ci-test-secret
-          SIGNED_URL_SECRET: ci-test-signed-url-secret
-          REDIS_URL: redis://localhost:6379
 
   dashboard:
     runs-on: ubuntu-latest
