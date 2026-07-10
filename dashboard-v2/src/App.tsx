@@ -7,6 +7,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { getPrimaryColor } from "./lib/niche-config";
 import { Sidebar } from "./components/layout/sidebar";
 import { Topbar } from "./components/layout/topbar";
+import MikeyWidget from "./components/MikeyWidget";
 import { LoginPage } from "./pages/LoginPage";
 import LandingPage from "./pages/LandingPage";
 import { Skeleton } from "./components/ui/skeleton";
@@ -83,7 +84,7 @@ function getPageKey(path: string): string {
     "/ai-campaigns": "AICampaigns", "/ai-agent": "AIAgent",
     "/webhooks": "Webhooks", "/sms": "SMS", "/widget": "Widget",
     "/tickets": "Tickets", "/knowledge-base": "KnowledgeBase",
-    "/copilot": "Copilot",     "/studio": "Studio", "/reports": "Reports",
+    "/copilot": "Mikey",     "/studio": "Studio", "/reports": "Reports",
   };
   return map[path] || "Overview";
 }
@@ -167,6 +168,7 @@ export default function App() {
           </main>
         </div>
       </div>
+      <MikeyWidget />
       <Toaster position="top-right" toastOptions={{
         style: { borderRadius: 'var(--radius)', background: 'var(--card)', color: 'var(--foreground)', border: '1px solid var(--border)', fontSize: '14px' },
         success: { iconTheme: { primary: '#0f766e', secondary: '#ffffff' } },
