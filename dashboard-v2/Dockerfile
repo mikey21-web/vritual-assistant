@@ -8,6 +8,8 @@ COPY . .
 # Same-origin default: the frontend calls /api/* which the reverse proxy routes to the backend.
 ARG VITE_API_URL=/api
 ENV VITE_API_URL=$VITE_API_URL
+ARG VITE_NICHE_NAME=agency
+ENV VITE_NICHE_NAME=$VITE_NICHE_NAME
 RUN npm run build
 
 FROM nginx:alpine AS production

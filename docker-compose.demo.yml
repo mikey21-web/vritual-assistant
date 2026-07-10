@@ -82,6 +82,7 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_URL: /api
+        VITE_NICHE_NAME: ${NICHE_NAME:-agency}
     restart: unless-stopped
     ports:
       - "127.0.0.1:${DASHBOARD_PORT}:3000"
