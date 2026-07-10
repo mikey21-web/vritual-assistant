@@ -15,6 +15,17 @@ const featureMap: Record<string, string> = {
   "/nurture": "nurture", "/scoring": "scoring", "/rules": "routing",
   "/crm": "crm", "/booking": "booking", "/tickets": "tickets",
   "/knowledge-base": "knowledgeBase", "/media": "media", "/qr-codes": "qrCodes", "/reports": "reports",
+  "/campaigns": "campaigns", "/forms": "forms",
+  "/conversations": "messages", "/templates": "templates",
+  "/ai-campaigns": "aiCampaigns", "/ai-agent": "aiAgent", "/copilot": "copilot",
+  "/webhooks": "webhooks", "/sms": "sms", "/widget": "widget",
+  "/tasks": "tasks", "/integrations": "integrations",
+  "/analytics": "analytics", "/studio": "studio",
+};
+
+const labelMap: Record<string, "contact" | "conversion"> = {
+  "/contacts": "contact",
+  "/conversions": "conversion",
 };
 
 const rawNavGroups = [
@@ -104,6 +115,11 @@ const navGroups = rawNavGroups
     items: g.items.filter((item) => {
       const feature = featureMap[item.path];
       return !feature || isFeatureEnabled(feature as any);
+    }).map((item) => {
+      const labelKey = labelMap[item.path];
+      if (labelKey) return { ...item, label: getLabel(labelKey) };
+      if (item.path === "/leads") return { ...item, label: getLabel("lead") };
+      return item;
     }),
   }))
   .filter((g) => g.items.length > 0);
