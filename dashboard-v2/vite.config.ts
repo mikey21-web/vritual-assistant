@@ -18,7 +18,7 @@ export default defineConfig(() => {
             'vendor': ['react', 'react-dom', 'react-router'],
             'charts': ['recharts'],
             'motion': ['motion', 'framer-motion'],
-            'ui': ['@headlessui/react', 'lucide-react', 'sonner'],
+            'ui': ['@headlessui/react', 'sonner'],
           },
         },
       },
