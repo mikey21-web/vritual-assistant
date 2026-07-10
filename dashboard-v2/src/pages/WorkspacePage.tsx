@@ -3,6 +3,7 @@ import { Building2, CheckCircle, Save } from 'lucide-react';
 import { api } from '../lib/api';
 import toast from 'react-hot-toast';
 import { useBranding } from '../lib/useBranding';
+import BrandLogo from '../components/BrandLogo';
 
 export default function WorkspacePage() {
   const [branding, setBranding] = useState<any>(null);
@@ -98,13 +99,12 @@ export default function WorkspacePage() {
           </div>
         </div>
         <div className="flex items-center gap-3 rounded-lg bg-[var(--muted)] p-4">
-          {branding.logoUrl ? (
-            <img src={branding.logoUrl} alt="" className="h-8 rounded" />
-          ) : (
-            <div className="h-8 w-8 rounded bg-[var(--primary)] flex items-center justify-center text-xs font-bold text-[var(--primary-foreground)]">
-              {(branding.businessName || 'LA').slice(0, 2).toUpperCase()}
-            </div>
-          )}
+          <BrandLogo
+            logoUrl={branding.logoUrl}
+            name={branding.businessName || "LA"}
+            className="h-8 rounded"
+            initialsClassName="h-8 w-8 rounded bg-[var(--primary)] flex items-center justify-center"
+          />
           <div>
             <p className="text-sm font-medium text-[var(--foreground)]">{branding.businessName || 'Unnamed'}</p>
             <p className="text-xs text-[var(--muted-foreground)]">Primary: {branding.primaryColor}</p>

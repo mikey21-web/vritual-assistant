@@ -5,7 +5,6 @@ niche:
   industry: healthcare
   display_name: "CarePlus Clinic"
 branding:
-  logo_url: "https://example.com/careplus-logo.png"
   primary_color: "#2563EB"
   labels: { lead: "Patient Inquiry", leads: "Patient Inquiries", contact: "Patient", conversion: "Appointment" }
 agent:

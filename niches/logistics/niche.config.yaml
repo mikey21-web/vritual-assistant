@@ -5,7 +5,6 @@ niche:
   industry: logistics
   display_name: "SwiftFreight Logistics"
 branding:
-  logo_url: "https://example.com/swiftfreight-logo.png"
   primary_color: "#EA580C"
   labels: { lead: "Shipper", leads: "Shippers", contact: "Contact", conversion: "Booked Shipment" }
 agent:

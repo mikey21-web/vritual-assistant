@@ -5,7 +5,6 @@ niche:
   industry: events
   display_name: "EventPro Marketing"
 branding:
-  logo_url: "https://example.com/eventpro-logo.png"
   primary_color: "#7C3AED"
   labels: { lead: "Client", leads: "Clients", contact: "Contact", conversion: "Booking" }
 agent:

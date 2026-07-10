@@ -5,7 +5,6 @@ niche:
   industry: hospitality
   display_name: "StayWell Hotels"
 branding:
-  logo_url: "https://example.com/staywell-logo.png"
   primary_color: "#0E7C7B"
   labels: { lead: "Guest", leads: "Guests", contact: "Contact", conversion: "Booking" }
 agent:

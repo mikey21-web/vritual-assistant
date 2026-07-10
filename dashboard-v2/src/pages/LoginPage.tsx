@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { useBranding } from "../lib/useBranding";
+import BrandLogo from "../components/BrandLogo";
 
 interface LoginPageProps {
   onLogin: (email: string, password: string) => Promise<void>;
@@ -42,13 +43,12 @@ export function LoginPage({ onLogin, error: externalError }: LoginPageProps) {
         <div className="w-full max-w-sm">
           <div className="mb-12">
             <div className="flex items-center gap-2.5 mb-10">
-              {branding.logoUrl ? (
-                <img src={branding.logoUrl} alt={branding.businessName} className="h-9 rounded-lg" />
-              ) : (
-                <div className="h-9 w-9 rounded-lg bg-[var(--primary)] flex items-center justify-center">
-                  <span className="text-xs font-bold text-[var(--primary-foreground)]">{(branding.businessName || 'LA').slice(0, 2).toUpperCase()}</span>
-                </div>
-              )}
+              <BrandLogo
+                logoUrl={branding.logoUrl}
+                name={branding.businessName || "LeadAuto"}
+                className="h-9 rounded-lg"
+                initialsClassName="h-9 w-9 rounded-lg bg-[var(--primary)] flex items-center justify-center"
+              />
               <span className="text-base font-bold text-[var(--foreground)]">{branding.businessName || 'LeadAuto'}</span>
             </div>
             <h1 className="text-2xl font-bold text-[var(--foreground)]">Welcome back</h1>

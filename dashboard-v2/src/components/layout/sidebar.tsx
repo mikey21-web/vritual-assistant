@@ -160,13 +160,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { co
         <div className="flex h-14 items-center justify-between border-b border-[var(--border)] px-4">
           {!collapsed && (
             <div className="flex items-center gap-2.5">
-              {branding.logoUrl ? (
-                <img src={branding.logoUrl} alt={companyName} className="h-7 rounded" />
-              ) : (
-                <div className="h-7 w-7 rounded-md bg-[var(--primary)] flex items-center justify-center">
-                  <span className="text-[10px] font-bold text-[var(--primary-foreground)]">{initials}</span>
-                </div>
-              )}
+              <BrandLogo logoUrl={branding.logoUrl} name={companyName} />
               <span className="text-sm font-bold text-[var(--foreground)]">{companyName}</span>
             </div>
           )}
