@@ -24,14 +24,14 @@ export default function TeamPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-[var(--foreground)]">Team</h1>
           <p className="text-sm text-[var(--muted-foreground)] mt-1">{users.length} members</p>
         </div>
         <button
           onClick={() => setShowInvite(true)}
-          className="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90 transition-opacity shadow-sm"
+          className="inline-flex items-center justify-center gap-2 h-9 px-4 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90 transition-opacity shadow-sm w-full sm:w-auto"
         >
           <UserPlus size={16} /> Invite Member
         </button>
@@ -61,24 +61,26 @@ export default function TeamPage() {
             </div>
             <div>
               <label className="block text-xs font-medium text-[var(--muted-foreground)] mb-1">Role</label>
-              <div className="flex gap-2">
-                <select
-                  value={form.role}
-                  onChange={e => setForm({ ...form, role: e.target.value })}
-                  className="flex-1 h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
-                >
-                  {['SALES_AGENT', 'TEAM_LEAD', 'ADMIN', 'SUPER_ADMIN'].map(r => (
-                    <option key={r} value={r}>{r.replace('_', ' ')}</option>
-                  ))}
-                </select>
-                <button type="submit" className="h-9 px-4 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90">Invite</button>
-              </div>
+              <select
+                value={form.role}
+                onChange={e => setForm({ ...form, role: e.target.value })}
+                className="w-full h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
+              >
+                {['SALES_AGENT', 'TEAM_LEAD', 'ADMIN', 'SUPER_ADMIN'].map(r => (
+                  <option key={r} value={r}>{r.replace('_', ' ')}</option>
+                ))}
+              </select>
             </div>
+          </div>
+          <div className="flex justify-end mt-3">
+            <button type="submit" className="w-full sm:w-auto h-9 px-6 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90">
+              Invite
+            </button>
           </div>
         </form>
       )}
 
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden">
+      <div className="hidden sm:block rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -140,6 +142,55 @@ export default function TeamPage() {
             </tbody>
           </table>
         </div>
+      </div>
+
+      <div className="block sm:hidden space-y-3">
+        {users.length === 0 ? (
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] px-4 py-12 text-center text-[var(--muted-foreground)]">
+            No team members
+          </div>
+        ) : (
+          users.map((u: any) => (
+            <div key={u.id} className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-[var(--primary)] flex items-center justify-center text-sm font-medium text-white shadow-sm shrink-0">
+                    {(u.name || '?').charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <div className="font-medium text-[var(--foreground)]">{u.name}</div>
+                    <div className="text-sm text-[var(--muted-foreground)]">{u.email}</div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => { api(`/users/${u.id}`, { method: 'DELETE' }).then(refresh); toast.success('Removed'); }}
+                  className="p-1.5 rounded-md hover:bg-[var(--accent)] text-red-400 hover:text-red-600 transition-colors shrink-0"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+              <div className="flex items-center gap-2 mt-3">
+                <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+                  u.role === 'SUPER_ADMIN'
+                    ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
+                    : u.role === 'ADMIN'
+                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                      : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'
+                }`}>
+                  {u.role?.replace('_', ' ') || 'N/A'}
+                </span>
+                <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${
+                  (u.status || 'active') === 'active'
+                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                    : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                }`}>
+                  <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                  {u.status || 'active'}
+                </span>
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

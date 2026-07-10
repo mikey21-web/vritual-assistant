@@ -18,3 +18,7 @@ export class UpdateCustomFieldDto {
   @IsNumber() @IsOptional() displayOrder?: number;
   @IsArray() @IsOptional() options?: unknown[];
 }
+
+export class ReorderCustomFieldsDto {
+  @IsArray() @IsString({ each: true }) ids: string[];
+}

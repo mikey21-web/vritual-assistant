@@ -15,6 +15,17 @@ export class FeatureFlagsService {
     return this.cache.get(key) ?? false;
   }
 
+  /**
+   * Like isEnabled, but returns `defaultValue` when the flag has never been set.
+   * Use this for kill-switches that must default to "on" until an admin explicitly
+   * disables them — isEnabled()'s default of false would otherwise silently
+   * block the feature for every deployment that never touched the flag.
+   */
+  async isEnabledDefault(key: string, defaultValue: boolean): Promise<boolean> {
+    if (Date.now() - this.lastRefresh > 60000) await this.refreshCache();
+    return this.cache.has(key) ? this.cache.get(key)! : defaultValue;
+  }
+
   async refreshCache(): Promise<void> {
     try {
       const flags = await this.prisma.featureFlag.findMany();

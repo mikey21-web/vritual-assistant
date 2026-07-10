@@ -19,26 +19,44 @@ export interface MessagingAdapter {
 
 @Injectable()
 export class WhatsAppCloudAdapter implements MessagingAdapter {
+  /**
+   * Send a WhatsApp message.
+   * If `templateId` is provided, sends an approved template (required outside 24h window).
+   * If `within24h` is false and no templateId, returns an error.
+   */
   async sendMessage(to: string, text: string, config: any): Promise<{ success: boolean; messageId?: string; error?: string }> {
-    const phoneNumberId = config?.phoneNumberId;
-    const token = config?.accessToken;
+    const phoneNumberId = config?.phoneNumberId || config?.WHATSAPP_PHONE_NUMBER_ID;
+    const token = config?.accessToken || config?.WHATSAPP_ACCESS_TOKEN;
+    const within24h = config?.within24h !== false;
+    const templateId = config?.templateId;
     if (!phoneNumberId || !token) return { success: false, error: 'WhatsApp credentials not configured' };
+
+    if (!within24h && !templateId) {
+      return { success: false, error: 'Outside 24h window — a template message is required' };
+    }
+
     try {
-      const res = await fetchWithTimeout(`https://graph.facebook.com/v18.0/${phoneNumberId}/messages`, {
+      let body: any;
+      if (!within24h && templateId) {
+        body = { messaging_product: 'whatsapp', to, type: 'template', template: { name: templateId, language: { code: 'en' } } };
+      } else {
+        body = { messaging_product: 'whatsapp', to, type: 'text', text: { body: text } };
+      }
+      const res = await fetchWithTimeout(`https://graph.facebook.com/v20.0/${phoneNumberId}/messages`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ messaging_product: 'whatsapp', to, type: 'text', text: { body: text } }),
+        body: JSON.stringify(body),
       });
       const json = await res.json();
-      if (!res.ok) return { success: false, error: json.error?.message };
+      if (!res.ok) return { success: false, error: json.error?.message || `HTTP ${res.status}` };
       return { success: true, messageId: json.messages?.[0]?.id };
     } catch (e: any) { return { success: false, error: e.message }; }
   }
   async healthCheck(config: any): Promise<boolean> {
-    const token = config?.accessToken;
-    const phoneNumberId = config?.phoneNumberId;
+    const token = config?.accessToken || config?.WHATSAPP_ACCESS_TOKEN;
+    const phoneNumberId = config?.phoneNumberId || config?.WHATSAPP_PHONE_NUMBER_ID;
     if (!token || !phoneNumberId) return false;
     try {
-      const res = await fetchWithTimeout(`https://graph.facebook.com/v18.0/${phoneNumberId}/messages?access_token=${token}`, {
+      const res = await fetchWithTimeout(`https://graph.facebook.com/v20.0/${phoneNumberId}/messages?access_token=${token}`, {
         method: 'GET',
       });
       return res.ok;

@@ -97,7 +97,7 @@ export default function AIAgentPage() {
   if (!status) return (
     <div className="space-y-6 animate-fade-in">
       <div className="h-8 w-48 rounded-lg bg-[var(--card)] animate-pulse" />
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[1, 2, 3].map(i => <div key={i} className="h-28 rounded-lg bg-[var(--card)] border border-[var(--border)] animate-pulse" />)}
       </div>
     </div>
@@ -114,7 +114,7 @@ export default function AIAgentPage() {
           </div>
         </div>
       )}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <div className="flex items-center gap-1.5 mb-0.5">
             <Bot size={13} className="text-[var(--primary)]" />
@@ -132,7 +132,7 @@ export default function AIAgentPage() {
             </span>
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {(['overview', 'conversations', 'configure'] as const).map(t => (
             <button
               key={t}

@@ -59,17 +59,20 @@ async function main() {
 
   const stageCount = await prisma.pipelineStage.count();
   if (stageCount === 0) {
-    await prisma.pipelineStage.createMany({
-      data: [
-        { name: 'New', order: 0, color: '#3b82f6', isDefault: true, isEnd: false },
-        { name: 'Contacted', order: 1, color: '#f59e0b', isDefault: false, isEnd: false },
-        { name: 'Qualified', order: 2, color: '#8b5cf6', isDefault: false, isEnd: false },
-        { name: 'Proposal', order: 3, color: '#f97316', isDefault: false, isEnd: false },
-        { name: 'Negotiation', order: 4, color: '#ec4899', isDefault: false, isEnd: false },
-        { name: 'Won', order: 5, color: '#10b981', isDefault: false, isEnd: true },
-        { name: 'Lost', order: 6, color: '#ef4444', isDefault: false, isEnd: true },
-      ],
-    });
+    const defaultStages = [
+      { name: 'New', status: 'NEW' as const, order: 0, color: '#6b7280', isDefault: true, isEnd: false },
+      { name: 'Contacted', status: 'CONTACTED' as const, order: 1, color: '#3b82f6', isDefault: false, isEnd: false },
+      { name: 'Engaged', status: 'ENGAGED' as const, order: 2, color: '#8b5cf6', isDefault: false, isEnd: false },
+      { name: 'Qualifying', status: 'QUALIFYING' as const, order: 3, color: '#a855f7', isDefault: false, isEnd: false },
+      { name: 'Qualified', status: 'QUALIFIED' as const, order: 4, color: '#eab308', isDefault: false, isEnd: false },
+      { name: 'Proposal Sent', status: 'PROPOSAL_SENT' as const, order: 5, color: '#f97316', isDefault: false, isEnd: false },
+      { name: 'Appointment Booked', status: 'APPOINTMENT_BOOKED' as const, order: 6, color: '#06b6d4', isDefault: false, isEnd: false },
+      { name: 'Converted', status: 'CONVERTED' as const, order: 7, color: '#22c55e', isDefault: false, isEnd: true },
+      { name: 'Lost', status: 'LOST' as const, order: 8, color: '#ef4444', isDefault: false, isEnd: true },
+      { name: 'Cold', status: 'COLD' as const, order: 9, color: '#94a3b8', isDefault: false, isEnd: false },
+      { name: 'Spam', status: 'SPAM' as const, order: 10, color: '#64748b', isDefault: false, isEnd: true },
+    ];
+    await prisma.pipelineStage.createMany({ data: defaultStages });
   }
 
   const contactCount = await prisma.contact.count();

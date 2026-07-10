@@ -6,6 +6,7 @@ import { Roles } from '../auth/roles.decorator';
 import { OutboxService } from '../shared/outbox.service';
 import { DataPruningService } from '../automation/data-pruning.service';
 import { FailuresService } from '../failures/failures.service';
+import { FeatureFlagsService } from '../shared/feature-flags.service';
 
 @ApiTags('Admin')
 @Controller('admin')
@@ -16,7 +17,33 @@ export class AdminController {
     private outbox: OutboxService,
     private pruning: DataPruningService,
     private failures: FailuresService,
+    private featureFlags: FeatureFlagsService,
   ) {}
+
+  @Get('ai-kill-switches')
+  @Roles('OWNER', 'ADMIN')
+  async listAiKillSwitches() {
+    const flags = await this.featureFlags.findAll();
+    const known = ['copilot_enabled', 'lead_agent_enabled'];
+    return known.map(key => {
+      const existing = flags.find(f => f.key === key);
+      return { key, enabled: existing ? existing.enabled : true, description: existing?.description ?? null };
+    });
+  }
+
+  @Post('ai-kill-switches/:key/disable')
+  @Roles('OWNER', 'ADMIN')
+  async disableAiKillSwitch(@Param('key') key: string) {
+    await this.featureFlags.disable(key);
+    return { key, enabled: false };
+  }
+
+  @Post('ai-kill-switches/:key/enable')
+  @Roles('OWNER', 'ADMIN')
+  async enableAiKillSwitch(@Param('key') key: string) {
+    await this.featureFlags.enable(key);
+    return { key, enabled: true };
+  }
 
   @Post('drain')
   @Roles('OWNER', 'ADMIN')

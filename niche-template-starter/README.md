@@ -33,7 +33,24 @@ cp .env.example .env
 # At minimum: JWT_SECRET, INTEGRATIONS_ENC_KEY, DATABASE_URL
 ```
 
-### Step 4: Deploy
+### Step 4: Configure domain (optional)
+If deploying with a custom domain:
+
+1. Copy the Caddyfile template:
+   ```bash
+   cp Caddyfile.template Caddyfile
+   ```
+2. Edit `Caddyfile` and replace `{{DOMAIN}}` with your actual domain (e.g. `crm.myclient.com`).
+3. Ensure your domain's DNS A/AAAA record points to your server's IP.
+4. Run Caddy alongside the compose stack:
+   ```bash
+   # Install Caddy first: https://caddyserver.com/docs/install
+   caddy run
+   ```
+
+Without a custom domain, the dashboard is available on port 3000 directly.
+
+### Step 5: Deploy
 ```bash
 docker compose up -d
 ```
@@ -45,7 +62,7 @@ git commit -m "Initial niche config"
 git push origin main
 ```
 
-### Step 5: Verify
+### Step 6: Verify
 - Dashboard: http://your-server:3000
 - API Health: http://your-server:3001/health
 - Login with the SEED_OWNER_EMAIL / SEED_OWNER_PASSWORD

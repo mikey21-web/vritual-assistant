@@ -108,23 +108,19 @@ export class ConfigLoaderService implements OnApplicationBootstrap {
       }
     }
 
-    // Update business settings with niche info
+    // Update business settings with niche info + branding
     const existing = await this.prisma.businessSettings.findFirst({});
+    const data = {
+      businessName: config.niche?.display_name || '',
+      timezone: 'UTC',
+      logoUrl: config.branding?.logo_url || null,
+      primaryColor: config.branding?.primary_color || '#0B5',
+      labels: config.branding?.labels || {},
+    };
     if (existing) {
-      await this.prisma.businessSettings.update({
-        where: { id: existing.id },
-        data: {
-          businessName: config.niche?.display_name || '',
-          timezone: 'UTC',
-        },
-      });
+      await this.prisma.businessSettings.update({ where: { id: existing.id }, data });
     } else {
-      await this.prisma.businessSettings.create({
-        data: {
-          businessName: config.niche?.display_name || '',
-          timezone: 'UTC',
-        },
-      });
+      await this.prisma.businessSettings.create({ data });
     }
   }
 

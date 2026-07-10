@@ -2,7 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { fetchLeads, getLeadTimeline } from '../lib/data';
 import { useApp } from '../context/AppContext';
 import { Search, RefreshCw, Phone, Mail, Calendar, Users } from 'lucide-react';
+import { api } from '../lib/api';
+import toast from 'react-hot-toast';
 import type { Lead } from '../lib/types';
+import CustomFieldsSection from '../components/CustomFieldsSection';
 
 const statusStyles: Record<string, string> = {
   NEW: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
@@ -51,6 +54,20 @@ export default function LeadsPage() {
     if (expandedId === id) { setExpandedId(null); return; }
     setExpandedId(id);
     try { setTimeline(await getLeadTimeline(id)); } catch {}
+  };
+
+  const handleCall = async (leadId: string) => {
+    const toastId = toast.loading('Initiating call...');
+    try {
+      const res = await api('/telephony/call', { method: 'POST', body: JSON.stringify({ leadId }) });
+      if (res.success) {
+        toast.success('Call initiated!', { id: toastId });
+      } else {
+        toast.error(res.error || 'Call failed', { id: toastId });
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to initiate call', { id: toastId });
+    }
   };
 
   return (
@@ -177,11 +194,20 @@ export default function LeadsPage() {
                       {expandedId === l.id && (
                         <tr key={`${l.id}-exp`}>
                           <td colSpan={7} className="px-4 py-4 bg-[var(--muted)] border-b border-[var(--border)]">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                               <div>
                                 <h4 className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider mb-3">Lead Details</h4>
                                 <div className="space-y-2.5 text-sm">
-                                  <div className="flex items-center gap-2 text-[var(--muted-foreground)]"><Phone size={14} className="text-[var(--primary)]" /><span>{l.contact?.phone || '-'}</span></div>
+                                  <div className="flex items-center gap-2 text-[var(--muted-foreground)]">
+                                    <Phone size={14} className="text-[var(--primary)]" />
+                                    <span>{l.contact?.phone || '-'}</span>
+                                    {l.contact?.phone && (
+                                      <button onClick={(e) => { e.stopPropagation(); handleCall(l.id); }}
+                                        className="ml-1 inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-[var(--primary)] text-[var(--primary-foreground)] hover:opacity-90 transition-opacity cursor-pointer">
+                                        <Phone size={11} /> Call
+                                      </button>
+                                    )}
+                                  </div>
                                   <div className="flex items-center gap-2 text-[var(--muted-foreground)]"><Mail size={14} className="text-[var(--primary)]" /><span>{l.contact?.email || '-'}</span></div>
                                   {l.interest && <div className="mt-2"><span className="text-[var(--foreground)] font-medium">Interest:</span> <span className="text-[var(--muted-foreground)]">{l.interest}</span></div>}
                                   {l.budget && <div><span className="text-[var(--foreground)] font-medium">Budget:</span> <span className="text-[var(--muted-foreground)]">{l.budget}</span></div>}
@@ -206,6 +232,7 @@ export default function LeadsPage() {
                                   ))}
                                 </div>
                               </div>
+                              <CustomFieldsSection target="LEAD" targetId={l.id} />
                             </div>
                           </td>
                         </tr>
@@ -262,6 +289,9 @@ export default function LeadsPage() {
                       {meta && Object.entries(meta).filter(([k]) => !['email','phone','name'].includes(k)).map(([k, v]) => (
                         <div key={k}><span className="text-[var(--foreground)] font-medium capitalize">{k.replace(/_/g, ' ')}:</span> <span className="text-[var(--muted-foreground)]">{String(v)}</span></div>
                       ))}
+                    </div>
+                    <div className="mt-3 pt-3 border-t border-[var(--border)]">
+                      <CustomFieldsSection target="LEAD" targetId={l.id} />
                     </div>
                     <div className="mt-3 pt-3 border-t border-[var(--border)]">
                       <h4 className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider mb-2">Timeline</h4>

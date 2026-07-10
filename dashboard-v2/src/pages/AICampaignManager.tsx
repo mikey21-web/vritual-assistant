@@ -92,7 +92,7 @@ export default function AICampaignManager() {
           <Sparkles size={13} className="text-amber-500" />
           <span className="text-[11px] font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wider">AI Powered</span>
         </div>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
           <div>
             <h1 className="text-xl font-bold text-[var(--foreground)]">AI Campaign Manager</h1>
             <p className="text-sm text-[var(--muted-foreground)] mt-0.5">Describe your campaign in plain English — AI generates everything</p>
@@ -111,7 +111,7 @@ export default function AICampaignManager() {
       </div>
 
       <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-[var(--shadow-sm)]">
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1 relative">
             <textarea
               ref={inputRef}
@@ -290,7 +290,7 @@ export default function AICampaignManager() {
           <div className="border-b border-[var(--border)] px-5 py-3">
             <h3 className="text-sm font-semibold text-[var(--foreground)]">Launched Campaigns ({history.length})</h3>
           </div>
-          <div className="overflow-x-auto">
+          <div className="hidden sm:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--border)] bg-[var(--muted)]">
@@ -319,6 +319,36 @@ export default function AICampaignManager() {
                 ))}
               </tbody>
             </table>
+          </div>
+          <div className="block sm:hidden divide-y divide-[var(--border)]">
+            {history.map(h => (
+              <div key={h.id} className="p-4 space-y-2">
+                <div className="flex items-start justify-between">
+                  <span className="text-sm font-semibold text-[var(--foreground)]">{h.preview.name}</span>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 shrink-0">
+                    <Check size={10} /> Launched
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="text-[var(--muted-foreground)]">
+                    <span className="block font-medium text-[var(--foreground)]">Channels</span>
+                    {h.preview.channels.join(' + ')}
+                  </div>
+                  <div className="text-[var(--muted-foreground)]">
+                    <span className="block font-medium text-[var(--foreground)]">Leads</span>
+                    {h.preview.segment.estimatedLeads}
+                  </div>
+                  <div className="text-[var(--muted-foreground)]">
+                    <span className="block font-medium text-[var(--foreground)]">Budget</span>
+                    ₹{h.preview.budget.toLocaleString()}
+                  </div>
+                  <div className="text-[var(--muted-foreground)]">
+                    <span className="block font-medium text-[var(--foreground)]">ROI</span>
+                    <span className="text-emerald-600 font-semibold">{h.preview.predictedROI}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

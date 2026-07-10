@@ -4,7 +4,9 @@ import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { MessagePolicyService } from './message-policy.service';
 import { TwilioSmsAdapter } from '../shared/adapters/sms.adapter';
 import { WhatsAppCloudAdapter, TelegramBotAdapter } from '../shared/adapters/messaging.adapter';
+import { EmailAdapter } from '../shared/adapters/email.adapter';
 import { ConfigService } from '@nestjs/config';
+import { FailuresService } from '../failures/failures.service';
 
 @Injectable()
 export class ConversationsService {
@@ -18,6 +20,8 @@ export class ConversationsService {
     private whatsAppAdapter: WhatsAppCloudAdapter,
     private telegramAdapter: TelegramBotAdapter,
     private config: ConfigService,
+    private failures: FailuresService,
+    private emailAdapter: EmailAdapter,
   ) {}
 
   findAll(query: any = {}) {
@@ -109,9 +113,20 @@ export class ConversationsService {
       }
       const to: string = lead.contact.whatsapp || lead.contact.phone || '';
       if (!to) return;
+
+      // Check 24h window: find the latest inbound WhatsApp message for this lead
+      const lastInbound = await this.prisma.conversationMessage.findFirst({
+        where: { leadId: lead.id, channel: 'WHATSAPP', direction: 'INBOUND' },
+        orderBy: { createdAt: 'desc' },
+        select: { createdAt: true },
+      });
+      const within24h = lastInbound ? (Date.now() - new Date(lastInbound.createdAt).getTime() < 86400000) : false;
+
       const config = {
         phoneNumberId: this.config.get<string>('WHATSAPP_PHONE_NUMBER_ID') || '',
         accessToken: this.config.get<string>('WHATSAPP_ACCESS_TOKEN') || '',
+        within24h,
+        templateId: !within24h ? this.config.get<string>('WHATSAPP_DEFAULT_TEMPLATE') : undefined,
       };
       const result = await this.whatsAppAdapter.sendMessage(to, text, config);
       if (result.success) {
@@ -123,6 +138,16 @@ export class ConversationsService {
         await this.prisma.conversationMessage.update({
           where: { id: msg.id },
           data: { deliveryStatus: 'failed', metadata: { error: result.error } },
+        });
+        await this.failures.record({
+          type: 'WHATSAPP_SEND_FAILURE',
+          severity: 'medium',
+          message: result.error || 'WhatsApp send failed',
+          leadId: msg.leadId,
+          contactId: lead.contactId,
+          provider: 'WHATSAPP',
+          operation: 'send_message',
+          retryable: true,
         });
       }
     } else if (channel === 'TELEGRAM') {
@@ -146,7 +171,25 @@ export class ConversationsService {
           data: { deliveryStatus: 'failed', metadata: { error: result.error } },
         });
       }
+    } else if (channel === 'EMAIL') {
+      if (!lead.contact.email) {
+        this.logger.warn(`Cannot dispatch EMAIL for message ${msg.id}: contact has no email`);
+        return;
+      }
+      const originalSubject = msg.metadata?.subject || '';
+      const subject = originalSubject ? `Re: ${originalSubject}` : 'Message from CRM';
+      const result = await this.emailAdapter.send(lead.contact.email, subject, text);
+      if (result.success) {
+        await this.prisma.conversationMessage.update({
+          where: { id: msg.id },
+          data: { deliveryStatus: 'delivered' },
+        });
+      } else {
+        await this.prisma.conversationMessage.update({
+          where: { id: msg.id },
+          data: { deliveryStatus: 'failed', metadata: { error: result.error } },
+        });
+      }
     }
-    // Other channels (EMAIL, etc.) would be handled here
   }
 }

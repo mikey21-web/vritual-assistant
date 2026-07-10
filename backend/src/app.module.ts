@@ -48,7 +48,11 @@ import { MonitoringModule } from './monitoring/monitoring.module';
 import { TenantsModule } from './tenants/tenants.module';
 import { AdminModule } from './admin/admin.module';
 import { RealtimeModule } from './realtime/realtime.module';
+import { TicketsModule } from './tickets/tickets.module';
+import { CopilotModule } from './copilot/copilot.module';
 import { ChatModule } from './chat/chat.module';
+import { ReportsModule } from './reports/reports.module';
+import { TelephonyModule } from './telephony/telephony.module';
 
 @Module({
   imports: [
@@ -109,7 +113,11 @@ import { ChatModule } from './chat/chat.module';
     TenantsModule,
     AdminModule,
     RealtimeModule,
+    TicketsModule,
+    CopilotModule,
     ChatModule,
+    ReportsModule,
+    TelephonyModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

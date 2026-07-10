@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { Button } from "../components/ui/button";
+import { useBranding } from "../lib/useBranding";
 
 interface LoginPageProps {
   onLogin: (email: string, password: string) => Promise<void>;
@@ -8,6 +9,7 @@ interface LoginPageProps {
 }
 
 export function LoginPage({ onLogin, error: externalError }: LoginPageProps) {
+  const branding = useBranding();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -40,10 +42,14 @@ export function LoginPage({ onLogin, error: externalError }: LoginPageProps) {
         <div className="w-full max-w-sm">
           <div className="mb-12">
             <div className="flex items-center gap-2.5 mb-10">
-              <div className="h-9 w-9 rounded-lg bg-[var(--primary)] flex items-center justify-center">
-                <span className="text-xs font-bold text-[var(--primary-foreground)]">LA</span>
-              </div>
-              <span className="text-base font-bold text-[var(--foreground)]">LeadAuto</span>
+              {branding.logoUrl ? (
+                <img src={branding.logoUrl} alt={branding.businessName} className="h-9 rounded-lg" />
+              ) : (
+                <div className="h-9 w-9 rounded-lg bg-[var(--primary)] flex items-center justify-center">
+                  <span className="text-xs font-bold text-[var(--primary-foreground)]">{(branding.businessName || 'LA').slice(0, 2).toUpperCase()}</span>
+                </div>
+              )}
+              <span className="text-base font-bold text-[var(--foreground)]">{branding.businessName || 'LeadAuto'}</span>
             </div>
             <h1 className="text-2xl font-bold text-[var(--foreground)]">Welcome back</h1>
             <p className="text-sm text-[var(--muted-foreground)] mt-1.5">Sign in to your account to continue</p>

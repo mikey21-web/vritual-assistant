@@ -1,5 +1,5 @@
-import { Controller, Post, Get, Body, HttpCode, Headers, UnauthorizedException, Req, RawBodyRequest, Res, UseGuards, Param, Logger } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiExcludeEndpoint, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Post, Get, Delete, Body, HttpCode, Headers, UnauthorizedException, Req, RawBodyRequest, Res, UseGuards, Param, Query, Logger } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiExcludeEndpoint, ApiBody } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { ConfigService } from '@nestjs/config';
 import { Request, Response } from 'express';
@@ -9,7 +9,7 @@ import { Public } from '../auth/public.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-import { FormWebhookDto, WhatsAppWebhookDto, GenericWebhookDto, TelegramWebhookDto, SocialWebhookDto, VoiceIncomingWebhookDto, VoiceStatusWebhookDto } from './dto/webhook.dto';
+import { FormWebhookDto, WhatsAppWebhookDto, GenericWebhookDto, TelegramWebhookDto, SocialWebhookDto, VoiceIncomingWebhookDto, VoiceStatusWebhookDto, CreateOutboundWebhookDto } from './dto/webhook.dto';
 import * as crypto from 'crypto';
 
 @ApiTags('Webhooks')
@@ -35,6 +35,22 @@ export class WebhooksController {
       throw new UnauthorizedException('Invalid webhook API key');
     }
     return this.service.handleFormSubmit('external', d, req);
+  }
+
+  @Public()
+  @Get('whatsapp')
+  @ApiOperation({ summary: 'Meta WhatsApp webhook verification handshake' })
+  verifyWhatsApp(
+    @Query('hub.mode') mode: string,
+    @Query('hub.verify_token') token: string,
+    @Query('hub.challenge') challenge: string,
+  ) {
+    const expectedToken = this.configService.get<string>('WHATSAPP_WEBHOOK_VERIFY_TOKEN');
+    if (mode === 'subscribe' && token === expectedToken) {
+      this.logger.log('WhatsApp webhook verified');
+      return challenge;
+    }
+    throw new UnauthorizedException('WhatsApp webhook verification failed');
   }
 
   @Public()
@@ -204,6 +220,53 @@ export class WebhooksController {
       throw new UnauthorizedException('Invalid webhook API key');
     }
     return this.service.handleGeneric('mobile-app', 'app_event', d);
+  }
+
+  // ─── Outbound webhook subscriptions ────────────────────────────────
+
+  @Post('outbound')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('OWNER', 'ADMIN')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create an outbound webhook subscription' })
+  createOutbound(@Body() d: CreateOutboundWebhookDto) {
+    return this.service.createOutboundWebhook(d);
+  }
+
+  @Get('outbound')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('OWNER', 'ADMIN', 'MANAGER')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List outbound webhook subscriptions' })
+  listOutbound() {
+    return this.service.listOutboundWebhooks();
+  }
+
+  @Delete('outbound/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('OWNER', 'ADMIN')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete an outbound webhook subscription' })
+  deleteOutbound(@Param('id') id: string) {
+    return this.service.deleteOutboundWebhook(id);
+  }
+
+  @Post('outbound/:id/test')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('OWNER', 'ADMIN')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Send a test event to the webhook URL' })
+  testOutbound(@Param('id') id: string) {
+    return this.service.testOutboundWebhook(id);
+  }
+
+  // ─── Generic inbound webhook ──────────────────────────────────────
+
+  @Public()
+  @Post('inbound/:integrationId') @HttpCode(200)
+  @ApiOperation({ summary: 'Generic inbound webhook — accepts JSON payload and creates a lead via mapped fields' })
+  inboundWebhook(@Param('integrationId') id: string, @Body() body: Record<string, any>) {
+    return this.service.handleInboundWebhook(id, body);
   }
 
   // ─── Management Endpoints (authenticated) ──────────────────────────

@@ -23,7 +23,7 @@ export default function AdminPanel() {
     <div className="space-y-4">
       <PageHeader title="Admin Panel" description="System administration and monitoring" />
 
-      <div className="flex gap-2 border-b mb-4">
+      <div className="flex flex-wrap gap-2 border-b mb-4">
         <Tab active={activeTab === 'overview'} onClick={() => setActiveTab('overview')}>Overview</Tab>
         <Tab active={activeTab === 'tenants'} onClick={() => setActiveTab('tenants')}>Tenants</Tab>
         <Tab active={activeTab === 'health'} onClick={() => setActiveTab('health')}>Health</Tab>
@@ -39,7 +39,7 @@ export default function AdminPanel() {
       )}
 
       {activeTab === 'tenants' && (
-        <div className="border rounded-lg overflow-hidden">
+        <div className="border rounded-lg overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-[var(--muted)]">
               <tr>

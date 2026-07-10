@@ -7,6 +7,8 @@ import { MessagePolicyService } from './message-policy.service';
 import { TwilioSmsAdapter } from '../shared/adapters/sms.adapter';
 import { WhatsAppCloudAdapter, TelegramBotAdapter } from '../shared/adapters/messaging.adapter';
 import { ConfigService } from '@nestjs/config';
+import { FailuresService } from '../failures/failures.service';
+import { EmailAdapter } from '../shared/adapters/email.adapter';
 
 describe('ConversationsService', () => {
   let service: ConversationsService;
@@ -17,6 +19,8 @@ describe('ConversationsService', () => {
   let whatsAppAdapter: any;
   let telegramAdapter: any;
   let configService: any;
+  let failuresService: any;
+  let emailAdapter: any;
 
   const mockMessage = {
     id: 'msg-1',
@@ -45,6 +49,7 @@ describe('ConversationsService', () => {
     prisma = {
       conversationMessage: {
         findMany: jest.fn().mockResolvedValue([mockMessage]),
+        findFirst: jest.fn().mockResolvedValue(null),
         count: jest.fn().mockResolvedValue(1),
         create: jest.fn().mockResolvedValue(mockMessage),
         update: jest.fn().mockResolvedValue(mockMessage),
@@ -83,6 +88,9 @@ describe('ConversationsService', () => {
       }),
     };
 
+    failuresService = { create: jest.fn(), resolve: jest.fn() };
+    emailAdapter = { send: jest.fn() };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ConversationsService,
@@ -93,6 +101,8 @@ describe('ConversationsService', () => {
         { provide: WhatsAppCloudAdapter, useValue: whatsAppAdapter },
         { provide: TelegramBotAdapter, useValue: telegramAdapter },
         { provide: ConfigService, useValue: configService },
+        { provide: FailuresService, useValue: failuresService },
+        { provide: EmailAdapter, useValue: emailAdapter },
       ],
     }).compile();
 

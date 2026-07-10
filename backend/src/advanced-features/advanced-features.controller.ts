@@ -9,7 +9,7 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { Public } from '../auth/public.decorator';
 import { AdvancedFeaturesService } from './advanced-features.service';
-import { CreatePipelineStageDto, UpdatePipelineStageDto, CreateSavedFilterDto, CreateSlaRuleDto, UpdateSlaRuleDto, CreateRevenueDto, RevenueQueryDto, MergeContactsDto, CreateBlocklistDto, UpdateNotificationPrefsDto } from './dto/advanced-features.dto';
+import { CreatePipelineStageDto, UpdatePipelineStageDto, ReorderStagesDto, CreateSavedFilterDto, CreateSlaRuleDto, UpdateSlaRuleDto, CreateRevenueDto, RevenueQueryDto, MergeContactsDto, CreateBlocklistDto, UpdateNotificationPrefsDto } from './dto/advanced-features.dto';
 
 @ApiTags('Advanced')
 @Controller()
@@ -19,11 +19,11 @@ export class AdvancedFeaturesController {
   constructor(private svc: AdvancedFeaturesService) {}
 
   // Pipeline stages
-  @Get('pipeline-stages') @Roles('OWNER', 'ADMIN', 'MANAGER', 'VIEWER') getStages() { return this.svc.getStages(); }
+  @Get('pipeline-stages') @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT', 'SUPPORT_AGENT', 'VIEWER') getStages() { return this.svc.getStages(); }
   @Post('pipeline-stages') @Roles('OWNER', 'ADMIN', 'MANAGER') createStage(@Body() d: CreatePipelineStageDto) { return this.svc.createStage(d); }
   @Patch('pipeline-stages/:id') @Roles('OWNER', 'ADMIN', 'MANAGER') updateStage(@Param('id') id: string, @Body() d: UpdatePipelineStageDto) { return this.svc.updateStage(id, d); }
   @Delete('pipeline-stages/:id') @Roles('OWNER', 'ADMIN') deleteStage(@Param('id') id: string) { return this.svc.deleteStage(id); }
-  @Patch('pipeline-stages/reorder') @Roles('OWNER', 'ADMIN', 'MANAGER') reorderStages(@Body() d: { stages: { id: string; order: number }[] }) { return this.svc.reorderStages(d.stages); }
+  @Patch('pipeline-stages/reorder') @Roles('OWNER', 'ADMIN', 'MANAGER') reorderStages(@Body() d: ReorderStagesDto) { return this.svc.reorderStages(d.stageIds); }
 
   // Saved filters
   @Get('saved-filters') @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT') getFilters(@Req() req) { return this.svc.getFilters(req.user.sub); }

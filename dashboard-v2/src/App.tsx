@@ -2,6 +2,7 @@ import { useState, useEffect, lazy, Suspense } from "react";
 import { Toaster } from "react-hot-toast";
 import { useAuth } from "./lib/useAuth";
 import { AppProvider } from "./context/AppContext";
+import { BrandingProvider } from "./lib/useBranding";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Sidebar } from "./components/layout/sidebar";
 import { Topbar } from "./components/layout/topbar";
@@ -17,6 +18,7 @@ import QRCodesPage from "./pages/QRCodesPage";
 import MessagesPage from "./pages/MessagesPage";
 
 const PageComponents: Record<string, React.LazyExoticComponent<React.ComponentType<any>>> = {
+  Pipeline: lazy(() => import("./pages/PipelinePage")),
   Templates: lazy(() => import("./pages/TemplatesPage")),
   Media: lazy(() => import("./pages/MediaPage")),
   Nurture: lazy(() => import("./pages/NurturePage")),
@@ -41,6 +43,11 @@ const PageComponents: Record<string, React.LazyExoticComponent<React.ComponentTy
   Webhooks: lazy(() => import("./pages/WebhookPage")),
   SMS: lazy(() => import("./pages/SMSSettingsPage")),
   Widget: lazy(() => import("./pages/WidgetPage")),
+  Tickets: lazy(() => import("./pages/TicketsPage")),
+  KnowledgeBase: lazy(() => import("./pages/KnowledgeBasePage")),
+  Copilot: lazy(() => import("./pages/CopilotPage")),
+  Studio: lazy(() => import("./pages/StudioPage")),
+  Reports: lazy(() => import("./pages/ReportsPage")),
 };
 
 function PageFallback() {
@@ -60,7 +67,7 @@ function PageFallback() {
 
 function getPageKey(path: string): string {
   const map: Record<string, string> = {
-    "/": "Overview", "/leads": "Leads", "/contacts": "Contacts",
+    "/": "Overview", "/leads": "Leads", "/pipeline": "Pipeline", "/contacts": "Contacts",
     "/campaigns": "Campaigns", "/forms": "Forms", "/qr-codes": "QRCodes",
     "/conversations": "Messages", "/messages": "Messages",
     "/templates": "Templates", "/media": "Media",
@@ -73,6 +80,8 @@ function getPageKey(path: string): string {
     "/failures": "Failures", "/health": "Health",
     "/ai-campaigns": "AICampaigns", "/ai-agent": "AIAgent",
     "/webhooks": "Webhooks", "/sms": "SMS", "/widget": "Widget",
+    "/tickets": "Tickets", "/knowledge-base": "KnowledgeBase",
+    "/copilot": "Copilot",     "/studio": "Studio", "/reports": "Reports",
   };
   return map[path] || "Overview";
 }
@@ -119,14 +128,15 @@ export default function App() {
 
   if (!isLoggedIn) {
     if (publicRoute === '/login') {
-      return <LoginPage onLogin={handleLogin} />;
+      return <BrandingProvider><LoginPage onLogin={handleLogin} /></BrandingProvider>;
     }
-    return <LandingPage onLogin={() => { window.location.hash = '/login'; }} />;
+    return <BrandingProvider><LandingPage onLogin={() => { window.location.hash = '/login'; }} /></BrandingProvider>;
   }
 
   const PageComponent = pageRoutes[page] || PageComponents[page];
 
   return (
+    <BrandingProvider>
     <AppProvider>
       <div className="flex h-screen bg-[var(--background)] text-[var(--foreground)]">
         <Sidebar
@@ -154,5 +164,6 @@ export default function App() {
         error: { iconTheme: { primary: '#dc2626', secondary: '#ffffff' } },
       }} />
     </AppProvider>
+    </BrandingProvider>
   );
 }

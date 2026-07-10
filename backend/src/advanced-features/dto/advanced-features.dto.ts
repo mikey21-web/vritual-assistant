@@ -1,8 +1,14 @@
 import { IsString, IsOptional, IsNumber, IsBoolean, IsObject, IsEnum, IsArray } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { LeadStatus } from '@prisma/client';
+
+const LeadStatusValues = Object.values(LeadStatus);
 
 export class CreatePipelineStageDto {
   @ApiProperty() @IsString() name: string;
+  @ApiProperty({ enum: LeadStatusValues })
+  @IsEnum(LeadStatusValues)
+  status: string;
   @ApiProperty({ required: false }) @IsOptional() @IsNumber() order?: number;
   @ApiProperty({ required: false }) @IsOptional() @IsString() color?: string;
   @ApiProperty({ required: false }) @IsOptional() @IsBoolean() isDefault?: boolean;
@@ -12,11 +18,18 @@ export class CreatePipelineStageDto {
 
 export class UpdatePipelineStageDto {
   @ApiProperty({ required: false }) @IsOptional() @IsString() name?: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsNumber() order?: number;
   @ApiProperty({ required: false }) @IsOptional() @IsString() color?: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsBoolean() isDefault?: boolean;
-  @ApiProperty({ required: false }) @IsOptional() @IsBoolean() isEnd?: boolean;
   @ApiProperty({ required: false }) @IsOptional() @IsBoolean() active?: boolean;
+}
+
+export class ReorderStagesDto {
+  @ApiProperty() @IsArray() stageIds: string[];
+}
+
+export class MoveStageDto {
+  @ApiProperty({ enum: LeadStatusValues })
+  @IsEnum(LeadStatusValues)
+  status: string;
 }
 
 export class CreateSavedFilterDto {

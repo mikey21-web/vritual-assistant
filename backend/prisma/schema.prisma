@@ -13,9 +13,29 @@ enum UserRole {
   ADMIN
   MANAGER
   SALES_AGENT
+  SUPPORT_AGENT
+  VIEWER
 }
 
 // === TENANT MODEL ===
+
+model SavedReport {
+  id        String   @id @default(uuid())
+  tenantId  String   @map("tenant_id")
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  name      String
+  entity    String
+  config    Json
+  ownerId   String
+  owner     User     @relation(fields: [ownerId], references: [id])
+  isShared  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([ownerId])
+  @@map("saved_reports")
+}
 
 model Tenant {
   id        String   @id @default(uuid())
@@ -33,6 +53,11 @@ model Tenant {
   leads      Lead[]
   campaigns  Campaign[]
   integrations Integration[]
+  tickets      Ticket[]
+  knowledgeArticles KnowledgeArticle[]
+  copilotConversations CopilotConversation[]
+  savedReports SavedReport[]
+  callLogs     CallLog[]
 
   @@index([slug])
   @@map("tenants")
@@ -48,6 +73,7 @@ enum LeadSource {
   SOCIAL_MEDIA
   PHONE_CALL
   TELEGRAM
+  EMAIL
 }
 
 enum LeadStatus {
@@ -87,6 +113,61 @@ enum MessageChannel {
 enum MessageDirection {
   INBOUND
   OUTBOUND
+}
+
+enum CallDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum CallStatus {
+  INITIATED
+  RINGING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  NO_ANSWER
+  BUSY
+}
+
+model CallLog {
+  id           String        @id @default(uuid())
+  tenantId     String        @map("tenant_id")
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  leadId       String?
+  lead         Lead?         @relation(fields: [leadId], references: [id])
+  contactId    String?
+  contact      Contact?      @relation(fields: [contactId], references: [id])
+  agentId      String?
+  agent        User?         @relation(fields: [agentId], references: [id])
+  direction    CallDirection
+  status       CallStatus    @default(INITIATED)
+  fromNumber   String
+  toNumber     String
+  durationSec  Int?
+  recordingUrl String?
+  providerSid  String?
+  notes        String?
+  createdAt    DateTime      @default(now())
+
+  @@index([tenantId])
+  @@index([leadId])
+  @@map("call_logs")
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_ON_CUSTOMER
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
 }
 
 enum MediaCategory {
@@ -184,6 +265,7 @@ enum CustomFieldType {
 enum CustomFieldTarget {
   CONTACT
   LEAD
+  TICKET
 }
 
 // === REFRESH TOKENS ===
@@ -252,6 +334,12 @@ model User {
   ownershipTo      LeadOwnershipHistory[] @relation("OwnershipToUser")
   ownershipChanged LeadOwnershipHistory[] @relation("OwnershipChangedBy")
   escalatedSla     SlaRule[]
+  assignedTickets  Ticket[]
+  ticketComments   TicketComment[]
+  knowledgeArticles KnowledgeArticle[]
+  copilotConversations CopilotConversation[]
+  savedReports SavedReport[]
+  callLogs     CallLog[]
 
   @@index([email])
   @@index([role])
@@ -276,6 +364,10 @@ model BusinessSettings {
   maxMessagesPerDay     Int      @default(10)
   notificationEmail     String?
   notificationPhone     String?
+  logoUrl               String?
+  faviconUrl            String?
+  primaryColor          String   @default("#0B5")
+  labels                Json     @default("{}")
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
@@ -312,6 +404,8 @@ model Contact {
   systemEvents   SystemEvent[]
   timelineItems  TimelineItem[]
   consentEvents  ConsentEvent[]
+  tickets        Ticket[]
+  callLogs       CallLog[]
 
   @@index([email])
   @@index([phone])
@@ -363,6 +457,8 @@ model Lead {
   failureRecords FailureRecord[]
   workflowInstances WorkflowInstance[]
   scheduledActions  ScheduledAction[]
+  tickets           Ticket[]
+  callLogs          CallLog[]
 
   @@index([status])
   @@index([segment])
@@ -807,6 +903,21 @@ model WebhookEvent {
   @@map("webhook_events")
 }
 
+model OutboundWebhook {
+  id        String   @id @default(uuid())
+  name      String
+  url       String
+  events    String[]
+  secret    String   @default("")
+  active    Boolean  @default(true)
+  tenantId  String   @map("tenant_id")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@map("outbound_webhooks")
+}
+
 model AuditLog {
   id        String   @id @default(uuid())
   action    String
@@ -851,12 +962,18 @@ model CustomFieldValue {
   contact        Contact?              @relation(fields: [contactId], references: [id])
   leadId         String?
   lead           Lead?                 @relation(fields: [leadId], references: [id])
+  ticketId       String?
+  ticket         Ticket?               @relation(fields: [ticketId], references: [id])
   createdAt      DateTime              @default(now())
   updatedAt      DateTime              @updatedAt
 
   @@index([definitionId])
   @@index([contactId])
   @@index([leadId])
+  @@index([ticketId])
+  @@unique([definitionId, contactId])
+  @@unique([definitionId, leadId])
+  @@unique([definitionId, ticketId])
   @@map("custom_field_values")
 }
 
@@ -878,14 +995,15 @@ model LeadOwnershipHistory {
 }
 
 model PipelineStage {
-  id          String   @id @default(uuid())
+  id          String     @id @default(uuid())
   name        String
-  order       Int      @default(0)
-  color       String   @default("#6b7280")
-  isDefault   Boolean  @default(false)
-  isEnd       Boolean  @default(false)
-  active      Boolean  @default(true)
-  createdAt   DateTime @default(now())
+  status      LeadStatus @unique
+  order       Int        @default(0)
+  color       String     @default("#6b7280")
+  isDefault   Boolean    @default(false)
+  isEnd       Boolean    @default(false)
+  active      Boolean    @default(true)
+  createdAt   DateTime   @default(now())
 
   @@map("pipeline_stages")
 }
@@ -948,6 +1066,7 @@ model NotificationPreference {
 model SlaRule {
   id            String   @id @default(uuid())
   name          String
+  description   String?
   condition     Json
   responseTimeMinutes Int
   escalationUserId String?
@@ -955,6 +1074,7 @@ model SlaRule {
   escalationAfterMinutes Int?
   active        Boolean  @default(true)
   createdAt     DateTime @default(now())
+  tickets       Ticket[]
 
   @@map("sla_rules")
 }
@@ -990,6 +1110,100 @@ model ImportExportLog {
 
   @@index([userId])
   @@map("import_export_logs")
+}
+
+model Ticket {
+  id            String         @id @default(uuid())
+  tenantId      String         @map("tenant_id")
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  subject       String
+  description   String
+  status        TicketStatus   @default(OPEN)
+  priority      TicketPriority @default(MEDIUM)
+  leadId        String?
+  lead          Lead?          @relation(fields: [leadId], references: [id])
+  contactId     String?
+  contact       Contact?       @relation(fields: [contactId], references: [id])
+  assignedAgentId String?
+  assignedAgent   User?        @relation(fields: [assignedAgentId], references: [id])
+  slaRuleId     String?
+  slaRule       SlaRule?       @relation(fields: [slaRuleId], references: [id])
+  dueAt         DateTime?
+  resolvedAt    DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  comments      TicketComment[]
+  customFieldValues CustomFieldValue[]
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([assignedAgentId])
+  @@index([leadId])
+  @@map("tickets")
+}
+
+model TicketComment {
+  id        String   @id @default(uuid())
+  ticketId  String
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  isInternal Boolean @default(true)
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([ticketId])
+  @@map("ticket_comments")
+}
+
+model KnowledgeArticle {
+  id         String   @id @default(uuid())
+  tenantId   String   @map("tenant_id")
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  title      String
+  slug       String   @unique
+  body       String
+  tags       String[] @default([])
+  published  Boolean  @default(false)
+  authorId   String
+  author     User     @relation(fields: [authorId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([published])
+  @@map("knowledge_articles")
+}
+
+model CopilotConversation {
+  id        String   @id @default(uuid())
+  tenantId  String   @map("tenant_id")
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  title     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages  CopilotMessage[]
+
+  @@index([userId])
+  @@index([updatedAt])
+  @@map("copilot_conversations")
+}
+
+model CopilotMessage {
+  id             String              @id @default(uuid())
+  conversationId String
+  conversation   CopilotConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String              // user | assistant | tool
+  content        String
+  toolCalls      Json?
+  createdAt      DateTime            @default(now())
+
+  @@index([conversationId])
+  @@map("copilot_messages")
 }
 
 // === FEATURE FLAGS ===

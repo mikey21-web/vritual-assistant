@@ -1,4 +1,4 @@
-import { IsString, IsEmail, IsOptional } from 'class-validator';
+import { IsString, IsEmail, IsOptional, IsObject } from 'class-validator';
 
 export class UpdateBusinessSettingsDto {
   @IsString() @IsOptional() businessName?: string;
@@ -12,4 +12,8 @@ export class UpdateBusinessSettingsDto {
   @IsString() @IsOptional() workingHoursEnd?: string;
   @IsEmail() @IsOptional() notificationEmail?: string;
   @IsString() @IsOptional() notificationPhone?: string;
+  @IsString() @IsOptional() logoUrl?: string;
+  @IsString() @IsOptional() faviconUrl?: string;
+  @IsString() @IsOptional() primaryColor?: string;
+  @IsObject() @IsOptional() labels?: Record<string, string>;
 }

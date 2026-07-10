@@ -82,6 +82,67 @@ export const mockFailures = [
   { id: 'fail-3', type: 'WHATSAPP', status: 'OPEN', severity: 'LOW', message: 'Template not approved by Meta', attempts: 1, maxAttempts: 3, leadId: 'lead-12', provider: 'whatsapp', operation: 'send_template', createdAt: randomDate(3) },
 ];
 
+const mockTicketSubjects = ['Unable to access dashboard', 'API rate limit exceeded', 'Data import not working', 'Billing discrepancy on invoice #1024', 'Feature request: bulk export', 'Email delivery delayed', 'User permissions issue', 'Integration with Salesforce failing'];
+const mockTicketDescriptions = [
+  'User reports they cannot log into the dashboard after the latest update. They see a 403 error.',
+  'Our webhook integration is hitting the API rate limit after only 50 requests per minute.',
+  'When importing CSV data, about 30% of rows are silently skipped with no error message.',
+  'The invoice for last month shows a charge for 500 users but we only have 350 active users.',
+  'We need the ability to export all leads and conversations as CSV for our compliance audit.',
+  'Outbound emails are taking 15+ minutes to be delivered. This is impacting our follow-up SLA.',
+  'A new team member cannot be assigned as MANAGER role. The dropdown shows an error.',
+  'Contact sync from Salesforce stopped working after the latest API update.',
+];
+
+function buildMockTicket(i: number): any {
+  const statuses = ['OPEN', 'IN_PROGRESS', 'WAITING_ON_CUSTOMER', 'RESOLVED', 'CLOSED'];
+  const priorities = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
+  const lead = mockLeads[i % mockLeads.length];
+  return {
+    id: `ticket-${i + 1}`,
+    subject: mockTicketSubjects[i % mockTicketSubjects.length],
+    description: mockTicketDescriptions[i % mockTicketDescriptions.length],
+    status: randomItem(statuses),
+    priority: randomItem(priorities),
+    createdAt: randomDate(14),
+    updatedAt: randomDate(1),
+    dueAt: Math.random() > 0.5 ? randomDate(-1) : null,
+    lead: { id: lead.id, contact: lead.contact },
+    assignedAgent: Math.random() > 0.5 ? { id: `agent-${randomInt(1, 3)}`, name: randomItem(['Sarah Chen', 'Marcus Rivera', 'Priya Patel']) } : null,
+    comments: Array.from({ length: randomInt(0, 4) }, (_, j) => ({
+      id: `tc-${i}-${j}`,
+      content: randomItem(['Checking on this now', 'Can you share the error message?', 'This has been resolved in the latest deploy', 'Escalating to engineering team', 'Customer confirmed fix works']),
+      user: { id: `user-${j}`, name: randomItem(['Sarah Chen', 'Marcus Rivera', 'You', 'System']) },
+      isInternal: Math.random() > 0.5,
+      createdAt: randomDate(3),
+    })),
+  };
+}
+
+export const mockTickets = Array.from({ length: 12 }, (_, i) => buildMockTicket(i));
+
+const knowledgeTags = ['onboarding', 'faq', 'troubleshooting', 'api', 'integration', 'billing', 'security', 'best-practices'];
+
+function buildMockArticle(i: number): any {
+  return {
+    id: `article-${i + 1}`,
+    title: randomItem([
+      'Getting Started Guide', 'API Authentication', 'Webhook Setup Walkthrough',
+      'CSV Import Best Practices', 'Role-Based Access Control', 'Email Deliverability Guide',
+      'WhatsApp Template Approval', 'Pipeline Management Tips',
+    ]),
+    slug: `article-${i + 1}`,
+    body: `<h2>Overview</h2><p>This article covers ${randomItem(['best practices', 'setup instructions', 'troubleshooting steps', 'configuration details'])} for ${randomItem(['the platform', 'API integration', 'user management', 'data import'])}.</p><h3>Steps</h3><ol><li>Navigate to the settings panel</li><li>Configure your preferences</li><li>Test the configuration</li><li>Monitor results</li></ol><p>If you encounter issues, contact support.</p>`,
+    tags: pick(knowledgeTags, randomInt(1, 3)),
+    published: Math.random() > 0.2,
+    author: { id: `author-${i + 1}`, name: randomItem(['Sarah Chen', 'Marcus Rivera', 'Priya Patel', 'Alex Kim']) },
+    createdAt: randomDate(60),
+    updatedAt: randomDate(7),
+  };
+}
+
+export const mockKnowledgeArticles = Array.from({ length: 8 }, (_, i) => buildMockArticle(i));
+
 export function getMockTimeline(_leadId: string): any[] {
   const events = [
     { title: 'Lead captured via web form', type: 'capture' },
@@ -200,13 +261,17 @@ export const mockBookingSettings = [
 ];
 
 export const mockPipelineStages = [
-  { id: 'stage-1', name: 'New', order: 0, color: '#3b82f6', isDefault: true, isEnd: false },
-  { id: 'stage-2', name: 'Contacted', order: 1, color: '#f59e0b', isDefault: false, isEnd: false },
-  { id: 'stage-3', name: 'Qualified', order: 2, color: '#8b5cf6', isDefault: false, isEnd: false },
-  { id: 'stage-4', name: 'Proposal', order: 3, color: '#f97316', isDefault: false, isEnd: false },
-  { id: 'stage-5', name: 'Negotiation', order: 4, color: '#ec4899', isDefault: false, isEnd: false },
-  { id: 'stage-6', name: 'Won', order: 5, color: '#10b981', isDefault: false, isEnd: true },
-  { id: 'stage-7', name: 'Lost', order: 6, color: '#ef4444', isDefault: false, isEnd: true },
+  { id: 'stage-1', name: 'New', status: 'NEW', order: 0, color: '#6b7280', isDefault: true, isEnd: false, count: 3 },
+  { id: 'stage-2', name: 'Contacted', status: 'CONTACTED', order: 1, color: '#3b82f6', isDefault: false, isEnd: false, count: 5 },
+  { id: 'stage-3', name: 'Engaged', status: 'ENGAGED', order: 2, color: '#8b5cf6', isDefault: false, isEnd: false, count: 2 },
+  { id: 'stage-4', name: 'Qualifying', status: 'QUALIFYING', order: 3, color: '#a855f7', isDefault: false, isEnd: false, count: 4 },
+  { id: 'stage-5', name: 'Qualified', status: 'QUALIFIED', order: 4, color: '#eab308', isDefault: false, isEnd: false, count: 6 },
+  { id: 'stage-6', name: 'Proposal Sent', status: 'PROPOSAL_SENT', order: 5, color: '#f97316', isDefault: false, isEnd: false, count: 3 },
+  { id: 'stage-7', name: 'Appointment Booked', status: 'APPOINTMENT_BOOKED', order: 6, color: '#06b6d4', isDefault: false, isEnd: false, count: 2 },
+  { id: 'stage-8', name: 'Converted', status: 'CONVERTED', order: 7, color: '#22c55e', isDefault: false, isEnd: true, count: 1 },
+  { id: 'stage-9', name: 'Lost', status: 'LOST', order: 8, color: '#ef4444', isDefault: false, isEnd: true, count: 2 },
+  { id: 'stage-10', name: 'Cold', status: 'COLD', order: 9, color: '#94a3b8', isDefault: false, isEnd: false, count: 1 },
+  { id: 'stage-11', name: 'Spam', status: 'SPAM', order: 10, color: '#64748b', isDefault: false, isEnd: true, count: 0 },
 ];
 
 export const mockUsers = [
@@ -495,12 +560,64 @@ export function getMockResponse(path: string, method: string, body?: any): any |
     return { data: mockLeads, meta: { total: mockLeads.length, page: 1, limit: 20 } };
   }
 
+  if (normalized === '/tickets' && method === 'GET') {
+    return { data: mockTickets, meta: { total: mockTickets.length, page: 1, limit: 20 } };
+  }
+
+  if (normalized.startsWith('/tickets/') && !normalized.endsWith('/comments') && !normalized.endsWith('/check-sla') && method === 'GET') {
+    const id = normalized.split('/')[2];
+    return mockTickets.find(t => t.id === id) || mockTickets[0];
+  }
+
+  if (normalized === '/knowledge-articles' && method === 'GET') {
+    return { data: mockKnowledgeArticles, meta: { total: mockKnowledgeArticles.length, page: 1, limit: 50 } };
+  }
+
+  if (normalized.startsWith('/knowledge-articles/') && method === 'GET') {
+    const id = normalized.split('/')[2];
+    return mockKnowledgeArticles.find(a => a.id === id) || mockKnowledgeArticles[0];
+  }
+
   if (normalized.startsWith('/leads/') && method === 'GET') {
     const id = normalized.split('/')[2];
     return mockLeads.find(l => l.id === id) || mockLeads[0];
   }
 
+  if (normalized === '/copilot/conversations' && method === 'GET') {
+    return [
+      { id: 'conv-1', title: 'Show hot leads', updatedAt: randomDate(1), createdAt: randomDate(2) },
+      { id: 'conv-2', title: 'Create a ticket', updatedAt: randomDate(3), createdAt: randomDate(4) },
+    ];
+  }
+
+  if (normalized.startsWith('/copilot/conversations/') && method === 'GET') {
+    const id = normalized.split('/')[3];
+    return {
+      id, title: 'Mock conversation',
+      messages: [
+        { id: 'msg-1', role: 'user', content: 'Show me my hot leads', createdAt: randomDate(1) },
+        { id: 'msg-2', role: 'assistant', content: 'I found 3 hot leads for you:\n\n1. **Emma Johnson** — Score: 85, from New York\n2. **Liam Williams** — Score: 78, from Chicago\n3. **Olivia Brown** — Score: 72, from Austin\n\nWould you like me to take any action on these leads?', toolCalls: [{ tool: 'search_leads', args: { segment: 'HOT' }, status: 'success', result: 'Found 3 leads' }], createdAt: randomDate(1) },
+      ],
+    };
+  }
+
   if (method === 'POST') {
+    if (normalized === '/copilot/chat') {
+      const msg = body?.message || '';
+      const responses = [
+        'I found 3 hot leads for you. The top one is Emma Johnson with a score of 85.',
+        'I\'ve created a ticket for lead #5 with URGENT priority.',
+        'Here are the current CRM analytics: 1,247 total leads, 89 hot, 15.2% conversion rate.',
+      ];
+      return {
+        conversationId: body?.conversationId || `conv-${Date.now()}`,
+        reply: randomItem(responses),
+        actions: [{ tool: 'search_leads', args: { segment: 'HOT' }, status: 'success', result: 'Found results' }],
+      };
+    }
+    if (normalized === '/copilot/confirm-action') {
+      return { status: 'success', result: 'Action completed successfully', tool: 'send_message', args: {} };
+    }
     if (normalized.startsWith('/rules/test')) return { matched: true, score: 75 };
     if (normalized.startsWith('/message-templates') && normalized.endsWith('/preview')) {
       return { preview: 'Mock preview of the template with your variables.' };
@@ -528,6 +645,13 @@ export function getMockResponse(path: string, method: string, body?: any): any |
 
   if (method === 'PATCH') {
     if (normalized === '/agent/config') return { success: true, message: 'Configuration saved' };
+    if (normalized.match(/^\/leads\/[\w-]+\/move-stage$/)) {
+      const leadId = normalized.split('/')[2];
+      const lead = mockLeads.find(l => l.id === leadId);
+      if (lead && body?.status) lead.status = body.status;
+      return lead || { success: true };
+    }
+    if (normalized === '/pipeline-stages/reorder') return mockPipelineStages;
     return { success: true };
   }
 

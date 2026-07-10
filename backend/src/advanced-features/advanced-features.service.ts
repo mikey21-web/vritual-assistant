@@ -10,20 +10,25 @@ export class AdvancedFeaturesService {
   constructor(private prisma: PrismaService, private auditLogs: AuditLogsService) {}
 
   // === PIPELINE STAGES ===
-  getStages() { return this.prisma.pipelineStage.findMany({ orderBy: { order: 'asc' } }); }
-  createStage(data: CreatePipelineStageDto) { return this.prisma.pipelineStage.create({ data }); }
+  async getStages() {
+    const stages = await this.prisma.pipelineStage.findMany({ where: { active: true }, orderBy: { order: 'asc' } });
+    const counts = await this.prisma.lead.groupBy({ by: ['status'], _count: true, where: { deletedAt: null } });
+    const countMap = new Map(counts.map(c => [c.status, c._count]));
+    return stages.map(s => ({ ...s, count: countMap.get(s.status) || 0 }));
+  }
+  createStage(data: CreatePipelineStageDto) { return this.prisma.pipelineStage.create({ data: data as any }); }
   async updateStage(id: string, data: UpdatePipelineStageDto) {
     const s = await this.prisma.pipelineStage.findUnique({ where: { id } }); if (!s) throw new NotFoundException(); return this.prisma.pipelineStage.update({ where: { id }, data });
   }
   async deleteStage(id: string) { await this.prisma.pipelineStage.delete({ where: { id } }); return { deleted: true }; }
 
   // Pipeline drag/drop reorder
-  async reorderStages(stages: { id: string; order: number }[]) {
-    const updates = stages.map(({ id, order }) =>
-      this.prisma.pipelineStage.update({ where: { id }, data: { order } })
+  async reorderStages(stageIds: string[]) {
+    const updates = stageIds.map((id, index) =>
+      this.prisma.pipelineStage.update({ where: { id }, data: { order: index } })
     );
     await this.prisma.$transaction(updates);
-    await this.auditLogs.log('pipeline_reordered', 'PipelineStage', undefined, undefined, { stageCount: stages.length });
+    await this.auditLogs.log('pipeline_reordered', 'PipelineStage', undefined, undefined, { stageCount: stageIds.length });
     return this.getStages();
   }
 

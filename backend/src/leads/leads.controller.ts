@@ -6,6 +6,7 @@ import { Roles } from '../auth/roles.decorator';
 import { LeadsService } from './leads.service';
 import { CreateLeadDto, UpdateLeadDto, AssignLeadDto, LeadQueryDto } from './dto/lead.dto';
 import { PaginationDto } from '../shared/dto/pagination.dto';
+import { MoveStageDto } from '../advanced-features/dto/advanced-features.dto';
 
 @ApiTags('Leads')
 @Controller('leads')
@@ -42,4 +43,8 @@ export class LeadsController {
   @Post(':id/mark-spam')
   @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT')
   markSpam(@Param('id') id: string, @Req() req) { return this.service.markSpam(id, req.user.sub); }
+
+  @Patch(':id/move-stage')
+  @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT')
+  moveStage(@Param('id') id: string, @Body() d: MoveStageDto, @Req() req) { return this.service.update(id, { status: d.status }, req.user.sub); }
 }

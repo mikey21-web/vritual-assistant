@@ -180,17 +180,21 @@ describe('CustomFieldsService', () => {
 
   // ─── removeDefinition ─────────────────────────────────────────
 
-  it('should remove a definition', async () => {
+  it('should soft-delete a definition', async () => {
+    prisma.customFieldDefinition.findUnique.mockResolvedValue({ id: 'def-1', active: true });
+    prisma.customFieldDefinition.update.mockResolvedValue({ id: 'def-1', active: false });
+
     const result = await service.removeDefinition('def-1');
 
-    expect(prisma.customFieldDefinition.delete).toHaveBeenCalledWith({
+    expect(prisma.customFieldDefinition.findUnique).toHaveBeenCalledWith({ where: { id: 'def-1' } });
+    expect(prisma.customFieldDefinition.update).toHaveBeenCalledWith({
       where: { id: 'def-1' },
+      data: { active: false },
     });
-    expect(result).toEqual({ deleted: true });
   });
 
   it('should throw when removing non-existent definition', async () => {
-    prisma.customFieldDefinition.delete.mockRejectedValue(new Error('Record not found'));
+    prisma.customFieldDefinition.findUnique.mockResolvedValue(null);
 
     await expect(service.removeDefinition('nonexistent')).rejects.toThrow();
   });

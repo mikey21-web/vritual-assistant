@@ -3,10 +3,12 @@ import {
   LayoutDashboard, Users, MessageSquare, BarChart3, Settings,
   Megaphone, FormInput, QrCode, FileText, Route, Target,
   ShoppingCart, Link, Calendar, Layers, ChevronLeft, ChevronRight,
-  UserCircle, CheckSquare, Sparkles, Phone,   Bot, MessageCircle, Smartphone, Webhook, Globe, LogOut,
+  UserCircle, CheckSquare, Sparkles, Phone,   Bot, MessageCircle, Smartphone, Webhook, Globe, LogOut, Columns3,
+  LifeBuoy, BookOpen, Puzzle,
 } from "lucide-react";
 import { fetchProfile, fetchBusinessSettings } from "../../lib/data";
 import { useAuth } from "../../lib/useAuth";
+import { useBranding } from "../../lib/useBranding";
 
 const navGroups = [
   {
@@ -17,6 +19,7 @@ const navGroups = [
     label: "Leads",
     items: [
       { label: "Leads", icon: Users, path: "/leads" },
+      { label: "Pipeline", icon: Columns3, path: "/pipeline" },
       { label: "Contacts", icon: UserCircle, path: "/contacts" },
       { label: "Campaigns", icon: Megaphone, path: "/campaigns" },
       { label: "Forms", icon: FormInput, path: "/forms" },
@@ -39,6 +42,7 @@ const navGroups = [
       { label: "Rules", icon: Target, path: "/rules" },
       { label: "AI Campaigns", icon: Sparkles, path: "/ai-campaigns" },
       { label: "AI Agent", icon: Bot, path: "/ai-agent" },
+      { label: "Copilot", icon: Sparkles, path: "/copilot" },
     ],
   },
   {
@@ -68,9 +72,18 @@ const navGroups = [
     ],
   },
   {
+    label: "Support",
+    items: [
+      { label: "Tickets", icon: LifeBuoy, path: "/tickets" },
+      { label: "Knowledge Base", icon: BookOpen, path: "/knowledge-base" },
+    ],
+  },
+  {
     label: "Admin",
     items: [
       { label: "Analytics", icon: BarChart3, path: "/analytics" },
+      { label: "Reports", icon: BarChart3, path: "/reports" },
+      { label: "Studio", icon: Puzzle, path: "/studio" },
       { label: "Settings", icon: Settings, path: "/settings" },
     ],
   },
@@ -78,6 +91,7 @@ const navGroups = [
 
 export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { collapsed: boolean; onToggle: () => void; mobileOpen?: boolean; onMobileClose?: () => void }) {
   const { logout } = useAuth();
+  const branding = useBranding();
   const [profile, setProfile] = useState<any>(null);
   const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -109,9 +123,13 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { co
         <div className="flex h-14 items-center justify-between border-b border-[var(--border)] px-4">
           {!collapsed && (
             <div className="flex items-center gap-2.5">
-              <div className="h-7 w-7 rounded-md bg-[var(--primary)] flex items-center justify-center">
-                <span className="text-[10px] font-bold text-[var(--primary-foreground)]">{initials}</span>
-              </div>
+              {branding.logoUrl ? (
+                <img src={branding.logoUrl} alt={companyName} className="h-7 rounded" />
+              ) : (
+                <div className="h-7 w-7 rounded-md bg-[var(--primary)] flex items-center justify-center">
+                  <span className="text-[10px] font-bold text-[var(--primary-foreground)]">{initials}</span>
+                </div>
+              )}
               <span className="text-sm font-bold text-[var(--foreground)]">{companyName}</span>
             </div>
           )}

@@ -121,7 +121,21 @@ export const PERMISSION_MATRIX: Record<string, string[]> = {
   // Health (admin only)
   'health:deep':         ['OWNER', 'ADMIN'],
 
-  // Niche templates
-  'niche_templates:read':  ['OWNER', 'ADMIN'],
-  'niche_templates:write': ['OWNER'],
+  // Tickets
+  'tickets:read':          ['OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT', 'SUPPORT_AGENT', 'VIEWER'],
+  'tickets:write':         ['OWNER', 'ADMIN', 'MANAGER', 'SUPPORT_AGENT'],
+  'tickets:delete':        ['OWNER', 'ADMIN', 'MANAGER'],
+
+  // Knowledge base
+  'knowledge_base:read':   ['OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT', 'SUPPORT_AGENT', 'VIEWER'],
+  'knowledge_base:write':  ['OWNER', 'ADMIN', 'MANAGER', 'SUPPORT_AGENT'],
+
+  // Copilot
+  'copilot:chat':          ['OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT', 'SUPPORT_AGENT', 'VIEWER'],
+
+  // Reports
+  'reports:run':           ['OWNER', 'ADMIN', 'MANAGER', 'VIEWER'],
+
+  // Telephony
+  'telephony:call':        ['OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT'],
 };

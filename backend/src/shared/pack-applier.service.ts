@@ -40,7 +40,12 @@ export class PackApplierService {
         break;
       case 'pipeline_stages':
         for (const s of payload.stages || []) {
-          const created = await this.prisma.pipelineStage.create({ data: { ...s } });
+          const { status, ...rest } = s;
+          const created = await this.prisma.pipelineStage.upsert({
+            where: { status },
+            create: { ...rest, status },
+            update: { ...rest },
+          });
           add('pipelineStage', created.id);
         }
         break;

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ContactsService } from '../contacts/contacts.service';
 import { LeadsService } from '../leads/leads.service';
@@ -522,6 +522,84 @@ export class WebhooksService {
     } catch {
       return null;
     }
+  }
+
+  // === Outbound webhook subscriptions ===
+  async createOutboundWebhook(data: { name: string; url: string; events: string[]; secret?: string }) {
+    if (!data.url || !data.events?.length) throw new BadRequestException('url and events are required');
+    return this.prisma.outboundWebhook.create({
+      data: { name: data.name, url: data.url, events: data.events, secret: data.secret || '', tenantId: 'default-tenant' },
+    });
+  }
+
+  async listOutboundWebhooks() {
+    return this.prisma.outboundWebhook.findMany({ orderBy: { createdAt: 'desc' } });
+  }
+
+  async deleteOutboundWebhook(id: string) {
+    await this.prisma.outboundWebhook.delete({ where: { id } });
+    return { deleted: true };
+  }
+
+  async testOutboundWebhook(id: string) {
+    const wh = await this.prisma.outboundWebhook.findUnique({ where: { id } });
+    if (!wh) throw new NotFoundException('Webhook not found');
+    return this.sendWebhookPayload(wh, { event: 'test', data: { message: 'This is a test event from DeploySafe CRM' } });
+  }
+
+  // Called by the event system when any AutomationEvent fires
+  async dispatchToOutboundWebhooks(eventType: string, payload: any) {
+    const hooks = await this.prisma.outboundWebhook.findMany({
+      where: { events: { has: eventType }, active: true },
+    });
+    const results = await Promise.allSettled(
+      hooks.map(wh => this.sendWebhookPayload(wh, { event: eventType, data: payload })),
+    );
+    return { dispatched: hooks.length, results: results.map(r => r.status) };
+  }
+
+  private async sendWebhookPayload(wh: { url: string; secret?: string; id: string }, body: any) {
+    const payload = JSON.stringify(body);
+    const signature = wh.secret
+      ? crypto.createHmac('sha256', wh.secret).update(payload).digest('hex')
+      : '';
+    try {
+      const res = await fetch(wh.url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-DeploySafe-Signature': signature,
+          'User-Agent': 'DeploySafe-CRM-Webhook/1.0',
+        },
+        body: payload,
+      });
+      return { webhookId: wh.id, status: res.ok ? 'success' : 'failed', statusCode: res.status };
+    } catch (e: any) {
+      return { webhookId: wh.id, status: 'error', error: e.message };
+    }
+  }
+
+  // === Inbound generic webhook ===
+  async handleInboundWebhook(integrationId: string, payload: any) {
+    const integration = await this.prisma.integration.findUnique({ where: { id: integrationId } });
+    if (!integration) throw new NotFoundException('Integration not found');
+
+    const config = typeof integration.config === 'object' ? integration.config as Record<string, any> : {};
+
+    // Map external fields to lead fields using the integration's field mappings
+    const name = payload.name || payload.contactName || payload.Name || payload.full_name || '';
+    const email = payload.email || payload.Email || payload.EmailAddress || '';
+    const phone = payload.phone || payload.Phone || payload.PhoneNumber || '';
+    const message = payload.message || payload.Message || payload.body || payload.Body || '';
+
+    const contact = await this.contactsService.findOrCreate({ name, email, phone }, undefined);
+    const lead = await this.leadsService.create({
+      contactId: contact.id,
+      source: (config.sourceType as any) || 'FORM',
+      message,
+      metadata: { integrationId, originalPayload: payload, ...config },
+    });
+    return { leadId: lead.id, contactId: contact.id };
   }
 
   async testWebhookEndpoint(type: string) {

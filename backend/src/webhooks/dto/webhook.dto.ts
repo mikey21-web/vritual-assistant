@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEmail, IsObject } from 'class-validator';
+import { IsString, IsOptional, IsEmail, IsObject, IsArray } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class WebhookPayloadDto {
@@ -71,4 +71,11 @@ export class VoiceStatusWebhookDto {
   @ApiPropertyOptional() @IsString() @IsOptional() CallDuration?: string;
   @ApiPropertyOptional() @IsString() @IsOptional() Timestamp?: string;
   @ApiPropertyOptional() @IsObject() @IsOptional() metadata?: Record<string, unknown>;
+}
+
+export class CreateOutboundWebhookDto {
+  @ApiProperty() @IsString() name: string;
+  @ApiProperty() @IsString() url: string;
+  @ApiProperty() @IsArray() events: string[];
+  @ApiPropertyOptional() @IsOptional() @IsString() secret?: string;
 }

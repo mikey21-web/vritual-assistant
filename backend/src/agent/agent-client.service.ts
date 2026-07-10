@@ -2,14 +2,21 @@ import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { catchError, firstValueFrom, of } from 'rxjs';
+import { FeatureFlagsService } from '../shared/feature-flags.service';
 
 @Injectable()
 export class AgentClientService {
   private readonly logger = new Logger(AgentClientService.name);
 
-  constructor(private http: HttpService, private config: ConfigService) {}
+  constructor(private http: HttpService, private config: ConfigService, private featureFlags: FeatureFlagsService) {}
 
   async trigger(leadId: string, triggerId: string, channel: string, messageText: string, tenantId: string, triggerType = 'inbound_message') {
+    const enabled = await this.featureFlags.isEnabledDefault('lead_agent_enabled', true);
+    if (!enabled) {
+      this.logger.warn(`lead_agent_enabled kill-switch is off, skipping agent trigger for lead ${leadId}`);
+      return;
+    }
+
     const url = this.config.get<string>('AGENT_SERVICE_URL');
     const key = this.config.get<string>('AGENT_INBOUND_KEY');
     if (!url) { this.logger.debug('AGENT_SERVICE_URL not set, skipping agent trigger'); return; }
