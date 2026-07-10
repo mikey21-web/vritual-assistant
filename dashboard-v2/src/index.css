@@ -5,56 +5,60 @@
   --font-body: 'Inter', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
-  /* Layered near-white backgrounds (sidebar/page vs. card), high-contrast text.
-     Inspired by Twenty CRM's design language (Radix gray/blue scales) —
-     reimplemented as our own values, not copied. */
-  --background: #f8f9fb;
-  --sidebar: #f8f9fb;
-  --foreground: #16181d;
+  /* Token values match Twenty CRM's published theme-light.css gray/blue scale
+     numerically (public design tokens, not code) — reimplemented here as our
+     own CSS custom properties. */
+  --background: #fcfcfc;
+  --sidebar: #fcfcfc;
+  --foreground: #333333;
   --card: #ffffff;
-  --card-foreground: #16181d;
-  --muted: #f1f2f5;
-  --muted-foreground: #62666e;
-  --primary: #3e63dd;
-  --primary-hover: #3355c7;
+  --card-foreground: #333333;
+  --muted: #f1f1f1;
+  --muted-foreground: #666666;
+  --muted-foreground-light: #999999;
+  --primary: #4662d5;
+  --primary-hover: #3c57cc;
   --primary-foreground: #ffffff;
-  --primary-light: #e8ecfc;
-  --accent: #f1f2f5;
-  --accent-foreground: #16181d;
-  --secondary: #eceef1;
-  --secondary-foreground: #16181d;
+  --primary-light: #eef2fd;
+  --accent: rgba(0, 0, 0, 0.039);
+  --accent-foreground: #333333;
+  --secondary: #f1f1f1;
+  --secondary-foreground: #333333;
   --destructive: #dc2626;
   --destructive-foreground: #ffffff;
-  --border: #e3e5e9;
-  --input: #e3e5e9;
-  --ring: #3e63dd;
-  --radius: 0.625rem;
-  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.04);
-  --shadow-md: 0 1px 3px rgba(16, 24, 40, 0.06), 0 1px 2px rgba(16, 24, 40, 0.03);
-  --shadow-lg: 0 4px 6px rgba(16, 24, 40, 0.05), 0 2px 4px rgba(16, 24, 40, 0.03);
+  --border: #ebebeb;
+  --border-strong: #d6d6d6;
+  --input: #d6d6d6;
+  --ring: #4662d5;
+  --radius: 0.5rem;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.03);
+  --shadow-lg: 0 4px 6px rgba(0, 0, 0, 0.05), 0 2px 4px rgba(0, 0, 0, 0.03);
 }
 
 .dark {
-  --background: #0e0f13;
-  --sidebar: #0e0f13;
-  --foreground: #f2f3f5;
-  --card: #17181d;
-  --card-foreground: #f2f3f5;
-  --muted: #1e2025;
-  --muted-foreground: #9195a0;
-  --primary: #5b7ce6;
-  --primary-hover: #7291ea;
-  --primary-foreground: #0e0f13;
-  --primary-light: rgba(91, 124, 230, 0.14);
-  --accent: #1e2025;
-  --accent-foreground: #f2f3f5;
-  --secondary: #292b32;
-  --secondary-foreground: #f2f3f5;
+  --background: #171717;
+  --sidebar: #171717;
+  --foreground: #ebebeb;
+  --card: #1b1b1b;
+  --card-foreground: #ebebeb;
+  --muted: #1d1d1d;
+  --muted-foreground: #b3b3b3;
+  --muted-foreground-light: #818181;
+  --primary: #4662d5;
+  --primary-hover: #5a71dd;
+  --primary-foreground: #ffffff;
+  --primary-light: rgba(70, 98, 213, 0.16);
+  --accent: rgba(255, 255, 255, 0.059);
+  --accent-foreground: #ebebeb;
+  --secondary: #222222;
+  --secondary-foreground: #ebebeb;
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
-  --border: #2a2c33;
-  --input: #2a2c33;
-  --ring: #5b7ce6;
+  --border: #222222;
+  --border-strong: #484848;
+  --input: #484848;
+  --ring: #4662d5;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 1px 3px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 4px 6px rgba(0, 0, 0, 0.25);

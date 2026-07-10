@@ -173,7 +173,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { co
           {navGroups.map((group) => (
             <div key={group.label}>
               {!collapsed && (
-                <p className="px-2.5 text-[10px] font-bold text-[var(--foreground)]/60 uppercase tracking-wider mb-1">
+                <p className="px-2.5 text-[10px] font-semibold text-[var(--muted-foreground-light)] uppercase tracking-wider mb-1">
                   {group.label}
                 </p>
               )}
@@ -185,13 +185,13 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { co
                       key={item.path}
                       href={`#${item.path}`}
                       onClick={onMobileClose}
-                      className={`flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm transition-all ${
+                      className={`flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm transition-all font-medium ${
                         isActive
-                          ? "bg-[var(--primary-light)] text-[var(--primary)] font-semibold"
-                          : "text-[var(--foreground)]/70 hover:bg-[var(--accent)] hover:text-[var(--foreground)] font-medium"
+                          ? "bg-[var(--accent)] text-[var(--foreground)]"
+                          : "text-[var(--muted-foreground)] hover:bg-[var(--accent)] hover:text-[var(--foreground)]"
                       }`}
                     >
-                      <item.icon size={17} strokeWidth={isActive ? 2.5 : 2} />
+                      <item.icon size={17} strokeWidth={2} />
                       {!collapsed && <span>{item.label}</span>}
                     </a>
                   );
