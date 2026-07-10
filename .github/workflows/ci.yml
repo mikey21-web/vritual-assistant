@@ -108,13 +108,17 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '20', cache: 'npm', cache-dependency-path: backend/package-lock.json }
-      - run: docker compose -f docker-compose.yml up -d postgres redis backend dashboard
-      - name: Wait for backend and dashboard to be ready
-        run: npx wait-on http://localhost:3001/health/live http://localhost:3000 -t 90000
-      - name: Seed database from the runner (image has no devDependencies for ts-node)
-        run: cd backend && npm ci && npx prisma generate && npx prisma db seed
+      # Start only the DB first — the backend container was booting against a
+      # completely empty database (no migration step existed anywhere in this job),
+      # so every request crash-looped on "table does not exist" until wait-on timed out.
+      - run: docker compose -f docker-compose.yml up -d postgres redis
+      - name: Run database migrations from the runner (image has no devDependencies for ts-node)
+        run: cd backend && npm ci && npx prisma generate && npx prisma migrate deploy && npx prisma db seed
         env:
           DATABASE_URL: postgresql://postgres:ci-test-password@localhost:5433/lead_automation
+      - run: docker compose -f docker-compose.yml up -d backend dashboard
+      - name: Wait for backend and dashboard to be ready
+        run: npx wait-on http://localhost:3001/health/live http://localhost:3000 -t 90000
       - run: cd e2e && npm ci
       - run: cd e2e && npx playwright install --with-deps chromium
       - run: cd e2e && npx playwright test
