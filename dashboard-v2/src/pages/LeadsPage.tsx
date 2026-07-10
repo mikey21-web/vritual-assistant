@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { fetchLeads, getLeadTimeline } from '../lib/data';
+import { consumePendingSearch } from '../lib/pendingSearch';
 import { useApp } from '../context/AppContext';
 import { Search, RefreshCw, Phone, Mail, Calendar, Users } from 'lucide-react';
 import { api } from '../lib/api';
@@ -47,6 +48,11 @@ export default function LeadsPage() {
     } catch (e: any) { /* ignore */ }
     setLoading(false);
   };
+
+  useEffect(() => {
+    const pending = consumePendingSearch('leads');
+    if (pending) setSearch(pending);
+  }, []);
 
   useEffect(() => { refresh(); }, [search, statusFilter, segmentFilter]);
 

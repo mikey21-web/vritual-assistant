@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { fetchContacts } from '../lib/data';
+import { consumePendingSearch } from '../lib/pendingSearch';
 import { Search, Users } from 'lucide-react';
 import type { Contact } from '../lib/types';
 
@@ -7,6 +8,11 @@ export default function ContactsPage() {
   const [data, setData] = useState<Contact[]>([]);
   const [search, setSearch] = useState('');
   const [debounced, setDebounced] = useState('');
+
+  useEffect(() => {
+    const pending = consumePendingSearch('contacts');
+    if (pending) { setSearch(pending); setDebounced(pending); }
+  }, []);
 
   useEffect(() => { const t = setTimeout(() => setDebounced(search), 300); return () => clearTimeout(t); }, [search]);
   useEffect(() => { fetchContacts(1, debounced).then((r: any) => setData(r.data || r)).catch(() => {}); }, [debounced]);

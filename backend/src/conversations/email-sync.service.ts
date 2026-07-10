@@ -2,6 +2,7 @@ import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailAdapter } from '../shared/adapters/email.adapter';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class EmailSyncService implements OnApplicationBootstrap {
@@ -12,6 +13,7 @@ export class EmailSyncService implements OnApplicationBootstrap {
     private prisma: PrismaService,
     private emailAdapter: EmailAdapter,
     private realtime: RealtimeGateway,
+    private notifications: NotificationsService,
   ) {}
 
   onApplicationBootstrap() {
@@ -91,6 +93,18 @@ export class EmailSyncService implements OnApplicationBootstrap {
       direction: 'INBOUND',
       text: msg.body,
     });
+
+    const lead = await this.prisma.lead.findUnique({ where: { id: leadId }, select: { assignedAgentId: true } });
+    if (lead?.assignedAgentId) {
+      await this.notifications.create({
+        tenantId,
+        userId: lead.assignedAgentId,
+        type: 'message_received',
+        title: `New email from ${msg.from}`,
+        body: msg.subject,
+        link: '/leads',
+      });
+    }
 
     await this.emailAdapter.markSeen(msg.uid);
   }

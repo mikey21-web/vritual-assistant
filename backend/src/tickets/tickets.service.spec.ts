@@ -3,6 +3,7 @@ import { TicketsService } from './tickets.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
+import { NotificationsService } from '../notifications/notifications.service';
 import { NotFoundException } from '@nestjs/common';
 
 describe('TicketsService', () => {
@@ -10,6 +11,7 @@ describe('TicketsService', () => {
   let prisma: any;
   let auditLogs: any;
   let realtime: any;
+  let notifications: any;
 
   const mockTicket = {
     id: 'ticket-1',
@@ -55,6 +57,7 @@ describe('TicketsService', () => {
     };
     auditLogs = { log: jest.fn().mockResolvedValue(undefined) };
     realtime = { emit: jest.fn() };
+    notifications = { create: jest.fn().mockResolvedValue(undefined) };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -62,6 +65,7 @@ describe('TicketsService', () => {
         { provide: PrismaService, useValue: prisma },
         { provide: AuditLogsService, useValue: auditLogs },
         { provide: RealtimeGateway, useValue: realtime },
+        { provide: NotificationsService, useValue: notifications },
       ],
     }).compile();
 

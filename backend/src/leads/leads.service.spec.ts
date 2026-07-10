@@ -5,6 +5,7 @@ import { NotFoundException } from '@nestjs/common';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { AdvancedFeaturesService } from '../advanced-features/advanced-features.service';
 import { EventsService } from '../events/events.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 describe('LeadsService', () => {
   let service: LeadsService;
@@ -12,6 +13,7 @@ describe('LeadsService', () => {
   const auditLogs = { log: jest.fn().mockResolvedValue({}) };
   const advanced = { checkBlocklist: jest.fn().mockResolvedValue(false) };
   const events = { emit: jest.fn().mockResolvedValue({}) };
+  const notifications = { create: jest.fn().mockResolvedValue(undefined) };
 
   const mockLead = {
     id: 'lead-1',
@@ -48,6 +50,7 @@ describe('LeadsService', () => {
         { provide: AuditLogsService, useValue: auditLogs },
         { provide: AdvancedFeaturesService, useValue: advanced },
         { provide: EventsService, useValue: events },
+        { provide: NotificationsService, useValue: notifications },
       ],
     }).compile();
 

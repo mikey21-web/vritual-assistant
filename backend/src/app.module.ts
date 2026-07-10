@@ -53,6 +53,7 @@ import { CopilotModule } from './copilot/copilot.module';
 import { ChatModule } from './chat/chat.module';
 import { ReportsModule } from './reports/reports.module';
 import { TelephonyModule } from './telephony/telephony.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -118,6 +119,7 @@ import { TelephonyModule } from './telephony/telephony.module';
     ChatModule,
     ReportsModule,
     TelephonyModule,
+    NotificationsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

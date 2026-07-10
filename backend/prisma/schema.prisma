@@ -58,6 +58,7 @@ model Tenant {
   copilotConversations CopilotConversation[]
   savedReports SavedReport[]
   callLogs     CallLog[]
+  notifications Notification[]
 
   @@index([slug])
   @@map("tenants")
@@ -340,6 +341,7 @@ model User {
   copilotConversations CopilotConversation[]
   savedReports SavedReport[]
   callLogs     CallLog[]
+  notifications Notification[]
 
   @@index([email])
   @@index([role])
@@ -828,6 +830,34 @@ model Integration {
   @@map("integrations")
 }
 
+model AdCampaign {
+  id                   String   @id @default(uuid())
+  tenantId             String  @map("tenant_id")
+  tenant               Tenant   @relation(fields: [tenantId], references: [id])
+  platform             String   // meta | google
+  externalId           String   // ad platform's campaign ID
+  name                 String
+  status               String   // ACTIVE | PAUSED | ARCHIVED
+  dailyBudget          Float?
+  lifetimeBudget       Float?
+  spend                Float?   @default(0)
+  impressions          Int?     @default(0)
+  clicks               Int?     @default(0)
+  leads                Int?     @default(0)
+  ctr                  Float?   @default(0)
+  cpc                  Float?   @default(0)
+  currency             String   @default("USD")
+  startDate            DateTime?
+  endDate              DateTime?
+  lastSyncedAt         DateTime?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([tenantId, platform])
+  @@index([externalId])
+  @@map("ad_campaigns")
+}
+
 model CrmMapping {
   id          String   @id @default(uuid())
   name        String
@@ -1141,6 +1171,26 @@ model Ticket {
   @@index([assignedAgentId])
   @@index([leadId])
   @@map("tickets")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  tenantId  String   @map("tenant_id")
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  body      String?
+  link      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([read])
+  @@index([createdAt])
+  @@map("notifications")
 }
 
 model TicketComment {

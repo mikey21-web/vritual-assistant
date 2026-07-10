@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateTicketDto, UpdateTicketDto, CreateCommentDto, KnowledgeArticleDto, UpdateKnowledgeArticleDto } from './dto/ticket.dto';
 
 @Injectable()
@@ -10,6 +11,7 @@ export class TicketsService {
     private prisma: PrismaService,
     private auditLogs: AuditLogsService,
     private realtime: RealtimeGateway,
+    private notifications: NotificationsService,
   ) {}
 
   async findAll(query: any = {}) {
@@ -122,6 +124,15 @@ export class TicketsService {
       await this.auditLogs.log('sla_breach', 'Ticket', ticket.id, ticket.assignedAgentId ?? undefined, { subject: ticket.subject });
       if (ticket.assignedAgent?.notificationPrefs?.[0]?.slaBreach) {
         this.realtime.emit('sla:breach', { ticketId: ticket.id, subject: ticket.subject });
+      }
+      if (ticket.assignedAgentId) {
+        await this.notifications.create({
+          tenantId: ticket.tenantId,
+          userId: ticket.assignedAgentId,
+          type: 'sla_breach',
+          title: `SLA breached: ${ticket.subject}`,
+          link: '/tickets',
+        });
       }
     }
     return { breached: overdue.length };

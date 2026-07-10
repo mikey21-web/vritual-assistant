@@ -49,6 +49,20 @@ export async function createQRCode(data: any) { return api('/qr-codes', { method
 export async function fetchMedia() { return api('/media') as Promise<{ data: any[]; meta: any }>; }
 export async function deleteMedia(id: string) { return api(`/media/${id}`, { method: 'DELETE' }); }
 
+export interface AppNotification {
+  id: string;
+  type: string;
+  title: string;
+  body: string | null;
+  link: string | null;
+  read: boolean;
+  createdAt: string;
+}
+export async function fetchNotifications(unreadOnly = false) { return api(`/notifications?unreadOnly=${unreadOnly}`) as Promise<AppNotification[]>; }
+export async function fetchUnreadNotificationCount() { return api('/notifications/unread-count') as Promise<number>; }
+export async function markNotificationRead(id: string) { return api(`/notifications/${id}/read`, { method: 'PATCH' }); }
+export async function markAllNotificationsRead() { return api('/notifications/read-all', { method: 'PATCH' }); }
+
 export async function fetchScoringRules() { return api('/scoring-rules') as Promise<any>; }
 export async function createScoringRule(data: any) { return api('/scoring-rules', { method: 'POST', body: JSON.stringify(data) }); }
 export async function deleteScoringRule(id: string) { return api(`/scoring-rules/${id}`, { method: 'DELETE' }); }

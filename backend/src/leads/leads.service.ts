@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { AdvancedFeaturesService } from '../advanced-features/advanced-features.service';
 import { EventsService } from '../events/events.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { getNested, evaluateCondition } from '../shared/scoring.util';
 
 @Injectable()
@@ -13,6 +14,7 @@ export class LeadsService {
     private auditLogs: AuditLogsService,
     private advanced: AdvancedFeaturesService,
     private events: EventsService,
+    private notifications: NotificationsService,
   ) {}
 
   async findAll(query: any = {}) {
@@ -131,6 +133,15 @@ export class LeadsService {
     const updated = await this.prisma.lead.update({ where: { id }, data: { assignedAgentId: agentId } });
     await this.auditLogs.log('lead_assigned', 'Lead', id, userId, { agentId });
     await this.events.emit({ type: 'lead.assigned', leadId: id, entityType: 'lead', entityId: id, payload: { agentId }, createdById: userId });
+    if (agentId) {
+      await this.notifications.create({
+        tenantId: updated.tenantId,
+        userId: agentId,
+        type: 'lead_assigned',
+        title: 'New lead assigned to you',
+        link: '/leads',
+      });
+    }
     return updated;
   }
 
