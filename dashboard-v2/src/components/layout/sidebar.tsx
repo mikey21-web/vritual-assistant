@@ -9,8 +9,15 @@ import {
 import { fetchProfile, fetchBusinessSettings } from "../../lib/data";
 import { useAuth } from "../../lib/useAuth";
 import { useBranding } from "../../lib/useBranding";
+import { isFeatureEnabled, getLabel } from "../../lib/niche-config";
 
-const navGroups = [
+const featureMap: Record<string, string> = {
+  "/nurture": "nurture", "/scoring": "scoring", "/rules": "routing",
+  "/crm": "crm", "/booking": "booking", "/tickets": "tickets",
+  "/knowledge-base": "knowledgeBase", "/media": "media", "/qr-codes": "qrCodes", "/reports": "reports",
+};
+
+const rawNavGroups = [
   {
     label: "Overview",
     items: [{ label: "Dashboard", icon: LayoutDashboard, path: "/" }],
@@ -89,6 +96,18 @@ const navGroups = [
   },
 ];
 
+const nicheLabel = getLabel("leads");
+const navGroups = rawNavGroups
+  .map((g) => ({
+    ...g,
+    label: g.label === "Leads" ? nicheLabel : g.label,
+    items: g.items.filter((item) => {
+      const feature = featureMap[item.path];
+      return !feature || isFeatureEnabled(feature as any);
+    }),
+  }))
+  .filter((g) => g.items.length > 0);
+
 export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { collapsed: boolean; onToggle: () => void; mobileOpen?: boolean; onMobileClose?: () => void }) {
   const { logout } = useAuth();
   const branding = useBranding();
@@ -116,7 +135,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { co
     <>
       {mobileOpen && <div className="fixed inset-0 z-40 bg-black/30 lg:hidden" onClick={onMobileClose} />}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex h-full w-64 flex-col border-r border-[var(--border)] bg-[var(--card)] transition-transform duration-200 lg:transition-[width] ${
+        className={`fixed inset-y-0 left-0 z-50 flex h-full w-64 flex-col border-r border-[var(--border)] bg-[var(--sidebar)] transition-transform duration-200 lg:transition-[width] ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         } lg:translate-x-0 ${collapsed ? "lg:w-16" : "lg:w-64"}`}
       >
