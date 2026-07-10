@@ -4,6 +4,7 @@ import { useAuth } from "./lib/useAuth";
 import { AppProvider } from "./context/AppContext";
 import { BrandingProvider } from "./lib/useBranding";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { getPrimaryColor } from "./lib/niche-config";
 import { Sidebar } from "./components/layout/sidebar";
 import { Topbar } from "./components/layout/topbar";
 import { LoginPage } from "./pages/LoginPage";
@@ -115,6 +116,13 @@ export default function App() {
     document.documentElement.classList.toggle("dark", dark);
     localStorage.setItem("theme", dark ? "dark" : "light");
   }, [dark]);
+
+  useEffect(() => {
+    const color = getPrimaryColor();
+    document.documentElement.style.setProperty("--primary", color);
+    document.documentElement.style.setProperty("--ring", color);
+    document.documentElement.style.setProperty("--primary-light", `${color}22`);
+  }, []);
 
   const navigate = (path: string) => {
     window.location.hash = path;

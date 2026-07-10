@@ -9,7 +9,7 @@ import {
 import { fetchProfile, fetchBusinessSettings } from "../../lib/data";
 import { useAuth } from "../../lib/useAuth";
 import { useBranding } from "../../lib/useBranding";
-import { isFeatureEnabled, getLabel } from "../../lib/niche-config";
+import { isFeatureEnabled, getLabel, getBusinessName } from "../../lib/niche-config";
 
 const featureMap: Record<string, string> = {
   "/nurture": "nurture", "/scoring": "scoring", "/rules": "routing",
@@ -142,8 +142,8 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { co
     });
   }, []);
 
-  const companyName = settings?.businessName || profile?.tenant?.name || "LeadFlow";
-  const initials = companyName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase() || 'LF';
+  const companyName = settings?.businessName || profile?.tenant?.name || getBusinessName() || "LeadFlow";
+  const initials = companyName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase() || 'BN';
   const userName = profile?.name || "User";
   const userEmail = profile?.email || "user@local";
 
