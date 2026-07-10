@@ -151,15 +151,6 @@ async def _agent_test_response_fallback(message: str = ""):
     if questions:
         question_hint = f" You might want to ask about {questions[0].lower()}."
 
-    style_hints = {
-        "professional": "Keep it polished and concise. Never use emojis or em dashes.",
-        "friendly": "Be warm and approachable. Never use emojis or em dashes.",
-        "enthusiastic": "Show energy and excitement. Never use emojis or em dashes.",
-        "formal": "Use formal business language. Never use emojis or em dashes.",
-        "casual": "Keep it relaxed and conversational. Never use emojis or em dashes.",
-    }
-    style = style_hints.get(tone, "Be natural and helpful. Never use emojis or em dashes.")
-
     if custom_prompt:
         response = custom_prompt.replace("{message}", message).replace("{businessName}", biz_name).replace("{industry}", industry)
     else:

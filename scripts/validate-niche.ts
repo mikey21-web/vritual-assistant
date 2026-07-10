@@ -14,7 +14,8 @@
 import { readFileSync, existsSync, readdirSync } from 'fs';
 import { resolve, extname } from 'path';
 import * as yaml from 'js-yaml';
-import Ajv from 'ajv';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const Ajv = require('ajv');
 
 const SCHEMA_PATH = resolve(__dirname, '..', 'config.schema.json');
 

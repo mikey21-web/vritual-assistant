@@ -151,7 +151,7 @@ async def _agent_node(state: AgentState, config: RunnableConfig) -> AgentState:
     except Exception as e:
         logger.error("agent_model_error", error=str(e))
         response = AIMessage(
-            content=f"Thanks for reaching out! I'm here to help you with event planning. What kind of event are you looking to plan?",
+            content="Thanks for reaching out! I'm here to help you with event planning. What kind of event are you looking to plan?",
             tool_calls=[],
         )
 
@@ -164,7 +164,7 @@ async def _agent_node(state: AgentState, config: RunnableConfig) -> AgentState:
     if not has_content and not has_tc:
         logger.warning("agent_empty_response_fallback")
         response = AIMessage(
-            content=f"Thanks for messaging! I'd love to help you plan your event. What type of event are you thinking about?",
+            content="Thanks for messaging! I'd love to help you plan your event. What type of event are you thinking about?",
             tool_calls=[],
         )
 
