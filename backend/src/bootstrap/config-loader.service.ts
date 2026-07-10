@@ -75,7 +75,9 @@ export class ConfigLoaderService implements OnApplicationBootstrap {
       this.schema = JSON.parse(schemaContent);
     }
 
-    const ajv = new Ajv({ allErrors: true });
+    // strict: false — the schema uses format keywords (e.g. "uri") ajv has no built-in
+    // checker for; in strict mode ajv throws instead of just skipping that check.
+    const ajv = new Ajv({ allErrors: true, strict: false });
     const validate = ajv.compile(this.schema);
     const valid = validate(config);
 

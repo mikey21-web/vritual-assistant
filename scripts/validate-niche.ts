@@ -31,7 +31,10 @@ async function main() {
   const singleFile = args.find(a => a.startsWith('--file='))?.split('=')[1] || args[args.indexOf('--file') + 1];
 
   const schema = loadSchema();
-  const ajv = new Ajv({ allErrors: true });
+  // strict: false — the schema uses format keywords (e.g. "uri") that ajv doesn't
+  // ship a built-in checker for; in strict mode ajv throws on those instead of
+  // just skipping the format check, which would crash validation entirely.
+  const ajv = new Ajv({ allErrors: true, strict: false });
   const validate = ajv.compile(schema);
 
   let files: string[] = [];
