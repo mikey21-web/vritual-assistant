@@ -39,7 +39,7 @@ jobs:
         ports: ['6379:6379']
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lead_automation
-      JWT_SECRET: ci-test-secret
+      JWT_SECRET: ci-test-secret-1234567890
       SIGNED_URL_SECRET: ci-test-signed-url-secret
       REDIS_URL: redis://localhost:6379
 
@@ -95,7 +95,7 @@ jobs:
     needs: [backend, dashboard]
     env:
       POSTGRES_PASSWORD: ci-test-password
-      JWT_SECRET: ci-test-secret
+      JWT_SECRET: ci-test-secret-1234567890
       SIGNED_URL_SECRET: ci-test-signed-url-secret
       N8N_PASSWORD: ci-test-n8n-password
       AGENT_SERVICE_JWT: ci-test-agent-jwt
@@ -144,7 +144,7 @@ jobs:
       - run: cd backend && npm test -- --coverage --coverageReporters=json-summary --coverageReporters=text --runInBand --forceExit
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lead_automation
-          JWT_SECRET: ci-test-secret
+          JWT_SECRET: ci-test-secret-1234567890
       - name: Check coverage thresholds
         run: |
           # 2026-07-10: measured real baseline for the first time (coverage-summary.json
@@ -165,7 +165,7 @@ jobs:
     needs: backend
     env:
       POSTGRES_PASSWORD: ci-test-password
-      JWT_SECRET: ci-test-secret
+      JWT_SECRET: ci-test-secret-1234567890
       SIGNED_URL_SECRET: ci-test-signed-url-secret
       N8N_PASSWORD: ci-test-n8n-password
       AGENT_SERVICE_JWT: ci-test-agent-jwt
