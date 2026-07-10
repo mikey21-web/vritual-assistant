@@ -179,11 +179,12 @@ jobs:
       # `docker build -q` does, so capturing it via $(...) silently produced an empty
       # string and "docker run --rm ls ..." tried to pull an image literally named "ls".
       # `docker compose run` runs the already-built service image directly instead.
-      # Path is dist/src/main.js, not dist/main.js — nest's compiled output preserves
-      # the src/ directory structure.
+      # Don't hardcode dist/main.js vs dist/src/main.js — local `nest build` and the
+      # Docker image's build stage have produced different output layouts before
+      # (confirmed by direct inspection); search for it instead of guessing.
       - name: Verify backend image builds and has expected binaries
         run: |
-          docker compose -f docker-compose.yml run --rm --no-deps --entrypoint sh backend -c "ls /app/dist/src/main.js"
+          docker compose -f docker-compose.yml run --rm --no-deps --entrypoint sh backend -c "find /app/dist -name main.js -print -quit | grep -q ."
 
   chaos-test:
     runs-on: ubuntu-latest
