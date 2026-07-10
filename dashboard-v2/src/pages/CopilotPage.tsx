@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { api } from "../lib/api";
 import toast from "react-hot-toast";
-import { Send, Bot, Loader2, AlertCircle, CheckCircle, Sparkles, MessageSquare, Trash2, Menu, X } from "lucide-react";
+import { Send, Bot, Loader2, AlertTriangle, CircleCheck, Circle, Wrench, Sparkles, MessageSquare, Trash2, Menu, X } from "lucide-react";
 
 interface Action {
   tool: string; args: any; status: string; result?: string; requiresConfirmation?: boolean; pendingActionId?: string;
@@ -173,22 +173,26 @@ export default function CopilotPage() {
                 {m.role === "assistant" && (
                   <div className="flex justify-start mb-2">
                     <div className="max-w-[70%] rounded-2xl rounded-bl-sm bg-[var(--muted)] px-4 py-2.5 text-sm text-[var(--foreground)]">
-                      <div className="whitespace-pre-wrap">{m.content}</div>
                       {m.toolCalls && m.toolCalls.length > 0 && (
-                        <div className="mt-2 space-y-1 pt-2 border-t border-[var(--border)]">
+                        <div className="mb-2.5 space-y-1.5">
                           {m.toolCalls.map((a, i) => (
-                            <div key={i} className="flex items-start gap-2 text-xs">
-                              {a.status === "error" ? <AlertCircle size={12} className="text-red-500 mt-0.5 shrink-0" /> :
-                               a.status === "pending" ? <AlertCircle size={12} className="text-amber-500 mt-0.5 shrink-0" /> :
-                               <CheckCircle size={12} className="text-green-500 mt-0.5 shrink-0" />}
-                              <div className="flex-1 min-w-0">
-                                <span className="font-medium text-[var(--foreground)]">{a.tool}</span>
-                                {a.result && <span className="text-[var(--muted-foreground)] ml-1">— {a.result}</span>}
+                            <div key={i} className="flex items-start gap-2">
+                              <div className="mt-0.5 shrink-0 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--card)] border border-[var(--border)]">
+                                {a.status === "error" ? <AlertTriangle size={9} className="text-red-500" /> :
+                                 a.status === "pending" ? <Circle size={9} className="text-amber-500 fill-amber-500" /> :
+                                 <CircleCheck size={9} className="text-[var(--muted-foreground)]" />}
+                              </div>
+                              <div className="flex-1 min-w-0 text-xs">
+                                <div className="flex items-center gap-1.5 text-[var(--muted-foreground)]">
+                                  <Wrench size={10} className="shrink-0" />
+                                  <span className="font-mono">{a.tool}</span>
+                                </div>
+                                {a.result && <div className="mt-0.5 text-[var(--muted-foreground)]/80 pl-[19px]">{a.result}</div>}
                                 {a.requiresConfirmation && (
-                                  <div className="mt-1">
+                                  <div className="mt-1.5 pl-[19px]">
                                     <button onClick={() => confirmAction(a)}
-                                      className="inline-flex items-center gap-1 rounded-md bg-amber-100 dark:bg-amber-900/30 px-2 py-1 text-[10px] font-medium text-amber-700 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors">
-                                      <CheckCircle size={10} /> Confirm
+                                      className="inline-flex items-center gap-1.5 rounded-md bg-[var(--card)] border border-[var(--border)] px-2.5 py-1 text-[11px] font-medium text-[var(--foreground)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition-colors">
+                                      <CircleCheck size={11} /> Confirm action
                                     </button>
                                   </div>
                                 )}
@@ -197,6 +201,7 @@ export default function CopilotPage() {
                           ))}
                         </div>
                       )}
+                      <div className="whitespace-pre-wrap">{m.content}</div>
                     </div>
                   </div>
                 )}
