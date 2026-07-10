@@ -16,4 +16,5 @@ export class AnalyticsController {
   @Get('campaigns') @Roles('OWNER', 'ADMIN', 'MANAGER') campaigns() { return this.service.campaigns(); }
   @Get('conversions') @Roles('OWNER', 'ADMIN', 'MANAGER') conversions() { return this.service.conversions(); }
   @Get('agents') @Roles('OWNER', 'ADMIN', 'MANAGER') agents() { return this.service.agents(); }
+  @Get('data-health') @Roles('OWNER', 'ADMIN', 'MANAGER') dataHealth() { return this.service.dataHealth(); }
 }

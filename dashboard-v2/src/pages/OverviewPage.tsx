@@ -1,17 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { fetchAnalytics, fetchHealth, fetchFailures } from '../lib/data';
+import { api } from '../lib/api';
 import { useApp } from '../context/AppContext';
-import { Users, Target, TrendingUp, BarChart3, Activity, ArrowUpRight, Zap } from 'lucide-react';
+import { Users, Target, TrendingUp, BarChart3, Activity, ArrowUpRight, Zap, AlertTriangle, AlertCircle, CheckCircle, RefreshCw } from 'lucide-react';
 
 export default function OverviewPage() {
   const { niche, isSuperAdmin } = useApp();
   const [stats, setStats] = useState<any>(null);
   const [health, setHealth] = useState<any>(null);
   const [failures, setFailures] = useState(0);
+  const [dataHealth, setDataHealth] = useState<any>(null);
 
   useEffect(() => {
     fetchAnalytics().then(setStats).catch(() => {});
     fetchHealth().then(setHealth).catch(() => {});
+    api('/analytics/data-health').then(setDataHealth).catch(() => {});
     if (isSuperAdmin) fetchFailures('open').then((d: any[]) => setFailures(d.length)).catch(() => {});
   }, []);
 
@@ -68,6 +71,34 @@ export default function OverviewPage() {
           </div>
         ))}
       </div>
+
+      {dataHealth && dataHealth.insights?.length > 0 && (
+        <div className="rounded-lg bg-[var(--card)] border border-[var(--border)] p-5 shadow-[var(--shadow-sm)]"
+          style={{ animation: 'fadeUp 0.4s ease-out forwards', animationDelay: '0.32s', opacity: 0 }}>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-sm text-[var(--foreground)] flex items-center gap-2">
+              <AlertTriangle size={15} className="text-amber-500" />
+              Data Health
+            </h3>
+            <span className="text-xs text-[var(--muted-foreground)]">
+              {dataHealth.dataQuality.complete}% complete · {dataHealth.dataQuality.duplicates} duplicates
+            </span>
+          </div>
+          <div className="space-y-2">
+            {dataHealth.insights.map((insight: any, i: number) => (
+              <div key={i} className="flex items-center justify-between py-2 border-b border-[var(--border)] last:border-0">
+                <div className="flex items-center gap-2.5">
+                  {insight.type === 'error' ? <AlertCircle size={14} className="text-red-500 shrink-0" /> :
+                   insight.type === 'warning' ? <AlertTriangle size={14} className="text-amber-500 shrink-0" /> :
+                   <CheckCircle size={14} className="text-emerald-500 shrink-0" />}
+                  <span className="text-sm text-[var(--foreground)]">{insight.message}</span>
+                </div>
+                <a href="#/leads" className="text-xs text-[var(--primary)] hover:underline shrink-0 ml-3">{insight.action}</a>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="rounded-lg bg-[var(--card)] border border-[var(--border)] p-5 shadow-[var(--shadow-sm)]"
