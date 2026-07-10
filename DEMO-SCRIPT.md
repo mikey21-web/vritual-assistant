@@ -32,7 +32,7 @@
 - QR Codes page — per-card Telegram QR code generation
 
 ### 7. Automation & n8n (30s)
-- Open n8n at `https://deploysafe.in/n8n/` (admin: `udayakirantumma@gmail.com` / `Maheshwari21!`)
+- Open n8n at `https://deploysafe.in/n8n/` (admin: `udayakirantumma@gmail.com` / `8074228036`)
 - Show the active workflows: Lead Intake, Send Message, Follow-up Runner, Hot Lead Alert
 - Explain: n8n handles scheduled nurture, backend handles real-time Telegram/webhooks
 
@@ -51,7 +51,7 @@
 | Item | Value |
 |---|---|
 | Dashboard | `udayakirantumma@gmail.com` / `8074228036` |
-| n8n | `udayakirantumma@gmail.com` / `Maheshwari21!` |
+| n8n | `udayakirantumma@gmail.com` / `8074228036` |
 | Telegram bot | `@lead_automation_bot` |
 | Widget embed | `<script src="https://deploysafe.in/widget/embed.js" data-widget-id="default"></script>` |
 
