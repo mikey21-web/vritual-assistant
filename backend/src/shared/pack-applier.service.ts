@@ -41,9 +41,11 @@ export class PackApplierService {
       case 'pipeline_stages':
         for (const s of payload.stages || []) {
           const { status, ...rest } = s;
+          if (!status && !rest.name) continue;
+          const resolvedStatus = status || rest.name.toUpperCase().replace(/\s+/g, '_');
           const created = await this.prisma.pipelineStage.upsert({
-            where: { status },
-            create: { ...rest, status },
+            where: { status: resolvedStatus },
+            create: { ...rest, status: resolvedStatus },
             update: { ...rest },
           });
           add('pipelineStage', created.id);
