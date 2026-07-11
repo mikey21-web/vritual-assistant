@@ -60,12 +60,42 @@ export class CopilotService {
     return roles?.includes(role) ?? false;
   }
 
+  // Shared between chat() (initial queue-time check) and confirmAction() (re-checked at
+  // confirm time, since a user's role/permissions can change between the two).
+  private readonly toolPermMap: Record<string, string> = {
+    search_leads: 'leads:read',
+    search_contacts: 'contacts:read',
+    get_lead_detail: 'leads:read',
+    update_lead_status: 'leads:write',
+    create_task: 'tasks:write',
+    create_ticket: 'tickets:write',
+    draft_message: 'conversations:read',
+    send_message: 'conversations:write',
+    list_tickets: 'tickets:read',
+    list_campaigns: 'campaigns:read',
+    get_analytics_overview: 'analytics:read',
+    create_campaign: 'campaigns:write',
+    run_report: 'reports:run',
+    update_ticket: 'tickets:write',
+    initiate_call: 'telephony:call',
+    send_email: 'conversations:write',
+    create_custom_field: 'custom_fields:write',
+    analyze_lead_source: 'analytics:read',
+    bulk_send_message: 'conversations:write',
+    search_knowledge: 'knowledge_base:read',
+  };
+
   // Backstop for the "no emojis, no dashes" system prompt rule. Prompt instructions steer
   // the model but are not guaranteed, so this deterministically strips what slips through
   // rather than relying on the model to always comply.
   private sanitizeReply(text: string): string {
     return text
       .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}️]/gu, '')
+      // Tight ranges like "9am–5pm" or "$50–$100" (no surrounding spaces) keep their meaning
+      // by becoming "to", not a comma, since converting them to a comma would turn a range
+      // into what reads like a list.
+      .replace(/(\S)[—–](\S)/g, '$1 to $2')
+      // Sentence-level dashes (with a space on at least one side) become a comma.
       .replace(/\s*[—–]\s*/g, ', ')
       .replace(/[ \t]{2,}/g, ' ')
       .replace(/ ,/g, ',')
@@ -100,17 +130,17 @@ export class CopilotService {
       });
     }
 
-    const businessSettings = await this.prisma.businessSettings.findFirst({});
+    const businessSettings = await this.prisma.businessSettings.findFirst({}) as any;
     const businessName = businessSettings?.businessName || 'this business';
     const industryLine = businessSettings?.industry ? ` This is a ${businessSettings.industry} business.` : '';
     const toneLine = businessSettings?.toneExamples?.length
-      ? `\n\nExamples of how customers are normally talked to here, match this tone in spirit (but never copy them word for word, and follow the formatting rules above over these examples):\n${businessSettings.toneExamples.map(t => `- ${t}`).join('\n')}`
+      ? `\n\nExamples of how customers are normally talked to here, match this tone in spirit (but never copy them word for word, and follow the formatting rules above over these examples):\n${businessSettings.toneExamples.map((t: string) => `- ${t}`).join('\n')}`
       : '';
     const goalsLine = businessSettings?.goals?.length
       ? `\n\nWhat this business is trying to achieve with leads: ${businessSettings.goals.join(', ')}.`
       : '';
     const complianceLine = businessSettings?.compliance?.length
-      ? `\n\nRules you must always follow, no exceptions:\n${businessSettings.compliance.map(c => `- ${c}`).join('\n')}`
+      ? `\n\nRules you must always follow, no exceptions:\n${businessSettings.compliance.map((c: string) => `- ${c}`).join('\n')}`
       : '';
 
     const systemPrompt = `You are Mikey, the CRM assistant for ${businessName}.${industryLine} You help staff manage leads, tickets, tasks, and campaigns. Talk like a helpful coworker, plainly and directly.
@@ -535,30 +565,7 @@ Rules:
         const toolName = toolCall.function.name;
         const args = JSON.parse(toolCall.function.arguments);
 
-        const toolPermMap: Record<string, string> = {
-          search_leads: 'leads:read',
-          search_contacts: 'contacts:read',
-          get_lead_detail: 'leads:read',
-          update_lead_status: 'leads:write',
-          create_task: 'tasks:write',
-          create_ticket: 'tickets:write',
-          draft_message: 'conversations:read',
-          send_message: 'conversations:write',
-          list_tickets: 'tickets:read',
-          list_campaigns: 'campaigns:read',
-          get_analytics_overview: 'analytics:read',
-          create_campaign: 'campaigns:write',
-          run_report: 'reports:run',
-          update_ticket: 'tickets:write',
-          initiate_call: 'telephony:call',
-          send_email: 'conversations:write',
-          create_custom_field: 'custom_fields:write',
-          analyze_lead_source: 'analytics:read',
-          bulk_send_message: 'conversations:write',
-          search_knowledge: 'knowledge_base:read',
-        };
-
-        const perm = toolPermMap[toolName];
+        const perm = this.toolPermMap[toolName];
         if (perm && !this.can(userRole, perm)) {
           const result = `error: you do not have permission to do this (requires ${perm})`;
           messages.push({ role: 'assistant', content: null, tool_calls: [{ id: toolCall.id, type: 'function', function: { name: toolName, arguments: JSON.stringify(args) } }] });
@@ -688,10 +695,23 @@ Rules:
     return { conversationId: conversation.id, reply, actions };
   }
 
-  async confirmAction(userId: string, pendingActionId: string) {
+  async confirmAction(userId: string, userRole: string, pendingActionId: string) {
     const action = this.pendingActions.get(pendingActionId);
     if (!action) throw new NotFoundException('Pending action not found or expired');
     if (action.userId !== userId) throw new ForbiddenException('This action belongs to another user');
+
+    // Re-check permission at confirm time, not just when the action was queued — the
+    // user's role/permissions may have changed in between.
+    const perm = this.toolPermMap[action.tool];
+    if (perm && !this.can(userRole, perm)) {
+      this.pendingActions.delete(pendingActionId);
+      throw new ForbiddenException(`You no longer have permission to do this (requires ${perm})`);
+    }
+
+    // Delete synchronously, before any await, so a concurrent duplicate confirm request
+    // (double-click, client retry) finds nothing and can't execute the same high-impact
+    // action twice.
+    this.pendingActions.delete(pendingActionId);
 
     let result: any;
     switch (action.tool) {
@@ -745,7 +765,6 @@ Rules:
         throw new Error(`Unknown tool: ${action.tool}`);
     }
 
-    this.pendingActions.delete(pendingActionId);
     return { status: 'success', result, tool: action.tool, args: action.args };
   }
 
