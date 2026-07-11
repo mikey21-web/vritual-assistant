@@ -50,11 +50,13 @@ import { AdminModule } from './admin/admin.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { TicketsModule } from './tickets/tickets.module';
 import { CopilotModule } from './copilot/copilot.module';
+import { LeadIntelligenceModule } from './lead-intelligence/lead-intelligence.module';
 import { ChatModule } from './chat/chat.module';
 import { ReportsModule } from './reports/reports.module';
 import { TelephonyModule } from './telephony/telephony.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { AdIntegrationsModule } from './ad-integrations/ad-integrations.module';
+import { WebsiteCrawlerModule } from './website-crawler/website-crawler.module';
 
 @Module({
   imports: [
@@ -117,11 +119,13 @@ import { AdIntegrationsModule } from './ad-integrations/ad-integrations.module';
     RealtimeModule,
     TicketsModule,
     CopilotModule,
+    LeadIntelligenceModule,
     ChatModule,
     ReportsModule,
     TelephonyModule,
     NotificationsModule,
     AdIntegrationsModule,
+    WebsiteCrawlerModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

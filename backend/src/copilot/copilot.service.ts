@@ -11,6 +11,8 @@ import { CustomFieldsService } from '../custom-fields/custom-fields.service';
 import { TelephonyService } from '../telephony/telephony.service';
 import { EmailAdapter } from '../shared/adapters/email.adapter';
 import { FeatureFlagsService } from '../shared/feature-flags.service';
+import { AnalyticsService } from '../analytics/analytics.service';
+import { ContactsService } from '../contacts/contacts.service';
 
 const MAX_COPILOT_MESSAGES_PER_TENANT_PER_DAY = 500;
 import { PERMISSION_MATRIX } from '../permissions/permissions.matrix';
@@ -43,6 +45,8 @@ export class CopilotService {
     private telephonyService: TelephonyService,
     private emailAdapter: EmailAdapter,
     private featureFlags: FeatureFlagsService,
+    private analyticsService: AnalyticsService,
+    private contactsService: ContactsService,
   ) {
     const apiKey = this.config.get<string>('DEEPSEEK_API_KEY');
     const baseURL = this.config.get<string>('DEEPSEEK_BASE_URL') || 'https://api.deepseek.com/v1';
@@ -88,6 +92,7 @@ export class CopilotService {
 
 You have access to the following tools:
 - search_leads: Search leads by status, segment, assignedAgentId, search text
+- search_contacts: Search contacts (people/companies) by name, email, or phone — use this instead of search_leads when the user asks about a contact/customer/company by name, not a lead's pipeline status
 - get_lead_detail: Get full detail on a specific lead
 - update_lead_status: Change a lead's status (high impact — requires confirmation)
 - create_task: Create a task for a lead
@@ -103,12 +108,23 @@ You have access to the following tools:
 - initiate_call: Start an outbound call to a lead/contact (high impact — requires confirmation)
 - send_email: Send an email to a lead (high impact — requires confirmation)
 - create_custom_field: Create a new custom field definition
+- search_knowledge: Search the Knowledge Base for information about the company's products, services, pricing, policies, or any factual business info. Always search here before answering from your own knowledge when the user asks about what the company offers.
+- navigate_ui: Send the user's screen to a page with filters applied and a specific record highlighted. Use this whenever the user asks to "show me" / "take me to" / "open" something, instead of only describing it in text.
+- explain_flow: Walk the user through a multi-step guided tour (2-5 steps), each step navigating to a page and highlighting a record with a one-sentence narration. Use this for "why" questions or multi-step explanations, after you've already gathered the relevant facts with other tools.
+- analyze_lead_source: Get conversion rate, status breakdown, and related ticket volume for one lead source, compared against the overall conversion rate. Use this when asked why leads from a specific source (e.g. Facebook, Google Ads, WhatsApp) are converting well or poorly.
+- bulk_send_message: Send personalized messages to multiple leads at once (high impact — requires a single confirmation for the whole batch, up to 20 messages).
 
 Rules:
 1. For high-impact tools (marked above), set requiresConfirmation: true and do NOT execute — just return what you would do.
 2. For read-only tools, execute immediately.
 3. If the user lacks permission for a tool, return an error message explaining they don't have permission.
-4. Be concise and helpful. Use the tool results to answer the user's question.`;
+4. Be concise and helpful. Use the tool results to answer the user's question.
+5. When the user asks to see/find/show a set of records, call navigate_ui (in addition to any search tool you use) so their screen actually goes there with the filters applied.
+6. When the user asks "why" something happened or wants a walkthrough, first gather the facts with read-only tools, then call explain_flow with 2-5 steps to guide them through it — one short sentence of narration per step. Don't use explain_flow for a simple single-record lookup; use navigate_ui for that.
+7. When asked why a specific lead source is converting well or poorly, call analyze_lead_source first, then use its sampleLeads to build an explain_flow walkthrough highlighting a few of those leads.
+8. When asked to act on multiple leads at once (e.g. "follow up with everyone who...", "message all hot leads that..."), first use search_leads to find and inspect candidates yourself (reason over their status/segment/updatedAt), draft one personalized message per qualifying lead, then call bulk_send_message ONCE with all of them so the user reviews and approves the whole batch together — never call send_message repeatedly for a multi-lead request.
+9. NEVER invent, guess, or use placeholder/example IDs (like "lead_001") for leadId or any other id field. Always copy the exact id value from a previous tool result in this conversation (e.g. from search_leads or get_lead_detail). If you don't have a real id for a record, call a search/lookup tool first to get it.
+10. NEVER say something is "done", "sent", or "completed" unless you have seen a tool result in THIS conversation with status: success for that exact action. If a tool result says status: pending or requiresConfirmation: true, the action has NOT happened yet — say it's ready and waiting for the user's confirmation, not that it's done.`;
 
     const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
       {
@@ -122,6 +138,19 @@ Rules:
               status: { type: 'string', enum: ['NEW', 'CONTACTED', 'ENGAGED', 'QUALIFYING', 'QUALIFIED', 'PROPOSAL_SENT', 'APPOINTMENT_BOOKED', 'CONVERTED', 'LOST', 'COLD', 'SPAM'] },
               segment: { type: 'string', enum: ['HOT', 'WARM', 'COLD', 'UNQUALIFIED'] },
               assignedAgentId: { type: 'string' },
+              search: { type: 'string' },
+            },
+          },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'search_contacts',
+          description: 'Search contacts by name, email, or phone',
+          parameters: {
+            type: 'object',
+            properties: {
               search: { type: 'string' },
             },
           },
@@ -323,9 +352,113 @@ Rules:
           },
         },
       },
+      {
+        type: 'function',
+        function: {
+          name: 'navigate_ui',
+          description: "Navigate the user's screen to a CRM page, optionally applying filters and highlighting a specific record",
+          parameters: {
+            type: 'object', properties: {
+              page: { type: 'string', enum: ['leads', 'contacts', 'tickets', 'campaigns'] },
+              filters: {
+                type: 'object',
+                description: 'Filter values to apply on the target page, e.g. { "status": "OPEN", "search": "ravi" }',
+                properties: {
+                  search: { type: 'string' },
+                  status: { type: 'string' },
+                  segment: { type: 'string' },
+                  priority: { type: 'string' },
+                },
+              },
+              highlightId: { type: 'string', description: 'ID of a specific record to highlight after navigating' },
+            }, required: ['page'],
+          },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'explain_flow',
+          description: 'Guide the user through a multi-step walkthrough across pages, with a one-sentence narration per step',
+          parameters: {
+            type: 'object', properties: {
+              steps: {
+                type: 'array',
+                description: '2-5 steps forming a guided walkthrough',
+                items: {
+                  type: 'object',
+                  properties: {
+                    page: { type: 'string', enum: ['leads', 'contacts', 'tickets', 'campaigns'] },
+                    filters: {
+                      type: 'object',
+                      properties: {
+                        search: { type: 'string' },
+                        status: { type: 'string' },
+                        segment: { type: 'string' },
+                        priority: { type: 'string' },
+                      },
+                    },
+                    highlightId: { type: 'string' },
+                    narration: { type: 'string', description: 'One short sentence explaining what is shown at this step' },
+                  },
+                  required: ['page', 'narration'],
+                },
+              },
+            }, required: ['steps'],
+          },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'analyze_lead_source',
+          description: 'Get conversion rate, status breakdown, and ticket volume for one lead source vs the overall average',
+          parameters: {
+            type: 'object', properties: {
+              source: { type: 'string', enum: ['CAMPAIGN', 'QR_CODE', 'FORM', 'CHATBOT', 'MOBILE_APP', 'WHATSAPP', 'SOCIAL_MEDIA', 'PHONE_CALL', 'TELEGRAM', 'EMAIL', 'META_ADS', 'GOOGLE_ADS'] },
+            }, required: ['source'],
+          },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'bulk_send_message',
+          description: 'Send personalized messages to multiple leads at once (high impact — one confirmation for the whole batch, max 20)',
+          parameters: {
+            type: 'object', properties: {
+              messages: {
+                type: 'array',
+                description: '1-20 personalized messages, one per lead',
+                items: {
+                  type: 'object',
+                  properties: {
+                    leadId: { type: 'string' },
+                    channel: { type: 'string', enum: ['WHATSAPP', 'EMAIL', 'SMS'] },
+                    text: { type: 'string' },
+                  },
+                  required: ['leadId', 'channel', 'text'],
+                },
+              },
+            }, required: ['messages'],
+          },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'search_knowledge',
+          description: 'Search the Knowledge Base for information about the company, products, services, pricing, or policies',
+          parameters: {
+            type: 'object', properties: {
+              search: { type: 'string', description: 'Search query for knowledge articles' },
+            }, required: ['search'],
+          },
+        },
+      },
     ];
 
-    const highImpactTools = ['update_lead_status', 'send_message', 'create_campaign', 'update_ticket', 'initiate_call', 'send_email'];
+    const highImpactTools = ['update_lead_status', 'send_message', 'create_campaign', 'update_ticket', 'initiate_call', 'send_email', 'bulk_send_message'];
 
     const messages: any[] = [
       { role: 'system', content: systemPrompt },
@@ -372,6 +505,7 @@ Rules:
 
         const toolPermMap: Record<string, string> = {
           search_leads: 'leads:read',
+          search_contacts: 'contacts:read',
           get_lead_detail: 'leads:read',
           update_lead_status: 'leads:write',
           create_task: 'tasks:write',
@@ -387,6 +521,9 @@ Rules:
           initiate_call: 'telephony:call',
           send_email: 'conversations:write',
           create_custom_field: 'custom_fields:write',
+          analyze_lead_source: 'analytics:read',
+          bulk_send_message: 'conversations:write',
+          search_knowledge: 'knowledge_base:read',
         };
 
         const perm = toolPermMap[toolName];
@@ -399,6 +536,19 @@ Rules:
         }
 
         const isHighImpact = highImpactTools.includes(toolName);
+
+        if (isHighImpact && toolName === 'bulk_send_message') {
+          const leadIds: string[] = Array.from(new Set<string>((args.messages || []).map((m: any) => m.leadId)));
+          const found = await Promise.all(leadIds.map(id => this.leadsService.findOne(id).then(() => id).catch(() => null)));
+          const missing = leadIds.filter((id, i) => found[i] === null);
+          if (missing.length > 0) {
+            const result = `error: these leadIds do not exist: ${missing.join(', ')}. Re-check the ids from your earlier search_leads/get_lead_detail results and try again — do not guess or modify ids.`;
+            messages.push({ role: 'assistant', content: null, tool_calls: [{ id: toolCall.id, type: 'function', function: { name: toolName, arguments: JSON.stringify(args) } }] });
+            messages.push({ role: 'tool', tool_call_id: toolCall.id, content: result });
+            actions.push({ tool: toolName, args, status: 'error', result });
+            continue;
+          }
+        }
 
         if (isHighImpact) {
           const paId = `pa_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -414,6 +564,9 @@ Rules:
           switch (toolName) {
             case 'search_leads':
               result = await this.leadsService.findAll(args);
+              break;
+            case 'search_contacts':
+              result = await this.contactsService.findAll(args);
               break;
             case 'get_lead_detail':
               result = await this.leadsService.findOne(args.leadId);
@@ -437,6 +590,13 @@ Rules:
             case 'get_analytics_overview':
               result = { overview: 'CRM analytics summary', ...(await this.leadsService.findAll({ limit: 1 }).catch(() => ({}))) };
               break;
+            case 'search_knowledge':
+              const articles = await this.prisma.knowledgeArticle.findMany({
+                where: { published: true, OR: [{ title: { contains: args.search, mode: 'insensitive' } }, { body: { contains: args.search, mode: 'insensitive' } }, { tags: { has: args.search.toLowerCase() } }] },
+                take: 5, orderBy: { createdAt: 'desc' },
+              });
+              result = articles.map(a => ({ title: a.title, body: a.body.slice(0, 2000), tags: a.tags }));
+              break;
             case 'run_report':
               result = await this.reportsService.run(
                 { entity: args.entity, metric: args.metric, groupBy: args.groupBy, filters: args.filters },
@@ -445,6 +605,15 @@ Rules:
               break;
             case 'create_custom_field':
               result = await this.customFieldsService.createDefinition({ ...args, tenantId });
+              break;
+            case 'navigate_ui':
+              result = { navigated: true, page: args.page, filters: args.filters || {}, highlightId: args.highlightId };
+              break;
+            case 'explain_flow':
+              result = { steps: args.steps || [] };
+              break;
+            case 'analyze_lead_source':
+              result = await this.analyticsService.sourceInsight(args.source);
               break;
             default:
               result = `unknown tool: ${toolName}`;
@@ -495,6 +664,25 @@ Rules:
           text: action.args.text,
           direction: 'OUTBOUND',
         }, userId);
+        break;
+      }
+      case 'bulk_send_message': {
+        const messages: any[] = action.args.messages || [];
+        const results: { leadId: string; status: 'success' | 'error'; error?: string }[] = [];
+        for (const m of messages) {
+          try {
+            await this.conversationsService.create({
+              leadId: m.leadId,
+              channel: m.channel,
+              text: m.text,
+              direction: 'OUTBOUND',
+            }, userId);
+            results.push({ leadId: m.leadId, status: 'success' });
+          } catch (err: any) {
+            results.push({ leadId: m.leadId, status: 'error', error: err.message || 'Unknown error' });
+          }
+        }
+        result = { sent: results.filter(r => r.status === 'success').length, failed: results.filter(r => r.status === 'error').length, results };
         break;
       }
       case 'create_campaign':

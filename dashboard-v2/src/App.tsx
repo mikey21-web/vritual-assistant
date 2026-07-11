@@ -8,6 +8,7 @@ import { getPrimaryColor } from "./lib/niche-config";
 import { Sidebar } from "./components/layout/sidebar";
 import { Topbar } from "./components/layout/topbar";
 import MikeyWidget from "./components/MikeyWidget";
+import ExplainModePlayer from "./components/ExplainModePlayer";
 import { LoginPage } from "./pages/LoginPage";
 import LandingPage from "./pages/LandingPage";
 import { Skeleton } from "./components/ui/skeleton";
@@ -40,6 +41,7 @@ const PageComponents: Record<string, React.LazyExoticComponent<React.ComponentTy
   AdIntegrations: lazy(() => import("./pages/AdIntegrationsPage")),
   Failures: lazy(() => import("./pages/FailuresPage")),
   Health: lazy(() => import("./pages/HealthPage")),
+  WebsiteCrawler: lazy(() => import("./pages/WebsiteCrawlerPage")),
   AICampaigns: lazy(() => import("./pages/AICampaignManager")),
   Rules: lazy(() => import("./pages/RulesPage")),
   Import: lazy(() => import("./pages/ImportPage")),
@@ -80,7 +82,7 @@ function getPageKey(path: string): string {
     "/integrations": "Integrations", "/crm": "CRM", "/booking": "Booking",
     "/analytics": "Analytics", "/team": "Team",
     "/audit-logs": "AuditLogs", "/advanced": "Advanced",
-    "/settings": "Settings", "/workspace": "Workspace", "/import": "Import",
+    "/settings": "Settings", "/workspace": "Workspace",     "/import": "Import", "/website-crawler": "WebsiteCrawler",
     "/failures": "Failures", "/health": "Health",
     "/ai-campaigns": "AICampaigns", "/ai-agent": "AIAgent",
     "/webhooks": "Webhooks", "/sms": "SMS", "/widget": "Widget", "/ads": "AdIntegrations",
@@ -170,6 +172,7 @@ export default function App() {
         </div>
       </div>
       <MikeyWidget />
+      <ExplainModePlayer />
       <Toaster position="top-right" toastOptions={{
         style: { borderRadius: 'var(--radius)', background: 'var(--card)', color: 'var(--foreground)', border: '1px solid var(--border)', fontSize: '14px' },
         success: { iconTheme: { primary: '#0f766e', secondary: '#ffffff' } },
