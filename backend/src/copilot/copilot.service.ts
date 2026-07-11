@@ -645,7 +645,16 @@ Rules:
               result = { steps: args.steps || [] };
               break;
             case 'analyze_lead_source':
-              result = await this.analyticsService.sourceInsight(args.source);
+              const sourceLeads = await this.prisma.lead.findMany({ where: { source: args.source as any }, include: { contact: { select: { name: true, email: true } } }, take: 20 });
+              const totalLeads = await this.prisma.lead.count();
+              const totalConverted = await this.prisma.lead.count({ where: { status: 'CONVERTED' } });
+              const sourceConverted = sourceLeads.filter(l => l.status === 'CONVERTED').length;
+              result = {
+                source: args.source, leadsCount: sourceLeads.length, convertedCount: sourceConverted,
+                conversionRate: sourceLeads.length ? ((sourceConverted / sourceLeads.length) * 100).toFixed(1) : 0,
+                overallConversionRate: totalLeads ? ((totalConverted / totalLeads) * 100).toFixed(1) : 0,
+                sampleLeads: sourceLeads.slice(0, 5).map(l => ({ id: l.id, name: l.contact?.name || 'Unknown', status: l.status })),
+              };
               break;
             default:
               result = `unknown tool: ${toolName}`;
