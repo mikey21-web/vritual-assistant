@@ -60,6 +60,18 @@ export class CopilotService {
     return roles?.includes(role) ?? false;
   }
 
+  // Backstop for the "no emojis, no dashes" system prompt rule. Prompt instructions steer
+  // the model but are not guaranteed, so this deterministically strips what slips through
+  // rather than relying on the model to always comply.
+  private sanitizeReply(text: string): string {
+    return text
+      .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}️]/gu, '')
+      .replace(/\s*[—–]\s*/g, ', ')
+      .replace(/[ \t]{2,}/g, ' ')
+      .replace(/ ,/g, ',')
+      .trim();
+  }
+
   async chat(userId: string, userRole: string, tenantId: string, message: string, conversationId?: string) {
     if (!this.client) throw new Error('Copilot not configured: DEEPSEEK_API_KEY missing');
 
@@ -88,7 +100,27 @@ export class CopilotService {
       });
     }
 
-    const systemPrompt = `You are Mikey, a friendly and proactive AI CRM assistant. You help staff manage leads, tickets, tasks, campaigns, and more. You're knowledgeable, efficient, and always ready to help. Talk naturally and conversationally. When someone greets you, greet them back warmly.
+    const businessSettings = await this.prisma.businessSettings.findFirst({});
+    const businessName = businessSettings?.businessName || 'this business';
+    const industryLine = businessSettings?.industry ? ` This is a ${businessSettings.industry} business.` : '';
+    const toneLine = businessSettings?.toneExamples?.length
+      ? `\n\nExamples of how customers are normally talked to here, match this tone in spirit (but never copy them word for word, and follow the formatting rules above over these examples):\n${businessSettings.toneExamples.map(t => `- ${t}`).join('\n')}`
+      : '';
+    const goalsLine = businessSettings?.goals?.length
+      ? `\n\nWhat this business is trying to achieve with leads: ${businessSettings.goals.join(', ')}.`
+      : '';
+    const complianceLine = businessSettings?.compliance?.length
+      ? `\n\nRules you must always follow, no exceptions:\n${businessSettings.compliance.map(c => `- ${c}`).join('\n')}`
+      : '';
+
+    const systemPrompt = `You are Mikey, the CRM assistant for ${businessName}.${industryLine} You help staff manage leads, tickets, tasks, and campaigns. Talk like a helpful coworker, plainly and directly.
+
+Formatting rules, follow these strictly:
+- Never use emojis.
+- Never use em dashes or en dashes. Use a period or comma instead.
+- Keep replies short. A few sentences is usually enough. Only go longer if the user asks for detail.
+- Do not wrap words in quotation marks unless quoting something exact.
+- No decorative symbols or filler phrases. Just say the thing.${toneLine}${goalsLine}${complianceLine}
 
 You have access to the following tools:
 - search_leads: Search leads by status, segment, assignedAgentId, search text
@@ -491,7 +523,7 @@ Rules:
       const replyMsg = choice.message;
 
       if (!replyMsg.tool_calls || replyMsg.tool_calls.length === 0) {
-        const reply = replyMsg.content || 'I have no additional information.';
+        const reply = this.sanitizeReply(replyMsg.content || 'I have no additional information.');
         await this.prisma.copilotMessage.create({
           data: { conversationId: conversation.id, role: 'assistant', content: reply, toolCalls: actions.length > 0 ? actions : undefined },
         });
@@ -639,7 +671,7 @@ Rules:
       messages,
     });
 
-    const reply = finalResponse.choices[0].message.content || 'Done.';
+    const reply = this.sanitizeReply(finalResponse.choices[0].message.content || 'Done.');
     await this.prisma.copilotMessage.create({
       data: { conversationId: conversation.id, role: 'assistant', content: reply, toolCalls: actions },
     });
