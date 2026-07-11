@@ -28,7 +28,7 @@ export class AuthService {
 
     // Registration is admin/invite-only in single-tenant mode
     const adminUser = await this.prisma.user.findFirst({ where: { role: 'OWNER' } });
-    if (!adminUser) throw new ForbiddenException('No admin exists — registration unavailable');
+    if (!adminUser) throw new ForbiddenException('No admin exists. Registration unavailable');
 
     const hashed = await bcrypt.hash(dto.password, 12);
     const user = await this.prisma.user.create({

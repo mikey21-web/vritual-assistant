@@ -24,7 +24,7 @@ export class CopilotController {
   @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT', 'SUPPORT_AGENT')
   @ApiOperation({ summary: 'Confirm a pending high-impact action' })
   confirmAction(@Body() dto: ConfirmActionDto, @Req() req) {
-    return this.service.confirmAction(req.user.sub, dto.pendingActionId);
+    return this.service.confirmAction(req.user.sub, req.user.role, dto.pendingActionId);
   }
 
   @Get('conversations')

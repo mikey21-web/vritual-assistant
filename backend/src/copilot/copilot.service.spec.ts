@@ -13,6 +13,8 @@ import { CustomFieldsService } from '../custom-fields/custom-fields.service';
 import { TelephonyService } from '../telephony/telephony.service';
 import { EmailAdapter } from '../shared/adapters/email.adapter';
 import { FeatureFlagsService } from '../shared/feature-flags.service';
+import { AnalyticsService } from '../analytics/analytics.service';
+import { ContactsService } from '../contacts/contacts.service';
 
 function toolCallResponse(name: string, args: any) {
   return {
@@ -45,6 +47,7 @@ describe('CopilotService', () => {
         create: jest.fn().mockResolvedValue(mockConversation),
       },
       copilotMessage: { create: jest.fn().mockResolvedValue({}), count: jest.fn().mockResolvedValue(0) },
+      businessSettings: { findFirst: jest.fn().mockResolvedValue(null) },
     };
     leadsService = {
       findAll: jest.fn().mockResolvedValue({ data: [{ id: 'lead-1' }], meta: { total: 1 } }),
@@ -67,6 +70,8 @@ describe('CopilotService', () => {
         { provide: TelephonyService, useValue: { initiateCall: jest.fn() } },
         { provide: EmailAdapter, useValue: { send: jest.fn() } },
         { provide: FeatureFlagsService, useValue: featureFlags },
+        { provide: AnalyticsService, useValue: { sourceInsight: jest.fn() } },
+        { provide: ContactsService, useValue: { findAll: jest.fn() } },
       ],
     }).compile();
 
@@ -161,14 +166,14 @@ describe('CopilotService', () => {
 
       expect(leadsService.update).not.toHaveBeenCalled();
 
-      await service.confirmAction('user-1', pendingActionId);
+      await service.confirmAction('user-1', 'SALES_AGENT', pendingActionId);
       expect(leadsService.update).toHaveBeenCalledWith('lead-1', { status: 'LOST' });
     });
   });
 
   describe('confirmAction ownership + lifecycle', () => {
     it('throws NotFoundException for an unknown or expired pending action', async () => {
-      await expect(service.confirmAction('user-1', 'pa_does_not_exist')).rejects.toThrow(NotFoundException);
+      await expect(service.confirmAction('user-1', 'SALES_AGENT', 'pa_does_not_exist')).rejects.toThrow(NotFoundException);
     });
 
     it('throws ForbiddenException when a different user tries to confirm someone else\'s pending action', async () => {
@@ -179,7 +184,7 @@ describe('CopilotService', () => {
       const chatResult = await service.chat('user-1', 'SALES_AGENT', 'default-tenant', 'mark lead-1 as lost');
       const pendingActionId = chatResult.actions[0].pendingActionId;
 
-      await expect(service.confirmAction('someone-else', pendingActionId)).rejects.toThrow(ForbiddenException);
+      await expect(service.confirmAction('someone-else', 'SALES_AGENT', pendingActionId)).rejects.toThrow(ForbiddenException);
     });
 
     it('removes the pending action after it is confirmed (cannot be double-executed)', async () => {
@@ -190,8 +195,8 @@ describe('CopilotService', () => {
       const chatResult = await service.chat('user-1', 'SALES_AGENT', 'default-tenant', 'mark lead-1 as lost');
       const pendingActionId = chatResult.actions[0].pendingActionId;
 
-      await service.confirmAction('user-1', pendingActionId);
-      await expect(service.confirmAction('user-1', pendingActionId)).rejects.toThrow(NotFoundException);
+      await service.confirmAction('user-1', 'SALES_AGENT', pendingActionId);
+      await expect(service.confirmAction('user-1', 'SALES_AGENT', pendingActionId)).rejects.toThrow(NotFoundException);
     });
   });
 

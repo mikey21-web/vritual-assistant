@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { tenantConnect } from '../shared/tenant-helper';
 import * as bcrypt from 'bcryptjs';
@@ -32,8 +32,14 @@ export class UsersService {
     if (!data.password) throw new BadRequestException('Password is required');
     const password = await bcrypt.hash(data.password, 12);
     const { role, active, ...safeData } = data;
+    const resolvedRole = role || 'SALES_AGENT';
+    // Only an OWNER may create another OWNER or ADMIN account. Without this, an ADMIN
+    // could grant themselves or anyone else OWNER-level access via POST /users.
+    if ((resolvedRole === 'OWNER' || resolvedRole === 'ADMIN') && req?.user?.role !== 'OWNER') {
+      throw new ForbiddenException('Only an OWNER can create OWNER or ADMIN accounts');
+    }
     return this.prisma.user.create({
-      data: { ...safeData, password, role: (role as any) || 'SALES_AGENT', active: active !== false, ...tenantConnect(req) },
+      data: { ...safeData, password, role: resolvedRole as any, active: active !== false, ...tenantConnect(req) },
       select: SAFE_USER_SELECT,
     });
   }

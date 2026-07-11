@@ -104,7 +104,7 @@ export class GoogleCalendarAdapter implements CalendarAdapter {
     // Handle escaped newlines (common when stored in JSON or .env)
     const normalizedKey = privateKey.replace(/\\n/g, '\n');
     if (!normalizedKey.includes('BEGIN PRIVATE KEY') && !normalizedKey.includes('BEGIN RSA PRIVATE KEY')) {
-      throw new Error('Invalid Google Calendar private key — must be a PKCS8 RSA private key');
+      throw new Error('Invalid Google Calendar private key. Must be a PKCS8 RSA private key');
     }
     const header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');
     const now = Math.floor(Date.now() / 1000);

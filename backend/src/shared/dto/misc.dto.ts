@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsObject } from 'class-validator';
+import { IsString, IsOptional, IsObject, IsIn } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateCrmMappingDto {
@@ -23,7 +23,7 @@ export class CreateUserDto {
   @ApiProperty() @IsString() name: string;
   @ApiProperty() @IsString() email: string;
   @ApiPropertyOptional() @IsOptional() @IsString() password?: string;
-  @ApiPropertyOptional() @IsOptional() @IsString() role?: string;
+  @ApiPropertyOptional() @IsOptional() @IsIn(['OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT', 'SUPPORT_AGENT', 'VIEWER']) role?: string;
 }
 
 export class UpdateUserDto {

@@ -11,9 +11,11 @@ import { ReportsModule } from '../reports/reports.module';
 import { CustomFieldsModule } from '../custom-fields/custom-fields.module';
 import { TelephonyModule } from '../telephony/telephony.module';
 import { SharedModule } from '../shared/shared.module';
+import { AnalyticsModule } from '../analytics/analytics.module';
+import { ContactsModule } from '../contacts/contacts.module';
 
 @Module({
-  imports: [PrismaModule, LeadsModule, TasksModule, TicketsModule, CampaignsModule, ConversationsModule, ReportsModule, CustomFieldsModule, TelephonyModule, SharedModule],
+  imports: [PrismaModule, LeadsModule, TasksModule, TicketsModule, CampaignsModule, ConversationsModule, ReportsModule, CustomFieldsModule, TelephonyModule, SharedModule, AnalyticsModule, ContactsModule],
   controllers: [CopilotController],
   providers: [CopilotService],
 })

@@ -1,4 +1,4 @@
-import { IsString, IsEmail, IsOptional, IsEnum, IsArray, IsObject, IsIn } from 'class-validator';
+import { IsString, IsEmail, IsOptional, IsEnum, IsArray, IsObject, IsIn, IsNumber } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateLeadDto {
@@ -19,6 +19,7 @@ export class UpdateLeadDto {
   @ApiPropertyOptional() @IsOptional() @IsString() segment?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() interest?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() budget?: string;
+  @ApiPropertyOptional() @IsOptional() @IsNumber() dealValue?: number | null;
   @ApiPropertyOptional() @IsOptional() @IsString() urgency?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() message?: string;
   @ApiPropertyOptional() @IsOptional() @IsObject() metadata?: Record<string, unknown>;

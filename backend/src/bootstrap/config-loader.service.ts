@@ -118,6 +118,10 @@ export class ConfigLoaderService implements OnApplicationBootstrap {
       logoUrl: config.branding?.logo_url || null,
       primaryColor: config.branding?.primary_color || '#0B5',
       labels: config.branding?.labels || {},
+      industry: config.niche?.industry || null,
+      toneExamples: config.agent?.tone_examples || [],
+      goals: config.agent?.goals || [],
+      compliance: config.agent?.compliance || [],
     };
     if (existing) {
       await this.prisma.businessSettings.update({ where: { id: existing.id }, data });

@@ -1,10 +1,21 @@
-import { Controller, Post, Param, Body, UseGuards, Logger, BadRequestException, Req } from '@nestjs/common';
+import { Controller, Post, Param, Body, UseGuards, Logger, BadRequestException, ForbiddenException, Req } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
+
+// Lower number = more privileged. Only OWNER may impersonate an OWNER or ADMIN;
+// nobody may impersonate a peer or more-privileged role.
+const ROLE_RANK: Record<string, number> = {
+  OWNER: 0,
+  ADMIN: 1,
+  MANAGER: 2,
+  SALES_AGENT: 3,
+  SUPPORT_AGENT: 3,
+  VIEWER: 4,
+};
 
 @ApiTags('Admin')
 @Controller('admin/impersonate')
@@ -22,6 +33,12 @@ export class ImpersonationController {
 
     const target = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!target) throw new BadRequestException('User not found');
+
+    const callerRank = ROLE_RANK[req.user.role] ?? 99;
+    const targetRank = ROLE_RANK[target.role] ?? 99;
+    if (targetRank <= callerRank) {
+      throw new ForbiddenException('Cannot impersonate a user with equal or higher privilege than your own role');
+    }
 
     await this.auditLogs.log('admin_impersonation', 'User', userId, req.user.sub, { reason: body.reason });
 
