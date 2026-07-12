@@ -7,8 +7,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, BackgroundTasks, HTTPException, Header
 
 from app.config import Settings
-from app.schemas import AgentRunRequest, AgentRunResponse
+from app.schemas import AgentRunRequest, AgentRunResponse, CopilotChatRequest, CopilotChatResponse
 from app.runner import execute_run
+from app.copilot import run_copilot_chat
+from app.backend_client import BackendClient
 from app.idempotency import init as idempotency_init, close as idempotency_close
 from app.logging_config import setup_logging, new_run_id
 
@@ -64,6 +66,23 @@ async def agent_run(req: AgentRunRequest, background_tasks: BackgroundTasks, x_a
     background_tasks.add_task(_retry_execute_run, settings, req)
 
     return AgentRunResponse(accepted=True, runId=run_id)
+
+
+@app.post("/copilot/run", response_model=CopilotChatResponse)
+async def copilot_run(req: CopilotChatRequest, x_agent_key: str = Header(None)):
+    if settings.agent_inbound_key and x_agent_key != settings.agent_inbound_key:
+        raise HTTPException(status_code=401, detail="Invalid agent key")
+
+    client = BackendClient(settings)
+    try:
+        result = await run_copilot_chat(settings, client, [m.model_dump() for m in req.messages], req.leadId)
+    except Exception:
+        logger.exception("copilot_run_failed")
+        raise HTTPException(status_code=502, detail="Copilot failed to respond")
+    finally:
+        await client.close()
+
+    return CopilotChatResponse(reply=result["reply"], actions=result["actions"])
 
 
 @app.get("/health")

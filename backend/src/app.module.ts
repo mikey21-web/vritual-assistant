@@ -50,6 +50,7 @@ import { AdminModule } from './admin/admin.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { KnowledgeBaseModule } from './knowledge-base/knowledge-base.module';
 import { BookingsModule } from './bookings/bookings.module';
+import { CopilotModule } from './copilot/copilot.module';
 
 @Module({
   imports: [
@@ -112,6 +113,7 @@ import { BookingsModule } from './bookings/bookings.module';
     RealtimeModule,
     KnowledgeBaseModule,
     BookingsModule,
+    CopilotModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

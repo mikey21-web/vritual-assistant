@@ -16,6 +16,21 @@ class AgentRunResponse(BaseModel):
     runId: str
 
 
+class CopilotMessage(BaseModel):
+    role: str  # "user" | "assistant"
+    text: str
+
+
+class CopilotChatRequest(BaseModel):
+    messages: list[CopilotMessage]
+    leadId: str | None = None
+
+
+class CopilotChatResponse(BaseModel):
+    reply: str
+    actions: list[dict]
+
+
 class CollectedField(BaseModel):
     key: str
     value: str

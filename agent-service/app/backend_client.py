@@ -162,6 +162,12 @@ class BackendClient:
         result = await self._retry_get("/knowledge-base/search", {"q": query})
         return result if isinstance(result, list) else result.get("data", [])
 
+    async def list_leads(self, params: dict | None = None) -> dict:
+        return await self._retry_get("/leads", params)
+
+    async def get_analytics_overview(self) -> dict:
+        return await self._retry_get("/analytics/overview")
+
     async def get_contact_memory(self, contact_id: str) -> dict:
         return await self._retry_get(f"/contacts/{contact_id}/memory")
 
