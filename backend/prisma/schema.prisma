@@ -353,6 +353,10 @@ model User {
 
 model BusinessSettings {
   id                    String   @id @default(uuid())
+  // Enforces a single row at the DB level (upsert on this unique field is atomic),
+  // instead of relying on an app-level find-then-create check that two concurrent
+  // callers (e.g. boot-time config reconcile racing an API request) could both pass.
+  singleton             Boolean  @unique @default(true)
   businessName          String   @default("")
   timezone              String   @default("UTC")
   defaultCurrency       String   @default("USD")
@@ -373,6 +377,10 @@ model BusinessSettings {
   faviconUrl            String?
   primaryColor          String   @default("#0B5")
   labels                Json     @default("{}")
+  industry              String?
+  toneExamples          String[] @default([])
+  goals                 String[] @default([])
+  compliance            String[] @default([])
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
@@ -431,6 +439,7 @@ model Lead {
   priority     Int         @default(0)
   interest     String?
   budget       String?
+  dealValue    Float?
   urgency      String?
   message      String?
   tags         String[]    @default([])
@@ -1033,6 +1042,7 @@ model PipelineStage {
   status      LeadStatus @unique
   order       Int        @default(0)
   color       String     @default("#6b7280")
+  probability Int        @default(0)
   isDefault   Boolean    @default(false)
   isEnd       Boolean    @default(false)
   active      Boolean    @default(true)
@@ -1163,6 +1173,7 @@ model Ticket {
   slaRule       SlaRule?       @relation(fields: [slaRuleId], references: [id])
   dueAt         DateTime?
   resolvedAt    DateTime?
+  slaBreachNotifiedAt DateTime?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 

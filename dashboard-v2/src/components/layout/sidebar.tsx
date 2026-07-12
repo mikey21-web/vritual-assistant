@@ -4,7 +4,7 @@ import {
   Megaphone, FormInput, QrCode, FileText, Route, Target,
   ShoppingCart, Link, Calendar, Layers, ChevronLeft, ChevronRight,
   UserCircle, CheckSquare, Sparkles, Phone,   Bot, MessageCircle, Smartphone, Webhook, Globe, LogOut, Columns3,
-  LifeBuoy, BookOpen, Puzzle, Download,
+  LifeBuoy, BookOpen, Puzzle, Download, Headset,
 } from "lucide-react";
 import { fetchProfile, fetchBusinessSettings } from "../../lib/data";
 import { useAuth } from "../../lib/useAuth";
@@ -61,7 +61,7 @@ const rawNavGroups = [
       { label: "Rules", icon: Target, path: "/rules" },
       { label: "AI Campaigns", icon: Sparkles, path: "/ai-campaigns" },
       { label: "AI Agent", icon: Bot, path: "/ai-agent" },
-      { label: "Mikey", icon: Sparkles, path: "/copilot" },
+      { label: "Mikey", icon: Headset, path: "/copilot" },
     ],
   },
   {

@@ -93,7 +93,7 @@ export default function IntegrationsPage() {
     <div className="space-y-6 animate-fade-in">
       <div>
         <h1 className="text-2xl font-bold text-[var(--foreground)]">Connected Channels</h1>
-        <p className="text-sm text-[var(--muted-foreground)] mt-1">Your channels are auto-configured — no setup needed</p>
+        <p className="text-sm text-[var(--muted-foreground)] mt-1">Your channels are auto-configured. No setup needed</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -166,7 +166,7 @@ export default function IntegrationsPage() {
             </div>
             <div>
               <h3 className="font-semibold text-[var(--foreground)]">Email (SMTP + IMAP)</h3>
-              <p className="text-xs text-[var(--muted-foreground)] mt-0.5">2-way email sync — send and receive emails from your CRM</p>
+              <p className="text-xs text-[var(--muted-foreground)] mt-0.5">2-way email sync. Send and receive emails from your CRM</p>
             </div>
           </div>
         </div>

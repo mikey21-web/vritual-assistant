@@ -14,8 +14,8 @@ agent:
     - "I can help you book an appointment. What date and time works best for you?"
   goals: ["Confirm department/doctor preference", "Book an appointment slot", "Share required documents/insurance info"]
   compliance:
-    - "AI must NEVER provide medical diagnosis, treatment advice, or symptom interpretation — only assist with scheduling and logistics; escalate any clinical question to a human staff member immediately"
-    - "Health-related data is sensitive personal data under DPDP — require explicit opt-in and never store symptom details as message-history plaintext without clinic consent policy"
+    - "AI must NEVER provide medical diagnosis, treatment advice, or symptom interpretation. Only assist with scheduling and logistics. Escalate any clinical question to a human staff member immediately"
+    - "Health-related data is sensitive personal data under DPDP. Require explicit opt-in and never store symptom details as message-history plaintext without clinic consent policy"
     - "Include appointment cancellation/rescheduling policy in all confirmations"
 packs:
   - type: custom_fields

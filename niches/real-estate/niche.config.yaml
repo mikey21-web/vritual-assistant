@@ -58,7 +58,7 @@ packs:
         - name: welcome_inquiry
           type: WELCOME
           channel: WHATSAPP
-          body: "Hi {{name}}! 👋 Thanks for reaching out to {{business_name}}. I'd love to help you find the perfect property."
+          body: "Hi {{name}}, thanks for reaching out to {{business_name}}. I'd love to help you find the perfect property."
           active: true
         - name: site_visit_invite
           type: FOLLOW_UP

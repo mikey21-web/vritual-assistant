@@ -178,7 +178,7 @@ export default function LandingPage({ onLogin }: { onLogin?: () => void }) {
                 <span style={{ color: t.accent }}>ever again</span>
               </h1>
               <p className="text-base leading-relaxed mb-8 max-w-md" style={{ color: t.muted }}>
-                AI agent that captures, qualifies, and converts leads across WhatsApp, chat, email, SMS, and phone — 24/7. Then pushes everything to your CRM.
+                AI agent that captures, qualifies, and converts leads across WhatsApp, chat, email, SMS, and phone, 24/7. Then pushes everything to your CRM.
               </p>
               <div className="flex flex-wrap items-center gap-3">
                 <motion.button onClick={onLogin}
@@ -278,17 +278,17 @@ export default function LandingPage({ onLogin }: { onLogin?: () => void }) {
             <h2 className="text-[30px] md:text-[40px] font-bold font-['Space_Grotesk'] leading-[1.05] tracking-[-0.03em] mt-4 mb-4">
               What LeadFlow does
             </h2>
-            <p className="text-sm" style={{ color: t.muted }}>One platform replaces your chatbot, CRM entry, follow-up tool, and analytics — with AI stitching it all together.</p>
+            <p className="text-sm" style={{ color: t.muted }}>One platform replaces your chatbot, CRM entry, follow-up tool, and analytics, with AI stitching it all together.</p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-5 mb-16">
             {[
-              { icon: MessageCircle, title: 'Captures everywhere', desc: 'Chat widget, WhatsApp, SMS, web forms, QR codes, Telegram, social media, phone calls — all route to one inbox. No lead slips through.' },
+              { icon: MessageCircle, title: 'Captures everywhere', desc: 'Chat widget, WhatsApp, SMS, web forms, QR codes, Telegram, social media, phone calls, all route to one inbox. No lead slips through.' },
               { icon: Bot, title: 'AI qualifies automatically', desc: 'AI agent responds in your brand voice. Asks qualifying questions, extracts budget/timeline, scores leads, and books appointments.' },
               { icon: Route, title: 'Nurtures on schedule', desc: 'Multi-step sequences over WhatsApp, email, and SMS. Conditional branches, booking links, re-engagement logic. Set once, runs forever.' },
               { icon: Target, title: 'Scores & routes', desc: 'Rule-based scoring (budget, urgency, behavior). Hot leads go to senior reps. Warm leads get nurtured. Cold leads get re-engagement.' },
               { icon: BarChart3, title: 'Analytics in real-time', desc: 'Pipeline view, source performance, conversion tracking, team metrics. Know exactly where every lead is and what happened.' },
-              { icon: Link, title: 'Pushes to CRM', desc: 'HubSpot, Salesforce, Zoho — or 400+ tools via n8n. Custom field mapping, dedup, audit trail. Your CRM stays current.' },
+              { icon: Link, title: 'Pushes to CRM', desc: 'HubSpot, Salesforce, Zoho, or 400+ tools via n8n. Custom field mapping, dedup, audit trail. Your CRM stays current.' },
             ].map((f, i) => (
               <motion.div key={i} className="p-5 rounded-xl" style={{ background: t.card, border: `1px solid ${t.border}` }}
                 initial={reduced ? undefined : { opacity: 0, y: 16 }}
@@ -351,7 +351,7 @@ export default function LandingPage({ onLogin }: { onLogin?: () => void }) {
                     whileInView={{ opacity: 1, x: 0 }}
                     viewport={{ once: true }}
                     transition={{ delay: i * 0.06 }}>
-                    <span style={{ color: '#6b7280' }}>—</span>
+                    <span style={{ color: '#6b7280' }}>-</span>
                     {item}
                   </motion.li>
                 ))}

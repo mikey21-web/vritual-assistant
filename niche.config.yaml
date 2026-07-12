@@ -69,7 +69,7 @@ packs:
           steps:
             - { type: SEND_WHATSAPP, displayOrder: 0, waitSeconds: 0, config: { body: "Hi {{name}}! Thanks for your interest. Want me to walk you through some event package options?" } }
             - { type: WAIT, displayOrder: 1, waitSeconds: 86400 }
-            - { type: CHECK_CONDITION, displayOrder: 2, condition: { field: status, operator: not_equals, value: "CONTACTED" }, config: { onPass: [{ type: SEND_WHATSAPP, body: "Hey {{name}} — just checking in! Still exploring options for your event? Happy to help whenever you're ready." }], onFail: [] } }
+            - { type: CHECK_CONDITION, displayOrder: 2, condition: { field: status, operator: not_equals, value: "CONTACTED" }, config: { onPass: [{ type: SEND_WHATSAPP, body: "Hey {{name}}, just checking in. Still exploring options for your event? Happy to help whenever you're ready." }], onFail: [] } }
   - type: booking_settings
     payload:
       settings:

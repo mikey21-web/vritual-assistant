@@ -1,9 +1,12 @@
 import { useState, useRef, useEffect } from "react";
 import { api } from "../lib/api";
-import { Send, Bot, Loader2, X, Sparkles, MessageSquare, ChevronDown, ChevronUp } from "lucide-react";
+import { runUIActions, confirmPendingAction, type CopilotAction } from "../lib/copilotActions";
+import MarkdownMessage from "./MarkdownMessage";
+import toast from "react-hot-toast";
+import { Send, MessageCircle, Loader2, X, MessageSquare, ChevronDown, ChevronUp, CircleCheck, AlertTriangle, Circle } from "lucide-react";
 
 interface Message {
-  id: string; role: string; content: string; createdAt: string;
+  id: string; role: string; content: string; createdAt: string; toolCalls?: CopilotAction[];
 }
 
 export default function MikeyWidget() {
@@ -32,18 +35,33 @@ export default function MikeyWidget() {
         body: JSON.stringify({ message: text, conversationId: convId }),
       });
       if (res.conversationId && res.conversationId !== convId) setConvId(res.conversationId);
-      setMessages(prev => [...prev, { id: `m-${Date.now()}`, role: "assistant", content: res.reply, createdAt: new Date().toISOString() }]);
+      setMessages(prev => [...prev, { id: `m-${Date.now()}`, role: "assistant", content: res.reply, createdAt: new Date().toISOString(), toolCalls: res.actions || [] }]);
+      runUIActions(res.actions);
     } catch (e: any) {
       setMessages(prev => [...prev, { id: `e-${Date.now()}`, role: "assistant", content: `Error: ${e.message}`, createdAt: new Date().toISOString() }]);
     }
     setSending(false);
   };
 
+  const handleConfirm = async (messageId: string, action: CopilotAction) => {
+    if (!action.pendingActionId) return;
+    try {
+      await confirmPendingAction(action.pendingActionId);
+      toast.success("Action confirmed");
+      setMessages(prev => prev.map(m => m.id !== messageId ? m : {
+        ...m,
+        toolCalls: m.toolCalls?.map(a => a === action ? { ...a, status: "success", requiresConfirmation: false } : a),
+      }));
+    } catch (err: any) {
+      toast.error(err.message || "Failed to confirm action");
+    }
+  };
+
   const toggle = () => {
     setOpen(!open);
     if (!hasOpened) {
       setHasOpened(true);
-      setMessages([{ id: "welcome", role: "assistant", content: "Hey! I'm Mikey — your AI CRM assistant. Ask me anything about your leads, tasks, or campaigns!", createdAt: new Date().toISOString() }]);
+      setMessages([{ id: "welcome", role: "assistant", content: "Hi, I'm Mikey. Ask me anything about your leads, tasks, or campaigns.", createdAt: new Date().toISOString() }]);
     }
   };
 
@@ -53,7 +71,7 @@ export default function MikeyWidget() {
         <div className="w-[380px] h-[520px] rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-2xl flex flex-col overflow-hidden animate-scale-in origin-bottom-right">
           <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] bg-[var(--primary)] text-white">
             <div className="flex items-center gap-2">
-              <div className="h-7 w-7 rounded-full bg-white/20 flex items-center justify-center"><Bot size={14} /></div>
+              <div className="h-7 w-7 rounded-full bg-white/20 flex items-center justify-center"><MessageCircle size={14} /></div>
               <span className="text-sm font-semibold">Mikey</span>
             </div>
             <button onClick={() => setOpen(false)} className="rounded-md p-1 hover:bg-white/20 transition-colors"><X size={15} /></button>
@@ -67,7 +85,27 @@ export default function MikeyWidget() {
                     ? "bg-[var(--primary)] text-white rounded-br-md"
                     : "bg-[var(--muted)] text-[var(--foreground)] rounded-bl-md"
                 }`}>
-                  {m.content}
+                  {m.toolCalls && m.toolCalls.filter(a => a.tool !== "navigate_ui" && a.tool !== "explain_flow").length > 0 && (
+                    <div className="mb-2 space-y-1">
+                      {m.toolCalls.filter(a => a.tool !== "navigate_ui" && a.tool !== "explain_flow").map((a, i) => (
+                        <div key={i} className="flex items-center gap-1.5 text-xs">
+                          {a.status === "error" ? <AlertTriangle size={10} className="text-red-500 shrink-0" /> :
+                           a.status === "pending" ? <Circle size={10} className="text-amber-500 fill-amber-500 shrink-0" /> :
+                           <CircleCheck size={10} className="text-[var(--muted-foreground)] shrink-0" />}
+                          <span className="font-mono text-[var(--muted-foreground)]">
+                            {a.tool === "bulk_send_message" ? `${a.args?.messages?.length ?? 0} messages ready to send` : a.tool}
+                          </span>
+                          {a.requiresConfirmation && (
+                            <button onClick={() => handleConfirm(m.id, a)}
+                              className="ml-auto rounded-md bg-[var(--card)] border border-[var(--border)] px-2 py-0.5 text-[10px] font-medium text-[var(--foreground)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition-colors">
+                              Confirm
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {m.role === "user" ? m.content : <MarkdownMessage content={m.content} />}
                 </div>
               </div>
             ))}
@@ -101,7 +139,7 @@ export default function MikeyWidget() {
         className={`h-12 w-12 rounded-full shadow-lg flex items-center justify-center transition-all ${
           open ? "bg-[var(--muted-foreground)] rotate-45" : "bg-[var(--primary)] hover:scale-105"
         } text-white`}>
-        {open ? <X size={20} /> : <Sparkles size={20} />}
+        {open ? <X size={20} /> : <MessageCircle size={20} />}
       </button>
     </div>
   );

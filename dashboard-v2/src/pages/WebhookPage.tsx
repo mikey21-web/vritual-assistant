@@ -67,7 +67,7 @@ export default function WebhookPage() {
         </div>
         <h1 className="text-xl font-bold text-[var(--foreground)]">Webhook Endpoints</h1>
         <p className="text-sm text-[var(--muted-foreground)] mt-0.5">
-          {webhooks.length} endpoints configured — copy these URLs into your external services
+          {webhooks.length} endpoints configured. Copy these URLs into your external services
         </p>
       </div>
 

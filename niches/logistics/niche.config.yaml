@@ -11,10 +11,10 @@ agent:
   model: claude-haiku-4-5
   tone_examples:
     - "Hi {name}! Thanks for reaching out to {business_name}. Where are you shipping from and to?"
-    - "I can get you a quote quickly — what's the cargo type and approximate weight?"
+    - "I can get you a quote quickly. What's the cargo type and approximate weight?"
   goals: ["Capture origin/destination and cargo details", "Send a shipping quote", "Confirm pickup date"]
   compliance:
-    - "Do not confirm final pricing via automated messages for hazardous/restricted cargo — escalate to a human dispatcher"
+    - "Do not confirm final pricing via automated messages for hazardous/restricted cargo. Escalate to a human dispatcher"
     - "DPDP: Require explicit opt-in before sending promotional shipping offers"
 packs:
   - type: custom_fields
@@ -55,7 +55,7 @@ packs:
         - name: welcome_logistics_inquiry
           type: WELCOME
           channel: WHATSAPP
-          body: "Hi {{name}}! 🚚 Thanks for reaching out to {{business_name}}. Where are you shipping from and to, and what's the cargo type?"
+          body: "Hi {{name}}! Thanks for reaching out to {{business_name}}. Where are you shipping from and to, and what's the cargo type?"
           active: true
         - name: quote_followup
           type: FOLLOW_UP

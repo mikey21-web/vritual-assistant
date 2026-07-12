@@ -66,18 +66,29 @@ export class ContactsService {
   }
 
   async create(data: Omit<Prisma.ContactUncheckedCreateInput, 'tenantId'> & { tenantId?: string }, req?: any) {
-    // Pre-check for existing contact with same email or phone
     const orClauses: any[] = [];
     if (data.email) orClauses.push({ email: data.email });
     if (data.phone) orClauses.push({ phone: data.phone });
-    if (orClauses.length > 0) {
-      const existing = await this.prisma.contact.findFirst({ where: { OR: orClauses } });
-      if (existing) {
+
+    try {
+      // Serializable transaction so the pre-check and the create are atomic. Without this,
+      // two concurrent requests for the same email/phone can both pass the pre-check before
+      // either creates, producing duplicate contacts (same race findOrCreate already guards against).
+      return await this.prisma.$transaction(async (tx) => {
+        if (orClauses.length > 0) {
+          const existing = await tx.contact.findFirst({ where: { OR: orClauses } });
+          if (existing) {
+            throw new ConflictException('Contact with this email or phone already exists');
+          }
+        }
+        return tx.contact.create({ data: { ...data, tenantId: getTenantId(req) } });
+      }, { isolationLevel: 'Serializable' });
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2034') {
         throw new ConflictException('Contact with this email or phone already exists');
       }
+      throw err;
     }
-    const c = await this.prisma.contact.create({ data: { ...data, tenantId: getTenantId(req) } });
-    return c;
   }
 
   async update(id: string, data: Prisma.ContactUpdateInput) {

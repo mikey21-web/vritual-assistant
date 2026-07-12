@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Sun, Moon, Bell, Menu, Search, X } from "lucide-react";
+import { Sun, Moon, Bell, Menu, Search, X, GraduationCap } from "lucide-react";
 import { fetchLeads, fetchContacts, fetchNotifications, fetchUnreadNotificationCount, markNotificationRead, markAllNotificationsRead, type AppNotification } from "../../lib/data";
 import { setPendingSearch } from "../../lib/pendingSearch";
+import { startExplainFlow } from "../../lib/explainMode";
+import { GUIDED_TOURS } from "../../lib/guidedTours";
 
 function timeAgo(iso: string) {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -146,6 +148,53 @@ function GlobalSearch() {
   );
 }
 
+function GuidedToursMenu() {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, []);
+
+  const launch = (steps: typeof GUIDED_TOURS[number]["steps"]) => {
+    startExplainFlow(steps);
+    setOpen(false);
+  };
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="rounded-md p-2 text-[var(--muted-foreground)] hover:bg-[var(--accent)] hover:text-[var(--foreground)] transition-colors"
+        title="Guided Tours"
+      >
+        <GraduationCap size={15} />
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-full mt-2 w-56 rounded-lg border border-[var(--border)] bg-[var(--card)] shadow-lg z-50 overflow-hidden">
+          <p className="px-3 pt-2.5 pb-1 text-[10px] font-semibold text-[var(--muted-foreground-light)] uppercase tracking-wider">Guided Tours</p>
+          <div className="py-1">
+            {GUIDED_TOURS.map((tour) => (
+              <button
+                key={tour.id}
+                onClick={() => launch(tour.steps)}
+                className="w-full text-left px-3 py-2 text-sm text-[var(--foreground)] hover:bg-[var(--accent)] transition-colors"
+              >
+                {tour.title}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function NotificationsBell() {
   const [open, setOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -258,6 +307,7 @@ export function Topbar({ onMenuToggle, dark, onThemeToggle }: { onMenuToggle: ()
       <div className="flex-1" />
 
       <GlobalSearch />
+      <GuidedToursMenu />
       <NotificationsBell />
 
       <button onClick={onThemeToggle} className="rounded-md p-2 text-[var(--muted-foreground)] hover:bg-[var(--accent)] hover:text-[var(--foreground)] transition-colors" title="Toggle theme">

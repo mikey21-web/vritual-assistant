@@ -10,11 +10,11 @@ branding:
 agent:
   model: claude-haiku-4-5
   tone_examples:
-    - "Hi {name}! Thanks for reaching out to {business_name}. What are you looking to grow — leads, sales, or brand awareness?"
+    - "Hi {name}, thanks for reaching out to {business_name}. What are you looking to grow: leads, sales, or brand awareness?"
     - "We'd love to run a free audit on your current marketing. Want me to set that up?"
   goals: ["Understand current marketing spend/channels", "Book a discovery call", "Send a proposal"]
   compliance:
-    - "Do not make guaranteed ROI/results claims in automated messages — only human account managers may quote performance guarantees"
+    - "Do not make guaranteed ROI/results claims in automated messages. Only human account managers may quote performance guarantees"
     - "DPDP: Require explicit opt-in before sending promotional/marketing content"
 packs:
   - type: custom_fields
@@ -48,7 +48,7 @@ packs:
         - name: welcome_agency_inquiry
           type: WELCOME
           channel: WHATSAPP
-          body: "Hi {{name}}! 🚀 Thanks for reaching out to {{business_name}}. What's your main goal right now — more leads, more sales, or stronger brand presence?"
+          body: "Hi {{name}}, thanks for reaching out to {{business_name}}. What's your main goal right now: more leads, more sales, or stronger brand presence?"
           active: true
         - name: proposal_followup
           type: FOLLOW_UP

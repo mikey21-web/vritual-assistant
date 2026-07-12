@@ -1,8 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { fetchAnalytics, fetchHealth, fetchFailures } from '../lib/data';
 import { api } from '../lib/api';
+import { setPendingFilter } from '../lib/pendingSearch';
+import { isInsightDismissed, dismissInsight } from '../lib/dismissedInsights';
+import { startExplainFlow } from '../lib/explainMode';
 import { useApp } from '../context/AppContext';
-import { Users, Target, TrendingUp, BarChart3, Activity, ArrowUpRight, Zap, AlertTriangle, AlertCircle, CheckCircle, RefreshCw } from 'lucide-react';
+import { Users, Target, TrendingUp, BarChart3, Activity, ArrowUpRight, Zap, AlertTriangle, AlertCircle, CheckCircle, RefreshCw, X, Play, DollarSign } from 'lucide-react';
+
+const currencyFormatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 
 export default function OverviewPage() {
   const { niche, isSuperAdmin } = useApp();
@@ -10,13 +15,34 @@ export default function OverviewPage() {
   const [health, setHealth] = useState<any>(null);
   const [failures, setFailures] = useState(0);
   const [dataHealth, setDataHealth] = useState<any>(null);
+  const [forecast, setForecast] = useState<any>(null);
+  const [dismissTick, setDismissTick] = useState(0);
 
   useEffect(() => {
     fetchAnalytics().then(setStats).catch(() => {});
     fetchHealth().then(setHealth).catch(() => {});
     api('/analytics/data-health').then(setDataHealth).catch(() => {});
+    api('/analytics/forecast').then(setForecast).catch(() => {});
     if (isSuperAdmin) fetchFailures('open').then((d: any[]) => setFailures(d.length)).catch(() => {});
   }, []);
+
+  const showInsight = (insight: any) => {
+    setPendingFilter(insight.page, { filters: insight.filters });
+    window.location.hash = '/' + insight.page;
+  };
+
+  const ignoreInsight = (id: string) => {
+    dismissInsight(id);
+    setDismissTick(t => t + 1);
+  };
+
+  const walkThroughInsights = (insights: any[]) => {
+    startExplainFlow(insights.map(insight => ({
+      page: insight.page,
+      filters: insight.filters,
+      narration: insight.message,
+    })));
+  };
 
   if (!stats) return (
     <div className="space-y-6 animate-fade-in">
@@ -35,6 +61,10 @@ export default function OverviewPage() {
     { label: 'Hot Leads', value: stats.hot, icon: Target, change: '+5%', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-100 dark:bg-amber-900/30' },
     { label: 'Converted', value: stats.converted, icon: TrendingUp, change: '+8%', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-900/30' },
     { label: 'Conversion Rate', value: `${stats.conversionRate}%`, icon: BarChart3, change: '+2.3%', color: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-100 dark:bg-violet-900/30' },
+    ...(forecast ? [{
+      label: 'Weighted Forecast', value: currencyFormatter.format(forecast.totalWeightedForecast), icon: DollarSign, change: null as any,
+      color: 'text-teal-600 dark:text-teal-400', bg: 'bg-teal-100 dark:bg-teal-900/30',
+    }] : []),
   ];
 
   return (
@@ -72,33 +102,49 @@ export default function OverviewPage() {
         ))}
       </div>
 
-      {dataHealth && dataHealth.insights?.length > 0 && (
-        <div className="rounded-lg bg-[var(--card)] border border-[var(--border)] p-5 shadow-[var(--shadow-sm)]"
-          style={{ animation: 'fadeUp 0.4s ease-out forwards', animationDelay: '0.32s', opacity: 0 }}>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-sm text-[var(--foreground)] flex items-center gap-2">
-              <AlertTriangle size={15} className="text-amber-500" />
-              Data Health
-            </h3>
-            <span className="text-xs text-[var(--muted-foreground)]">
-              {dataHealth.dataQuality.complete}% complete · {dataHealth.dataQuality.duplicates} duplicates
-            </span>
-          </div>
-          <div className="space-y-2">
-            {dataHealth.insights.map((insight: any, i: number) => (
-              <div key={i} className="flex items-center justify-between py-2 border-b border-[var(--border)] last:border-0">
-                <div className="flex items-center gap-2.5">
-                  {insight.type === 'error' ? <AlertCircle size={14} className="text-red-500 shrink-0" /> :
-                   insight.type === 'warning' ? <AlertTriangle size={14} className="text-amber-500 shrink-0" /> :
-                   <CheckCircle size={14} className="text-emerald-500 shrink-0" />}
-                  <span className="text-sm text-[var(--foreground)]">{insight.message}</span>
-                </div>
-                <a href="#/leads" className="text-xs text-[var(--primary)] hover:underline shrink-0 ml-3">{insight.action}</a>
+      {dataHealth && dataHealth.insights?.length > 0 && (() => {
+        void dismissTick;
+        const visible = dataHealth.insights.filter((insight: any) => !isInsightDismissed(`${insight.type}:${insight.message}`));
+        if (visible.length === 0) return null;
+        return (
+          <div className="rounded-lg bg-[var(--card)] border border-[var(--border)] p-5 shadow-[var(--shadow-sm)]"
+            style={{ animation: 'fadeUp 0.4s ease-out forwards', animationDelay: '0.32s', opacity: 0 }}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-sm text-[var(--foreground)] flex items-center gap-2">
+                <AlertTriangle size={15} className="text-amber-500" />
+                Today's Attention Items
+              </h3>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-[var(--muted-foreground)]">
+                  {dataHealth.dataQuality.complete}% complete · {dataHealth.dataQuality.duplicates} duplicates
+                </span>
+                <button onClick={() => walkThroughInsights(visible)}
+                  className="inline-flex items-center gap-1 text-xs font-medium text-[var(--primary)] hover:underline">
+                  <Play size={11} /> Walk me through it
+                </button>
               </div>
-            ))}
+            </div>
+            <div className="space-y-2">
+              {visible.map((insight: any, i: number) => (
+                <div key={i} className="flex items-center justify-between py-2 border-b border-[var(--border)] last:border-0">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    {insight.type === 'error' ? <AlertCircle size={14} className="text-red-500 shrink-0" /> :
+                     insight.type === 'warning' ? <AlertTriangle size={14} className="text-amber-500 shrink-0" /> :
+                     <CheckCircle size={14} className="text-emerald-500 shrink-0" />}
+                    <span className="text-sm text-[var(--foreground)] truncate">{insight.message}</span>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0 ml-3">
+                    <button onClick={() => showInsight(insight)} className="text-xs text-[var(--primary)] hover:underline">{insight.action}</button>
+                    <button onClick={() => ignoreInsight(`${insight.type}:${insight.message}`)} title="Ignore" className="text-[var(--muted-foreground)] hover:text-[var(--foreground)]">
+                      <X size={13} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="rounded-lg bg-[var(--card)] border border-[var(--border)] p-5 shadow-[var(--shadow-sm)]"

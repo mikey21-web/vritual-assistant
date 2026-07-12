@@ -110,8 +110,9 @@ export class ConfigLoaderService implements OnApplicationBootstrap {
       }
     }
 
-    // Update business settings with niche info + branding
-    const existing = await this.prisma.businessSettings.findFirst({});
+    // Update business settings with niche info + branding. Atomic upsert on the unique
+    // `singleton` column so this boot-time reconcile can't race a concurrent caller
+    // (e.g. BusinessSettingsService.ensure()) into creating two rows.
     const data = {
       businessName: config.niche?.display_name || '',
       timezone: 'UTC',
@@ -123,11 +124,11 @@ export class ConfigLoaderService implements OnApplicationBootstrap {
       goals: config.agent?.goals || [],
       compliance: config.agent?.compliance || [],
     };
-    if (existing) {
-      await this.prisma.businessSettings.update({ where: { id: existing.id }, data });
-    } else {
-      await this.prisma.businessSettings.create({ data });
-    }
+    await this.prisma.businessSettings.upsert({
+      where: { singleton: true },
+      update: data,
+      create: { ...data, singleton: true },
+    });
   }
 
   private async ensureAdminUser(config: any) {

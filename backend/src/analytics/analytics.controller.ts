@@ -12,6 +12,7 @@ import { AnalyticsService } from './analytics.service';
 export class AnalyticsController {
   constructor(private service: AnalyticsService) {}
   @Get('overview') @Roles('OWNER', 'ADMIN', 'MANAGER') overview() { return this.service.overview(); }
+  @Get('forecast') @Roles('OWNER', 'ADMIN', 'MANAGER') forecast() { return this.service.forecast(); }
   @Get('sources') @Roles('OWNER', 'ADMIN', 'MANAGER') sources() { return this.service.sources(); }
   @Get('campaigns') @Roles('OWNER', 'ADMIN', 'MANAGER') campaigns() { return this.service.campaigns(); }
   @Get('conversions') @Roles('OWNER', 'ADMIN', 'MANAGER') conversions() { return this.service.conversions(); }

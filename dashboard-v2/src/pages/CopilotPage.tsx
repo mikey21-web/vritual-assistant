@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { api } from "../lib/api";
+import { runUIActions, confirmPendingAction } from "../lib/copilotActions";
+import MarkdownMessage from "../components/MarkdownMessage";
 import toast from "react-hot-toast";
-import { Send, Bot, Loader2, AlertTriangle, CircleCheck, Circle, Wrench, Sparkles, MessageSquare, Trash2, Menu, X } from "lucide-react";
+import { Send, MessageCircle, Loader2, AlertTriangle, CircleCheck, Circle, Wrench, Plus, MessageSquare, Trash2, Menu, X } from "lucide-react";
 
 interface Action {
   tool: string; args: any; status: string; result?: string; requiresConfirmation?: boolean; pendingActionId?: string;
@@ -72,6 +74,7 @@ export default function CopilotPage() {
         toolCalls: res.actions || [], createdAt: new Date().toISOString(),
       };
       setMessages(prev => [...prev, assistantMsg]);
+      runUIActions(res.actions);
     } catch (err: any) {
       toast.error(err.message || "Failed to get response");
       setMessages(prev => prev.filter(m => m.id !== userMsg.id));
@@ -82,10 +85,7 @@ export default function CopilotPage() {
   const confirmAction = async (action: Action) => {
     if (!action.pendingActionId) return;
     try {
-      const res = await api("/copilot/confirm-action", {
-        method: "POST",
-        body: JSON.stringify({ pendingActionId: action.pendingActionId }),
-      });
+      const res = await confirmPendingAction(action.pendingActionId);
       toast.success(`Action confirmed: ${res?.result ? "done" : "processed"}`);
       // Refresh conversation to get updated state
       if (convId) {
@@ -118,7 +118,7 @@ export default function CopilotPage() {
       >
         <div className="p-3 border-b border-[var(--border)] flex items-center gap-2">
           <button onClick={newConversation} className="flex-1 rounded-lg bg-[var(--primary)] px-3 py-2 text-sm font-medium text-[var(--primary-foreground)] hover:bg-[var(--primary)]/90 transition-colors flex items-center justify-center gap-2">
-            <Sparkles size={15} /> New Chat
+            <Plus size={15} /> New Chat
           </button>
           <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-2 rounded-md hover:bg-[var(--accent)] text-[var(--foreground)]">
             <X size={16} />
@@ -147,7 +147,7 @@ export default function CopilotPage() {
           <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-1.5 rounded-md hover:bg-[var(--accent)] text-[var(--foreground)] -ml-1">
             <Menu size={18} />
           </button>
-          <Bot size={18} className="text-[var(--primary)] shrink-0" />
+          <MessageCircle size={18} className="text-[var(--primary)] shrink-0" />
           <span className="text-sm font-semibold text-[var(--foreground)]">CRM Copilot</span>
         </div>
 
@@ -156,7 +156,7 @@ export default function CopilotPage() {
             <div className="flex items-center justify-center h-full"><Loader2 size={24} className="animate-spin text-[var(--muted-foreground)]" /></div>
           ) : messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center text-[var(--muted-foreground)]">
-              <Bot size={48} className="mb-3 opacity-30" />
+              <MessageCircle size={48} className="mb-3 opacity-30" />
               <p className="text-sm font-medium">Ask the CRM Copilot anything</p>
               <p className="text-xs mt-1">e.g. "show me my hot leads" or "create a ticket for lead #5"</p>
             </div>
@@ -185,7 +185,9 @@ export default function CopilotPage() {
                               <div className="flex-1 min-w-0 text-xs">
                                 <div className="flex items-center gap-1.5 text-[var(--muted-foreground)]">
                                   <Wrench size={10} className="shrink-0" />
-                                  <span className="font-mono">{a.tool}</span>
+                                  <span className="font-mono">
+                                    {a.tool === "bulk_send_message" ? `${a.args?.messages?.length ?? 0} messages ready to send` : a.tool}
+                                  </span>
                                 </div>
                                 {a.result && <div className="mt-0.5 text-[var(--muted-foreground)]/80 pl-[19px]">{a.result}</div>}
                                 {a.requiresConfirmation && (
@@ -201,7 +203,7 @@ export default function CopilotPage() {
                           ))}
                         </div>
                       )}
-                      <div className="whitespace-pre-wrap">{m.content}</div>
+                      <MarkdownMessage content={m.content} />
                     </div>
                   </div>
                 )}

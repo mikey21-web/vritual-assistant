@@ -95,7 +95,7 @@ export default function AICampaignManager() {
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
           <div>
             <h1 className="text-xl font-bold text-[var(--foreground)]">AI Campaign Manager</h1>
-            <p className="text-sm text-[var(--muted-foreground)] mt-0.5">Describe your campaign in plain English — AI generates everything</p>
+            <p className="text-sm text-[var(--muted-foreground)] mt-0.5">Describe your campaign in plain English. AI generates everything</p>
           </div>
           {history.length > 0 && (
             <button

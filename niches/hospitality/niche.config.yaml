@@ -49,7 +49,7 @@ packs:
         - name: welcome_booking_inquiry
           type: WELCOME
           channel: WHATSAPP
-          body: "Hi {{name}}! 🏨 Thanks for reaching out to {{business_name}}! Let us know your check-in and check-out dates and we'll check availability for you right away."
+          body: "Hi {{name}}! Thanks for reaching out to {{business_name}}! Let us know your check-in and check-out dates and we'll check availability for you right away."
           active: true
         - name: booking_confirmation
           type: FOLLOW_UP

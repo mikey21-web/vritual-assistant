@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
 import { fetchLeads, getLeadTimeline } from '../lib/data';
-import { consumePendingSearch } from '../lib/pendingSearch';
+import { consumePendingFilter, PENDING_FILTER_APPLIED_EVENT } from '../lib/pendingSearch';
+import { startExplainFlow } from '../lib/explainMode';
 import { useApp } from '../context/AppContext';
-import { Search, RefreshCw, Phone, Mail, Calendar, Users } from 'lucide-react';
+import { Search, RefreshCw, Phone, Mail, Calendar, Users, Play } from 'lucide-react';
 import { api } from '../lib/api';
 import toast from 'react-hot-toast';
 import type { Lead } from '../lib/types';
@@ -37,6 +39,8 @@ export default function LeadsPage() {
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [timeline, setTimeline] = useState<any[]>([]);
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const highlightRef = useRef<HTMLTableRowElement | null>(null);
 
   const refresh = async (page = 1) => {
     setLoading(true);
@@ -49,17 +53,58 @@ export default function LeadsPage() {
     setLoading(false);
   };
 
+  const applyPendingFilter = () => {
+    const pending = consumePendingFilter('leads');
+    if (!pending) return;
+    setSearch(pending.filters?.search || '');
+    setStatusFilter(pending.filters?.status || '');
+    setSegmentFilter(pending.filters?.segment || '');
+    setHighlightId(pending.highlightId || null);
+  };
+
   useEffect(() => {
-    const pending = consumePendingSearch('leads');
-    if (pending) setSearch(pending);
+    applyPendingFilter();
+    const onApplied = (e: Event) => {
+      if ((e as CustomEvent<string>).detail === 'leads') applyPendingFilter();
+    };
+    window.addEventListener(PENDING_FILTER_APPLIED_EVENT, onApplied);
+    return () => window.removeEventListener(PENDING_FILTER_APPLIED_EVENT, onApplied);
   }, []);
 
   useEffect(() => { refresh(); }, [search, statusFilter, segmentFilter]);
+
+  useEffect(() => {
+    if (!highlightId || !highlightRef.current) return;
+    highlightRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const t = setTimeout(() => setHighlightId(null), 3000);
+    return () => clearTimeout(t);
+  }, [highlightId, data]);
 
   const handleExpand = async (id: string) => {
     if (expandedId === id) { setExpandedId(null); return; }
     setExpandedId(id);
     try { setTimeline(await getLeadTimeline(id)); } catch {}
+  };
+
+  const saveDealValue = async (leadId: string, raw: string) => {
+    const value = raw.trim() === '' ? null : Number(raw);
+    if (value !== null && !Number.isFinite(value)) return;
+    try {
+      await api(`/leads/${leadId}`, { method: 'PATCH', body: JSON.stringify({ dealValue: value }) });
+      setData(prev => prev.map(l => l.id === leadId ? { ...l, dealValue: value } as Lead : l));
+      toast.success('Deal value saved');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to save deal value');
+    }
+  };
+
+  const playTimeline = (leadId: string) => {
+    const ordered = [...timeline].reverse();
+    startExplainFlow(ordered.map((t: any) => ({
+      page: 'leads',
+      highlightId: leadId,
+      narration: t.description ? `${t.title}: ${t.description}` : t.title,
+    })));
   };
 
   const handleCall = async (leadId: string) => {
@@ -178,7 +223,12 @@ export default function LeadsPage() {
                     const budget = meta?.budget || l.budget || '';
                     return (
                     <React.Fragment key={l.id}>
-                      <tr onClick={() => handleExpand(l.id)} className="border-b border-[var(--border)] hover:bg-[var(--muted)]/50 cursor-pointer transition-colors">
+                      <motion.tr
+                        ref={highlightId === l.id ? highlightRef : undefined}
+                        onClick={() => handleExpand(l.id)}
+                        animate={highlightId === l.id ? { backgroundColor: ['rgba(99,102,241,0.25)', 'rgba(99,102,241,0)', 'rgba(99,102,241,0.25)', 'rgba(99,102,241,0)'] } : undefined}
+                        transition={highlightId === l.id ? { duration: 2.4, times: [0, 0.33, 0.66, 1] } : undefined}
+                        className="border-b border-[var(--border)] hover:bg-[var(--muted)]/50 cursor-pointer transition-colors">
                         <td className="px-4 py-3">
                           <div className="font-medium text-[var(--foreground)]">{l.contact?.name || 'Unknown'}</div>
                           <div className="text-xs text-[var(--muted-foreground)]">{l.contact?.phone || l.contact?.email || ''}</div>
@@ -196,7 +246,7 @@ export default function LeadsPage() {
                         <td className="px-4 py-3"><span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${segmentStyles[l.segment] || ''}`}>{l.segment}</span></td>
                         <td className="px-4 py-3"><span className="font-mono text-sm font-semibold text-[var(--foreground)]">{l.score}</span></td>
                         <td className="px-4 py-3 text-xs text-[var(--muted-foreground)]">{new Date(l.createdAt).toLocaleDateString()}</td>
-                      </tr>
+                      </motion.tr>
                       {expandedId === l.id && (
                         <tr key={`${l.id}-exp`}>
                           <td colSpan={7} className="px-4 py-4 bg-[var(--muted)] border-b border-[var(--border)]">
@@ -217,6 +267,12 @@ export default function LeadsPage() {
                                   <div className="flex items-center gap-2 text-[var(--muted-foreground)]"><Mail size={14} className="text-[var(--primary)]" /><span>{l.contact?.email || '-'}</span></div>
                                   {l.interest && <div className="mt-2"><span className="text-[var(--foreground)] font-medium">Interest:</span> <span className="text-[var(--muted-foreground)]">{l.interest}</span></div>}
                                   {l.budget && <div><span className="text-[var(--foreground)] font-medium">Budget:</span> <span className="text-[var(--muted-foreground)]">{l.budget}</span></div>}
+                                  <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                                    <span className="text-[var(--foreground)] font-medium">Deal Value:</span>
+                                    <input type="number" defaultValue={l.dealValue ?? ''} placeholder="Not set"
+                                      onBlur={e => saveDealValue(l.id, e.target.value)}
+                                      className="w-28 h-7 rounded border border-[var(--border)] bg-[var(--background)] px-2 text-xs text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20" />
+                                  </div>
                                   {l.message && <div><span className="text-[var(--foreground)] font-medium">Message:</span> <span className="text-[var(--muted-foreground)]">{l.message}</span></div>}
                                   {meta && Object.entries(meta).filter(([k]) => !['email','phone','name'].includes(k)).map(([k, v]) => (
                                     <div key={k}><span className="text-[var(--foreground)] font-medium capitalize">{k.replace(/_/g, ' ')}:</span> <span className="text-[var(--muted-foreground)]">{String(v)}</span></div>
@@ -224,7 +280,15 @@ export default function LeadsPage() {
                                 </div>
                               </div>
                               <div>
-                                <h4 className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider mb-3">Timeline</h4>
+                                <div className="flex items-center justify-between mb-3">
+                                  <h4 className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Timeline</h4>
+                                  {timeline.length > 0 && (
+                                    <button onClick={(e) => { e.stopPropagation(); playTimeline(l.id); }}
+                                      className="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--primary)] hover:underline">
+                                      <Play size={10} /> Play
+                                    </button>
+                                  )}
+                                </div>
                                 <div className="space-y-2">
                                   {timeline.length === 0 && <p className="text-sm text-[var(--muted-foreground)]">No activity yet</p>}
                                   {timeline.slice(0, 5).map((t: any) => (
@@ -291,6 +355,12 @@ export default function LeadsPage() {
                       </div>
                       {l.interest && <div><span className="text-[var(--foreground)] font-medium">Interest:</span> <span className="text-[var(--muted-foreground)]">{l.interest}</span></div>}
                       {l.budget && <div><span className="text-[var(--foreground)] font-medium">Budget:</span> <span className="text-[var(--muted-foreground)]">{l.budget}</span></div>}
+                      <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                        <span className="text-[var(--foreground)] font-medium">Deal Value:</span>
+                        <input type="number" defaultValue={l.dealValue ?? ''} placeholder="Not set"
+                          onBlur={e => saveDealValue(l.id, e.target.value)}
+                          className="w-28 h-7 rounded border border-[var(--border)] bg-[var(--background)] px-2 text-xs text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20" />
+                      </div>
                       {l.message && <div><span className="text-[var(--foreground)] font-medium">Message:</span> <span className="text-[var(--muted-foreground)]">{l.message}</span></div>}
                       {meta && Object.entries(meta).filter(([k]) => !['email','phone','name'].includes(k)).map(([k, v]) => (
                         <div key={k}><span className="text-[var(--foreground)] font-medium capitalize">{k.replace(/_/g, ' ')}:</span> <span className="text-[var(--muted-foreground)]">{String(v)}</span></div>
@@ -300,7 +370,15 @@ export default function LeadsPage() {
                       <CustomFieldsSection target="LEAD" targetId={l.id} />
                     </div>
                     <div className="mt-3 pt-3 border-t border-[var(--border)]">
-                      <h4 className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider mb-2">Timeline</h4>
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Timeline</h4>
+                        {timeline.length > 0 && (
+                          <button onClick={(e) => { e.stopPropagation(); playTimeline(l.id); }}
+                            className="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--primary)] hover:underline">
+                            <Play size={10} /> Play
+                          </button>
+                        )}
+                      </div>
                       <div className="space-y-2">
                         {timeline.length === 0 && <p className="text-sm text-[var(--muted-foreground)]">No activity yet</p>}
                         {timeline.slice(0, 5).map((t: any) => (

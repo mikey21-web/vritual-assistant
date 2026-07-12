@@ -11,6 +11,7 @@ export interface Lead {
   priority: number;
   interest?: string;
   budget?: string;
+  dealValue?: number | null;
   urgency?: string;
   message?: string;
   tags: string[];

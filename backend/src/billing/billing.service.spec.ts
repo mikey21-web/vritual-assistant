@@ -11,6 +11,7 @@ describe('BillingService', () => {
   const prisma = {
     lead: { count: jest.fn().mockResolvedValue(42) },
     conversationMessage: { count: jest.fn().mockResolvedValue(150) },
+    tenant: { findUnique: jest.fn().mockResolvedValue({ id: 'default-tenant', plan: 'pro' }) },
   };
 
   const stripe = {
@@ -123,9 +124,16 @@ describe('BillingService', () => {
     });
 
     it('should handle unlimited features', async () => {
-      // Override for enterprise - but service hardcodes Pro atm
+      prisma.tenant.findUnique.mockResolvedValueOnce({ id: 'default-tenant', plan: 'enterprise' });
       const result = await service.checkQuota('lead');
-      expect(result.limit).toBe(10000);
+      expect(result.limit).toBe(-1);
+      expect(result.allowed).toBe(true);
+    });
+
+    it('should fall back to the starter plan for a tenant with an unrecognized plan', async () => {
+      prisma.tenant.findUnique.mockResolvedValueOnce({ id: 'default-tenant', plan: 'not-a-real-plan' });
+      const result = await service.checkQuota('lead');
+      expect(result.limit).toBe(PLANS[0].features.maxLeads);
     });
   });
 });

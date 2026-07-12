@@ -1,10 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotificationsService } from './notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { TwilioSmsAdapter } from '../shared/adapters/sms.adapter';
 
 describe('NotificationsService', () => {
   let service: NotificationsService;
   let prisma: any;
+  let smsAdapter: any;
 
   beforeEach(async () => {
     prisma = {
@@ -17,10 +19,18 @@ describe('NotificationsService', () => {
       notificationPreference: {
         findUnique: jest.fn().mockResolvedValue(null),
       },
+      businessSettings: {
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
     };
+    smsAdapter = { send: jest.fn().mockResolvedValue({ success: true }) };
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [NotificationsService, { provide: PrismaService, useValue: prisma }],
+      providers: [
+        NotificationsService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: TwilioSmsAdapter, useValue: smsAdapter },
+      ],
     }).compile();
 
     service = module.get<NotificationsService>(NotificationsService);

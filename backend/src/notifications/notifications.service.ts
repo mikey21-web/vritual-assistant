@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { TwilioSmsAdapter } from '../shared/adapters/sms.adapter';
 
 export type NotificationType =
   | 'lead_assigned'
@@ -17,9 +18,17 @@ const PREF_FIELD_BY_TYPE: Partial<Record<NotificationType, string>> = {
   webhook_failure: 'webhookFailure',
 };
 
+// These types are urgent enough to also send a real text, not just an in-app row.
+const SMS_NOTIFICATION_TYPES: NotificationType[] = ['lead_hot', 'sla_breach'];
+
 @Injectable()
 export class NotificationsService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(NotificationsService.name);
+
+  constructor(
+    private prisma: PrismaService,
+    private smsAdapter: TwilioSmsAdapter,
+  ) {}
 
   async create(opts: {
     tenantId: string;
@@ -35,7 +44,7 @@ export class NotificationsService {
       if (prefs && prefs[prefField as keyof typeof prefs] === false) return null;
     }
 
-    return this.prisma.notification.create({
+    const notification = await this.prisma.notification.create({
       data: {
         tenantId: opts.tenantId,
         userId: opts.userId,
@@ -45,6 +54,19 @@ export class NotificationsService {
         link: opts.link,
       },
     });
+
+    if (SMS_NOTIFICATION_TYPES.includes(opts.type)) {
+      this.sendSmsAlert(opts.title).catch(err => this.logger.error(`Failed to send SMS alert: ${err.message}`));
+    }
+
+    return notification;
+  }
+
+  private async sendSmsAlert(title: string) {
+    const settings = await this.prisma.businessSettings.findFirst({});
+    if (!settings?.notificationPhone) return;
+    const result = await this.smsAdapter.send(settings.notificationPhone, title);
+    if (!result.success) this.logger.error(`SMS alert failed: ${result.error}`);
   }
 
   async findForUser(userId: string, opts: { unreadOnly?: boolean; limit?: number } = {}) {

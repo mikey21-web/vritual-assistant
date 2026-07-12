@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { PaymentProvider, PaymentProviderConfig, BillingPlan, UsageRecord } from './payment-provider.interface';
 import { StripeProvider } from './stripe.provider';
 import { RazorpayProvider } from './razorpay.provider';
+import { getTenantId } from '../shared/tenant-helper';
 
 export const PLANS: BillingPlan[] = [
   { id: 'starter', name: 'Starter', amount: 2999, currency: 'INR', interval: 'month', features: { maxLeads: 500, maxMessages: 1000, maxAgentRuns: 500, maxSeats: 2 } },
@@ -45,14 +46,15 @@ export class BillingService {
     return p.handleWebhook(payload, signature);
   }
 
-  async getUsage(): Promise<UsageRecord> {
+  async getUsage(req?: any): Promise<UsageRecord> {
+    const tenantId = getTenantId(req);
     const now = new Date();
     const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
     const [leads, outboundMessages, agentRuns] = await Promise.all([
-      this.prisma.lead.count({ where: { createdAt: { gte: periodStart } } }),
-      this.prisma.conversationMessage.count({ where: { direction: 'OUTBOUND', createdAt: { gte: periodStart } } }),
+      this.prisma.lead.count({ where: { tenantId, createdAt: { gte: periodStart } } }),
+      this.prisma.conversationMessage.count({ where: { lead: { tenantId }, direction: 'OUTBOUND', createdAt: { gte: periodStart } } }),
       // Agent runs would come from a RunRecord model or agent logs
       Promise.resolve(0),
     ]);
@@ -60,10 +62,15 @@ export class BillingService {
     return { leads, outboundMessages, agentRuns, periodStart, periodEnd };
   }
 
-  async checkQuota(action: 'lead' | 'message' | 'agent_run'): Promise<{ allowed: boolean; used: number; limit: number }> {
-    const usage = await this.getUsage();
-    // For now, use a generous default plan
-    const plan = PLANS[2]; // Pro
+  private async getPlanForTenant(tenantId: string): Promise<BillingPlan> {
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
+    const plan = PLANS.find((p) => p.id === tenant?.plan);
+    return plan || PLANS[0]; // Unrecognized/missing plan defaults to Starter, not the most generous plan
+  }
+
+  async checkQuota(action: 'lead' | 'message' | 'agent_run', req?: any): Promise<{ allowed: boolean; used: number; limit: number }> {
+    const tenantId = getTenantId(req);
+    const [usage, plan] = await Promise.all([this.getUsage(req), this.getPlanForTenant(tenantId)]);
     const limits = { lead: plan.features.maxLeads, message: plan.features.maxMessages, agent_run: plan.features.maxAgentRuns };
     const used = { lead: usage.leads, message: usage.outboundMessages, agent_run: usage.agentRuns };
     const limit = limits[action];

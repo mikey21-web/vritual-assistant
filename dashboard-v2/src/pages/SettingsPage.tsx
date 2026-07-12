@@ -14,6 +14,7 @@ const fields = [
   { key: 'workingHoursStart', label: 'Working Hours Start', type: 'time' },
   { key: 'workingHoursEnd', label: 'Working Hours End', type: 'time' },
   { key: 'notificationEmail', label: 'Notification Email', type: 'email' },
+  { key: 'notificationPhone', label: 'Notification Phone (for alerts)', type: 'text' },
 ];
 
 export default function SettingsPage() {

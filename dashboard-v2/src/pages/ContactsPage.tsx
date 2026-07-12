@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
 import { fetchContacts } from '../lib/data';
-import { consumePendingSearch } from '../lib/pendingSearch';
+import { consumePendingFilter, PENDING_FILTER_APPLIED_EVENT } from '../lib/pendingSearch';
 import { Search, Users } from 'lucide-react';
 import type { Contact } from '../lib/types';
 
@@ -8,14 +9,36 @@ export default function ContactsPage() {
   const [data, setData] = useState<Contact[]>([]);
   const [search, setSearch] = useState('');
   const [debounced, setDebounced] = useState('');
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const highlightRef = useRef<HTMLTableRowElement | null>(null);
+
+  const applyPendingFilter = () => {
+    const pending = consumePendingFilter('contacts');
+    if (!pending) return;
+    const searchValue = pending.filters?.search || '';
+    setSearch(searchValue);
+    setDebounced(searchValue);
+    setHighlightId(pending.highlightId || null);
+  };
 
   useEffect(() => {
-    const pending = consumePendingSearch('contacts');
-    if (pending) { setSearch(pending); setDebounced(pending); }
+    applyPendingFilter();
+    const onApplied = (e: Event) => {
+      if ((e as CustomEvent<string>).detail === 'contacts') applyPendingFilter();
+    };
+    window.addEventListener(PENDING_FILTER_APPLIED_EVENT, onApplied);
+    return () => window.removeEventListener(PENDING_FILTER_APPLIED_EVENT, onApplied);
   }, []);
 
   useEffect(() => { const t = setTimeout(() => setDebounced(search), 300); return () => clearTimeout(t); }, [search]);
   useEffect(() => { fetchContacts(1, debounced).then((r: any) => setData(r.data || r)).catch(() => {}); }, [debounced]);
+
+  useEffect(() => {
+    if (!highlightId || !highlightRef.current) return;
+    highlightRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const t = setTimeout(() => setHighlightId(null), 3000);
+    return () => clearTimeout(t);
+  }, [highlightId, data]);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -56,7 +79,12 @@ export default function ContactsPage() {
                 </thead>
                 <tbody>
                   {data.map(c => (
-                    <tr key={c.id} className="border-b border-[var(--border)] hover:bg-[var(--muted)]/50 transition-colors">
+                    <motion.tr
+                      key={c.id}
+                      ref={highlightId === c.id ? highlightRef : undefined}
+                      animate={highlightId === c.id ? { backgroundColor: ['rgba(99,102,241,0.25)', 'rgba(99,102,241,0)', 'rgba(99,102,241,0.25)', 'rgba(99,102,241,0)'] } : undefined}
+                      transition={highlightId === c.id ? { duration: 2.4, times: [0, 0.33, 0.66, 1] } : undefined}
+                      className="border-b border-[var(--border)] hover:bg-[var(--muted)]/50 transition-colors">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <div className="h-7 w-7 rounded-full bg-[var(--primary)]/10 flex items-center justify-center">
@@ -73,7 +101,7 @@ export default function ContactsPage() {
                       <td className="px-4 py-3">
                         <span className="font-semibold text-sm text-[var(--foreground)]">{c._count?.leads || 0}</span>
                       </td>
-                    </tr>
+                    </motion.tr>
                   ))}
                 </tbody>
               </table>

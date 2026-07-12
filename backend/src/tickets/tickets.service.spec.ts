@@ -29,6 +29,7 @@ describe('TicketsService', () => {
     name: 'Standard',
     active: true,
     responseTimeMinutes: 60,
+    condition: {},
   };
 
   beforeEach(async () => {
@@ -52,7 +53,7 @@ describe('TicketsService', () => {
         count: jest.fn().mockResolvedValue(0),
       },
       slaRule: {
-        findFirst: jest.fn().mockResolvedValue(mockSlaRule),
+        findMany: jest.fn().mockResolvedValue([mockSlaRule]),
       },
     };
     auditLogs = { log: jest.fn().mockResolvedValue(undefined) };
@@ -82,11 +83,20 @@ describe('TicketsService', () => {
     });
 
     it('creates without an SLA rule when none is active', async () => {
-      prisma.slaRule.findFirst.mockResolvedValue(null);
+      prisma.slaRule.findMany.mockResolvedValue([]);
       await service.create({ subject: 'Test', description: 'desc' } as any, 'user-1');
       const createCall = prisma.ticket.create.mock.calls[0][0];
       expect(createCall.data.slaRuleId).toBeUndefined();
       expect(createCall.data.dueAt).toBeUndefined();
+    });
+
+    it('prefers a rule whose condition.priority matches the ticket priority over the fastest rule', async () => {
+      const fastGeneric = { id: 'sla-fast', active: true, responseTimeMinutes: 15, condition: {} };
+      const slowUrgent = { id: 'sla-urgent', active: true, responseTimeMinutes: 30, condition: { priority: 'URGENT' } };
+      prisma.slaRule.findMany.mockResolvedValue([fastGeneric, slowUrgent]);
+      await service.create({ subject: 'Test', description: 'desc', priority: 'URGENT' } as any, 'user-1');
+      const createCall = prisma.ticket.create.mock.calls[0][0];
+      expect(createCall.data.slaRuleId).toBe('sla-urgent');
     });
 
     it('emits a ticket:new realtime event', async () => {
@@ -165,6 +175,15 @@ describe('TicketsService', () => {
       expect(prisma.ticket.findMany).toHaveBeenCalledWith(
         expect.objectContaining({ where: expect.objectContaining({ status: { notIn: ['RESOLVED', 'CLOSED'] } }) }),
       );
+    });
+
+    it('only queries tickets that have not already been notified, and marks them notified', async () => {
+      prisma.ticket.findMany.mockResolvedValue([{ id: 't1', subject: 'Overdue', assignedAgentId: 'agent-1', assignedAgent: { notificationPrefs: [] } }]);
+      await service.checkSlaBreaches();
+      expect(prisma.ticket.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ slaBreachNotifiedAt: null }) }),
+      );
+      expect(prisma.ticket.update).toHaveBeenCalledWith({ where: { id: 't1' }, data: { slaBreachNotifiedAt: expect.any(Date) } });
     });
   });
 });

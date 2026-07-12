@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { UsersService } from './users.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 
 jest.mock('bcryptjs', () => ({
@@ -134,18 +134,30 @@ describe('UsersService', () => {
       );
     });
 
-    it('should create a user with specified role', async () => {
-      await service.create({
-        name: 'Admin User',
-        email: 'admin@example.com',
-        password: 'adminPass123',
-        role: 'ADMIN',
-      });
+    it('should create a user with specified role when the caller is an OWNER', async () => {
+      await service.create(
+        {
+          name: 'Admin User',
+          email: 'admin@example.com',
+          password: 'adminPass123',
+          role: 'ADMIN',
+        },
+        { user: { role: 'OWNER' } },
+      );
       expect(prisma.user.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({ role: 'ADMIN' }),
         }),
       );
+    });
+
+    it('should refuse to create an ADMIN or OWNER account when the caller is not an OWNER', async () => {
+      await expect(
+        service.create(
+          { name: 'Admin User', email: 'admin@example.com', password: 'adminPass123', role: 'ADMIN' },
+          { user: { role: 'MANAGER' } },
+        ),
+      ).rejects.toThrow(ForbiddenException);
     });
 
     it('should set active to false when specified', async () => {

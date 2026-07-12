@@ -193,7 +193,7 @@ export default function ImportPage() {
                   <span className="text-[var(--muted-foreground)]">→</span>
                   <select value={m.field} onChange={(e) => { const n = [...columnMap]; n[i] = { ...n[i], field: e.target.value }; setColumnMap(n); }}
                     className="flex-1 h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-2 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20">
-                    <option value="">— Skip —</option>
+                    <option value="">Skip</option>
                     {FIELD_OPTIONS[entity].map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                   {m.field && <span className="text-xs text-[var(--primary)]">{fieldLabel(m.field)}</span>}

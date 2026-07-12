@@ -1,5 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { motion } from "framer-motion";
 import { api } from "../lib/api";
+import { consumePendingFilter, PENDING_FILTER_APPLIED_EVENT } from "../lib/pendingSearch";
 import toast from "react-hot-toast";
 import { Plus, Search, MessageSquare, Clock, AlertCircle } from "lucide-react";
 
@@ -27,6 +29,8 @@ export default function TicketsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [commentInternal, setCommentInternal] = useState(true);
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const highlightRef = useRef<HTMLButtonElement | null>(null);
 
   const loadTickets = async (st = statusFilter, q = "") => {
     setLoading(true);
@@ -40,7 +44,31 @@ export default function TicketsPage() {
     setLoading(false);
   };
 
-  useEffect(() => { loadTickets(); }, []);
+  const applyPendingFilter = () => {
+    const pending = consumePendingFilter('tickets');
+    if (!pending) return;
+    const status = pending.filters?.status || "";
+    setSearch(pending.filters?.search || "");
+    setStatusFilter(status);
+    setHighlightId(pending.highlightId || null);
+    loadTickets(status);
+  };
+
+  useEffect(() => {
+    applyPendingFilter();
+    const onApplied = (e: Event) => {
+      if ((e as CustomEvent<string>).detail === 'tickets') applyPendingFilter();
+    };
+    window.addEventListener(PENDING_FILTER_APPLIED_EVENT, onApplied);
+    return () => window.removeEventListener(PENDING_FILTER_APPLIED_EVENT, onApplied);
+  }, []);
+
+  useEffect(() => {
+    if (!highlightId || !highlightRef.current) return;
+    highlightRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const t = setTimeout(() => setHighlightId(null), 3000);
+    return () => clearTimeout(t);
+  }, [highlightId, tickets]);
 
   const filtered = tickets.filter(t => !search || t.subject?.toLowerCase().includes(search.toLowerCase()) || t.lead?.contact?.name?.toLowerCase().includes(search.toLowerCase()));
 
@@ -74,7 +102,13 @@ export default function TicketsPage() {
         ) : (
           <div className="divide-y divide-[var(--border)]">
             {filtered.map(ticket => (
-              <button key={ticket.id} onClick={() => setSelected(ticket)} className="w-full flex items-center gap-4 px-4 py-3 text-left hover:bg-[var(--accent)] transition-colors">
+              <motion.button
+                key={ticket.id}
+                ref={highlightId === ticket.id ? highlightRef : undefined}
+                onClick={() => setSelected(ticket)}
+                animate={highlightId === ticket.id ? { backgroundColor: ['rgba(99,102,241,0.25)', 'rgba(99,102,241,0)', 'rgba(99,102,241,0.25)', 'rgba(99,102,241,0)'] } : undefined}
+                transition={highlightId === ticket.id ? { duration: 2.4, times: [0, 0.33, 0.66, 1] } : undefined}
+                className="w-full flex items-center gap-4 px-4 py-3 text-left hover:bg-[var(--accent)] transition-colors">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
                     <span className="text-sm font-semibold text-[var(--foreground)] truncate">{ticket.subject}</span>
@@ -91,7 +125,7 @@ export default function TicketsPage() {
                   </div>
                 </div>
                 {ticket.assignedAgent && <span className="text-xs text-[var(--muted-foreground)] shrink-0">{ticket.assignedAgent.name}</span>}
-              </button>
+              </motion.button>
             ))}
           </div>
         )}

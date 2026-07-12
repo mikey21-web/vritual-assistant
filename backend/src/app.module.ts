@@ -56,6 +56,7 @@ import { TelephonyModule } from './telephony/telephony.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { AdIntegrationsModule } from './ad-integrations/ad-integrations.module';
 import { WebsiteCrawlerModule } from './website-crawler/website-crawler.module';
+import { LeadIntelligenceModule } from './lead-intelligence/lead-intelligence.module';
 
 @Module({
   imports: [
@@ -124,6 +125,7 @@ import { WebsiteCrawlerModule } from './website-crawler/website-crawler.module';
     NotificationsModule,
     AdIntegrationsModule,
     WebsiteCrawlerModule,
+    LeadIntelligenceModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
