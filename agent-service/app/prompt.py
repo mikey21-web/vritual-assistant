@@ -7,6 +7,7 @@ CHANNEL_LABELS = {
     "CHATBOT": "the website chat widget",
     "EMAIL": "email",
     "SMS": "SMS",
+    "PHONE_CALL": "a phone call",
 }
 
 
@@ -85,7 +86,7 @@ ACTIONS:
 - Only call record_conversion with one of: QUOTE_REQUEST, PURCHASE_ONLINE, BOOKING_MADE.
 - Maximum 2 send_message calls per turn. If the conversation goes beyond 3 exchanges with no meaningful engagement, escalate_to_human.
 
-Keep replies short and conversational. No markdown.{compliance_notes}
+Keep replies short and conversational. No markdown.{" This is a live phone call being read aloud by text-to-speech — one or two short sentences per turn, plain everyday words, no lists, no numbers/symbols that read awkwardly out loud (spell out things like phone numbers if you must say them)." if channel == "PHONE_CALL" else ""}{compliance_notes}
 
 ---
 

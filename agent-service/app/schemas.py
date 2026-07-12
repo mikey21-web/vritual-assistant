@@ -16,6 +16,11 @@ class AgentRunResponse(BaseModel):
     runId: str
 
 
+class AgentRunSyncResponse(BaseModel):
+    reply: str
+    terminate: bool = False
+
+
 class CopilotMessage(BaseModel):
     role: str  # "user" | "assistant"
     text: str

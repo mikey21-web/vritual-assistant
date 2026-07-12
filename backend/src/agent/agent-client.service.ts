@@ -32,4 +32,33 @@ export class AgentClientService {
       this.logger.warn(`Agent trigger failed: ${err.message}`, { url, leadId, triggerId });
     }
   }
+
+  // Synchronous counterpart to trigger() — awaits the agent's reply text
+  // instead of firing and forgetting. Used for voice, where there's a caller
+  // on the line waiting and no async channel adapter to deliver a reply through.
+  async runSync(leadId: string, triggerId: string, channel: string, messageText: string | null, tenantId: string, triggerType: string): Promise<{ reply: string; terminate: boolean }> {
+    const url = this.config.get<string>('AGENT_SERVICE_URL');
+    const key = this.config.get<string>('AGENT_INBOUND_KEY');
+    if (!url) {
+      this.logger.warn('AGENT_SERVICE_URL not set, cannot run synchronous agent turn');
+      return { reply: "Sorry, I'm not able to help right now.", terminate: true };
+    }
+
+    try {
+      const res = await firstValueFrom(
+        this.http.post<{ reply: string; terminate: boolean }>(`${url}/agent/run-sync`, {
+          leadId, triggerId, channel, tenantId,
+          trigger: triggerType,
+          messageText,
+        }, {
+          headers: { 'x-agent-key': key || '', 'Content-Type': 'application/json' },
+          timeout: 15000,
+        }),
+      );
+      return { reply: res.data.reply || 'Sorry, could you say that again?', terminate: !!res.data.terminate };
+    } catch (err: any) {
+      this.logger.warn(`Synchronous agent run failed: ${err.message}`, { url, leadId, triggerId });
+      return { reply: "Sorry, I'm having trouble right now — let's continue this over text.", terminate: true };
+    }
+  }
 }

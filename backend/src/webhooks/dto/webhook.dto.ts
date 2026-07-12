@@ -35,6 +35,34 @@ export class WebchatMessageDto {
   @ApiPropertyOptional({ description: 'Client-generated id for idempotent retries' }) @IsOptional() @IsString() messageId?: string;
 }
 
+// Twilio posts application/x-www-form-urlencoded, not JSON, and the global
+// ValidationPipe here uses forbidNonWhitelisted — so every standard param
+// Twilio sends needs to be declared or real calls get a 400.
+export class TwilioVoiceWebhookDto {
+  @ApiPropertyOptional() @IsOptional() @IsString() AccountSid?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() ApiVersion?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() CallSid?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() CallStatus?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() Direction?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() From?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() FromCity?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() FromCountry?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() FromState?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() FromZip?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() To?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() ToCity?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() ToCountry?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() ToState?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() ToZip?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() Called?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() Caller?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() SpeechResult?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() Confidence?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() UnstableSpeechResult?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() Language?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() Digits?: string;
+}
+
 export class TelegramWebhookDto {
   @ApiProperty() @IsOptional() update_id?: number;
   @ApiPropertyOptional() @IsOptional() @IsObject() message?: {

@@ -77,6 +77,18 @@ def test_prompt_includes_remembered_facts_and_notes():
     assert "Prefers evening calls" in prompt
 
 
+def test_prompt_adds_voice_brevity_note_for_phone_calls():
+    niche = {"industry": "generic", "display_name": "Business", "fields_to_collect": [], "scoring_signals": [], "conversion_goals": [], "pipeline_stages": [], "booking_types": [], "tone_examples": [], "labels": {}, "compliance": []}
+    lead = {"contact": {}, "status": "NEW", "score": 0, "segment": "COLD"}
+
+    voice_prompt = build_system_prompt(niche, lead, channel="PHONE_CALL")
+    text_prompt = build_system_prompt(niche, lead, channel="WHATSAPP")
+
+    assert "live phone call" in voice_prompt
+    assert "over a phone call" in voice_prompt
+    assert "live phone call" not in text_prompt
+
+
 def test_prompt_omits_memory_section_when_empty():
     niche = {"industry": "generic", "display_name": "Business", "fields_to_collect": [], "scoring_signals": [], "conversion_goals": [], "pipeline_stages": [], "booking_types": [], "tone_examples": [], "labels": {}, "compliance": []}
     lead = {"contact": {}, "status": "NEW", "score": 0, "segment": "COLD"}

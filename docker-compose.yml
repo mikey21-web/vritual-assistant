@@ -56,6 +56,13 @@ services:
       SEED_OWNER_PASSWORD: ${SEED_OWNER_PASSWORD:-}
       INTEGRATIONS_ENC_KEY: ${INTEGRATIONS_ENC_KEY:?INTEGRATIONS_ENC_KEY must be set}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      # Twilio — SMS and Voice both use this (Voice webhooks also need
+      # BACKEND_URL to exactly match what's configured in the Twilio console,
+      # since Twilio signs requests against that URL). Safe to leave unset.
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER:-}
+      BACKEND_URL: ${BACKEND_URL:-http://localhost:3001}
     volumes:
       - uploads:/app/uploads
       - ./niche.config.yaml:/app/niche.config.yaml:ro

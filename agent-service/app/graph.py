@@ -110,6 +110,8 @@ async def _load_context(state: AgentState, config: RunnableConfig) -> AgentState
         lc_messages.append(HumanMessage(content=incoming))
     elif trigger == "lead_created":
         lc_messages.append(HumanMessage(content="A new lead was created. Introduce yourself and start the conversation."))
+    elif trigger == "call_started":
+        lc_messages.append(HumanMessage(content="The phone just connected. Answer warmly in one short sentence and ask how you can help — this is a live call, they're waiting to hear something."))
     elif trigger == "re_engage":
         lc_messages.append(HumanMessage(content=(
             "PROACTIVE CHECK-IN: this lead went quiet after your last message and hasn't replied in over a day. "

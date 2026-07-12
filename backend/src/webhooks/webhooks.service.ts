@@ -240,6 +240,57 @@ export class WebhooksService {
     return { data: messages };
   }
 
+  // Twilio Voice. Unlike every other channel this is a synchronous round
+  // trip — the caller is on the line waiting, so the reply has to come back
+  // in the same HTTP response as TwiML, not delivered later through a
+  // channel adapter. handleVoiceInbound answers the call; handleVoiceGather
+  // handles each turn after that (Twilio speech-to-text does the transcription).
+  async handleVoiceInbound(payload: { CallSid?: string; From?: string }, req?: any): Promise<{ leadId: string; tenantId: string; reply: string; terminate: boolean }> {
+    const from = payload.From || 'unknown';
+    const contact = await this.contactsService.findOrCreate({ name: 'Phone Caller', phone: from }, req);
+
+    const existingLead = await this.prisma.lead.findFirst({
+      where: { contactId: contact.id, status: { notIn: ['LOST', 'CONVERTED', 'SPAM'] } },
+      orderBy: { createdAt: 'desc' },
+    });
+    const lead = existingLead || await this.leadsService.create({ contactId: contact.id, source: 'PHONE_CALL' });
+
+    await this.conversationsService.create({
+      text: '(call started)', channel: 'PHONE_CALL', direction: 'INBOUND',
+      providerMessageId: payload.CallSid, leadId: lead.id, contactId: contact.id,
+    });
+
+    const tenantId = (lead as any).tenantId || (contact as any).tenantId;
+    const { reply, terminate } = await this.agentClient.runSync(
+      lead.id, payload.CallSid || `call-${Date.now()}`, 'PHONE_CALL', null, tenantId, 'call_started',
+    );
+
+    await this.conversationsService.create({ text: reply, channel: 'PHONE_CALL', direction: 'OUTBOUND', leadId: lead.id, contactId: contact.id });
+
+    return { leadId: lead.id, tenantId, reply, terminate };
+  }
+
+  async handleVoiceGather(leadId: string, speechResult: string | undefined): Promise<{ reply: string; terminate: boolean }> {
+    const lead = await this.prisma.lead.findUnique({ where: { id: leadId } });
+    if (!lead) return { reply: 'Sorry, something went wrong on our end. Goodbye.', terminate: true };
+
+    const text = (speechResult || '').trim();
+    if (!text) {
+      // Gather timed out with no speech — give one more chance rather than hanging up immediately.
+      return { reply: 'Sorry, are you still there?', terminate: false };
+    }
+
+    await this.conversationsService.create({ text, channel: 'PHONE_CALL', direction: 'INBOUND', leadId: lead.id, contactId: lead.contactId });
+
+    const { reply, terminate } = await this.agentClient.runSync(
+      lead.id, `call-${lead.id}-${Date.now()}`, 'PHONE_CALL', text, lead.tenantId, 'inbound_message',
+    );
+
+    await this.conversationsService.create({ text: reply, channel: 'PHONE_CALL', direction: 'OUTBOUND', leadId: lead.id, contactId: lead.contactId });
+
+    return { reply, terminate };
+  }
+
   async handlePayment(provider: string, payload: any) {
     const key = this.idempotencyKey([provider, 'payment', payload.paymentId || payload.id || this.payloadHash(payload)]);
     const existing = await this.prisma.webhookEvent.findUnique({ where: { idempotencyKey: key } });

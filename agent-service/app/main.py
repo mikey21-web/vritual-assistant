@@ -7,8 +7,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, BackgroundTasks, HTTPException, Header
 
 from app.config import Settings
-from app.schemas import AgentRunRequest, AgentRunResponse, CopilotChatRequest, CopilotChatResponse
-from app.runner import execute_run
+from app.schemas import AgentRunRequest, AgentRunResponse, AgentRunSyncResponse, CopilotChatRequest, CopilotChatResponse
+from app.runner import execute_run, execute_run_sync
 from app.copilot import run_copilot_chat
 from app.backend_client import BackendClient
 from app.idempotency import init as idempotency_init, close as idempotency_close
@@ -66,6 +66,18 @@ async def agent_run(req: AgentRunRequest, background_tasks: BackgroundTasks, x_a
     background_tasks.add_task(_retry_execute_run, settings, req)
 
     return AgentRunResponse(accepted=True, runId=run_id)
+
+
+@app.post("/agent/run-sync", response_model=AgentRunSyncResponse)
+async def agent_run_sync(req: AgentRunRequest, x_agent_key: str = Header(None)):
+    """Synchronous counterpart to /agent/run — awaits the full graph run and
+    returns the reply text directly. Used for voice, where the caller is on
+    the line waiting and there's no async channel adapter to deliver through."""
+    if settings.agent_inbound_key and x_agent_key != settings.agent_inbound_key:
+        raise HTTPException(status_code=401, detail="Invalid agent key")
+
+    result = await execute_run_sync(settings, req)
+    return AgentRunSyncResponse(reply=result["reply"], terminate=result["terminate"])
 
 
 @app.post("/copilot/run", response_model=CopilotChatResponse)

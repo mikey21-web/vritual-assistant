@@ -59,4 +59,40 @@ describe('WebhookSecurityService', () => {
       expect(service.verifyStripeSignature('t=123,v1=abc', body)).toBe(false);
     });
   });
+
+  describe('verifyTwilioSignature', () => {
+    const crypto = require('crypto');
+    const authToken = 'test-auth-token';
+    const url = 'https://example.com/webhooks/voice/inbound';
+    const params = { CallSid: 'CA123', From: '+15551234567' };
+
+    function sign(token: string, u: string, p: Record<string, any>): string {
+      let data = u;
+      for (const key of Object.keys(p).sort()) data += key + String(p[key]);
+      return crypto.createHmac('sha1', token).update(data, 'utf8').digest('base64');
+    }
+
+    it('accepts a correctly signed request', () => {
+      configGet.mockReturnValue(authToken);
+      const signature = sign(authToken, url, params);
+      expect(service.verifyTwilioSignature(signature, url, params)).toBe(true);
+    });
+
+    it('rejects a tampered signature', () => {
+      configGet.mockReturnValue(authToken);
+      expect(service.verifyTwilioSignature('not-the-real-signature', url, params)).toBe(false);
+    });
+
+    it('rejects when the params do not match what was signed', () => {
+      configGet.mockReturnValue(authToken);
+      const signature = sign(authToken, url, params);
+      expect(service.verifyTwilioSignature(signature, url, { ...params, From: '+15559999999' })).toBe(false);
+    });
+
+    it('rejects when TWILIO_AUTH_TOKEN is not configured', () => {
+      configGet.mockReturnValue(undefined);
+      const signature = sign(authToken, url, params);
+      expect(service.verifyTwilioSignature(signature, url, params)).toBe(false);
+    });
+  });
 });

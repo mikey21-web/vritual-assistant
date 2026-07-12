@@ -53,6 +53,27 @@ export class WebhookSecurityService {
     }
   }
 
+  // Twilio's scheme: HMAC-SHA1 over the full webhook URL with each POST
+  // param (sorted by key) appended as key+value, keyed by the auth token.
+  // https://www.twilio.com/docs/usage/webhooks/webhooks-security
+  verifyTwilioSignature(signature: string, url: string, params: Record<string, any>): boolean {
+    const authToken = this.config.get<string>('TWILIO_AUTH_TOKEN');
+    if (!authToken || !signature) return false;
+
+    const sortedKeys = Object.keys(params).sort();
+    let data = url;
+    for (const key of sortedKeys) {
+      data += key + String(params[key] ?? '');
+    }
+
+    const expected = crypto.createHmac('sha1', authToken).update(data, 'utf8').digest('base64');
+    try {
+      return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+    } catch {
+      return false;
+    }
+  }
+
   verifyWebhookApiKey(key: string, expectedRoute: string): boolean {
     const globalKeys = (this.config.get<string>('WEBHOOK_API_KEYS') || '').split(',').filter(Boolean);
     const routeKey = this.config.get<string>(`WEBHOOK_API_KEY_${expectedRoute.toUpperCase().replace(/-/g, '_')}`);
