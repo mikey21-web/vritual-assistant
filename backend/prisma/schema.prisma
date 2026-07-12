@@ -129,6 +129,14 @@ enum ConversionDestination {
   USER_SUBSCRIPTION
 }
 
+enum BookingStatus {
+  SCHEDULED
+  RESCHEDULED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
 enum ConversionStatus {
   REQUESTED
   IN_PROGRESS
@@ -362,6 +370,7 @@ model Lead {
   failureRecords FailureRecord[]
   workflowInstances WorkflowInstance[]
   scheduledActions  ScheduledAction[]
+  bookings          Booking[]
 
   @@index([status])
   @@index([segment])
@@ -752,7 +761,33 @@ model BookingSetting {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  bookings     Booking[]
+
   @@map("booking_settings")
+}
+
+// Actual appointment instances, distinct from BookingSetting (which is provider config).
+// Tracks state so the agent can reschedule/cancel instead of only ever creating new links.
+model Booking {
+  id                String          @id @default(uuid())
+  leadId            String
+  lead              Lead            @relation(fields: [leadId], references: [id])
+  bookingSettingId  String?
+  bookingSetting    BookingSetting? @relation(fields: [bookingSettingId], references: [id])
+  provider          String
+  bookingType       String?
+  status            BookingStatus   @default(SCHEDULED)
+  scheduledAt       DateTime?
+  externalEventId   String?
+  link              String?
+  previousBookingId String?
+  metadata          Json            @default("{}")
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([leadId])
+  @@index([status])
+  @@map("bookings")
 }
 
 model AutomationEvent {
@@ -1184,6 +1219,22 @@ model WorkflowStepRun {
   @@index([stepKey])
   @@index([status])
   @@map("workflow_step_runs")
+}
+
+// Client-managed FAQ store. The agent searches this before escalating a
+// question to a human, instead of guessing or refusing to answer.
+model KnowledgeBaseEntry {
+  id        String   @id @default(uuid())
+  question  String
+  answer    String
+  category  String?
+  keywords  String[] @default([])
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([active])
+  @@map("knowledge_base_entries")
 }
 
 model OutboxMessage {

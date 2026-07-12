@@ -80,14 +80,24 @@ async function bootstrap() {
   app.useGlobalInterceptors(new LoggingInterceptor());
   app.useGlobalFilters(new GlobalExceptionFilter());
 
-  app.enableCors({
-    origin: process.env.CORS_ORIGIN || (process.env.NODE_ENV === 'production'
-      ? (() => { throw new Error('CORS_ORIGIN must be set in production'); })()
-      : 'http://localhost:3000'),
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key', 'stripe-signature', 'x-hub-signature-256', 'Idempotency-Key'],
-    credentials: true,
-    maxAge: 86400,
+  const corsOrigin = process.env.CORS_ORIGIN || (process.env.NODE_ENV === 'production'
+    ? (() => { throw new Error('CORS_ORIGIN must be set in production'); })()
+    : 'http://localhost:3000');
+
+  // The web chat widget is embedded on arbitrary client websites, so its
+  // endpoints can't be pinned to the single dashboard CORS_ORIGIN above.
+  // They're authenticated by a public site key (not cookies), so a wildcard
+  // origin without credentials is safe here — same trust model as a Stripe
+  // publishable key. Everything else keeps the normal locked-down policy.
+  app.use((req: any, res: any, next: any) => {
+    const isWebchat = req.path?.startsWith('/webhooks/webchat');
+    res.header('Access-Control-Allow-Origin', isWebchat ? '*' : corsOrigin);
+    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization,x-api-key,stripe-signature,x-hub-signature-256,Idempotency-Key');
+    res.header('Access-Control-Max-Age', '86400');
+    if (!isWebchat) res.header('Access-Control-Allow-Credentials', 'true');
+    if (req.method === 'OPTIONS') return res.sendStatus(204);
+    next();
   });
 
   // Sentry error handler (after CORS, before error filter)

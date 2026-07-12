@@ -48,6 +48,8 @@ import { MonitoringModule } from './monitoring/monitoring.module';
 import { TenantsModule } from './tenants/tenants.module';
 import { AdminModule } from './admin/admin.module';
 import { RealtimeModule } from './realtime/realtime.module';
+import { KnowledgeBaseModule } from './knowledge-base/knowledge-base.module';
+import { BookingsModule } from './bookings/bookings.module';
 
 @Module({
   imports: [
@@ -108,6 +110,8 @@ import { RealtimeModule } from './realtime/realtime.module';
     TenantsModule,
     AdminModule,
     RealtimeModule,
+    KnowledgeBaseModule,
+    BookingsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

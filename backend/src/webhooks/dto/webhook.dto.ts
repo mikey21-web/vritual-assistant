@@ -27,6 +27,14 @@ export class GenericWebhookDto {
   @ApiPropertyOptional() @IsString() @IsOptional() event?: string;
 }
 
+export class WebchatMessageDto {
+  @ApiProperty({ description: 'Public site key issued when Web Chat was enabled in the dashboard' }) @IsString() siteKey: string;
+  @ApiProperty({ description: 'Widget-generated session id, stable for the visitor\'s browser session' }) @IsString() sessionId: string;
+  @ApiProperty() @IsString() text: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() name?: string;
+  @ApiPropertyOptional({ description: 'Client-generated id for idempotent retries' }) @IsOptional() @IsString() messageId?: string;
+}
+
 export class TelegramWebhookDto {
   @ApiProperty() @IsOptional() update_id?: number;
   @ApiPropertyOptional() @IsOptional() @IsObject() message?: {

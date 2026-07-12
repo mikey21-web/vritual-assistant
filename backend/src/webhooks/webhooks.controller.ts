@@ -1,11 +1,11 @@
-import { Controller, Post, Body, HttpCode, Headers, UnauthorizedException, Req, RawBodyRequest } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, Query, HttpCode, Headers, UnauthorizedException, Req, RawBodyRequest } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { Request } from 'express';
 import { WebhooksService } from './webhooks.service';
 import { WebhookSecurityService } from '../shared/webhook-security.service';
 import { Public } from '../auth/public.decorator';
-import { FormWebhookDto, WhatsAppWebhookDto, GenericWebhookDto, TelegramWebhookDto } from './dto/webhook.dto';
+import { FormWebhookDto, WhatsAppWebhookDto, GenericWebhookDto, TelegramWebhookDto, WebchatMessageDto } from './dto/webhook.dto';
 
 @ApiTags('Webhooks')
 @Controller('webhooks')
@@ -52,6 +52,22 @@ export class WebhooksController {
     // Verify the webhook has a message with text
     if (!d.message?.chat?.id) return { status: 'ignored', reason: 'no chat message' };
     return this.service.handleTelegram(d, req);
+  }
+
+  @Public()
+  @Post('webchat/message') @HttpCode(200) @ApiOperation({ summary: 'Receive a message from the embeddable web chat widget (site-key auth)' })
+  async webchatMessage(@Body() d: WebchatMessageDto, @Req() req?: RawBodyRequest<Request>) {
+    return this.service.handleWebchatMessage(d, req);
+  }
+
+  @Public()
+  @Get('webchat/:sessionId/messages') @ApiOperation({ summary: 'Poll for new messages in a web chat session (site-key auth)' })
+  async webchatMessages(
+    @Param('sessionId') sessionId: string,
+    @Query('siteKey') siteKey: string,
+    @Query('since') since?: string,
+  ) {
+    return this.service.getWebchatMessages(sessionId, siteKey, since);
   }
 
   @Public()

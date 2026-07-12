@@ -63,6 +63,17 @@ async function main() {
     skipDuplicates: true,
   });
 
+  const kbCount = await prisma.knowledgeBaseEntry.count();
+  if (kbCount === 0) {
+    await prisma.knowledgeBaseEntry.createMany({
+      data: [
+        { question: 'What are your business hours?', answer: 'We are open Monday to Friday, 9am to 6pm.', category: 'general', keywords: ['hours', 'open', 'schedule', 'time'] },
+        { question: 'Do you offer a free consultation?', answer: 'Yes — the first consultation is free. Book a time and we\'ll walk you through your options.', category: 'pricing', keywords: ['free', 'consultation', 'cost', 'price'] },
+        { question: 'How do I reschedule an appointment?', answer: 'Just let us know a new date and time that works for you and we\'ll move it — no need to rebook from scratch.', category: 'booking', keywords: ['reschedule', 'change', 'move', 'appointment'] },
+      ],
+    });
+  }
+
   console.log('Seed completed');
 }
 
