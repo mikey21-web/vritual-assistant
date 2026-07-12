@@ -1,5 +1,5 @@
 import { api } from './api';
-import type { Lead, Contact, Campaign, Task, Message, Template, Integration, BookingSetting, CrmMapping, ScoringRule, RoutingRule, AutomationRule, PipelineStage, FailureRecord, User, HealthReport, AnalyticsOverview } from './types';
+import type { Lead, Contact, Campaign, Task, Message, Template, KnowledgeBaseEntry, Integration, BookingSetting, CrmMapping, ScoringRule, RoutingRule, AutomationRule, PipelineStage, FailureRecord, User, HealthReport, AnalyticsOverview } from './types';
 
 export async function fetchAnalytics() { return api('/analytics/overview') as Promise<AnalyticsOverview>; }
 export async function fetchSources() { return api('/analytics/sources') as Promise<{ source: string; count: number }[]>; }
@@ -38,6 +38,11 @@ export async function fetchTemplates() { return api('/message-templates') as Pro
 export async function createTemplate(data: any) { return api('/message-templates', { method: 'POST', body: JSON.stringify(data) }); }
 export async function previewTemplate(id: string, vars: Record<string, string>) { return api(`/message-templates/${id}/preview`, { method: 'POST', body: JSON.stringify(vars) }); }
 
+export async function fetchKnowledgeBase() { return api('/knowledge-base') as Promise<KnowledgeBaseEntry[]>; }
+export async function createKnowledgeBaseEntry(data: any) { return api('/knowledge-base', { method: 'POST', body: JSON.stringify(data) }); }
+export async function updateKnowledgeBaseEntry(id: string, data: any) { return api(`/knowledge-base/${id}`, { method: 'PATCH', body: JSON.stringify(data) }); }
+export async function deleteKnowledgeBaseEntry(id: string) { return api(`/knowledge-base/${id}`, { method: 'DELETE' }); }
+
 export async function fetchForms() { return api('/forms') as Promise<any[]>; }
 export async function createForm(data: any) { return api('/forms', { method: 'POST', body: JSON.stringify(data) }); }
 export async function addFormField(formId: string, data: any) { return api(`/forms/${formId}/fields`, { method: 'POST', body: JSON.stringify(data) }); }
@@ -59,6 +64,7 @@ export async function deleteRoutingRule(id: string) { return api(`/routing-rules
 
 export async function fetchIntegrations() { return api('/integrations') as Promise<any>; }
 export async function createIntegration(data: any) { return api('/integrations', { method: 'POST', body: JSON.stringify(data) }); }
+export async function updateIntegration(id: string, data: any) { return api(`/integrations/${id}`, { method: 'PATCH', body: JSON.stringify(data) }); }
 export async function deleteIntegration(id: string) { return api(`/integrations/${id}`, { method: 'DELETE' }); }
 export async function testIntegration(id: string) { return api(`/integrations/${id}/test`, { method: 'POST' }); }
 

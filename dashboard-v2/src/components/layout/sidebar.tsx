@@ -2,7 +2,7 @@ import {
   LayoutDashboard, Users, MessageSquare, BarChart3, Settings,
   Megaphone, FormInput, QrCode, FileText, Route, Target,
   ShoppingCart, Link, Calendar, Layers, ChevronLeft, ChevronRight,
-  UserCircle, CheckSquare, Sparkles,
+  UserCircle, CheckSquare, Sparkles, HelpCircle, MessageCircle,
 } from "lucide-react";
 
 const navGroups = [
@@ -25,6 +25,7 @@ const navGroups = [
     items: [
       { label: "Conversations", icon: MessageSquare, path: "/conversations" },
       { label: "Templates", icon: FileText, path: "/templates" },
+      { label: "Knowledge Base", icon: HelpCircle, path: "/knowledge-base" },
       { label: "Media", icon: Layers, path: "/media" },
     ],
   },
@@ -50,6 +51,7 @@ const navGroups = [
       { label: "Integrations", icon: Link, path: "/integrations" },
       { label: "CRM", icon: ShoppingCart, path: "/crm" },
       { label: "Booking", icon: Calendar, path: "/booking" },
+      { label: "Web Chat", icon: MessageCircle, path: "/web-chat" },
     ],
   },
   {

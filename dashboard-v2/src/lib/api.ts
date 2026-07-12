@@ -1,6 +1,6 @@
 import { getMockResponse } from './mock-data';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 let token: string | null = localStorage.getItem('token');
 let refreshToken: string | null = localStorage.getItem('refreshToken');

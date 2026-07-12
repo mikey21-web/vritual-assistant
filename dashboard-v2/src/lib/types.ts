@@ -90,11 +90,23 @@ export interface Template {
   active: boolean;
 }
 
+export interface KnowledgeBaseEntry {
+  id: string;
+  question: string;
+  answer: string;
+  category?: string;
+  keywords: string[];
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Integration {
   id: string;
   name: string;
   type: string;
   status: string;
+  isActive: boolean;
   config?: Record<string, unknown>;
   lastTested?: string;
 }

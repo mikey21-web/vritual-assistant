@@ -17,6 +17,8 @@ import MessagesPage from "./pages/MessagesPage";
 
 const PageComponents: Record<string, React.LazyExoticComponent<React.ComponentType<any>>> = {
   Templates: lazy(() => import("./pages/TemplatesPage")),
+  KnowledgeBase: lazy(() => import("./pages/KnowledgeBasePage")),
+  WebChat: lazy(() => import("./pages/WebChatPage")),
   Media: lazy(() => import("./pages/MediaPage")),
   Nurture: lazy(() => import("./pages/NurturePage")),
   Scoring: lazy(() => import("./pages/ScoringPage")),
@@ -57,10 +59,10 @@ function getPageKey(path: string): string {
     "/": "Overview", "/leads": "Leads", "/contacts": "Contacts",
     "/campaigns": "Campaigns", "/forms": "Forms", "/qr-codes": "QRCodes",
     "/conversations": "Messages", "/messages": "Messages",
-    "/templates": "Templates", "/media": "Media",
+    "/templates": "Templates", "/knowledge-base": "KnowledgeBase", "/media": "Media",
     "/nurture": "Nurture", "/scoring": "Scoring", "/rules": "Rules",
     "/tasks": "Tasks", "/conversions": "Conversions",
-    "/integrations": "Integrations", "/crm": "CRM", "/booking": "Booking",
+    "/integrations": "Integrations", "/crm": "CRM", "/booking": "Booking", "/web-chat": "WebChat",
     "/analytics": "Analytics", "/team": "Team",
     "/audit-logs": "AuditLogs", "/advanced": "Advanced",
     "/settings": "Settings", "/workspace": "Workspace",
