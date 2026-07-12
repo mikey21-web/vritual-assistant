@@ -113,6 +113,51 @@ def build_tools(ctx: ToolContext) -> list:
             return _err(str(e))
 
     @tool
+    async def search_knowledge_base(query: str):
+        """Search the FAQ knowledge base before answering a question you're not certain about, or before escalating to a human because the lead asked something. Returns matching Q&A pairs — use them to compose your own reply via send_message, don't just paste the answer verbatim if it needs adapting to the conversation."""
+        try:
+            results = await ctx.client.search_knowledge_base(query)
+            if not results:
+                return _err("no matching FAQ entries found")
+            formatted = "\n".join(f"- Q: {r.get('question', '')}\n  A: {r.get('answer', '')}" for r in results[:3])
+            return _ok(f"found {len(results)} match(es):\n{formatted}")
+        except BackendError as e:
+            return _err(str(e))
+
+    @tool
+    async def check_availability():
+        """Check upcoming open appointment slots. Call this before book_appointment or reschedule_appointment when the lead hasn't already named a specific time, or when you need real slots to offer."""
+        try:
+            result = await ctx.client.get_booking_availability(ctx.lead_id)
+            if result.get("error"):
+                return _err(result["error"])
+            if result.get("slots"):
+                return _ok(f"available slots: {', '.join(result['slots'])}")
+            if result.get("note"):
+                return _ok(result["note"])
+            return _err("no availability information returned")
+        except BackendError as e:
+            return _err(str(e))
+
+    @tool
+    async def reschedule_appointment(new_time: str, reason: str):
+        """Move the lead's existing appointment to a new time. new_time must be an ISO 8601 datetime, e.g. 2026-07-15T14:00:00Z — convert whatever the lead said (like "Thursday at 3pm") into that format using today's date for context. Fails if there's no existing appointment to move."""
+        try:
+            result = await ctx.client.reschedule_booking(ctx.lead_id, new_time, reason)
+            return _ok(f"rescheduled to {result.get('scheduledAt', new_time)}")
+        except BackendError as e:
+            return _err(str(e))
+
+    @tool
+    async def cancel_appointment(reason: str):
+        """Cancel the lead's existing appointment. Fails if there's no existing appointment to cancel."""
+        try:
+            await ctx.client.cancel_booking(ctx.lead_id, reason)
+            return _ok(f"appointment cancelled — {reason}")
+        except BackendError as e:
+            return _err(str(e))
+
+    @tool
     async def push_to_crm():
         """Push this qualified lead to the CRM."""
         try:
@@ -160,7 +205,11 @@ def build_tools(ctx: ToolContext) -> list:
         set_segment,
         assign_agent,
         create_task,
+        search_knowledge_base,
+        check_availability,
         book_appointment,
+        reschedule_appointment,
+        cancel_appointment,
         push_to_crm,
         record_conversion,
         mark_lost,

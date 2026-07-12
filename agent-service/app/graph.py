@@ -80,7 +80,7 @@ async def _load_context(state: AgentState, config: RunnableConfig) -> AgentState
         role = "user" if msg.get("direction") == "INBOUND" else "assistant"
         prior_messages.append({"role": role, "text": msg.get("text", "")})
 
-    system_prompt = build_system_prompt(nich, lead)
+    system_prompt = build_system_prompt(nich, lead, state.get("channel", "WHATSAPP"))
 
     lc_messages: list[Any] = [SystemMessage(content=system_prompt)]
     for pm in prior_messages:

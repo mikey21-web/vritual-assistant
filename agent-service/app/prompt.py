@@ -1,7 +1,17 @@
 import json
 
 
-def build_system_prompt(niche: dict, lead_context: dict) -> str:
+CHANNEL_LABELS = {
+    "WHATSAPP": "WhatsApp",
+    "TELEGRAM": "Telegram",
+    "CHATBOT": "the website chat widget",
+    "EMAIL": "email",
+    "SMS": "SMS",
+}
+
+
+def build_system_prompt(niche: dict, lead_context: dict, channel: str = "WHATSAPP") -> str:
+    channel_label = CHANNEL_LABELS.get(channel, channel.title())
     fields = niche.get("fields_to_collect", [])
     field_list = "\n".join(f"  - {f['label']} ({f['key']}){' [required]' if f.get('required') else ''}"
                            for f in fields)
@@ -36,7 +46,7 @@ def build_system_prompt(niche: dict, lead_context: dict) -> str:
 
     return f"""You are a friendly, professional AI assistant for a {niche.get('industry', 'business')} company ({niche.get('display_name', 'Business')}).
 
-You are chatting with a {lead_label.lower()} over WhatsApp. Be warm, concise, and helpful. Ask ONE question at a time. Never interrogate.
+You are chatting with a {lead_label.lower()} over {channel_label}. Be warm, concise, and helpful. Ask ONE question at a time. Never interrogate.
 
 PIPELINE: {stages_text}
 
@@ -47,7 +57,8 @@ SCORING SIGNALS (call update_score when signals appear):
 {signals_text}
 
 CONVERSION GOAL: Guide the {lead_label.lower()} toward: {goals_text}.
-When they show readiness, call book_appointment (options: {', '.join(niche.get('booking_types', ['Consultation']))}).
+When they show readiness, call check_availability if you need real open slots, then book_appointment (options: {', '.join(niche.get('booking_types', ['Consultation']))}).
+If they already have an appointment and want to change or cancel it, use reschedule_appointment or cancel_appointment instead of booking a new one.
 
 VOICE (match this tone):
 {tone_text}
@@ -55,6 +66,7 @@ VOICE (match this tone):
 ACTIONS:
 - When the {lead_label.lower()} reveals a fact from the fields above, call extract_fields immediately.
 - When a scoring signal fires, call update_score.
+- When the {lead_label.lower()} asks a question you're not fully sure about, call search_knowledge_base BEFORE guessing or escalating. Only escalate if the search comes back empty and the question genuinely needs a human.
 - When qualified (high score + key fields collected), call push_to_crm and update_status to the right pipeline stage.
 - If the {lead_label.lower()} is clearly not interested or unqualified after reasonable effort, call mark_lost with the reason. mark_lost ends the conversation — do not call send_message after mark_lost.
 - If the {lead_label.lower()} asks for a human or is hostile, call escalate_to_human and STOP. Do not call send_message after escalate_to_human.
@@ -62,7 +74,7 @@ ACTIONS:
 - Only call record_conversion with one of: QUOTE_REQUEST, PURCHASE_ONLINE, BOOKING_MADE.
 - Maximum 2 send_message calls per turn. If the conversation goes beyond 3 exchanges with no meaningful engagement, escalate_to_human.
 
-Keep replies short. WhatsApp = brief, friendly. No markdown.{compliance_notes}
+Keep replies short and conversational. No markdown.{compliance_notes}
 
 ---
 

@@ -30,7 +30,7 @@ class BackendClient:
     async def close(self):
         await self.client.aclose()
 
-    def _retry_get(self, url: str) -> Coroutine[Any, Any, dict]:
+    def _retry_get(self, url: str, params: dict | None = None) -> Coroutine[Any, Any, dict]:
         @retry(
             stop=stop_after_attempt(3),
             wait=wait_exponential(multiplier=0.5, min=0.5, max=5),
@@ -38,7 +38,7 @@ class BackendClient:
             reraise=True,
         )
         async def _do_get():
-            return await self._get(url)
+            return await self._get(url, params)
         return _do_get()
 
     def _retry_post(self, url: str, body: dict | None = None) -> Coroutine[Any, Any, dict]:
@@ -63,8 +63,8 @@ class BackendClient:
             return await self._patch(url, body)
         return _do_patch()
 
-    async def _get(self, path: str) -> dict:
-        r = await self.client.get(f"{self.base}{path}")
+    async def _get(self, path: str, params: dict | None = None) -> dict:
+        r = await self.client.get(f"{self.base}{path}", params=params)
         if r.status_code >= 400:
             msg = "unknown"
             try:
@@ -145,10 +145,22 @@ class BackendClient:
         return await self._retry_post("/tasks", body)
 
     async def book_appointment(self, lead_id: str, booking_type: str) -> dict:
-        return await self._retry_post(f"/leads/{lead_id}/conversions", {
-            "destination": "APPOINTMENT_BOOKING",
-            "metadata": {"bookingType": booking_type},
-        })
+        # Creates a real Booking row (and records the APPOINTMENT_BOOKING
+        # conversion server-side) so reschedule/cancel have something to act on.
+        return await self._retry_post(f"/leads/{lead_id}/bookings", {"bookingType": booking_type})
+
+    async def get_booking_availability(self, lead_id: str) -> dict:
+        return await self._retry_get(f"/leads/{lead_id}/bookings/availability")
+
+    async def reschedule_booking(self, lead_id: str, new_time: str, reason: str | None = None) -> dict:
+        return await self._retry_post(f"/leads/{lead_id}/bookings/reschedule", {"newTime": new_time, "reason": reason})
+
+    async def cancel_booking(self, lead_id: str, reason: str | None = None) -> dict:
+        return await self._retry_post(f"/leads/{lead_id}/bookings/cancel", {"reason": reason})
+
+    async def search_knowledge_base(self, query: str) -> list:
+        result = await self._retry_get("/knowledge-base/search", {"q": query})
+        return result if isinstance(result, list) else result.get("data", [])
 
     async def push_to_crm(self, lead_id: str) -> dict:
         return await self._retry_post(f"/leads/{lead_id}/conversions", {

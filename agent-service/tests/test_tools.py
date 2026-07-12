@@ -73,8 +73,82 @@ async def test_book_appointment(tool_ctx):
     tools = build_tools(tool_ctx)
     ba = next(t for t in tools if t.name == "book_appointment")
     with respx.mock:
-        respx.post("http://test:3001/leads/lead-1/conversions").mock(
-            return_value=httpx.Response(201, json={"id": "conv-1"})
+        respx.post("http://test:3001/leads/lead-1/bookings").mock(
+            return_value=httpx.Response(201, json={"id": "bk-1", "status": "SCHEDULED"})
         )
         result = await ba.ainvoke({"booking_type": "Consultation"})
     assert "appointment" in result or "ok:" in result
+
+
+@pytest.mark.asyncio
+async def test_search_knowledge_base_found(tool_ctx):
+    tools = build_tools(tool_ctx)
+    skb = next(t for t in tools if t.name == "search_knowledge_base")
+    with respx.mock:
+        respx.get("http://test:3001/knowledge-base/search").mock(
+            return_value=httpx.Response(200, json=[{"question": "What are your hours?", "answer": "9-6 Mon-Fri"}])
+        )
+        result = await skb.ainvoke({"query": "hours"})
+    assert result.startswith("ok:")
+    assert "hours" in result.lower()
+
+
+@pytest.mark.asyncio
+async def test_search_knowledge_base_no_match(tool_ctx):
+    tools = build_tools(tool_ctx)
+    skb = next(t for t in tools if t.name == "search_knowledge_base")
+    with respx.mock:
+        respx.get("http://test:3001/knowledge-base/search").mock(
+            return_value=httpx.Response(200, json=[])
+        )
+        result = await skb.ainvoke({"query": "something obscure"})
+    assert result.startswith("error:")
+
+
+@pytest.mark.asyncio
+async def test_check_availability_slots(tool_ctx):
+    tools = build_tools(tool_ctx)
+    ca = next(t for t in tools if t.name == "check_availability")
+    with respx.mock:
+        respx.get("http://test:3001/leads/lead-1/bookings/availability").mock(
+            return_value=httpx.Response(200, json={"slots": ["2026-07-15T14:00:00Z"]})
+        )
+        result = await ca.ainvoke({})
+    assert result.startswith("ok:")
+    assert "2026-07-15T14:00:00Z" in result
+
+
+@pytest.mark.asyncio
+async def test_reschedule_appointment(tool_ctx):
+    tools = build_tools(tool_ctx)
+    ra = next(t for t in tools if t.name == "reschedule_appointment")
+    with respx.mock:
+        respx.post("http://test:3001/leads/lead-1/bookings/reschedule").mock(
+            return_value=httpx.Response(200, json={"id": "bk-2", "scheduledAt": "2026-07-15T14:00:00Z"})
+        )
+        result = await ra.ainvoke({"new_time": "2026-07-15T14:00:00Z", "reason": "lead asked to move"})
+    assert result.startswith("ok:")
+
+
+@pytest.mark.asyncio
+async def test_cancel_appointment(tool_ctx):
+    tools = build_tools(tool_ctx)
+    cxl = next(t for t in tools if t.name == "cancel_appointment")
+    with respx.mock:
+        respx.post("http://test:3001/leads/lead-1/bookings/cancel").mock(
+            return_value=httpx.Response(200, json={"id": "bk-1", "status": "CANCELLED"})
+        )
+        result = await cxl.ainvoke({"reason": "no longer interested"})
+    assert result.startswith("ok:")
+
+
+@pytest.mark.asyncio
+async def test_cancel_appointment_error(tool_ctx):
+    tools = build_tools(tool_ctx)
+    cxl = next(t for t in tools if t.name == "cancel_appointment")
+    with respx.mock:
+        respx.post("http://test:3001/leads/lead-1/bookings/cancel").mock(
+            return_value=httpx.Response(400, json={"message": "No active booking to cancel for this lead"})
+        )
+        result = await cxl.ainvoke({"reason": "no longer interested"})
+    assert result.startswith("error:")
