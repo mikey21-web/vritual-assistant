@@ -105,10 +105,19 @@ async def _load_context(state: AgentState, config: RunnableConfig) -> AgentState
             lc_messages.append(AIMessage(content=pm["text"]))
 
     incoming = state.get("incoming_text")
+    trigger = state.get("trigger")
     if incoming:
         lc_messages.append(HumanMessage(content=incoming))
-    elif state.get("trigger") == "lead_created":
+    elif trigger == "lead_created":
         lc_messages.append(HumanMessage(content="A new lead was created. Introduce yourself and start the conversation."))
+    elif trigger == "re_engage":
+        lc_messages.append(HumanMessage(content=(
+            "PROACTIVE CHECK-IN: this lead went quiet after your last message and hasn't replied in over a day. "
+            "Send ONE brief, low-pressure check-in — don't repeat what you already said, don't sound like a bot "
+            "following up on a schedule. If nothing in the conversation suggests a good angle, it's fine to send "
+            "something short and open-ended. This is their one automatic nudge — do not escalate or mark_lost just "
+            "because they've been quiet."
+        )))
     else:
         lc_messages.append(HumanMessage(content="Check in with the lead."))
 

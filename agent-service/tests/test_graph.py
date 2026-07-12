@@ -116,6 +116,27 @@ async def test_load_context_skips_memory_when_contact_unknown(settings):
 
 
 @pytest.mark.asyncio
+async def test_load_context_re_engage_trigger_uses_proactive_prompt(settings):
+    client = MagicMock(spec=BackendClient)
+    client._get = AsyncMock(side_effect=[
+        {"id": "lead-1", "status": "ENGAGED", "score": 10, "segment": "WARM", "contact": {"name": "Test"}},
+        [{"direction": "OUTBOUND", "text": "Still interested?"}],
+    ])
+
+    state = {
+        "tenant_id": "t-1", "lead_id": "lead-1", "trigger_id": "trg-1", "channel": "WHATSAPP",
+        "trigger": "re_engage", "incoming_text": None, "run_id": "run-1",
+        "niche_config": {"industry": "generic", "display_name": "Business", "fields_to_collect": [], "scoring_signals": [], "conversion_goals": [], "pipeline_stages": [], "booking_types": [], "tone_examples": [], "labels": {}, "compliance": []},
+    }
+    config = {"configurable": {"settings": settings, "client": client}}
+    result = await _load_context(state, config)
+
+    last_message = result["messages"][-1]
+    assert "PROACTIVE CHECK-IN" in last_message.content
+    assert "do not escalate or mark_lost" in last_message.content
+
+
+@pytest.mark.asyncio
 async def test_load_context_auth_error_raises(settings):
     client = MagicMock(spec=BackendClient)
     client._get = AsyncMock(side_effect=BackendError(401, "Unauthorized", "/leads/lead-1"))

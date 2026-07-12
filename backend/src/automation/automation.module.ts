@@ -4,15 +4,24 @@ import { AutomationSchedulerService } from './automation-scheduler.service';
 import { AutomationScheduleProcessor } from './automation-schedule.processor';
 import { DataPruningService } from './data-pruning.service';
 import { DataPruningProcessor } from './data-pruning.processor';
+import { ProactiveSweepService } from './proactive-sweep.service';
+import { ProactiveSweepProcessor } from './proactive-sweep.processor';
+import { TasksModule } from '../tasks/tasks.module';
 
 @Module({
   imports: [
     BullModule.registerQueue(
       { name: 'automation-schedule' },
       { name: 'data-pruning' },
+      { name: 'proactive-sweep' },
     ),
+    TasksModule,
   ],
-  providers: [AutomationSchedulerService, AutomationScheduleProcessor, DataPruningService, DataPruningProcessor],
+  providers: [
+    AutomationSchedulerService, AutomationScheduleProcessor,
+    DataPruningService, DataPruningProcessor,
+    ProactiveSweepService, ProactiveSweepProcessor,
+  ],
   exports: [AutomationSchedulerService, DataPruningService],
 })
 export class AutomationModule {}

@@ -46,6 +46,16 @@ export class AutomationScheduleProcessor extends WorkerHost {
         return { processed: false, reason: 'lead_not_found' };
       }
 
+      // Use whatever channel we've actually been talking to this lead on —
+      // hardcoding WhatsApp here would misroute the message for a Telegram
+      // or web chat lead to the wrong delivery adapter.
+      const lastMessage = await this.prisma.conversationMessage.findFirst({
+        where: { leadId },
+        orderBy: { createdAt: 'desc' },
+        select: { channel: true },
+      });
+      const channel = lastMessage?.channel || 'WHATSAPP';
+
       const resp = await fetch(`${agentUrl}/agent/run`, {
         method: 'POST',
         headers: {
@@ -55,7 +65,7 @@ export class AutomationScheduleProcessor extends WorkerHost {
         body: JSON.stringify({
           leadId,
           triggerId: dedupeKey,
-          channel: 'WHATSAPP',
+          channel,
           trigger: kind,
           messageText: null,
         }),
