@@ -38,6 +38,10 @@ export async function fetchTemplates() { return api('/message-templates') as Pro
 export async function createTemplate(data: any) { return api('/message-templates', { method: 'POST', body: JSON.stringify(data) }); }
 export async function previewTemplate(id: string, vars: Record<string, string>) { return api(`/message-templates/${id}/preview`, { method: 'POST', body: JSON.stringify(vars) }); }
 
+export async function copilotChat(messages: { role: string; text: string }[], leadId?: string) {
+  return api('/copilot/chat', { method: 'POST', body: JSON.stringify({ messages, leadId }) }) as Promise<{ reply: string; actions: { tool: string; status: string }[] }>;
+}
+
 export async function fetchKnowledgeBase() { return api('/knowledge-base') as Promise<KnowledgeBaseEntry[]>; }
 export async function createKnowledgeBaseEntry(data: any) { return api('/knowledge-base', { method: 'POST', body: JSON.stringify(data) }); }
 export async function updateKnowledgeBaseEntry(id: string, data: any) { return api(`/knowledge-base/${id}`, { method: 'PATCH', body: JSON.stringify(data) }); }

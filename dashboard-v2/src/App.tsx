@@ -7,6 +7,7 @@ import { Sidebar } from "./components/layout/sidebar";
 import { Topbar } from "./components/layout/topbar";
 import { LoginPage } from "./pages/LoginPage";
 import { Skeleton } from "./components/ui/skeleton";
+import { CopilotPanel } from "./components/CopilotPanel";
 import OverviewPage from "./pages/OverviewPage";
 import LeadsPage from "./pages/LeadsPage";
 import ContactsPage from "./pages/ContactsPage";
@@ -137,6 +138,7 @@ export default function App() {
           </main>
         </div>
       </div>
+      {["OWNER", "ADMIN", "MANAGER"].includes(user?.role || "") && <CopilotPanel />}
       <Toaster position="top-right" toastOptions={{
         style: { borderRadius: 'var(--radius)', background: 'var(--card)', color: 'var(--foreground)', border: '1px solid var(--border)', fontSize: '14px' },
         success: { iconTheme: { primary: '#0f766e', secondary: '#ffffff' } },
