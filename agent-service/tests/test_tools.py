@@ -17,6 +17,17 @@ def tool_ctx():
     return ToolContext(client=client, lead_id="lead-1", tenant_id="tenant-1")
 
 
+@pytest.fixture
+def tool_ctx_with_contact():
+    s = Settings(
+        backend_api_url="http://test:3001",
+        agent_service_jwt="test-jwt",
+        anthropic_api_key="test-key",
+    )
+    client = BackendClient(s)
+    return ToolContext(client=client, lead_id="lead-1", tenant_id="tenant-1", contact_id="contact-1")
+
+
 @pytest.mark.asyncio
 async def test_send_message_ok(tool_ctx):
     tools = build_tools(tool_ctx)
@@ -152,3 +163,62 @@ async def test_cancel_appointment_error(tool_ctx):
         )
         result = await cxl.ainvoke({"reason": "no longer interested"})
     assert result.startswith("error:")
+
+
+@pytest.mark.asyncio
+async def test_remember_note_no_contact_yet(tool_ctx):
+    tools = build_tools(tool_ctx)
+    rn = next(t for t in tools if t.name == "remember_note")
+    result = await rn.ainvoke({"note": "Prefers evenings"})
+    assert result == "error: no contact on file yet"
+
+
+@pytest.mark.asyncio
+async def test_remember_note_saves(tool_ctx_with_contact):
+    tools = build_tools(tool_ctx_with_contact)
+    rn = next(t for t in tools if t.name == "remember_note")
+    with respx.mock:
+        route = respx.patch("http://test:3001/contacts/contact-1/memory").mock(
+            return_value=httpx.Response(200, json={"facts": [], "notes": [{"text": "Prefers evenings"}]})
+        )
+        result = await rn.ainvoke({"note": "Prefers evenings"})
+    assert result.startswith("ok:")
+    assert route.called
+
+
+@pytest.mark.asyncio
+async def test_extract_fields_also_writes_contact_memory(tool_ctx_with_contact):
+    tools = build_tools(tool_ctx_with_contact)
+    ef = next(t for t in tools if t.name == "extract_fields")
+    with respx.mock:
+        respx.get("http://test:3001/leads/lead-1").mock(
+            return_value=httpx.Response(200, json={"id": "lead-1", "metadata": {}})
+        )
+        respx.patch("http://test:3001/leads/lead-1").mock(
+            return_value=httpx.Response(200, json={"ok": True})
+        )
+        memory_route = respx.patch("http://test:3001/contacts/contact-1/memory").mock(
+            return_value=httpx.Response(200, json={"facts": [{"key": "email", "value": "a@b.com"}], "notes": []})
+        )
+        result = await ef.ainvoke({"fields": [{"key": "email", "value": "a@b.com"}]})
+    assert result.startswith("ok:")
+    assert memory_route.called
+
+
+@pytest.mark.asyncio
+async def test_extract_fields_ignores_memory_write_failure(tool_ctx_with_contact):
+    tools = build_tools(tool_ctx_with_contact)
+    ef = next(t for t in tools if t.name == "extract_fields")
+    with respx.mock:
+        respx.get("http://test:3001/leads/lead-1").mock(
+            return_value=httpx.Response(200, json={"id": "lead-1", "metadata": {}})
+        )
+        respx.patch("http://test:3001/leads/lead-1").mock(
+            return_value=httpx.Response(200, json={"ok": True})
+        )
+        respx.patch("http://test:3001/contacts/contact-1/memory").mock(
+            return_value=httpx.Response(500, json={"message": "down"})
+        )
+        result = await ef.ainvoke({"fields": [{"key": "email", "value": "a@b.com"}]})
+    # The primary lead-metadata write still succeeded — memory is best-effort.
+    assert result.startswith("ok:")

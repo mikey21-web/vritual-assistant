@@ -47,6 +47,7 @@ def build_graph(tools: list, settings: Settings, client: BackendClient):
 
 async def _load_context(state: AgentState, config: RunnableConfig) -> AgentState:
     client: BackendClient = config["configurable"]["client"]
+    ctx = config["configurable"].get("ctx")
 
     lead_id = state["lead_id"]
     nich = state.get("niche_config")
@@ -74,13 +75,27 @@ async def _load_context(state: AgentState, config: RunnableConfig) -> AgentState
     if not nich:
         nich = normalize_niche_config(niche_raw)
 
+    # Resolve the contact behind this lead so tools (remember_note, extract_fields)
+    # can write durable memory, and load whatever's already been remembered about
+    # them from other channels/leads.
+    contact_id = (lead.get("contact") or {}).get("id")
+    if ctx is not None:
+        ctx.contact_id = contact_id
+
+    memory: dict = {}
+    if contact_id:
+        try:
+            memory = await client.get_contact_memory(contact_id)
+        except Exception as e:
+            logger.warning("memory_load_failed", error=str(e))
+
     prior_messages: list[dict] = []
     messages_list = conversations if isinstance(conversations, list) else conversations.get("data", [])
     for msg in messages_list[-MAX_HISTORY_MESSAGES:]:
         role = "user" if msg.get("direction") == "INBOUND" else "assistant"
         prior_messages.append({"role": role, "text": msg.get("text", "")})
 
-    system_prompt = build_system_prompt(nich, lead, state.get("channel", "WHATSAPP"))
+    system_prompt = build_system_prompt(nich, lead, state.get("channel", "WHATSAPP"), memory)
 
     lc_messages: list[Any] = [SystemMessage(content=system_prompt)]
     for pm in prior_messages:

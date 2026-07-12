@@ -64,3 +64,24 @@ def test_prompt_reflects_webchat_channel():
     prompt = build_system_prompt(niche, lead, channel="CHATBOT")
     assert "the website chat widget" in prompt
     assert "over WhatsApp" not in prompt
+
+
+def test_prompt_includes_remembered_facts_and_notes():
+    niche = {"industry": "generic", "display_name": "Business", "fields_to_collect": [], "scoring_signals": [], "conversion_goals": [], "pipeline_stages": [], "booking_types": [], "tone_examples": [], "labels": {}, "compliance": []}
+    lead = {"contact": {}, "status": "NEW", "score": 0, "segment": "COLD"}
+    memory = {"facts": [{"key": "budget", "value": "10k"}], "notes": [{"text": "Prefers evening calls"}]}
+
+    prompt = build_system_prompt(niche, lead, memory=memory)
+    assert "WHAT YOU REMEMBER ABOUT THEM" in prompt
+    assert "budget: 10k" in prompt
+    assert "Prefers evening calls" in prompt
+
+
+def test_prompt_omits_memory_section_when_empty():
+    niche = {"industry": "generic", "display_name": "Business", "fields_to_collect": [], "scoring_signals": [], "conversion_goals": [], "pipeline_stages": [], "booking_types": [], "tone_examples": [], "labels": {}, "compliance": []}
+    lead = {"contact": {}, "status": "NEW", "score": 0, "segment": "COLD"}
+
+    prompt = build_system_prompt(niche, lead, memory={"facts": [], "notes": []})
+    # The ACTIONS instruction always mentions the section name; only the
+    # rendered block itself (with this marker) should be conditional.
+    assert "from past conversations, any channel" not in prompt

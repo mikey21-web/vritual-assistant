@@ -95,6 +95,48 @@ export class ContactsService {
     }
   }
 
+  private static readonly MAX_MEMORY_FACTS = 30;
+  private static readonly MAX_MEMORY_NOTES = 15;
+  private static readonly MEMORY_NOTE_MAX_LEN = 300;
+
+  async getMemory(id: string) {
+    const c = await this.prisma.contact.findUnique({ where: { id }, select: { agentMemory: true } });
+    if (!c) throw new NotFoundException('Contact not found');
+    return (c.agentMemory as any) || { facts: [], notes: [], lastUpdated: null };
+  }
+
+  // Bounded, cross-lead, cross-channel memory. Deliberately bypasses the
+  // optimistic-locking update() above — this is a soft, best-effort cache
+  // written by background agent runs, not a field a concurrent write should
+  // ever 409 over.
+  async updateMemory(id: string, data: { facts?: { key: string; value: string }[]; note?: string }) {
+    const contact = await this.prisma.contact.findUnique({ where: { id }, select: { agentMemory: true } });
+    if (!contact) throw new NotFoundException('Contact not found');
+    const current = (contact.agentMemory as any) || {};
+
+    let facts: { key: string; value: string; updatedAt: string }[] = current.facts || [];
+    if (data.facts?.length) {
+      const now = new Date().toISOString();
+      for (const f of data.facts) {
+        if (!f.key) continue;
+        const entry = { key: f.key.slice(0, 100), value: String(f.value ?? '').slice(0, 500), updatedAt: now };
+        const idx = facts.findIndex((x) => x.key === entry.key);
+        if (idx !== -1) facts[idx] = entry; else facts.push(entry);
+      }
+      if (facts.length > ContactsService.MAX_MEMORY_FACTS) facts = facts.slice(facts.length - ContactsService.MAX_MEMORY_FACTS);
+    }
+
+    let notes: { text: string; createdAt: string }[] = current.notes || [];
+    if (data.note && data.note.trim()) {
+      notes.push({ text: data.note.trim().slice(0, ContactsService.MEMORY_NOTE_MAX_LEN), createdAt: new Date().toISOString() });
+      if (notes.length > ContactsService.MAX_MEMORY_NOTES) notes = notes.slice(notes.length - ContactsService.MAX_MEMORY_NOTES);
+    }
+
+    const memory = { facts, notes, lastUpdated: new Date().toISOString() };
+    await this.prisma.contact.update({ where: { id }, data: { agentMemory: memory } });
+    return memory;
+  }
+
   async remove(id: string): Promise<{ message: string }> {
     const existing = await this.findOne(id);
     await this.prisma.contact.update({

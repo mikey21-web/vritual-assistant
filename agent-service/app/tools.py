@@ -3,6 +3,10 @@ from datetime import datetime, timezone, timedelta
 from langchain_core.tools import tool
 from app.backend_client import BackendClient, BackendError
 
+import structlog
+
+logger = structlog.get_logger()
+
 
 @dataclass
 class ToolContext:
@@ -10,6 +14,10 @@ class ToolContext:
     lead_id: str
     tenant_id: str
     channel: str = "WHATSAPP"
+    # Set by graph._load_context once the lead's contact is resolved — tool
+    # closures below read it live, so it's available by the time any tool runs
+    # even though it's unknown when ToolContext is first constructed.
+    contact_id: str | None = None
 
 
 def _ok(msg: str) -> str:
@@ -50,6 +58,16 @@ def build_tools(ctx: ToolContext) -> list:
             if not field_map:
                 return _err("no valid fields to store")
             await ctx.client.update_custom_fields(ctx.lead_id, field_map)
+            if ctx.contact_id:
+                try:
+                    await ctx.client.update_contact_memory(
+                        ctx.contact_id,
+                        facts=[{"key": k, "value": v} for k, v in field_map.items()],
+                    )
+                except Exception as e:
+                    # Durable cross-channel memory is best-effort — never let it
+                    # fail the primary lead-metadata write above.
+                    logger.warning("memory_write_failed", error=str(e))
             return _ok(f"stored {len(field_map)} field(s)")
         except BackendError as e:
             return _err(str(e))
@@ -109,6 +127,19 @@ def build_tools(ctx: ToolContext) -> list:
         try:
             await ctx.client.book_appointment(ctx.lead_id, booking_type)
             return _ok(f"appointment requested: {booking_type}")
+        except BackendError as e:
+            return _err(str(e))
+
+    @tool
+    async def remember_note(note: str):
+        """Save a free-form note about this contact for future conversations on ANY channel — a stated preference, something they mentioned in passing, context that would make a returning conversation feel remembered. Use this for things that don't fit as a structured key/value fact (that's extract_fields' job)."""
+        try:
+            if not ctx.contact_id:
+                return _err("no contact on file yet")
+            if not note or not note.strip():
+                return _err("empty note")
+            await ctx.client.update_contact_memory(ctx.contact_id, note=note.strip())
+            return _ok("noted for future conversations")
         except BackendError as e:
             return _err(str(e))
 
@@ -205,6 +236,7 @@ def build_tools(ctx: ToolContext) -> list:
         set_segment,
         assign_agent,
         create_task,
+        remember_note,
         search_knowledge_base,
         check_availability,
         book_appointment,

@@ -162,6 +162,17 @@ class BackendClient:
         result = await self._retry_get("/knowledge-base/search", {"q": query})
         return result if isinstance(result, list) else result.get("data", [])
 
+    async def get_contact_memory(self, contact_id: str) -> dict:
+        return await self._retry_get(f"/contacts/{contact_id}/memory")
+
+    async def update_contact_memory(self, contact_id: str, facts: list[dict] | None = None, note: str | None = None) -> dict:
+        body: dict = {}
+        if facts:
+            body["facts"] = facts
+        if note:
+            body["note"] = note
+        return await self._retry_patch(f"/contacts/{contact_id}/memory", body)
+
     async def push_to_crm(self, lead_id: str) -> dict:
         return await self._retry_post(f"/leads/{lead_id}/conversions", {
             "destination": "CRM_QUALIFIED_PUSH",

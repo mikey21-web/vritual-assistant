@@ -7,6 +7,7 @@ import { ContactsService } from './contacts.service';
 import { CreateContactDto } from '../shared/dto/misc.dto';
 import { PaginationDto } from '../shared/dto/pagination.dto';
 import { UpdateContactDto } from './dto/update-contact.dto';
+import { UpdateMemoryDto } from './dto/update-memory.dto';
 
 @ApiTags('Contacts')
 @Controller('contacts')
@@ -20,4 +21,9 @@ export class ContactsController {
   @Get(':id') @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT', 'SUPPORT_AGENT', 'VIEWER') findOne(@Param('id') id: string) { return this.service.findOne(id); }
   @Patch(':id') @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT') update(@Param('id') id: string, @Body() d: UpdateContactDto) { return this.service.update(id, d); }
   @Delete(':id') @Roles('OWNER', 'ADMIN') remove(@Param('id') id: string) { return this.service.remove(id); }
+
+  // Cross-channel, cross-time memory the agent reads/writes so it recognizes
+  // a returning contact regardless of which channel or lead they came in on.
+  @Get(':id/memory') @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT', 'SUPPORT_AGENT', 'VIEWER') getMemory(@Param('id') id: string) { return this.service.getMemory(id); }
+  @Patch(':id/memory') @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT') updateMemory(@Param('id') id: string, @Body() d: UpdateMemoryDto) { return this.service.updateMemory(id, d); }
 }

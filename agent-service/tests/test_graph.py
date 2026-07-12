@@ -60,6 +60,62 @@ async def test_load_context(settings):
 
 
 @pytest.mark.asyncio
+async def test_load_context_loads_and_sets_contact_memory(settings):
+    from app.tools import ToolContext
+
+    client = MagicMock(spec=BackendClient)
+    client._get = AsyncMock(side_effect=[
+        {"id": "lead-1", "status": "NEW", "score": 0, "segment": "COLD", "contact": {"id": "contact-1", "name": "Test"}},
+        [],
+    ])
+    client.get_contact_memory = AsyncMock(return_value={"facts": [{"key": "budget", "value": "5k"}], "notes": []})
+
+    ctx = ToolContext(client=client, lead_id="lead-1", tenant_id="t-1")
+
+    state = {
+        "tenant_id": "t-1",
+        "lead_id": "lead-1",
+        "trigger_id": "trg-1",
+        "channel": "WHATSAPP",
+        "trigger": "inbound_message",
+        "incoming_text": "Hello",
+        "run_id": "run-1",
+        "niche_config": {
+            "industry": "events", "display_name": "Event Marketing Agency",
+            "fields_to_collect": [], "scoring_signals": [], "conversion_goals": [],
+            "pipeline_stages": [], "booking_types": [], "tone_examples": [], "labels": {}, "compliance": [],
+        },
+    }
+
+    config = {"configurable": {"settings": settings, "client": client, "ctx": ctx}}
+    result = await _load_context(state, config)
+
+    client.get_contact_memory.assert_awaited_once_with("contact-1")
+    assert ctx.contact_id == "contact-1"
+    assert "budget" in result["messages"][0].content
+
+
+@pytest.mark.asyncio
+async def test_load_context_skips_memory_when_contact_unknown(settings):
+    client = MagicMock(spec=BackendClient)
+    client._get = AsyncMock(side_effect=[
+        {"id": "lead-1", "status": "NEW", "score": 0, "segment": "COLD", "contact": {}},
+        [],
+    ])
+    client.get_contact_memory = AsyncMock()
+
+    state = {
+        "tenant_id": "t-1", "lead_id": "lead-1", "trigger_id": "trg-1", "channel": "WHATSAPP",
+        "trigger": "inbound_message", "incoming_text": "Hello", "run_id": "run-1",
+        "niche_config": {"industry": "generic", "display_name": "Business", "fields_to_collect": [], "scoring_signals": [], "conversion_goals": [], "pipeline_stages": [], "booking_types": [], "tone_examples": [], "labels": {}, "compliance": []},
+    }
+    config = {"configurable": {"settings": settings, "client": client}}
+    await _load_context(state, config)
+
+    client.get_contact_memory.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_load_context_auth_error_raises(settings):
     client = MagicMock(spec=BackendClient)
     client._get = AsyncMock(side_effect=BackendError(401, "Unauthorized", "/leads/lead-1"))

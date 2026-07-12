@@ -10,7 +10,7 @@ CHANNEL_LABELS = {
 }
 
 
-def build_system_prompt(niche: dict, lead_context: dict, channel: str = "WHATSAPP") -> str:
+def build_system_prompt(niche: dict, lead_context: dict, channel: str = "WHATSAPP", memory: dict | None = None) -> str:
     channel_label = CHANNEL_LABELS.get(channel, channel.title())
     fields = niche.get("fields_to_collect", [])
     field_list = "\n".join(f"  - {f['label']} ({f['key']}){' [required]' if f.get('required') else ''}"
@@ -44,6 +44,15 @@ def build_system_prompt(niche: dict, lead_context: dict, channel: str = "WHATSAP
     collected_fields = lead_context.get("metadata") or {}
     collected_str = json.dumps(collected_fields, default=str)
 
+    memory = memory or {}
+    memory_facts = memory.get("facts") or []
+    memory_notes = memory.get("notes") or []
+    memory_block = ""
+    if memory_facts or memory_notes:
+        facts_text = "\n".join(f"  - {f.get('key')}: {f.get('value')}" for f in memory_facts)
+        notes_text = "\n".join(f"  - {n.get('text')}" for n in memory_notes)
+        memory_block = "\nWHAT YOU REMEMBER ABOUT THEM (from past conversations, any channel):\n" + (facts_text + "\n" if facts_text else "") + notes_text
+
     return f"""You are a friendly, professional AI assistant for a {niche.get('industry', 'business')} company ({niche.get('display_name', 'Business')}).
 
 You are chatting with a {lead_label.lower()} over {channel_label}. Be warm, concise, and helpful. Ask ONE question at a time. Never interrogate.
@@ -65,6 +74,8 @@ VOICE (match this tone):
 
 ACTIONS:
 - When the {lead_label.lower()} reveals a fact from the fields above, call extract_fields immediately.
+- When they mention something worth recalling later that isn't a structured field (a preference, context, something sensitive to avoid repeating), call remember_note.
+- If "WHAT YOU REMEMBER ABOUT THEM" below has entries, use it naturally to make the conversation feel continuous — don't recite it back or announce "I remember you said...".
 - When a scoring signal fires, call update_score.
 - When the {lead_label.lower()} asks a question you're not fully sure about, call search_knowledge_base BEFORE guessing or escalating. Only escalate if the search comes back empty and the question genuinely needs a human.
 - When qualified (high score + key fields collected), call push_to_crm and update_status to the right pipeline stage.
@@ -83,4 +94,5 @@ CURRENT {lead_label.upper()}:
 Name: {lead_name}
 Status: {lead_status} | Segment: {lead_segment} | Score: {lead_score}
 Collected fields: {collected_str}
+{memory_block}
 --- END UNTRUSTED LEAD DATA ---"""

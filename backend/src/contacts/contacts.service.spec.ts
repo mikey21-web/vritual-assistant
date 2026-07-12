@@ -28,6 +28,7 @@ describe('ContactsService', () => {
         update: jest.fn().mockResolvedValue(mockContact),
         count: jest.fn().mockResolvedValue(1),
       },
+      $transaction: jest.fn((cb: any) => cb(prisma)),
     };
 
     const module = await Test.createTestingModule({
@@ -57,5 +58,41 @@ describe('ContactsService', () => {
     prisma.contact.upsert.mockResolvedValue(mockContact);
     const c = await service.findOrCreate({ email: 'john@test.com', name: 'John' });
     expect(c.id).toBe('contact-1');
+  });
+
+  describe('agent memory', () => {
+    it('returns empty defaults when no memory has been recorded yet', async () => {
+      prisma.contact.findUnique.mockResolvedValue({ agentMemory: null });
+      const memory = await service.getMemory('contact-1');
+      expect(memory).toEqual({ facts: [], notes: [], lastUpdated: null });
+    });
+
+    it('throws NotFoundException for a missing contact', async () => {
+      prisma.contact.findUnique.mockResolvedValue(null);
+      await expect(service.getMemory('missing')).rejects.toThrow('Contact not found');
+    });
+
+    it('upserts a fact by key instead of duplicating it', async () => {
+      prisma.contact.findUnique.mockResolvedValue({ agentMemory: { facts: [{ key: 'budget', value: '5k', updatedAt: '2026-01-01T00:00:00.000Z' }], notes: [] } });
+      const memory = await service.updateMemory('contact-1', { facts: [{ key: 'budget', value: '10k' }] });
+      expect(memory.facts).toHaveLength(1);
+      expect(memory.facts[0].value).toBe('10k');
+    });
+
+    it('appends a bounded note', async () => {
+      prisma.contact.findUnique.mockResolvedValue({ agentMemory: { facts: [], notes: [] } });
+      const memory = await service.updateMemory('contact-1', { note: 'Prefers WhatsApp over calls' });
+      expect(memory.notes).toHaveLength(1);
+      expect(memory.notes[0].text).toBe('Prefers WhatsApp over calls');
+    });
+
+    it('caps facts at 30 entries, dropping the oldest', async () => {
+      const existingFacts = Array.from({ length: 30 }, (_, i) => ({ key: `fact-${i}`, value: 'x', updatedAt: '2026-01-01T00:00:00.000Z' }));
+      prisma.contact.findUnique.mockResolvedValue({ agentMemory: { facts: existingFacts, notes: [] } });
+      const memory = await service.updateMemory('contact-1', { facts: [{ key: 'fact-new', value: 'y' }] });
+      expect(memory.facts).toHaveLength(30);
+      expect(memory.facts.find((f: any) => f.key === 'fact-0')).toBeUndefined();
+      expect(memory.facts.find((f: any) => f.key === 'fact-new')).toBeDefined();
+    });
   });
 });

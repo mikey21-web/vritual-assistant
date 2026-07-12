@@ -53,6 +53,7 @@ async def execute_run(settings: Settings, req: AgentRunRequest) -> str:
                 "settings": settings,
                 "client": client,
                 "tools": tools,
+                "ctx": ctx,
             },
         }
         await graph.ainvoke(initial_state, config)
