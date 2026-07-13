@@ -53,6 +53,16 @@ async function bootstrap() {
 
   app.use('/favicon.ico', (_req, res) => res.status(204).end());
 
+  // Serve uploaded files (call recordings, media, etc.)
+  app.use('/uploads', express.static(process.env.STORAGE_PATH || './uploads', {
+    maxAge: '7d',
+    etag: true,
+    lastModified: true,
+    setHeaders: (res) => {
+      res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+    },
+  }));
+
   app.use(helmet({
     contentSecurityPolicy: {
       directives: {
