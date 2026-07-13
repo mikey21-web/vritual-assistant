@@ -13,9 +13,10 @@ import { TelephonyModule } from '../telephony/telephony.module';
 import { SharedModule } from '../shared/shared.module';
 import { AnalyticsModule } from '../analytics/analytics.module';
 import { ContactsModule } from '../contacts/contacts.module';
+import { JarvisModule } from '../jarvis/jarvis.module';
 
 @Module({
-  imports: [PrismaModule, LeadsModule, TasksModule, TicketsModule, CampaignsModule, ConversationsModule, ReportsModule, CustomFieldsModule, TelephonyModule, SharedModule, AnalyticsModule, ContactsModule],
+  imports: [PrismaModule, LeadsModule, TasksModule, TicketsModule, CampaignsModule, ConversationsModule, ReportsModule, CustomFieldsModule, TelephonyModule, SharedModule, AnalyticsModule, ContactsModule, JarvisModule],
   controllers: [CopilotController],
   providers: [CopilotService],
 })
