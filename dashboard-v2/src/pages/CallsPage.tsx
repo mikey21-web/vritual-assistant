@@ -111,7 +111,7 @@ export default function CallsPage() {
               <TableRow key={c.id}>
                 <TableCell className="text-xs text-[var(--muted-foreground)] whitespace-nowrap">{new Date(c.createdAt).toLocaleString()}</TableCell>
                 <TableCell className="font-medium text-[var(--foreground)]">
-                  {c.contact?.name || (c.source === "WHATSAPP" ? c.fromNumber : "Unknown")}
+                  {c.contact?.name || c.fromNumber}
                   {c.summary && <div className="text-xs text-[var(--muted-foreground)] font-normal mt-0.5 max-w-[220px] truncate" title={c.summary}>{c.summary}</div>}
                   {c.summaryStatus === "PENDING" && c.recordingUrl && <div className="text-xs text-[var(--muted-foreground)] font-normal mt-0.5 italic">Transcribing...</div>}
                 </TableCell>
