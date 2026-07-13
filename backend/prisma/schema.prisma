@@ -134,6 +134,7 @@ enum CallStatus {
   FAILED
   NO_ANSWER
   BUSY
+  MISSED
 }
 
 enum CallSource {
