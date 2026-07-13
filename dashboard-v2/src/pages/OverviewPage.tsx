@@ -5,9 +5,15 @@ import { setPendingFilter } from '../lib/pendingSearch';
 import { isInsightDismissed, dismissInsight } from '../lib/dismissedInsights';
 import { startExplainFlow } from '../lib/explainMode';
 import { useApp } from '../context/AppContext';
-import { Users, Target, TrendingUp, BarChart3, Activity, ArrowUpRight, Zap, AlertTriangle, AlertCircle, CheckCircle, RefreshCw, X, Play, DollarSign } from 'lucide-react';
+import { Users, Target, TrendingUp, BarChart3, Activity, ArrowUpRight, Zap, AlertTriangle, AlertCircle, CheckCircle, X, Play, DollarSign } from 'lucide-react';
 
 const currencyFormatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+
+function InsightIcon({ type }: { type: string }) {
+  if (type === 'error') return <AlertCircle size={14} className="text-[var(--destructive)] shrink-0" />;
+  if (type === 'warning') return <AlertTriangle size={14} className="text-amber-500 shrink-0" />;
+  return <CheckCircle size={14} className="text-emerald-500 shrink-0" />;
+}
 
 export default function OverviewPage() {
   const { niche, isSuperAdmin } = useApp();
@@ -48,7 +54,7 @@ export default function OverviewPage() {
     <div className="space-y-6 animate-fade-in">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[1, 2, 3, 4].map(i => (
-          <div key={i} className="h-28 rounded-lg bg-[var(--card)] border border-[var(--border)] animate-pulse shadow-[var(--shadow-sm)]" />
+          <div key={i} className="h-28 rounded-xl bg-[var(--card)] border border-[var(--border)] animate-pulse" />
         ))}
       </div>
     </div>
@@ -57,25 +63,24 @@ export default function OverviewPage() {
   const leadLabel = niche?.labels?.lead || 'Lead';
 
   const cards = [
-    { label: `Total ${leadLabel}s`, value: stats.total, icon: Users, change: '+12%', color: 'text-[var(--primary)]', bg: 'bg-[var(--primary-light)]' },
-    { label: 'Hot Leads', value: stats.hot, icon: Target, change: '+5%', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-100 dark:bg-amber-900/30' },
-    { label: 'Converted', value: stats.converted, icon: TrendingUp, change: '+8%', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-900/30' },
-    { label: 'Conversion Rate', value: `${stats.conversionRate}%`, icon: BarChart3, change: '+2.3%', color: 'text-cyan-600 dark:text-cyan-400', bg: 'bg-cyan-100 dark:bg-cyan-900/30' },
+    { label: `Total ${leadLabel}s`, value: stats.total, icon: Users, change: '+12%' },
+    { label: 'Hot Leads', value: stats.hot, icon: Target, change: '+5%' },
+    { label: 'Converted', value: stats.converted, icon: TrendingUp, change: '+8%' },
+    { label: 'Conversion Rate', value: `${stats.conversionRate}%`, icon: BarChart3, change: '+2.3%' },
     ...(forecast ? [{
       label: 'Weighted Forecast', value: currencyFormatter.format(forecast.totalWeightedForecast), icon: DollarSign, change: null as any,
-      color: 'text-teal-600 dark:text-teal-400', bg: 'bg-teal-100 dark:bg-teal-900/30',
     }] : []),
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="animate-fade-up">
-        <div className="flex items-center gap-1.5 mb-0.5">
-          <Zap size={13} className="text-[var(--primary)]" />
-          <span className="text-[11px] font-medium text-[var(--primary)] uppercase tracking-wider">Dashboard</span>
+        <div className="flex items-center gap-2 mb-1">
+          <span className="h-1.5 w-1.5 rounded-full bg-[var(--primary)]" />
+          <span className="text-[11px] font-semibold text-[var(--muted-foreground)] uppercase tracking-[0.15em]">Dashboard</span>
         </div>
-        <h1 className="text-xl font-bold text-[var(--foreground)]">{niche?.display_name || 'Dashboard'} Overview</h1>
-        <p className="text-sm text-[var(--muted-foreground)] mt-0.5">
+        <h1 className="text-2xl font-bold text-[var(--foreground)]">{niche?.display_name || 'Dashboard'} Overview</h1>
+        <p className="text-sm text-[var(--muted-foreground)] mt-1">
           {niche ? `${niche.industry} · ${niche.conversion_goals?.join(', ') || 'No goals configured'}` : 'Loading configuration...'}
         </p>
       </div>
@@ -83,20 +88,19 @@ export default function OverviewPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {cards.map((c, i) => (
           <div key={c.label}
-            className="rounded-lg bg-[var(--card)] border border-[var(--border)] p-5 shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)] hover:-translate-y-0.5 transition-all duration-200 cursor-default"
-            style={{ animation: 'fadeUp 0.4s ease-out forwards', animationDelay: `${i * 0.08}s`, opacity: 0 }}>
-            <div className="flex items-center justify-between mb-3">
-              <div className={`h-9 w-9 rounded-lg ${c.bg} flex items-center justify-center`}>
-                <c.icon size={18} className={c.color} />
+            className={`rounded-xl bg-[var(--card)] border border-[var(--border)] p-5 shadow-[var(--shadow-sm)] transition-all duration-200 cursor-default animate-fade-up delay-${Math.min(i + 1, 8)}`}>
+            <div className="flex items-center justify-between mb-4">
+              <div className="h-9 w-9 rounded-lg bg-[var(--primary-light)] flex items-center justify-center">
+                <c.icon size={17} className="text-[var(--primary)]" />
               </div>
               {c.change && (
-                <span className="flex items-center gap-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-full">
+                <span className="flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-full">
                   <ArrowUpRight size={10} />
                   {c.change}
                 </span>
               )}
             </div>
-            <div className="text-xl font-bold text-[var(--foreground)]">{c.value}</div>
+            <div className="text-2xl font-bold text-[var(--foreground)]">{c.value}</div>
             <div className="text-xs text-[var(--muted-foreground)] mt-0.5">{c.label}</div>
           </div>
         ))}
@@ -107,35 +111,32 @@ export default function OverviewPage() {
         const visible = dataHealth.insights.filter((insight: any) => !isInsightDismissed(`${insight.type}:${insight.message}`));
         if (visible.length === 0) return null;
         return (
-          <div className="rounded-lg bg-[var(--card)] border border-[var(--border)] p-5 shadow-[var(--shadow-sm)]"
-            style={{ animation: 'fadeUp 0.4s ease-out forwards', animationDelay: '0.32s', opacity: 0 }}>
+          <div className="rounded-xl bg-[var(--card)] border border-[var(--border)] p-5 shadow-[var(--shadow-sm)] animate-fade-up delay-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-sm text-[var(--foreground)] flex items-center gap-2">
                 <AlertTriangle size={15} className="text-amber-500" />
                 Today's Attention Items
               </h3>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-4">
                 <span className="text-xs text-[var(--muted-foreground)]">
                   {dataHealth.dataQuality.complete}% complete · {dataHealth.dataQuality.duplicates} duplicates
                 </span>
                 <button onClick={() => walkThroughInsights(visible)}
-                  className="inline-flex items-center gap-1 text-xs font-medium text-[var(--primary)] hover:underline">
-                  <Play size={11} /> Walk me through it
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--primary)] hover:text-[var(--primary-hover)] transition-colors">
+                  <Play size={11} /> Walk me through
                 </button>
               </div>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1">
               {visible.map((insight: any, i: number) => (
-                <div key={i} className="flex items-center justify-between py-2 border-b border-[var(--border)] last:border-0">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    {insight.type === 'error' ? <AlertCircle size={14} className="text-red-500 shrink-0" /> :
-                     insight.type === 'warning' ? <AlertTriangle size={14} className="text-amber-500 shrink-0" /> :
-                     <CheckCircle size={14} className="text-emerald-500 shrink-0" />}
+                <div key={i} className="flex items-center justify-between py-2.5 border-b border-[var(--border)] last:border-0">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <InsightIcon type={insight.type} />
                     <span className="text-sm text-[var(--foreground)] truncate">{insight.message}</span>
                   </div>
                   <div className="flex items-center gap-3 shrink-0 ml-3">
-                    <button onClick={() => showInsight(insight)} className="text-xs text-[var(--primary)] hover:underline">{insight.action}</button>
-                    <button onClick={() => ignoreInsight(`${insight.type}:${insight.message}`)} title="Ignore" className="text-[var(--muted-foreground)] hover:text-[var(--foreground)]">
+                    <button onClick={() => showInsight(insight)} className="text-xs font-medium text-[var(--primary)] hover:text-[var(--primary-hover)] transition-colors">{insight.action}</button>
+                    <button onClick={() => ignoreInsight(`${insight.type}:${insight.message}`)} title="Ignore" className="text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors">
                       <X size={13} />
                     </button>
                   </div>
@@ -147,8 +148,7 @@ export default function OverviewPage() {
       })()}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="rounded-lg bg-[var(--card)] border border-[var(--border)] p-5 shadow-[var(--shadow-sm)]"
-          style={{ animation: 'fadeUp 0.4s ease-out forwards', animationDelay: '0.4s', opacity: 0 }}>
+        <div className="rounded-xl bg-[var(--card)] border border-[var(--border)] p-5 shadow-[var(--shadow-sm)] animate-fade-up delay-5">
           <h3 className="font-semibold text-sm text-[var(--foreground)] mb-4 flex items-center gap-2">
             <Activity size={15} className="text-[var(--primary)]" />
             System Status
@@ -161,40 +161,41 @@ export default function OverviewPage() {
             ].map(item => (
               <div key={item.label} className="flex items-center justify-between py-2.5 border-b border-[var(--border)] last:border-0">
                 <span className="text-sm text-[var(--foreground)]">{item.label}</span>
-                <div className="flex items-center gap-2">
-                  <span className={`text-xs font-medium ${item.ok ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                <div className="flex items-center gap-2.5">
+                  <span className={`text-xs font-medium ${item.ok ? 'text-emerald-600 dark:text-emerald-400' : 'text-[var(--destructive)]'}`}>
                     {item.status}
                   </span>
-                  <div className={`h-2 w-2 rounded-full ${item.ok ? 'bg-emerald-500' : 'bg-red-500'} ${item.ok ? '' : 'animate-pulse'}`} />
+                  <div className={`h-1.5 w-1.5 rounded-full ${item.ok ? 'bg-emerald-500' : 'bg-[var(--destructive)]'} ${item.ok ? '' : 'animate-pulse'}`} />
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="rounded-lg bg-[var(--card)] border border-[var(--border)] p-5 shadow-[var(--shadow-sm)]"
-          style={{ animation: 'fadeUp 0.4s ease-out forwards', animationDelay: '0.48s', opacity: 0 }}>
+        <div className="rounded-xl bg-[var(--card)] border border-[var(--border)] p-5 shadow-[var(--shadow-sm)] animate-fade-up delay-6">
           <h3 className="font-semibold text-sm text-[var(--foreground)] mb-4 flex items-center gap-2">
-            <Target size={15} className="text-[var(--primary)]" />
+            <Zap size={15} className="text-[var(--primary)]" />
             Quick Actions
           </h3>
           <div className="grid grid-cols-2 gap-3">
             {[
-            { label: 'View Leads', href: '#/leads', desc: 'Manage your leads', color: 'var(--primary)' },
-            { label: 'Campaigns', href: '#/campaigns', desc: 'View campaigns', color: '#059669' },
-            { label: 'Tasks', href: '#/tasks', desc: 'Pending tasks', color: '#d97706' },
-            { label: 'Analytics', href: '#/analytics', desc: 'View reports', color: '#0f766e' },
+              { label: 'View Leads', href: '#/leads', desc: 'Manage your leads', icon: Users },
+              { label: 'Campaigns', href: '#/campaigns', desc: 'View campaigns', icon: BarChart3 },
+              { label: 'Tasks', href: '#/tasks', desc: 'Pending tasks', icon: Target },
+              { label: 'Analytics', href: '#/analytics', desc: 'View reports', icon: Activity },
             ].map((action, i) => (
               <a
                 key={action.label}
                 href={action.href}
-                className="group relative overflow-hidden rounded-lg p-4 text-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
-                style={{ background: action.color, animation: 'fadeUp 0.4s ease-out forwards', animationDelay: `${0.5 + i * 0.06}s`, opacity: 0 }}>
-                <div className="relative z-10">
-                  <div className="font-medium text-sm">{action.label}</div>
-                  <div className="text-xs text-white/70 mt-0.5">{action.desc}</div>
+                className="group flex items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--background)] p-4 transition-all duration-200 hover:shadow-[var(--shadow-md)] hover:-translate-y-0.5"
+              >
+                <div className="h-9 w-9 rounded-lg bg-[var(--primary-light)] flex items-center justify-center shrink-0">
+                  <action.icon size={16} className="text-[var(--primary)]" />
                 </div>
-                <div className="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors" />
+                <div>
+                  <div className="text-sm font-medium text-[var(--foreground)]">{action.label}</div>
+                  <div className="text-xs text-[var(--muted-foreground)] mt-0.5">{action.desc}</div>
+                </div>
               </a>
             ))}
           </div>
