@@ -1,67 +1,84 @@
 @import "tailwindcss";
 
 :root {
-  --font-display: 'Inter', sans-serif;
+  --font-display: 'Space Grotesk', sans-serif;
   --font-body: 'Inter', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
-  /* Token values match Twenty CRM's published theme-light.css gray/blue scale
-     numerically (public design tokens, not code) — reimplemented here as our
-     own CSS custom properties. */
   --background: #fcfcfc;
-  --sidebar: #fcfcfc;
-  --foreground: #333333;
+  --foreground: #26292b;
   --card: #ffffff;
-  --card-foreground: #333333;
-  --muted: #f1f1f1;
-  --muted-foreground: #666666;
-  --muted-foreground-light: #999999;
-  --primary: #4662d5;
-  --primary-hover: #3c57cc;
+  --card-foreground: #26292b;
+  --muted: #f1f2f2;
+  --muted-foreground: #63696b;
+  --muted-foreground-light: #9aa0a1;
+  --primary: #0e9d6e;
+  --primary-hover: #0b8259;
   --primary-foreground: #ffffff;
-  --primary-light: #eef2fd;
+  --primary-light: #e2f5ee;
   --accent: rgba(0, 0, 0, 0.039);
-  --accent-foreground: #333333;
-  --secondary: #f1f1f1;
-  --secondary-foreground: #333333;
+  --accent-foreground: #26292b;
+  --secondary: #f1f2f2;
+  --secondary-foreground: #26292b;
   --destructive: #dc2626;
   --destructive-foreground: #ffffff;
-  --border: #ebebeb;
-  --border-strong: #d6d6d6;
-  --input: #d6d6d6;
-  --ring: #4662d5;
+  --border: #e9ebeb;
+  --border-strong: #d3d7d7;
+  --input: #d3d7d7;
+  --ring: #0e9d6e;
   --radius: 0.5rem;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
   --shadow-md: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.03);
   --shadow-lg: 0 4px 6px rgba(0, 0, 0, 0.05), 0 2px 4px rgba(0, 0, 0, 0.03);
+
+  /* Sidebar is a fixed dark surface regardless of light/dark mode, same pattern
+     as Linear/Vercel/Notion: one calm neutral canvas, one dark anchor rail, one
+     accent color used sparingly. Kept separate from --background/--foreground so
+     toggling app theme never washes the rail out to the same tone as the page. */
+  --sidebar-bg: #12161a;
+  --sidebar-bg-elevated: #171c21;
+  --sidebar-fg: #eef1f1;
+  --sidebar-muted: #8b9598;
+  --sidebar-border: rgba(255, 255, 255, 0.07);
+  --sidebar-hover: rgba(255, 255, 255, 0.045);
+  --sidebar-active-bg: rgba(24, 214, 150, 0.16);
+  --sidebar-active-fg: #2fe2a6;
 }
 
 .dark {
-  --background: #171717;
-  --sidebar: #171717;
-  --foreground: #ebebeb;
-  --card: #1b1b1b;
-  --card-foreground: #ebebeb;
-  --muted: #1d1d1d;
-  --muted-foreground: #b3b3b3;
-  --muted-foreground-light: #818181;
-  --primary: #4662d5;
-  --primary-hover: #5a71dd;
-  --primary-foreground: #ffffff;
-  --primary-light: rgba(70, 98, 213, 0.16);
+  --background: #17191a;
+  --foreground: #ebedec;
+  --card: #1c1f20;
+  --card-foreground: #ebedec;
+  --muted: #212423;
+  --muted-foreground: #b2b7b6;
+  --muted-foreground-light: #83898a;
+  --primary: #18d696;
+  --primary-hover: #2fe2a6;
+  --primary-foreground: #08130f;
+  --primary-light: rgba(24, 214, 150, 0.16);
   --accent: rgba(255, 255, 255, 0.059);
-  --accent-foreground: #ebebeb;
-  --secondary: #222222;
-  --secondary-foreground: #ebebeb;
+  --accent-foreground: #ebedec;
+  --secondary: #242727;
+  --secondary-foreground: #ebedec;
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
-  --border: #222222;
-  --border-strong: #484848;
-  --input: #484848;
-  --ring: #4662d5;
+  --border: #262a29;
+  --border-strong: #494f4e;
+  --input: #494f4e;
+  --ring: #18d696;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 1px 3px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 4px 6px rgba(0, 0, 0, 0.25);
+
+  --sidebar-bg: #0c0f11;
+  --sidebar-bg-elevated: #12161a;
+  --sidebar-fg: #eef1f1;
+  --sidebar-muted: #838d8f;
+  --sidebar-border: rgba(255, 255, 255, 0.06);
+  --sidebar-hover: rgba(255, 255, 255, 0.05);
+  --sidebar-active-bg: rgba(24, 214, 150, 0.18);
+  --sidebar-active-fg: #2fe2a6;
 }
 
 * {

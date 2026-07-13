@@ -2,7 +2,7 @@ import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/commo
 import { ConfigService } from '@nestjs/config';
 import { PrismaClient } from '@prisma/client';
 
-const TENANT_MODELS = ['User', 'Contact', 'Lead', 'Campaign', 'Integration'];
+const TENANT_MODELS = ['User', 'Contact', 'Lead', 'Campaign', 'Integration', 'CallLog', 'Device'];
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
@@ -25,7 +25,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         if (data && !data.tenantId && !data.tenant) {
           const globalTenantId = (global as any).__tenantId || process.env.DEFAULT_TENANT_ID || 'default-tenant';
           if (params.model === 'User' || params.model === 'Contact' || params.model === 'Lead' ||
-              params.model === 'Campaign' || params.model === 'Integration') {
+              params.model === 'Campaign' || params.model === 'Integration' ||
+              params.model === 'CallLog' || params.model === 'Device') {
             data.tenantId = globalTenantId;
           }
         }

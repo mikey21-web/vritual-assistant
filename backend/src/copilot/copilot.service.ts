@@ -14,8 +14,8 @@ import { FeatureFlagsService } from '../shared/feature-flags.service';
 import { AnalyticsService } from '../analytics/analytics.service';
 import { ContactsService } from '../contacts/contacts.service';
 import { KhojClientService } from '../khoj-client/khoj-client.service';
-import { JarvisService } from '../jarvis/jarvis.service';
-import { OutcomeEngineService } from '../jarvis/outcome-engine.service';
+import { MikeyService } from '../mikey/mikey.service';
+import { OutcomeEngineService } from '../mikey/outcome-engine.service';
 
 const MAX_COPILOT_MESSAGES_PER_TENANT_PER_DAY = 500;
 import { PERMISSION_MATRIX } from '../permissions/permissions.matrix';
@@ -51,7 +51,7 @@ export class CopilotService {
     private analyticsService: AnalyticsService,
     private contactsService: ContactsService,
     private khoj: KhojClientService,
-    private jarvis: JarvisService,
+    private Mikey: MikeyService,
     private outcomeEngine: OutcomeEngineService,
   ) {
     const apiKey = this.config.get<string>('DEEPSEEK_API_KEY');
@@ -150,7 +150,7 @@ export class CopilotService {
       ? `\n\nRules you must always follow, no exceptions:\n${businessSettings.compliance.map((c: string) => `- ${c}`).join('\n')}`
       : '';
 
-    const systemPrompt = `You are Jarvis, the unified intelligence running the CRM for ${businessName}.${industryLine} You help staff manage leads, tickets, tasks, campaigns, and you also autonomously qualify leads and monitor the market. You have one mind that sees everything — internal ops and external lead conversations alike. Talk like a helpful executive assistant, plainly and directly.
+    const systemPrompt = `You are Mikey, the unified intelligence running the CRM for ${businessName}.${industryLine} You help staff manage leads, tickets, tasks, campaigns, and you also autonomously qualify leads and monitor the market. You have one mind that sees everything — internal ops and external lead conversations alike. Talk like a helpful executive assistant, plainly and directly.
 
 You have access to Khoj, your second brain — a knowledge base containing company docs, product info, lead conversation history, market intelligence, and tactical knowledge learned from past conversations. Use Khoj context (provided at the start of each conversation) to answer questions about the company, products, competitors, or past lead interactions before relying on your own training data.
 
@@ -184,7 +184,7 @@ You have access to the following tools:
 - explain_flow: Walk the user through a multi-step guided tour (2-5 steps), each step navigating to a page and highlighting a record with a one-sentence narration. Use this for "why" questions or multi-step explanations, after you've already gathered the relevant facts with other tools.
 - analyze_lead_source: Get conversion rate, status breakdown, and related ticket volume for one lead source, compared against the overall conversion rate. Use this when asked why leads from a specific source (e.g. Facebook, Google Ads, WhatsApp) are converting well or poorly.
 - bulk_send_message: Send personalized messages to multiple leads at once (high impact — requires a single confirmation for the whole batch, up to 20 messages).
-- define_outcome: Define a new business outcome or goal for Jarvis to achieve autonomously (e.g. "increase conversions by 20% this month"). Jarvis will break it into steps and track progress.
+- define_outcome: Define a new business outcome or goal for Mikey to achieve autonomously (e.g. "increase conversions by 20% this month"). Mikey will break it into steps and track progress.
 - run_autonomous_action: Execute a low-risk action without waiting for confirmation (create_task, create_ticket). Use when the user says "go ahead and do it" or for routine follow-ups.
 
 Rules:
@@ -534,7 +534,7 @@ Rules:
         type: 'function',
         function: {
           name: 'define_outcome',
-          description: 'Define a business outcome for Jarvis to achieve autonomously — e.g. "increase conversions by 20% this month"',
+          description: 'Define a business outcome for Mikey to achieve autonomously — e.g. "increase conversions by 20% this month"',
           parameters: {
             type: 'object', properties: {
               goal: { type: 'string', description: 'The outcome to achieve' },
@@ -704,10 +704,10 @@ Rules:
               break;
             case 'define_outcome':
               const outcome = await this.outcomeEngine.defineOutcome({ tenantId, goal: args.goal, metric: args.metric, target: args.target, current: args.current || 0 });
-              result = { outcomeId: outcome.id, goal: outcome.goal, steps: outcome.steps.map((s: any) => s.description), message: `Outcome defined! Jarvis will track progress across ${outcome.steps.length} steps.` };
+              result = { outcomeId: outcome.id, goal: outcome.goal, steps: outcome.steps.map((s: any) => s.description), message: `Outcome defined! Mikey will track progress across ${outcome.steps.length} steps.` };
               break;
             case 'run_autonomous_action':
-              const autoResult = await this.jarvis.runAutonomousAction({ leadId: args.leadId, action: args.action, args: args.args || {} });
+              const autoResult = await this.Mikey.runAutonomousAction({ leadId: args.leadId, action: args.action, args: args.args || {} });
               result = autoResult;
               break;
             case 'analyze_lead_source':
@@ -842,3 +842,4 @@ Rules:
     return conv;
   }
 }
+

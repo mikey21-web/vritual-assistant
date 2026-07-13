@@ -161,8 +161,8 @@ export default function IntegrationsPage() {
       <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center">
-              <Mail size={20} className="text-purple-500" />
+            <div className="w-10 h-10 rounded-xl bg-cyan-50 dark:bg-cyan-900/20 flex items-center justify-center">
+              <Mail size={20} className="text-cyan-500" />
             </div>
             <div>
               <h3 className="font-semibold text-[var(--foreground)]">Email (SMTP + IMAP)</h3>

@@ -70,7 +70,7 @@ const rawNavGroups = [
       { label: "AI Campaigns", icon: Sparkles, path: "/ai-campaigns" },
       { label: "AI Agent", icon: Bot, path: "/ai-agent" },
       { label: "Mikey", icon: Headset, path: "/copilot" },
-      { label: "Jarvis", icon: Brain, path: "/jarvis" },
+      { label: "Mikey", icon: Brain, path: "/mikey" },
     ],
   },
   {
@@ -79,7 +79,7 @@ const rawNavGroups = [
       { label: "Webhooks", icon: Webhook, path: "/webhooks" },
       { label: "SMS", icon: Smartphone, path: "/sms" },
       { label: "Chat Widget", icon: Globe, path: "/widget" },
-      { label: "Phone Calls", icon: Phone, path: "/integrations" },
+      { label: "Calls", icon: Phone, path: "/calls" },
       { label: "Social Media", icon: MessageCircle, path: "/integrations" },
       { label: "Mobile App", icon: Smartphone, path: "/integrations" },
     ],

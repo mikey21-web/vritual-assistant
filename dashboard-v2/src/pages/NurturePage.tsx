@@ -9,7 +9,7 @@ const stepColors: Record<string, string> = {
   SEND_WHATSAPP: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
   SEND_EMAIL: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
   WAIT: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-  CHECK_CONDITION: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+  CHECK_CONDITION: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
   UPDATE_LEAD_STATUS: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',
   PUSH_TO_CRM: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',
   SEND_BOOKING_LINK: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400',

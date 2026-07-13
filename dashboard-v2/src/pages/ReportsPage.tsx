@@ -19,7 +19,7 @@ const GROUP_BYS: Record<string, string[]> = {
 };
 const CHART_TYPES = ["bar", "line", "pie"] as const;
 
-const COLORS = ["#0f766e", "#0891b2", "#7c3aed", "#d97706", "#dc2626", "#059669", "#6366f1", "#e11d48"];
+const COLORS = ["#0e9d6e", "#0891b2", "#d97706", "#dc2626", "#059669", "#6366f1", "#e11d48", "#0369a1"];
 
 function transformSeries(labels: string[], series: { name: string; data: number[] }[]) {
   return labels.map((label, i) => {

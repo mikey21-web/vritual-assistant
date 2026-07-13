@@ -5,7 +5,7 @@ niche:
   industry: events
   display_name: "EventPro Marketing"
 branding:
-  primary_color: "#7C3AED"
+  primary_color: "#0E9D6E"
   labels: { lead: "Client", leads: "Clients", contact: "Contact", conversion: "Booking" }
 agent:
   model: claude-haiku-4-5

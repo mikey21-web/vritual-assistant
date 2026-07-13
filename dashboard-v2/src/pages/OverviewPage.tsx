@@ -60,7 +60,7 @@ export default function OverviewPage() {
     { label: `Total ${leadLabel}s`, value: stats.total, icon: Users, change: '+12%', color: 'text-[var(--primary)]', bg: 'bg-[var(--primary-light)]' },
     { label: 'Hot Leads', value: stats.hot, icon: Target, change: '+5%', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-100 dark:bg-amber-900/30' },
     { label: 'Converted', value: stats.converted, icon: TrendingUp, change: '+8%', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-900/30' },
-    { label: 'Conversion Rate', value: `${stats.conversionRate}%`, icon: BarChart3, change: '+2.3%', color: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-100 dark:bg-violet-900/30' },
+    { label: 'Conversion Rate', value: `${stats.conversionRate}%`, icon: BarChart3, change: '+2.3%', color: 'text-cyan-600 dark:text-cyan-400', bg: 'bg-cyan-100 dark:bg-cyan-900/30' },
     ...(forecast ? [{
       label: 'Weighted Forecast', value: currencyFormatter.format(forecast.totalWeightedForecast), icon: DollarSign, change: null as any,
       color: 'text-teal-600 dark:text-teal-400', bg: 'bg-teal-100 dark:bg-teal-900/30',

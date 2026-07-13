@@ -121,6 +121,32 @@ function buildMockTicket(i: number): any {
 
 export const mockTickets = Array.from({ length: 12 }, (_, i) => buildMockTicket(i));
 
+function buildMockCallLog(i: number): any {
+  const directions = ['INBOUND', 'OUTBOUND'];
+  const sources = ['SIM', 'SIM', 'WHATSAPP'];
+  const statuses = ['COMPLETED', 'COMPLETED', 'COMPLETED', 'NO_ANSWER', 'BUSY'];
+  const lead = mockLeads[i % mockLeads.length];
+  const direction = randomItem(directions);
+  const status = randomItem(statuses);
+  const phone = lead.contact?.phone || `+1 (555) 010-${1000 + i}`;
+  return {
+    id: `call-${i + 1}`,
+    direction,
+    status,
+    source: randomItem(sources),
+    fromNumber: direction === 'INBOUND' ? phone : '+1 (555) 000-0000',
+    toNumber: direction === 'INBOUND' ? '+1 (555) 000-0000' : phone,
+    durationSec: status === 'COMPLETED' ? randomInt(15, 900) : 0,
+    recordingUrl: status === 'COMPLETED' && Math.random() > 0.4 ? '#' : null,
+    contact: lead.contact ? { id: lead.contact.id, name: lead.contact.name, phone: lead.contact.phone } : null,
+    lead: { id: lead.id, status: lead.status },
+    device: { id: 'device-1', name: "Sarah's phone", model: 'Pixel 8' },
+    createdAt: randomDate(7),
+  };
+}
+
+export const mockCallLogs = Array.from({ length: 24 }, (_, i) => buildMockCallLog(i));
+
 const knowledgeTags = ['onboarding', 'faq', 'troubleshooting', 'api', 'integration', 'billing', 'security', 'best-practices'];
 
 function buildMockArticle(i: number): any {
@@ -263,8 +289,8 @@ export const mockBookingSettings = [
 export const mockPipelineStages = [
   { id: 'stage-1', name: 'New', status: 'NEW', order: 0, color: '#6b7280', isDefault: true, isEnd: false, count: 3 },
   { id: 'stage-2', name: 'Contacted', status: 'CONTACTED', order: 1, color: '#3b82f6', isDefault: false, isEnd: false, count: 5 },
-  { id: 'stage-3', name: 'Engaged', status: 'ENGAGED', order: 2, color: '#8b5cf6', isDefault: false, isEnd: false, count: 2 },
-  { id: 'stage-4', name: 'Qualifying', status: 'QUALIFYING', order: 3, color: '#a855f7', isDefault: false, isEnd: false, count: 4 },
+  { id: 'stage-3', name: 'Engaged', status: 'ENGAGED', order: 2, color: '#6366f1', isDefault: false, isEnd: false, count: 2 },
+  { id: 'stage-4', name: 'Qualifying', status: 'QUALIFYING', order: 3, color: '#0e9d6e', isDefault: false, isEnd: false, count: 4 },
   { id: 'stage-5', name: 'Qualified', status: 'QUALIFIED', order: 4, color: '#eab308', isDefault: false, isEnd: false, count: 6 },
   { id: 'stage-6', name: 'Proposal Sent', status: 'PROPOSAL_SENT', order: 5, color: '#f97316', isDefault: false, isEnd: false, count: 3 },
   { id: 'stage-7', name: 'Appointment Booked', status: 'APPOINTMENT_BOOKED', order: 6, color: '#06b6d4', isDefault: false, isEnd: false, count: 2 },
@@ -407,6 +433,13 @@ const mockResponseMap: Record<string, () => any> = {
   '/crm-mappings': () => ({ data: mockCRMMappings, meta: { total: mockCRMMappings.length } }),
   '/booking-settings': () => ({ data: mockBookingSettings, meta: { total: mockBookingSettings.length } }),
   '/pipeline-stages': () => mockPipelineStages,
+  '/call-tracking/calls': () => ({ data: mockCallLogs, meta: { total: mockCallLogs.length, page: 1, limit: 20 } }),
+  '/call-tracking/stats': () => ({
+    callsToday: mockCallLogs.length,
+    missedToday: mockCallLogs.filter(c => c.status !== 'COMPLETED').length,
+    avgDurationSec: Math.round(mockCallLogs.filter(c => c.durationSec).reduce((s, c) => s + c.durationSec, 0) / (mockCallLogs.filter(c => c.durationSec).length || 1)),
+  }),
+  '/call-tracking/devices': () => ([{ id: 'device-1', name: "Sarah's phone", platform: 'android', model: 'Pixel 8', lastSeenAt: randomDate(0), revokedAt: null, createdAt: randomDate(20) }]),
   '/conversions': () => ({ data: mockConversions, summary: { rate: '15.2%', total: mockConversions.length, revenue: 31000 } }),
   '/users': () => mockUsers,
   '/audit-logs': () => ({ data: mockAuditLogs, meta: { total: mockAuditLogs.length } }),
@@ -636,6 +669,9 @@ export function getMockResponse(path: string, method: string, body?: any): any |
     }
     if (normalized.startsWith('/webhooks/') && normalized.endsWith('/test')) {
       return { status: 'success', message: 'Webhook test completed successfully' };
+    }
+    if (normalized === '/call-tracking/devices/pair-code') {
+      return { pairingCode: String(randomInt(100000, 999999)), expiresAt: new Date(Date.now() + 10 * 60000).toISOString() };
     }
     if (normalized === '/sms/test') {
       return { status: 'success', message: 'Test SMS sent successfully', sid: `SM${randomInt(100000, 999999)}` };

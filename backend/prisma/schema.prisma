@@ -61,6 +61,7 @@ model Tenant {
   notifications Notification[]
   adCampaigns AdCampaign[]
   events        Event[]
+  devices       Device[]
 
   @@index([slug])
   @@map("tenants")
@@ -135,29 +136,64 @@ enum CallStatus {
   BUSY
 }
 
+enum CallSource {
+  TWILIO
+  SIM
+  WHATSAPP
+}
+
 model CallLog {
-  id           String        @id @default(uuid())
-  tenantId     String        @map("tenant_id")
-  tenant       Tenant        @relation(fields: [tenantId], references: [id])
-  leadId       String?
-  lead         Lead?         @relation(fields: [leadId], references: [id])
-  contactId    String?
-  contact      Contact?      @relation(fields: [contactId], references: [id])
-  agentId      String?
-  agent        User?         @relation(fields: [agentId], references: [id])
-  direction    CallDirection
-  status       CallStatus    @default(INITIATED)
-  fromNumber   String
-  toNumber     String
-  durationSec  Int?
-  recordingUrl String?
-  providerSid  String?
-  notes        String?
-  createdAt    DateTime      @default(now())
+  id              String        @id @default(uuid())
+  tenantId        String        @map("tenant_id")
+  tenant          Tenant        @relation(fields: [tenantId], references: [id])
+  leadId          String?
+  lead            Lead?         @relation(fields: [leadId], references: [id])
+  contactId       String?
+  contact         Contact?      @relation(fields: [contactId], references: [id])
+  agentId         String?
+  agent           User?         @relation(fields: [agentId], references: [id])
+  direction       CallDirection
+  status          CallStatus    @default(INITIATED)
+  fromNumber      String
+  toNumber        String
+  durationSec     Int?
+  recordingUrl    String?
+  providerSid     String?
+  notes           String?
+  source          CallSource    @default(TWILIO)
+  deviceId        String?
+  device          Device?       @relation(fields: [deviceId], references: [id])
+  recordedLocally Boolean       @default(false)
+  syncedAt        DateTime?
+  createdAt       DateTime      @default(now())
 
   @@index([tenantId])
   @@index([leadId])
+  @@index([deviceId])
   @@map("call_logs")
+}
+
+model Device {
+  id                   String    @id @default(uuid())
+  tenantId             String    @map("tenant_id")
+  tenant               Tenant    @relation(fields: [tenantId], references: [id])
+  userId               String
+  user                 User      @relation(fields: [userId], references: [id])
+  name                 String?
+  platform             String    @default("android")
+  model                String?
+  apiKeyHash           String?   @unique
+  pairingCode          String?   @unique
+  pairingCodeExpiresAt DateTime?
+  lastSeenAt           DateTime?
+  revokedAt            DateTime?
+  createdAt            DateTime  @default(now())
+
+  callLogs CallLog[]
+
+  @@index([tenantId])
+  @@index([userId])
+  @@map("devices")
 }
 
 enum TicketStatus {
@@ -346,6 +382,7 @@ model User {
   savedReports SavedReport[]
   callLogs     CallLog[]
   notifications Notification[]
+  devices       Device[]
   eventAssignments EventTeamAssignment[]
   leaveRequests    LeaveRequest[] @relation("LeaveRequestUser")
   approvedLeaveRequests LeaveRequest[] @relation("LeaveRequestApprover")

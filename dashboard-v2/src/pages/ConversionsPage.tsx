@@ -5,7 +5,7 @@ import { ArrowLeftRight, TrendingUp, DollarSign, Activity, Filter } from 'lucide
 const stageColors: Record<string, string> = {
   'New': 'bg-blue-500',
   'Qualified': 'bg-yellow-500',
-  'Interested': 'bg-purple-500',
+  'Interested': 'bg-cyan-500',
   'Proposal Sent': 'bg-orange-500',
   'Negotiation': 'bg-indigo-500',
   'Won': 'bg-emerald-500',

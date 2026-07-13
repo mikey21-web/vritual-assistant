@@ -91,7 +91,7 @@ export default function AIAgentPage() {
   const statCards = [
     { label: 'Conversations Handled', value: stats?.conversationsHandled ?? 0, icon: MessageSquare, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-100 dark:bg-blue-900/30' },
     { label: 'Leads Qualified', value: stats?.leadsQualified ?? 0, icon: CheckCircle, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-900/30' },
-    { label: 'Appointments Booked', value: stats?.appointmentsBooked ?? 0, icon: Calendar, color: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-100 dark:bg-violet-900/30' },
+    { label: 'Appointments Booked', value: stats?.appointmentsBooked ?? 0, icon: Calendar, color: 'text-cyan-600 dark:text-cyan-400', bg: 'bg-cyan-100 dark:bg-cyan-900/30' },
   ];
 
   if (!status) return (

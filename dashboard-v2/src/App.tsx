@@ -9,7 +9,7 @@ import { Sidebar } from "./components/layout/sidebar";
 import { Topbar } from "./components/layout/topbar";
 import MikeyWidget from "./components/MikeyWidget";
 import ExplainModePlayer from "./components/ExplainModePlayer";
-import { JarvisBanner, showJarvisToast } from "./components/jarvis";
+import { MikeyBanner, showMikeyToast } from "./components/mikey";
 import { SocketProvider, useSocket } from "./hooks";
 import { LoginPage } from "./pages/LoginPage";
 import LandingPage from "./pages/LandingPage";
@@ -53,9 +53,10 @@ const PageComponents: Record<string, React.LazyExoticComponent<React.ComponentTy
   SMS: lazy(() => import("./pages/SMSSettingsPage")),
   Widget: lazy(() => import("./pages/WidgetPage")),
   Tickets: lazy(() => import("./pages/TicketsPage")),
+  Calls: lazy(() => import("./pages/CallsPage")),
   KnowledgeBase: lazy(() => import("./pages/KnowledgeBasePage")),
   Copilot: lazy(() => import("./pages/CopilotPage")),
-  Jarvis: lazy(() => import("./pages/JarvisPage")),
+  Mikey: lazy(() => import("./pages/MikeyPage")),
   Studio: lazy(() => import("./pages/StudioPage")),
   Reports: lazy(() => import("./pages/ReportsPage")),
   Events: lazy(() => import("./pages/EventsPage")),
@@ -111,8 +112,8 @@ function getPageKey(path: string): string {
     "/failures": "Failures", "/health": "Health",
     "/ai-campaigns": "AICampaigns", "/ai-agent": "AIAgent",
     "/webhooks": "Webhooks", "/sms": "SMS", "/widget": "Widget", "/ads": "AdIntegrations",
-    "/tickets": "Tickets", "/knowledge-base": "KnowledgeBase",
-    "/copilot": "Mikey", "/jarvis": "Jarvis",    "/studio": "Studio", "/reports": "Reports",
+    "/tickets": "Tickets", "/calls": "Calls", "/knowledge-base": "KnowledgeBase",
+    "/copilot": "Mikey", "/mikey": "Mikey",    "/studio": "Studio", "/reports": "Reports",
     "/events": "Events", "/calendar": "EventCalendar",
     "/accounting": "Accounting", "/invoices": "Invoices", "/quotations": "Quotations",
     "/contracts": "Contracts", "/finance-reports": "FinanceReports",
@@ -129,10 +130,10 @@ const pageRoutes: Record<string, React.ComponentType<any>> = {
   Campaigns: CampaignsPage, Forms: FormsPage, QRCodes: QRCodesPage, Messages: MessagesPage,
 };
 
-function JarvisConnectedBanner() {
+function MikeyConnectedBanner() {
   const { eventBuffer } = useSocket();
   const findings = eventBuffer
-    .filter(e => e.type.startsWith('jarvis.'))
+    .filter(e => e.type.startsWith('mikey.'))
     .slice(-5)
     .map(e => ({
       id: `${e.type}-${e.timestamp}`,
@@ -141,16 +142,16 @@ function JarvisConnectedBanner() {
       description: (e.payload as any)?.description || '',
       timestamp: new Date(e.timestamp),
     }));
-  return <JarvisBanner findings={findings} />;
+  return <MikeyBanner findings={findings} />;
 }
 
-function JarvisConnectedToast() {
+function MikeyConnectedToast() {
   const { lastEvent } = useSocket();
   useEffect(() => {
-    if (!lastEvent || !lastEvent.type.startsWith('jarvis.')) return;
+    if (!lastEvent || !lastEvent.type.startsWith('mikey.')) return;
     const p = lastEvent.payload as any;
     if (!p?.title) return;
-    showJarvisToast({
+    showMikeyToast({
       title: p.title,
       description: p.description || '',
       severity: p.severity === 'critical' ? 'critical' : p.severity === 'warning' ? 'warning' : 'info',
@@ -231,7 +232,7 @@ export default function App() {
         <div className={`flex flex-1 flex-col transition-all duration-200 ${sidebarCollapsed ? "lg:ml-16" : "lg:ml-64"}`}>
           <Topbar onMenuToggle={() => setMobileNavOpen(!mobileNavOpen)} dark={dark} onThemeToggle={() => setDark(!dark)} />
           <main className="flex-1 overflow-auto p-4 lg:p-6 relative">
-            <JarvisConnectedBanner />
+            <MikeyConnectedBanner />
             <ErrorBoundary>
               <Suspense fallback={<PageFallback />}>
                 {PageComponent ? <PageComponent /> : (
@@ -244,7 +245,7 @@ export default function App() {
       </div>
       <MikeyWidget />
       <ExplainModePlayer />
-      <JarvisConnectedToast />
+      <MikeyConnectedToast />
       <Toaster position="top-right" toastOptions={{
         style: { borderRadius: 'var(--radius)', background: 'var(--card)', color: 'var(--foreground)', border: '1px solid var(--border)', fontSize: '14px' },
         success: { iconTheme: { primary: '#0f766e', secondary: '#ffffff' } },

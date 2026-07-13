@@ -66,7 +66,8 @@ import { WebsiteCrawlerModule } from './website-crawler/website-crawler.module';
 import { LeadIntelligenceModule } from './lead-intelligence/lead-intelligence.module';
 import { KhojClientModule } from './khoj-client/khoj-client.module';
 import { MarketMonitorModule } from './market-monitor/market-monitor.module';
-import { JarvisModule } from './jarvis/jarvis.module';
+import { MikeyModule } from './mikey/mikey.module';
+import { CallTrackingModule } from './call-tracking/call-tracking.module';
 
 @Module({
   imports: [
@@ -145,7 +146,8 @@ import { JarvisModule } from './jarvis/jarvis.module';
     LeadIntelligenceModule,
     KhojClientModule,
     MarketMonitorModule,
-    JarvisModule,
+    MikeyModule,
+    CallTrackingModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
@@ -154,3 +156,4 @@ import { JarvisModule } from './jarvis/jarvis.module';
   ],
 })
 export class AppModule {}
+
