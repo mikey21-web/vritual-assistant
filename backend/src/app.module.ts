@@ -24,6 +24,13 @@ import { NurtureSequencesModule } from './nurture-sequences/nurture-sequences.mo
 import { ScoringRulesModule } from './scoring-rules/scoring-rules.module';
 import { RoutingRulesModule } from './routing-rules/routing-rules.module';
 import { TasksModule } from './tasks/tasks.module';
+import { EventsOpsModule } from './events-ops/events-ops.module';
+import { ClientFinanceModule } from './client-finance/client-finance.module';
+import { ProcurementModule } from './procurement/procurement.module';
+import { InventoryModule } from './inventory/inventory.module';
+import { TeamOpsModule } from './team-ops/team-ops.module';
+import { ModulePermissionsModule } from './module-permissions/module-permissions.module';
+import { PublicProfileModule } from './public-profile/public-profile.module';
 import { ConversionsModule } from './conversions/conversions.module';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { CrmMappingsModule } from './crm-mappings/crm-mappings.module';
@@ -60,7 +67,7 @@ import { LeadIntelligenceModule } from './lead-intelligence/lead-intelligence.mo
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({ isGlobal: true, load: [() => ({ khoj: { baseUrl: process.env.KHOJ_BASE_URL || 'http://localhost:42111', timeout: parseInt(process.env.KHOJ_TIMEOUT || '30000', 10) } })] }),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 300 }]),
     JwtModule.registerAsync({
       global: true,
@@ -93,6 +100,13 @@ import { LeadIntelligenceModule } from './lead-intelligence/lead-intelligence.mo
     ScoringRulesModule,
     RoutingRulesModule,
     TasksModule,
+    EventsOpsModule,
+    ClientFinanceModule,
+    ProcurementModule,
+    InventoryModule,
+    TeamOpsModule,
+    ModulePermissionsModule,
+    PublicProfileModule,
     ConversionsModule,
     IntegrationsModule,
     CrmMappingsModule,

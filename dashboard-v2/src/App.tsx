@@ -19,6 +19,7 @@ import CampaignsPage from "./pages/CampaignsPage";
 import FormsPage from "./pages/FormsPage";
 import QRCodesPage from "./pages/QRCodesPage";
 import MessagesPage from "./pages/MessagesPage";
+import PublicOrgPage from "./pages/PublicOrgPage";
 
 const PageComponents: Record<string, React.LazyExoticComponent<React.ComponentType<any>>> = {
   Pipeline: lazy(() => import("./pages/PipelinePage")),
@@ -54,6 +55,25 @@ const PageComponents: Record<string, React.LazyExoticComponent<React.ComponentTy
   Copilot: lazy(() => import("./pages/CopilotPage")),
   Studio: lazy(() => import("./pages/StudioPage")),
   Reports: lazy(() => import("./pages/ReportsPage")),
+  Events: lazy(() => import("./pages/EventsPage")),
+  EventDetail: lazy(() => import("./pages/EventDetailPage")),
+  EventCalendar: lazy(() => import("./pages/CalendarPage")),
+  CreateEvent: lazy(() => import("./pages/CreateEventPage")),
+  Accounting: lazy(() => import("./pages/AccountingPage")),
+  Invoices: lazy(() => import("./pages/InvoicesPage")),
+  Quotations: lazy(() => import("./pages/QuotationsPage")),
+  Contracts: lazy(() => import("./pages/ContractsPage")),
+  FinanceReports: lazy(() => import("./pages/FinanceReportsPage")),
+  Partners: lazy(() => import("./pages/PartnersPage")),
+  VendorBookings: lazy(() => import("./pages/VendorBookingsPage")),
+  PurchaseOrders: lazy(() => import("./pages/PurchaseOrdersPage")),
+  InventoryItems: lazy(() => import("./pages/InventoryPage")),
+  StockMovements: lazy(() => import("./pages/StockMovementsPage")),
+  Locations: lazy(() => import("./pages/LocationsPage")),
+  LeaveLog: lazy(() => import("./pages/LeaveLogPage")),
+  Salaries: lazy(() => import("./pages/SalariesPage")),
+  Timesheet: lazy(() => import("./pages/TimesheetPage")),
+  PublicProfile: lazy(() => import("./pages/PublicProfilePage")),
 };
 
 function PageFallback() {
@@ -72,6 +92,8 @@ function PageFallback() {
 }
 
 function getPageKey(path: string): string {
+  if (/^\/events\/[^/]+$/.test(path)) return "EventDetail";
+  if (path.startsWith("/create-event")) return "CreateEvent";
   const map: Record<string, string> = {
     "/": "Overview", "/leads": "Leads", "/pipeline": "Pipeline", "/contacts": "Contacts",
     "/campaigns": "Campaigns", "/forms": "Forms", "/qr-codes": "QRCodes",
@@ -88,6 +110,13 @@ function getPageKey(path: string): string {
     "/webhooks": "Webhooks", "/sms": "SMS", "/widget": "Widget", "/ads": "AdIntegrations",
     "/tickets": "Tickets", "/knowledge-base": "KnowledgeBase",
     "/copilot": "Mikey",     "/studio": "Studio", "/reports": "Reports",
+    "/events": "Events", "/calendar": "EventCalendar",
+    "/accounting": "Accounting", "/invoices": "Invoices", "/quotations": "Quotations",
+    "/contracts": "Contracts", "/finance-reports": "FinanceReports",
+    "/partners": "Partners", "/vendor-bookings": "VendorBookings", "/purchase-orders": "PurchaseOrders",
+    "/inventory": "InventoryItems", "/stock-movements": "StockMovements", "/locations": "Locations",
+    "/leave-log": "LeaveLog", "/salaries": "Salaries", "/timesheet": "Timesheet",
+    "/public-profile": "PublicProfile",
   };
   return map[path] || "Overview";
 }
@@ -138,6 +167,13 @@ export default function App() {
     await login(email, password);
     window.location.hash = '/';
   };
+
+  // Public microsite route — must be checked before the isLoggedIn gate below,
+  // since it's meant to be viewable by anyone, logged in or not.
+  if (publicRoute.startsWith('/org/')) {
+    const slug = publicRoute.slice('/org/'.length);
+    return <PublicOrgPage slug={slug} />;
+  }
 
   if (!isLoggedIn) {
     if (publicRoute === '/login') {

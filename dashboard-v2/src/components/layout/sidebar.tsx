@@ -5,6 +5,7 @@ import {
   ShoppingCart, Link, Calendar, Layers, ChevronLeft, ChevronRight,
   UserCircle, CheckSquare, Sparkles, Phone,   Bot, MessageCircle, Smartphone, Webhook, Globe, LogOut, Columns3,
   LifeBuoy, BookOpen, Puzzle, Download, Headset,
+  Truck, ClipboardList, Package, Box, MapPin, Building2,
 } from "lucide-react";
 import { fetchProfile, fetchBusinessSettings } from "../../lib/data";
 import { useAuth } from "../../lib/useAuth";
@@ -22,6 +23,13 @@ const featureMap: Record<string, string> = {
   "/webhooks": "webhooks", "/sms": "sms", "/widget": "widget",
   "/tasks": "tasks", "/integrations": "integrations",
   "/analytics": "analytics", "/studio": "studio",
+  "/events": "events", "/calendar": "events",
+  "/accounting": "finance", "/invoices": "finance", "/quotations": "finance",
+  "/contracts": "finance", "/finance-reports": "finance",
+  "/partners": "procurement", "/vendor-bookings": "procurement", "/purchase-orders": "procurement",
+  "/inventory": "inventory", "/stock-movements": "inventory", "/locations": "inventory",
+  "/leave-log": "teamHr", "/salaries": "teamHr", "/timesheet": "teamHr",
+  "/public-profile": "publicProfile",
 };
 
 const labelMap: Record<string, "contact" | "conversion"> = {
@@ -83,6 +91,47 @@ const rawNavGroups = [
     ],
   },
   {
+    label: "Operations",
+    items: [
+      { label: "Events", icon: Calendar, path: "/events" },
+      { label: "Calendar", icon: Calendar, path: "/calendar" },
+    ],
+  },
+  {
+    label: "Finance",
+    items: [
+      { label: "Accounting", icon: BarChart3, path: "/accounting" },
+      { label: "Invoices", icon: FileText, path: "/invoices" },
+      { label: "Quotations", icon: FileText, path: "/quotations" },
+      { label: "Contracts", icon: FileText, path: "/contracts" },
+      { label: "Reports", icon: BarChart3, path: "/finance-reports" },
+    ],
+  },
+  {
+    label: "Procurement",
+    items: [
+      { label: "Partners", icon: Truck, path: "/partners" },
+      { label: "Vendor Bookings", icon: ClipboardList, path: "/vendor-bookings" },
+      { label: "Purchase Orders", icon: Package, path: "/purchase-orders" },
+    ],
+  },
+  {
+    label: "Assets",
+    items: [
+      { label: "Inventory", icon: Box, path: "/inventory" },
+      { label: "Stock Movements", icon: Layers, path: "/stock-movements" },
+      { label: "Locations", icon: MapPin, path: "/locations" },
+    ],
+  },
+  {
+    label: "Team HR",
+    items: [
+      { label: "Leave Log", icon: Calendar, path: "/leave-log" },
+      { label: "Salaries", icon: BarChart3, path: "/salaries" },
+      { label: "Timesheet", icon: CheckSquare, path: "/timesheet" },
+    ],
+  },
+  {
     label: "Integrations",
     items: [
       { label: "Integrations", icon: Link, path: "/integrations" },
@@ -107,6 +156,7 @@ const rawNavGroups = [
       { label: "Import Data", icon: Download, path: "/import" },
       { label: "Ad Integrations", icon: BarChart3, path: "/ads" },
       { label: "Website Crawler", icon: Globe, path: "/website-crawler" },
+      { label: "Public Profile", icon: Building2, path: "/public-profile" },
     ],
   },
 ];

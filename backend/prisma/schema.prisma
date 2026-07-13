@@ -60,6 +60,7 @@ model Tenant {
   callLogs     CallLog[]
   notifications Notification[]
   adCampaigns AdCampaign[]
+  events        Event[]
 
   @@index([slug])
   @@map("tenants")
@@ -345,6 +346,19 @@ model User {
   savedReports SavedReport[]
   callLogs     CallLog[]
   notifications Notification[]
+  eventAssignments EventTeamAssignment[]
+  leaveRequests    LeaveRequest[] @relation("LeaveRequestUser")
+  approvedLeaveRequests LeaveRequest[] @relation("LeaveRequestApprover")
+  salaryRecords    SalaryRecord[]
+  timesheetEntries TimesheetEntry[]
+  modulePermissions ModulePermission[] @relation("ModulePermissionUser")
+  department       String?
+  salaryType       String?
+  monthlySalary    Float?
+  joinedDate       DateTime?
+  skills           String[] @default([])
+  annualLeaveQuota Int?
+  teamStatus       String?
 
   @@index([email])
   @@index([role])
@@ -381,6 +395,7 @@ model BusinessSettings {
   toneExamples          String[] @default([])
   goals                 String[] @default([])
   compliance            String[] @default([])
+  inventoryEnforcement  String   @default("ADVISORY") // ADVISORY | STRICT — governs event inventory over-allocation
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
@@ -419,6 +434,10 @@ model Contact {
   consentEvents  ConsentEvent[]
   tickets        Ticket[]
   callLogs       CallLog[]
+  events         Event[]
+  invoices       Invoice[]
+  quotations     Quotation[]
+  contracts      Contract[]
 
   @@index([email])
   @@index([phone])
@@ -473,6 +492,7 @@ model Lead {
   scheduledActions  ScheduledAction[]
   tickets           Ticket[]
   callLogs          CallLog[]
+  events            Event[]
 
   @@index([status])
   @@index([segment])
@@ -798,12 +818,15 @@ model Task {
   lead        Lead?    @relation(fields: [leadId], references: [id])
   assigneeId  String?
   assignee    User?    @relation(fields: [assigneeId], references: [id])
+  eventId     String?
+  event       Event?   @relation(fields: [eventId], references: [id])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([status])
   @@index([assigneeId])
   @@index([leadId])
+  @@index([eventId])
   @@map("tasks")
 }
 
@@ -1526,4 +1549,688 @@ model OutboxMessage {
   @@index([idempotencyKey])
   @@index([scheduledAt])
   @@map("outbox_messages")
+}
+
+// === EVENTS OPS (event/booking system of record) ===
+
+enum EventStatus {
+  PLANNING
+  UPCOMING
+  COMPLETED
+  CANCELLED
+}
+
+enum EventFileVisibility {
+  INTERNAL
+  SHARED
+}
+
+enum MoodboardIdeaStatus {
+  OPEN
+  CONSIDERING
+  FINALIZED
+  ARCHIVED
+}
+
+model Event {
+  id              String      @id @default(uuid())
+  tenantId        String      @map("tenant_id")
+  tenant          Tenant      @relation(fields: [tenantId], references: [id])
+  title           String
+  type            String
+  status          EventStatus @default(PLANNING)
+  eventDate       DateTime?
+  venue           String?
+  expectedGuests  Int?
+  budget          Float?
+  description     String?
+  contactId       String?
+  contact         Contact?    @relation(fields: [contactId], references: [id])
+  leadId          String?
+  lead            Lead?       @relation(fields: [leadId], references: [id])
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  functions       EventFunction[]
+  moodboardIdeas  EventMoodboardIdea[]
+  teamAssignments EventTeamAssignment[]
+  vendorAssignments EventVendorAssignment[]
+  files           EventFile[]
+  expenses        EventExpense[]
+  paymentMilestones PaymentMilestone[]
+  runSheetItems   RunSheetItem[]
+  tasks           Task[]
+  vendorBookings  VendorBooking[]
+  timesheetEntries TimesheetEntry[]
+  inventoryAllocations InventoryAllocation[]
+
+  @@index([tenantId])
+  @@index([contactId])
+  @@index([leadId])
+  @@index([status])
+  @@index([eventDate])
+  @@map("events_ops")
+}
+
+model EventFunction {
+  id        String    @id @default(uuid())
+  eventId   String
+  event     Event     @relation(fields: [eventId], references: [id])
+  name      String
+  startAt   DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([eventId])
+  @@map("event_functions")
+}
+
+model EventMoodboardIdea {
+  id         String               @id @default(uuid())
+  eventId    String
+  event      Event                @relation(fields: [eventId], references: [id])
+  functionId String?
+  title      String
+  imageUrl   String?
+  status     MoodboardIdeaStatus  @default(OPEN)
+  createdAt  DateTime             @default(now())
+
+  @@index([eventId])
+  @@map("event_moodboard_ideas")
+}
+
+model EventTeamAssignment {
+  id        String   @id @default(uuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  role      String?
+  createdAt DateTime @default(now())
+
+  @@index([eventId])
+  @@index([userId])
+  @@map("event_team_assignments")
+}
+
+model EventVendorAssignment {
+  id          String   @id @default(uuid())
+  eventId     String
+  event       Event    @relation(fields: [eventId], references: [id])
+  partnerId   String
+  partner     Partner  @relation(fields: [partnerId], references: [id])
+  roleOnEvent String?
+  createdAt   DateTime @default(now())
+
+  @@index([eventId])
+  @@index([partnerId])
+  @@map("event_vendor_assignments")
+}
+
+model EventFile {
+  id         String              @id @default(uuid())
+  eventId    String
+  event      Event               @relation(fields: [eventId], references: [id])
+  fileUrl    String
+  name       String
+  visibility EventFileVisibility @default(INTERNAL)
+  createdAt  DateTime            @default(now())
+
+  @@index([eventId])
+  @@map("event_files")
+}
+
+model EventExpense {
+  id               String   @id @default(uuid())
+  eventId          String
+  event            Event    @relation(fields: [eventId], references: [id])
+  description      String
+  category         String?
+  amount           Float
+  gstPercent       Float?
+  billableToClient Boolean  @default(false)
+  receiptUrl       String?
+  expenseDate      DateTime @default(now())
+  createdAt        DateTime @default(now())
+
+  @@index([eventId])
+  @@map("event_expenses")
+}
+
+model PaymentMilestone {
+  id        String    @id @default(uuid())
+  eventId   String
+  event     Event     @relation(fields: [eventId], references: [id])
+  label     String
+  amount    Float
+  dueDate   DateTime?
+  invoiceId String?   @unique
+  invoice   Invoice?  @relation(fields: [invoiceId], references: [id])
+  createdAt DateTime  @default(now())
+
+  @@index([eventId])
+  @@map("payment_milestones")
+}
+
+model RunSheetItem {
+  id        String   @id @default(uuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id])
+  time      DateTime?
+  title     String
+  notes     String?
+  createdAt DateTime @default(now())
+
+  @@index([eventId])
+  @@map("run_sheet_items")
+}
+
+model Partner {
+  id        String   @id @default(uuid())
+  tenantId  String   @map("tenant_id")
+  name      String
+  type      String   @default("VENDOR") // VENDOR | SUPPLIER | BOTH
+  company   String?
+  email     String?
+  phone     String?
+  gstin     String?
+  location  String?
+  address   String?
+  category  String?
+  specialty String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vendorAssignments EventVendorAssignment[]
+  vendorBookings    VendorBooking[]
+  purchaseOrders    PurchaseOrder[]
+
+  @@index([tenantId])
+  @@map("partners")
+}
+
+// === CLIENT FINANCE (invoices, quotations, contracts — distinct from platform subscription billing) ===
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  PENDING
+}
+
+enum QuotationStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+enum ContractStatus {
+  DRAFT
+  SENT
+  SIGNED
+  CANCELLED
+}
+
+enum TransactionPartyType {
+  CUSTOMER
+  VENDOR
+  INTERNAL
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
+enum TransactionStatus {
+  RECEIVED
+  PAID
+  PENDING
+  OVERDUE
+}
+
+model Invoice {
+  id            String        @id @default(uuid())
+  tenantId      String        @map("tenant_id")
+  contactId     String?
+  contact       Contact?      @relation(fields: [contactId], references: [id])
+  eventId       String?
+  invoiceNumber String        @unique
+  subtotal      Float         @default(0)
+  gstPercent    Float?
+  gstTotal      Float         @default(0)
+  grandTotal    Float         @default(0)
+  status        InvoiceStatus @default(DRAFT)
+  paidAt        DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  lineItems InvoiceLineItem[]
+  milestone PaymentMilestone?
+
+  @@index([tenantId])
+  @@index([contactId])
+  @@index([eventId])
+  @@index([status])
+  @@map("invoices")
+}
+
+model InvoiceLineItem {
+  id          String  @id @default(uuid())
+  invoiceId   String
+  invoice     Invoice @relation(fields: [invoiceId], references: [id])
+  description String
+  qty         Float   @default(1)
+  unitPrice   Float
+  total       Float
+
+  @@index([invoiceId])
+  @@map("invoice_line_items")
+}
+
+model Quotation {
+  id                     String          @id @default(uuid())
+  tenantId               String          @map("tenant_id")
+  contactId              String?
+  contact                Contact?        @relation(fields: [contactId], references: [id])
+  eventId                String?
+  quoteNumber            String          @unique
+  validUntil             DateTime?
+  status                 QuotationStatus @default(DRAFT)
+  notes                  String?
+  termsAndPaymentSchedule String?
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+
+  sections  QuoteSection[]
+  contracts Contract[]
+
+  @@index([tenantId])
+  @@index([contactId])
+  @@index([eventId])
+  @@index([status])
+  @@map("quotations")
+}
+
+model QuoteSection {
+  id          String    @id @default(uuid())
+  quotationId String
+  quotation   Quotation @relation(fields: [quotationId], references: [id])
+  title       String
+  order       Int       @default(0)
+
+  lineItems QuoteLineItem[]
+
+  @@index([quotationId])
+  @@map("quote_sections")
+}
+
+model QuoteLineItem {
+  id          String       @id @default(uuid())
+  sectionId   String
+  section     QuoteSection @relation(fields: [sectionId], references: [id])
+  description String
+  qty         Float        @default(1)
+  unitPrice   Float
+  total       Float
+
+  @@index([sectionId])
+  @@map("quote_line_items")
+}
+
+model Contract {
+  id           String         @id @default(uuid())
+  tenantId     String         @map("tenant_id")
+  quotationId  String?
+  quotation    Quotation?     @relation(fields: [quotationId], references: [id])
+  contactId    String?
+  contact      Contact?       @relation(fields: [contactId], references: [id])
+  eventId      String?
+  contractNumber String       @unique
+  amount       Float          @default(0)
+  status       ContractStatus @default(DRAFT)
+  signedAt     DateTime?
+  acceptedAt   DateTime?
+  notes        String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@index([tenantId])
+  @@index([quotationId])
+  @@index([contactId])
+  @@index([eventId])
+  @@index([status])
+  @@map("contracts")
+}
+
+model Transaction {
+  id          String               @id @default(uuid())
+  tenantId    String               @map("tenant_id")
+  description String
+  partyType   TransactionPartyType @default(INTERNAL)
+  type        TransactionType
+  amount      Float
+  category    String?
+  gstPercent  Float?
+  date        DateTime             @default(now())
+  status      TransactionStatus    @default(PENDING)
+  invoiceRef  String?
+  eventId     String?
+  createdAt   DateTime             @default(now())
+
+  @@index([tenantId])
+  @@index([type])
+  @@index([status])
+  @@index([eventId])
+  @@map("transactions")
+}
+
+// === PROCUREMENT ===
+
+enum VendorBookingStatus {
+  DRAFT
+  SENT
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  SUBMITTED
+  PARTIAL
+  RECEIVED
+  CANCELLED
+}
+
+model VendorBooking {
+  id                  String              @id @default(uuid())
+  tenantId            String              @map("tenant_id")
+  partnerId           String
+  partner             Partner             @relation(fields: [partnerId], references: [id])
+  eventId             String
+  event               Event               @relation(fields: [eventId], references: [id])
+  title               String
+  eventDate           DateTime?
+  vendorArrivalTime   DateTime?
+  venue               String?
+  deliverables        String[]            @default([])
+  specialRequirements String?
+  agreedFee           Float               @default(0)
+  advanceAmount       Float               @default(0)
+  balanceDueDate      DateTime?
+  cancellationTerms   String?
+  status              VendorBookingStatus @default(DRAFT)
+  internalNotes       String?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  @@index([tenantId])
+  @@index([partnerId])
+  @@index([eventId])
+  @@index([status])
+  @@map("vendor_bookings")
+}
+
+model PurchaseOrder {
+  id               String              @id @default(uuid())
+  tenantId         String              @map("tenant_id")
+  partnerId        String
+  partner          Partner             @relation(fields: [partnerId], references: [id])
+  eventId          String?
+  expectedDelivery DateTime?
+  status           PurchaseOrderStatus @default(DRAFT)
+  notes            String?
+  totalValue       Float               @default(0)
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  lineItems POLineItem[]
+
+  @@index([tenantId])
+  @@index([partnerId])
+  @@index([eventId])
+  @@index([status])
+  @@map("purchase_orders")
+}
+
+model POLineItem {
+  id              String        @id @default(uuid())
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  description     String
+  qty             Float         @default(1)
+  unitCost        Float
+  total           Float
+
+  @@index([purchaseOrderId])
+  @@map("po_line_items")
+}
+
+// === INVENTORY ===
+
+enum StockMovementType {
+  RECEIVED
+  SHIPPED
+  TRANSFER
+  ADJUSTMENT
+}
+
+model InventoryLocation {
+  id               String              @id @default(uuid())
+  tenantId         String              @map("tenant_id")
+  name             String
+  type             String              @default("Warehouse") // Warehouse | Zone | Vehicle | EventSite
+  description      String?
+  active           Boolean             @default(true)
+  parentLocationId String?
+  parentLocation   InventoryLocation?  @relation("LocationHierarchy", fields: [parentLocationId], references: [id])
+  childLocations    InventoryLocation[] @relation("LocationHierarchy")
+  createdAt        DateTime            @default(now())
+
+  itemsAtLocation InventoryItem[] @relation("ItemLocation")
+  movementsFrom   StockMovement[] @relation("MovementFrom")
+  movementsTo     StockMovement[] @relation("MovementTo")
+
+  @@index([tenantId])
+  @@map("inventory_locations")
+}
+
+model InventoryItem {
+  id                  String             @id @default(uuid())
+  tenantId            String             @map("tenant_id")
+  name                String
+  category            String?
+  sku                 String?
+  size                String?
+  quantity            Float              @default(0)
+  minStock            Float              @default(0)
+  unit                String?
+  locationId          String?
+  location            InventoryLocation? @relation("ItemLocation", fields: [locationId], references: [id])
+  barcode             String?
+  supplierInfo        String?
+  purchaseHistory     String?
+  deploymentCondition String?
+  photoUrl            String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  movements StockMovement[]
+  allocations InventoryAllocation[]
+
+  @@index([tenantId])
+  @@index([locationId])
+  @@map("inventory_items")
+}
+
+model StockMovement {
+  id             String            @id @default(uuid())
+  tenantId       String            @map("tenant_id")
+  itemId         String
+  item           InventoryItem     @relation(fields: [itemId], references: [id])
+  type           StockMovementType
+  qty            Float
+  fromLocationId String?
+  fromLocation   InventoryLocation? @relation("MovementFrom", fields: [fromLocationId], references: [id])
+  toLocationId   String?
+  toLocation     InventoryLocation? @relation("MovementTo", fields: [toLocationId], references: [id])
+  refNotes       String?
+  date           DateTime          @default(now())
+
+  @@index([tenantId])
+  @@index([itemId])
+  @@map("stock_movements")
+}
+
+// === TEAM / HR ===
+
+enum LeaveRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PayrollEntryType {
+  SALARY
+  ADVANCE
+}
+
+model LeaveRequest {
+  id           String              @id @default(uuid())
+  tenantId     String              @map("tenant_id")
+  userId       String
+  user         User                @relation("LeaveRequestUser", fields: [userId], references: [id])
+  startDate    DateTime
+  endDate      DateTime
+  status       LeaveRequestStatus  @default(PENDING)
+  approvedById String?
+  approvedBy   User?               @relation("LeaveRequestApprover", fields: [approvedById], references: [id])
+  createdAt    DateTime            @default(now())
+
+  @@index([tenantId])
+  @@index([userId])
+  @@map("leave_requests")
+}
+
+model SalaryRecord {
+  id        String           @id @default(uuid())
+  tenantId  String           @map("tenant_id")
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+  month     String
+  amount    Float
+  type      PayrollEntryType @default(SALARY)
+  paidAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  @@index([tenantId])
+  @@index([userId])
+  @@map("salary_records")
+}
+
+model TimesheetEntry {
+  id        String   @id @default(uuid())
+  tenantId  String   @map("tenant_id")
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id])
+  role      String?
+  date      DateTime
+  hours     Float
+  overtime  Float    @default(0)
+  approved  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([eventId])
+  @@map("timesheet_entries")
+}
+
+// === PERMISSIONS MATRIX ===
+
+enum PermissionModule {
+  DASHBOARD
+  EVENTS
+  CRM
+  VENDORS
+  TEAM
+  TIMESHEET
+  ACCOUNTING
+  INVENTORY
+  PROCUREMENT
+}
+
+enum PermissionLevel {
+  NO_ACCESS
+  VIEW_ONLY
+  EDIT
+  FULL_ACCESS
+}
+
+model ModulePermission {
+  id        String           @id @default(uuid())
+  tenantId  String           @map("tenant_id")
+  userId    String
+  user      User             @relation("ModulePermissionUser", fields: [userId], references: [id])
+  module    PermissionModule
+  level     PermissionLevel  @default(NO_ACCESS)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@unique([userId, module])
+  @@index([tenantId])
+  @@map("module_permissions")
+}
+
+// === PUBLIC BUSINESS PROFILE (microsite) ===
+
+model PublicProfile {
+  id               String   @id @default(uuid())
+  tenantId         String   @unique @map("tenant_id")
+  companyName      String?
+  slug             String?  @unique
+  tagline          String?
+  city             String?
+  address          String?
+  yearsExperience  Int?
+  eventsExecuted   Int?
+  about            String?
+  phone            String?
+  whatsapp         String?
+  email            String?
+  website          String?
+  instagramUrl     String?
+  youtubeUrl       String?
+  facebookUrl      String?
+  googleMapsUrl    String?
+  servicesOffered  String[] @default([])
+  coverImageUrl    String?
+  published        Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("public_profiles")
+}
+
+model InventoryAllocation {
+  id            String        @id @default(uuid())
+  tenantId      String        @map("tenant_id")
+  eventId       String
+  event         Event         @relation(fields: [eventId], references: [id])
+  itemId        String
+  item          InventoryItem @relation(fields: [itemId], references: [id])
+  qtyAllocated  Float
+  createdAt     DateTime      @default(now())
+
+  @@index([tenantId])
+  @@index([eventId])
+  @@index([itemId])
+  @@map("inventory_allocations")
 }

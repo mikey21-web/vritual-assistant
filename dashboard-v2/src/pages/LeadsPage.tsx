@@ -302,7 +302,14 @@ export default function LeadsPage() {
                                   ))}
                                 </div>
                               </div>
-                              <CustomFieldsSection target="LEAD" targetId={l.id} />
+                              <div>
+                                <h4 className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider mb-3">Custom Fields</h4>
+                                <CustomFieldsSection target="LEAD" targetId={l.id} />
+                                <a href={`#/create-event?leadId=${l.id}&contactId=${l.contact?.id || ''}`} onClick={e => e.stopPropagation()}
+                                  className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-[var(--primary)] hover:underline">
+                                  <Calendar size={12} /> Create event from this lead
+                                </a>
+                              </div>
                             </div>
                           </td>
                         </tr>
@@ -368,6 +375,10 @@ export default function LeadsPage() {
                     </div>
                     <div className="mt-3 pt-3 border-t border-[var(--border)]">
                       <CustomFieldsSection target="LEAD" targetId={l.id} />
+                      <a href={`#/create-event?leadId=${l.id}&contactId=${l.contact?.id || ''}`} onClick={e => e.stopPropagation()}
+                        className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-[var(--primary)] hover:underline">
+                        <Calendar size={12} /> Create event from this lead
+                      </a>
                     </div>
                     <div className="mt-3 pt-3 border-t border-[var(--border)]">
                       <div className="flex items-center justify-between mb-2">

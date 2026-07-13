@@ -1,12 +1,65 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../lib/api';
-import { UserPlus, Trash2, Users } from 'lucide-react';
+import { UserPlus, Trash2, Users, Shield } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { fetchPermissionPresets, fetchUserPermissions, setUserPermission, applyPermissionPreset } from '../lib/data';
+
+const PERMISSION_MODULES = ['DASHBOARD', 'EVENTS', 'CRM', 'VENDORS', 'TEAM', 'TIMESHEET', 'ACCOUNTING', 'INVENTORY', 'PROCUREMENT'];
+const PERMISSION_LEVELS = ['NO_ACCESS', 'VIEW_ONLY', 'EDIT', 'FULL_ACCESS'];
+
+function PermissionsPanel({ userId, onClose }: { userId: string; onClose: () => void }) {
+  const [presets, setPresets] = useState<any[]>([]);
+  const [perms, setPerms] = useState<Record<string, string>>({});
+
+  const refresh = () => fetchUserPermissions(userId).then((rows: any[]) => {
+    const map: Record<string, string> = {};
+    rows.forEach(r => { map[r.module] = r.level; });
+    setPerms(map);
+  }).catch(() => {});
+
+  useEffect(() => { fetchPermissionPresets().then(setPresets).catch(() => {}); refresh(); }, [userId]);
+
+  const setLevel = async (module: string, level: string) => {
+    try { await setUserPermission(userId, module, level); setPerms({ ...perms, [module]: level }); } catch (e: any) { toast.error(e.message); }
+  };
+
+  const apply = async (preset: string) => {
+    try { await applyPermissionPreset(userId, preset); refresh(); toast.success(`Applied "${preset}"`); } catch (e: any) { toast.error(e.message); }
+  };
+
+  return (
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 mt-2 space-y-3">
+      <div className="flex items-center justify-between">
+        <h4 className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Workspace access</h4>
+        <div className="flex items-center gap-2">
+          <select onChange={e => e.target.value && apply(e.target.value)} defaultValue=""
+            className="h-8 rounded-lg border border-[var(--border)] bg-[var(--background)] px-2 text-xs text-[var(--foreground)]">
+            <option value="" disabled>Apply preset</option>
+            {presets.map((p: any) => <option key={p.name} value={p.name}>{p.name}</option>)}
+          </select>
+          <button onClick={onClose} className="text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)]">Close</button>
+        </div>
+      </div>
+      <div className="space-y-2">
+        {PERMISSION_MODULES.map(m => (
+          <div key={m} className="flex items-center justify-between">
+            <span className="text-sm text-[var(--foreground)]">{m.replace('_', ' ')}</span>
+            <select value={perms[m] || 'NO_ACCESS'} onChange={e => setLevel(m, e.target.value)}
+              className="h-8 rounded-lg border border-[var(--border)] bg-[var(--background)] px-2 text-xs text-[var(--foreground)]">
+              {PERMISSION_LEVELS.map(l => <option key={l} value={l}>{l.replace('_', ' ')}</option>)}
+            </select>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function TeamPage() {
   const [users, setUsers] = useState<any[]>([]);
   const [showInvite, setShowInvite] = useState(false);
   const [form, setForm] = useState({ email: '', name: '', role: 'SALES_AGENT' });
+  const [permUserId, setPermUserId] = useState<string | null>(null);
 
   const refresh = () => api('/users').then((r: any) => setUsers(Array.isArray(r) ? r : r.data || [])).catch(() => {});
   useEffect(() => { refresh(); }, []);
@@ -129,12 +182,21 @@ export default function TeamPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <button
-                        onClick={() => { api(`/users/${u.id}`, { method: 'DELETE' }).then(refresh); toast.success('Removed'); }}
-                        className="p-1.5 rounded-md hover:bg-[var(--accent)] text-red-400 hover:text-red-600 transition-colors"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => setPermUserId(permUserId === u.id ? null : u.id)}
+                          className="p-1.5 rounded-md hover:bg-[var(--accent)] text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors"
+                          title="Manage permissions"
+                        >
+                          <Shield size={14} />
+                        </button>
+                        <button
+                          onClick={() => { api(`/users/${u.id}`, { method: 'DELETE' }).then(refresh); toast.success('Removed'); }}
+                          className="p-1.5 rounded-md hover:bg-[var(--accent)] text-red-400 hover:text-red-600 transition-colors"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -143,6 +205,7 @@ export default function TeamPage() {
           </table>
         </div>
       </div>
+      {permUserId && <PermissionsPanel userId={permUserId} onClose={() => setPermUserId(null)} />}
 
       <div className="block sm:hidden space-y-3">
         {users.length === 0 ? (
