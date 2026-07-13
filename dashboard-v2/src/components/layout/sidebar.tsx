@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import {
   LayoutDashboard, Users, MessageSquare, BarChart3, Settings,
   Megaphone, FormInput, QrCode, FileText, Route, Target,
-  ShoppingCart, Link, Calendar, Layers, ChevronLeft, ChevronRight,
+  ShoppingCart, Link, Calendar, Layers, ChevronLeft, ChevronRight, ChevronDown,
   UserCircle, CheckSquare, Sparkles, Phone,   Bot, MessageCircle, Smartphone, Webhook, Globe, LogOut, Columns3,
   LifeBuoy, BookOpen, Puzzle, Download, Headset,
   Truck, ClipboardList, Package, Box, MapPin, Building2,
@@ -185,6 +185,18 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { co
   const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+  const findActiveGroupLabel = () => {
+    const hash = window.location.hash.replace('#', '') || '/';
+    const group = navGroups.find(g => g.items.some(item => hash === item.path || (item.path !== '/' && hash.startsWith(item.path))));
+    return group?.label;
+  };
+
+  const [openGroups, setOpenGroups] = useState<Set<string>>(() => {
+    const active = findActiveGroupLabel();
+    return new Set(active ? [active] : []);
+  });
+  const [activeHash, setActiveHash] = useState(() => window.location.hash);
+
   useEffect(() => {
     Promise.all([
       fetchProfile().catch(() => null),
@@ -195,6 +207,24 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { co
       setLoading(false);
     });
   }, []);
+
+  useEffect(() => {
+    const onHash = () => {
+      setActiveHash(window.location.hash);
+      const active = findActiveGroupLabel();
+      if (active) setOpenGroups(prev => (prev.has(active) ? prev : new Set(prev).add(active)));
+    };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+
+  const toggleGroup = (label: string) => {
+    setOpenGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(label)) next.delete(label); else next.add(label);
+      return next;
+    });
+  };
 
   const companyName = settings?.businessName || profile?.tenant?.name || getBusinessName() || "LeadFlow";
   const initials = companyName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase() || 'BN';
@@ -221,36 +251,54 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { co
           </button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto p-3 space-y-5">
-          {navGroups.map((group) => (
-            <div key={group.label}>
-              {!collapsed && (
-                <p className="px-2.5 text-[10px] font-semibold text-[var(--muted-foreground-light)] uppercase tracking-wider mb-1">
-                  {group.label}
-                </p>
-              )}
-              <div className="space-y-0.5">
-                {group.items.map((item) => {
-                  const isActive = window.location.hash === `#${item.path}` || (!window.location.hash && item.path === "/");
-                  return (
-                    <a
-                      key={item.path}
-                      href={`#${item.path}`}
-                      onClick={onMobileClose}
-                      className={`flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm transition-all font-medium ${
-                        isActive
-                          ? "bg-[var(--accent)] text-[var(--foreground)]"
-                          : "text-[var(--muted-foreground)] hover:bg-[var(--accent)] hover:text-[var(--foreground)]"
-                      }`}
+        <nav className="flex-1 overflow-y-auto p-3 space-y-1">
+          {navGroups.map((group) => {
+            const collapsible = group.items.length > 1;
+            const isOpen = !collapsible || openGroups.has(group.label) || collapsed;
+            return (
+              <div key={group.label} className="pb-1">
+                {!collapsed && (
+                  collapsible ? (
+                    <button
+                      onClick={() => toggleGroup(group.label)}
+                      className="w-full flex items-center justify-between px-2.5 py-1.5 text-[10px] font-semibold text-[var(--muted-foreground-light)] uppercase tracking-wider hover:text-[var(--foreground)] transition-colors"
                     >
-                      <item.icon size={17} strokeWidth={2} />
-                      {!collapsed && <span>{item.label}</span>}
-                    </a>
-                  );
-                })}
+                      <span>{group.label}</span>
+                      <ChevronDown size={12} className={`transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
+                    </button>
+                  ) : (
+                    <p className="px-2.5 text-[10px] font-semibold text-[var(--muted-foreground-light)] uppercase tracking-wider mb-1">
+                      {group.label}
+                    </p>
+                  )
+                )}
+                <div
+                  className={`space-y-0.5 overflow-hidden transition-all duration-200 ease-out ${
+                    isOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+                  }`}
+                >
+                  {group.items.map((item) => {
+                    const isActive = activeHash === `#${item.path}` || (!activeHash && item.path === "/");
+                    return (
+                      <a
+                        key={item.path}
+                        href={`#${item.path}`}
+                        onClick={onMobileClose}
+                        className={`flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm transition-all font-medium ${
+                          isActive
+                            ? "bg-[var(--accent)] text-[var(--foreground)]"
+                            : "text-[var(--muted-foreground)] hover:bg-[var(--accent)] hover:text-[var(--foreground)]"
+                        }`}
+                      >
+                        <item.icon size={17} strokeWidth={2} />
+                        {!collapsed && <span>{item.label}</span>}
+                      </a>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </nav>
 
         <div className="border-t border-[var(--border)] p-3">
