@@ -51,6 +51,7 @@ services:
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/lead_automation
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
       SIGNED_URL_SECRET: ${SIGNED_URL_SECRET:?SIGNED_URL_SECRET must be set}
+      PUBLIC_URL: ${PUBLIC_URL:?PUBLIC_URL must be set}
       AGENT_INBOUND_KEY: ${AGENT_INBOUND_KEY:?AGENT_INBOUND_KEY must be set}
       AGENT_SERVICE_JWT: ${AGENT_SERVICE_JWT:?AGENT_SERVICE_JWT must be set}
       JWT_EXPIRATION: 24h
