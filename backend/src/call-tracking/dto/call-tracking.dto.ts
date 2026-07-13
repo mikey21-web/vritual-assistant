@@ -20,7 +20,7 @@ export class CallSyncEntryDto {
   @ApiProperty() @IsIn(['SIM', 'WHATSAPP']) source: 'SIM' | 'WHATSAPP';
   @ApiProperty() @IsISO8601() startedAt: string;
   @ApiPropertyOptional() @IsInt() @Min(0) @IsOptional() durationSec?: number;
-  @ApiPropertyOptional() @IsIn(['COMPLETED', 'NO_ANSWER', 'BUSY', 'FAILED']) @IsOptional() status?: string;
+  @ApiPropertyOptional() @IsIn(['COMPLETED', 'NO_ANSWER', 'BUSY', 'FAILED', 'MISSED']) @IsOptional() status?: string;
   @ApiPropertyOptional() @IsString() @IsOptional() recordingUrl?: string;
 }
 

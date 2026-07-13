@@ -13,7 +13,7 @@ const sourceVariant: Record<string, "default" | "success" | "secondary"> = {
   TWILIO: "secondary",
 };
 
-const missedStatuses = new Set(["NO_ANSWER", "BUSY", "FAILED"]);
+const missedStatuses = new Set(["NO_ANSWER", "BUSY", "FAILED", "MISSED"]);
 
 function formatDuration(sec?: number | null) {
   if (!sec) return "—";
@@ -111,11 +111,11 @@ export default function CallsPage() {
               <TableRow key={c.id}>
                 <TableCell className="text-xs text-[var(--muted-foreground)] whitespace-nowrap">{new Date(c.createdAt).toLocaleString()}</TableCell>
                 <TableCell className="font-medium text-[var(--foreground)]">
-                  {c.contact?.name || "Unknown"}
+                  {c.contact?.name || (c.source === "WHATSAPP" ? c.fromNumber : "Unknown")}
                   {c.summary && <div className="text-xs text-[var(--muted-foreground)] font-normal mt-0.5 max-w-[220px] truncate" title={c.summary}>{c.summary}</div>}
                   {c.summaryStatus === "PENDING" && c.recordingUrl && <div className="text-xs text-[var(--muted-foreground)] font-normal mt-0.5 italic">Transcribing...</div>}
                 </TableCell>
-                <TableCell className="text-xs text-[var(--muted-foreground)]">{c.direction === "INBOUND" ? c.fromNumber : c.toNumber}</TableCell>
+                <TableCell className="text-xs text-[var(--muted-foreground)]">{c.fromNumber}</TableCell>
                 <TableCell>
                   <span className="inline-flex items-center gap-1 text-xs text-[var(--foreground)]">
                     {c.direction === "INBOUND" ? <PhoneIncoming size={13} /> : <PhoneOutgoing size={13} />}
@@ -169,14 +169,20 @@ function NotesCell({ call, onUpdate }: { call: any; onUpdate: (id: string, notes
 
   const handleSave = async () => {
     if (saving) return;
+    const trimmed = value.trim();
+    // If user cleared the note, delete it instead of saving empty string
+    if (!trimmed && !call.notes) {
+      setEditing(false);
+      return;
+    }
     setSaving(true);
     try {
       await api(`/call-tracking/calls/${call.id}/notes`, {
         method: 'PATCH',
-        body: JSON.stringify({ notes: value }),
+        body: JSON.stringify({ notes: trimmed }),
       });
       setSaved(true);
-      onUpdate(call.id, value);
+      onUpdate(call.id, trimmed);
       setTimeout(() => setSaved(false), 2000);
     } catch {
       toast.error("Failed to save note");

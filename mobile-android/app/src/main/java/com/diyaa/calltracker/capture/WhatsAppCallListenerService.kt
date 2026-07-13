@@ -46,18 +46,9 @@ class WhatsAppCallListenerService : NotificationListenerService() {
 
         val title = sbn.notification.extras?.getCharSequence(android.app.Notification.EXTRA_TITLE)?.toString() ?: "WhatsApp contact"
 
-        // Detect call direction from notification actions:
-        // - Incoming WhatsApp calls provide "Answer" / "Decline" action buttons
-        // - Outgoing calls have no such buttons (or only a "Dismiss" action)
-        val actions = sbn.notification.actions
-        val hasAnswerDeclineActions = actions?.any { action ->
-            val actionTitle = action.title?.toString() ?: ""
-            actionTitle.contains("Answer", ignoreCase = true) ||
-                actionTitle.contains("Decline", ignoreCase = true) ||
-                actionTitle.contains("Accept", ignoreCase = true) ||
-                actionTitle.contains("Reject", ignoreCase = true)
-        } ?: false
-        val direction = if (hasAnswerDeclineActions) "INBOUND" else "OUTBOUND"
+        // WhatsApp notifications with CATEGORY_CALL are always incoming calls.
+        // Outgoing calls do not post notifications — they go directly to the in-call UI.
+        val direction = "INBOUND"
 
         // Build a unique notification key to track this specific call
         val notificationKey = sbn.tag?.let { "$it|${sbn.id}" } ?: "${sbn.id}"

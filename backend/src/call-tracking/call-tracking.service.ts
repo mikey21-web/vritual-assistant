@@ -183,7 +183,7 @@ export class CallTrackingService {
 
     const [todayCount, missedCount, durations] = await Promise.all([
       this.prisma.callLog.count({ where: { tenantId, createdAt: { gte: startOfDay } } }),
-      this.prisma.callLog.count({ where: { tenantId, createdAt: { gte: startOfDay }, status: { in: ['NO_ANSWER', 'BUSY', 'FAILED'] } } }),
+      this.prisma.callLog.count({ where: { tenantId, createdAt: { gte: startOfDay }, status: { in: ['NO_ANSWER', 'BUSY', 'FAILED', 'MISSED'] } } }),
       this.prisma.callLog.findMany({ where: { tenantId, createdAt: { gte: startOfDay }, durationSec: { not: null } }, select: { durationSec: true } }),
     ]);
 
@@ -246,10 +246,12 @@ export class CallTrackingService {
     const totalDurationSec = durationRows.reduce((s, r) => s + (r.durationSec || 0), 0);
     const avgDurationSec = totalCalls > 0 ? Math.round(totalDurationSec / totalCalls) : 0;
 
-    // Count missed (NO_ANSWER, BUSY, FAILED) vs answered (COMPLETED)
+    const MISSED_STATUSES = ['NO_ANSWER', 'BUSY', 'FAILED', 'MISSED'];
+
+    // Count missed vs answered (COMPLETED)
     const statusCounts = callsForTime.reduce(
       (acc, c) => {
-        if (['NO_ANSWER', 'BUSY', 'FAILED'].includes(c.status)) acc.missed++;
+        if (MISSED_STATUSES.includes(c.status)) acc.missed++;
         else if (c.status === 'COMPLETED') acc.answered++;
         return acc;
       },
@@ -264,7 +266,7 @@ export class CallTrackingService {
       if (!dateMap.has(key)) dateMap.set(key, { count: 0, missed: 0, durations: [] });
       const bucket = dateMap.get(key)!;
       bucket.count++;
-      if (['NO_ANSWER', 'BUSY', 'FAILED'].includes(c.status)) bucket.missed++;
+      if (MISSED_STATUSES.includes(c.status)) bucket.missed++;
       if (c.durationSec) bucket.durations.push(c.durationSec);
     }
     const overTime = Array.from(dateMap.entries())
