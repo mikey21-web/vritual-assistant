@@ -30,4 +30,7 @@ export class SubmitFormDto {
   @ApiPropertyOptional() @IsOptional() @IsString() message?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() interest?: string;
   @ApiPropertyOptional() @IsOptional() @IsObject() metadata?: Record<string, unknown>;
+  // Set by the form page when it was reached via a ?qr=<id> link, so the resulting
+  // lead can be attributed to the QR code instead of just "FORM".
+  @ApiPropertyOptional() @IsOptional() @IsString() qrCodeId?: string;
 }

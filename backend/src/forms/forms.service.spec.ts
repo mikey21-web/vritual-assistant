@@ -96,6 +96,9 @@ describe('FormsService', () => {
       formSubmission: {
         create: jest.fn().mockResolvedValue(mockSubmission),
       },
+      qrCode: {
+        findUnique: jest.fn().mockResolvedValue(null),
+      },
     };
 
     contactsService = {
@@ -332,5 +335,20 @@ describe('FormsService', () => {
         data: expect.objectContaining({ formId: 'form-1' }),
       }),
     );
+  });
+
+  // ── QR attribution ──────────────────────────────
+
+  it('should attribute the lead to QR_CODE when a valid qrCodeId is submitted', async () => {
+    prisma.qrCode.findUnique.mockResolvedValue({ id: 'qr-1' });
+    await service.submit('form-1', { name: 'Test', email: 'test@test.com', qrCodeId: 'qr-1' }, {});
+    expect(prisma.qrCode.findUnique).toHaveBeenCalledWith({ where: { id: 'qr-1' } });
+    expect(leadsService.create).toHaveBeenCalledWith(expect.objectContaining({ source: 'QR_CODE' }));
+  });
+
+  it('should fall back to FORM when the submitted qrCodeId does not exist', async () => {
+    prisma.qrCode.findUnique.mockResolvedValue(null);
+    await service.submit('form-1', { name: 'Test', email: 'test@test.com', qrCodeId: 'bogus' }, {});
+    expect(leadsService.create).toHaveBeenCalledWith(expect.objectContaining({ source: 'FORM' }));
   });
 });

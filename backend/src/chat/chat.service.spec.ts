@@ -66,6 +66,9 @@ describe('ChatService', () => {
       lead: {
         findFirst: jest.fn().mockResolvedValue(null),
       },
+      qrCode: {
+        findUnique: jest.fn().mockResolvedValue(null),
+      },
     };
 
     contactsService = {
@@ -449,5 +452,51 @@ describe('ChatService', () => {
     });
 
     expect(result.response).toBeDefined();
+  });
+
+  // ─── QR attribution ─────────────────────────────────────────────
+
+  it('should attribute a new lead to QR_CODE when a valid qrCodeId is passed', async () => {
+    contactsService.findOrCreate.mockResolvedValue(mockOptedInContact);
+    prisma.qrCode.findUnique.mockResolvedValue({ id: 'qr-1' });
+
+    await service.handleChatMessage({
+      sessionId: 'sess-123',
+      email: 'john@example.com',
+      message: 'Hi from the QR landing page',
+      qrCodeId: 'qr-1',
+    });
+
+    expect(prisma.qrCode.findUnique).toHaveBeenCalledWith({ where: { id: 'qr-1' } });
+    expect(leadsService.create).toHaveBeenCalledWith(expect.objectContaining({ source: 'QR_CODE' }));
+  });
+
+  it('should fall back to CHATBOT when the passed qrCodeId does not exist', async () => {
+    contactsService.findOrCreate.mockResolvedValue(mockOptedInContact);
+    prisma.qrCode.findUnique.mockResolvedValue(null);
+
+    await service.handleChatMessage({
+      sessionId: 'sess-123',
+      email: 'john@example.com',
+      message: 'Hi',
+      qrCodeId: 'bogus',
+    });
+
+    expect(leadsService.create).toHaveBeenCalledWith(expect.objectContaining({ source: 'CHATBOT' }));
+  });
+
+  it('should not attribute to QR_CODE when reusing an existing lead', async () => {
+    contactsService.findOrCreate.mockResolvedValue(mockOptedInContact);
+    prisma.lead.findFirst.mockResolvedValue(mockExistingLead);
+
+    await service.handleChatMessage({
+      sessionId: 'sess-123',
+      email: 'john@example.com',
+      message: 'Follow-up',
+      qrCodeId: 'qr-1',
+    });
+
+    expect(leadsService.create).not.toHaveBeenCalled();
+    expect(prisma.qrCode.findUnique).not.toHaveBeenCalled();
   });
 });

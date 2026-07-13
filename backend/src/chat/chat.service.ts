@@ -20,7 +20,7 @@ export class ChatService {
     private http: HttpService,
   ) {}
 
-  async handleChatMessage(d: { sessionId?: string; name?: string; email?: string; phone?: string; message: string }, req?: any) {
+  async handleChatMessage(d: { sessionId?: string; name?: string; email?: string; phone?: string; message: string; qrCodeId?: string }, req?: any) {
     const contactName = d.name || d.email?.split('@')[0] || `Visitor ${d.sessionId?.slice(-6) || 'anon'}`;
 
     const contact = await this.contactsService.findOrCreate({
@@ -53,11 +53,14 @@ export class ChatService {
     if (existingLead) {
       lead = existingLead;
     } else {
+      // Only trust a client-supplied qrCodeId if it's a real QR code, so a made-up id
+      // can't misattribute a lead's source.
+      const source = d.qrCodeId && (await this.prisma.qrCode.findUnique({ where: { id: d.qrCodeId } })) ? 'QR_CODE' : 'CHATBOT';
       lead = await this.leadsService.create({
         contactId: contact.id,
-        source: 'CHATBOT',
+        source,
         message: d.message,
-        metadata: { sessionId: d.sessionId, channel: 'chat_widget' },
+        metadata: { sessionId: d.sessionId, channel: 'chat_widget', qrCodeId: d.qrCodeId },
       });
     }
 

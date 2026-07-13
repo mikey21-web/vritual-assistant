@@ -32,8 +32,11 @@ export class FormsService {
     const contact = await this.contactsService.findOrCreate({
       name: payload.name, email: payload.email, phone: payload.phone, whatsapp: payload.whatsapp, company: payload.company,
     }, req);
+    // Only trust a client-supplied qrCodeId if it's a real QR code, so a made-up id
+    // can't misattribute a lead's source.
+    const source = payload.qrCodeId && (await this.prisma.qrCode.findUnique({ where: { id: payload.qrCodeId } })) ? 'QR_CODE' : 'FORM';
     const lead = await this.leadsService.create({
-      contactId: contact.id, source: 'FORM', message: payload.message, interest: payload.interest, metadata: payload,
+      contactId: contact.id, source, message: payload.message, interest: payload.interest, metadata: payload,
     });
     await this.prisma.formSubmission.create({ data: { formId, payload, leadId: lead.id } });
     await this.auditLogs.log('form_submitted', 'LeadForm', formId);

@@ -93,10 +93,11 @@ export class CopilotService {
       .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}️]/gu, '')
       // Tight ranges like "9am–5pm" or "$50–$100" (no surrounding spaces) keep their meaning
       // by becoming "to", not a comma, since converting them to a comma would turn a range
-      // into what reads like a list.
-      .replace(/(\S)[—–](\S)/g, '$1 to $2')
+      // into what reads like a list. Also catches "--" (ASCII double hyphen), which the model
+      // sometimes uses as a dash substitute and which the unicode-only pattern below misses.
+      .replace(/(\S)(?:—|–|--)(\S)/g, '$1 to $2')
       // Sentence-level dashes (with a space on at least one side) become a comma.
-      .replace(/\s*[—–]\s*/g, ', ')
+      .replace(/\s*(?:—|–|--)\s*/g, ', ')
       .replace(/[ \t]{2,}/g, ' ')
       .replace(/ ,/g, ',')
       .trim();

@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Patch, Body, Param, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, UseGuards, Req, Res, Headers } from '@nestjs/common';
+import { Response } from 'express';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -22,4 +23,13 @@ export class QrCodesController {
   @Get(':id/image') @Roles('OWNER', 'ADMIN', 'MANAGER', 'VIEWER') generateImage(@Param('id') id: string) { return this.service.generateImage(id); }
   @Public()
   @Post(':id/scan') recordScan(@Param('id') id: string, @Body() meta: RecordQrScanDto) { return this.service.recordScan(id, meta); }
+
+  // What the printed QR code actually points at. A phone's camera app follows this
+  // as a real HTTP redirect, so this has to issue one rather than return JSON.
+  @Public()
+  @Get(':id/go')
+  async scanAndRedirect(@Param('id') id: string, @Headers('user-agent') userAgent: string, @Res() res: Response) {
+    const target = await this.service.scanAndRedirect(id, userAgent);
+    res.redirect(302, target);
+  }
 }

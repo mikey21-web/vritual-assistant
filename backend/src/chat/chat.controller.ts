@@ -11,6 +11,8 @@ export class ChatSendDto {
   @IsOptional() @IsString() email?: string;
   @IsOptional() @IsString() phone?: string;
   @IsString() message: string;
+  // Passed by the embedded widget when the page it's on was reached via a ?qr=<id> link.
+  @IsOptional() @IsString() qrCodeId?: string;
 }
 
 @ApiTags('Chat')

@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { QrCodesService } from './qr-codes.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotFoundException } from '@nestjs/common';
@@ -50,6 +51,7 @@ describe('QrCodesService', () => {
       providers: [
         QrCodesService,
         { provide: PrismaService, useValue: prisma },
+        { provide: ConfigService, useValue: { get: jest.fn((_key: string, def?: string) => def) } },
       ],
     }).compile();
 
@@ -156,10 +158,10 @@ describe('QrCodesService', () => {
     expect(result.image).toBe('data:image/png;base64,iVBORw0KGgo=');
   });
 
-  it('should call QRCode.toDataURL with destination and width 512', async () => {
+  it('should call QRCode.toDataURL with the tracking redirect link, not the raw destination', async () => {
     await service.generateImage('qr-1');
     expect(QRCode.toDataURL).toHaveBeenCalledWith(
-      'https://example.com/landing',
+      'http://localhost:3001/api/qr-codes/qr-1/go',
       { width: 512 },
     );
   });
@@ -234,5 +236,26 @@ describe('QrCodesService', () => {
     expect(prisma.qrCode.findUnique).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: 'qr-1' } }),
     );
+  });
+
+  // ── scanAndRedirect ─────────────────────────────
+
+  it('should log a scan and return the destination tagged with ?qr=<id>', async () => {
+    const target = await service.scanAndRedirect('qr-1', 'Mozilla/5.0');
+    expect(target).toBe('https://example.com/landing?qr=qr-1');
+    expect(prisma.qrScan.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { qrCodeId: 'qr-1', userAgent: 'Mozilla/5.0' } }),
+    );
+  });
+
+  it('should append the qr tag with & when the destination already has query params', async () => {
+    prisma.qrCode.findUnique.mockResolvedValue({ ...mockQrCode, destination: 'https://example.com/landing?utm=x' });
+    const target = await service.scanAndRedirect('qr-1');
+    expect(target).toBe('https://example.com/landing?utm=x&qr=qr-1');
+  });
+
+  it('should throw NotFoundException when redirecting a non-existent QR code', async () => {
+    prisma.qrCode.findUnique.mockResolvedValue(null);
+    await expect(service.scanAndRedirect('nonexistent')).rejects.toThrow(NotFoundException);
   });
 });

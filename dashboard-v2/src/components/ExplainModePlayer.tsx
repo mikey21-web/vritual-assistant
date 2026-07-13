@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronLeft, ChevronRight, X, Sparkles } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, Compass } from "lucide-react";
 import { EXPLAIN_FLOW_START_EVENT, type ExplainStep } from "../lib/explainMode";
 import { setPendingFilter } from "../lib/pendingSearch";
 
@@ -52,7 +52,7 @@ export default function ExplainModePlayer() {
         className="fixed top-0 inset-x-0 z-40 flex justify-center px-4 pt-3"
       >
         <div className="flex items-center gap-3 max-w-2xl w-full rounded-xl border border-[var(--border)] bg-[var(--card)] shadow-lg px-4 py-2.5">
-          <Sparkles size={16} className="text-[var(--primary)] shrink-0" />
+          <Compass size={16} className="text-[var(--primary)] shrink-0" />
           <div className="flex-1 min-w-0">
             <div className="text-[10px] font-semibold uppercase tracking-wider text-[var(--muted-foreground)]">
               Step {index + 1} of {steps.length}
