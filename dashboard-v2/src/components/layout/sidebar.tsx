@@ -124,8 +124,9 @@ const rawNavGroups = [
     ],
   },
   {
-    label: "Team HR",
+    label: "Team",
     items: [
+      { label: "Team Members", icon: Users, path: "/team" },
       { label: "Leave Log", icon: Calendar, path: "/leave-log" },
       { label: "Salaries", icon: BarChart3, path: "/salaries" },
       { label: "Timesheet", icon: CheckSquare, path: "/timesheet" },
