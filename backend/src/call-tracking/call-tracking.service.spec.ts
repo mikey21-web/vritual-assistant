@@ -1,6 +1,10 @@
 import { Test } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { HttpService } from '@nestjs/axios';
+import { of } from 'rxjs';
 import { CallTrackingService } from './call-tracking.service';
+import { CallSummaryService } from './call-summary.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ContactsService } from '../contacts/contacts.service';
 import { LeadsService } from '../leads/leads.service';
@@ -12,6 +16,9 @@ describe('CallTrackingService', () => {
   let contacts: any;
   let leads: any;
   let realtime: any;
+  let callSummary: any;
+  let config: any;
+  let httpService: any;
 
   const mockContact = { id: 'contact-1', phone: '+15551234567' };
   const mockLead = { id: 'lead-1', status: 'NEW', contactId: 'contact-1' };
@@ -40,6 +47,9 @@ describe('CallTrackingService', () => {
     contacts = { findOrCreate: jest.fn().mockResolvedValue(mockContact) };
     leads = { create: jest.fn().mockResolvedValue(mockLead) };
     realtime = { emitToTenant: jest.fn() };
+    callSummary = { summarize: jest.fn().mockResolvedValue(undefined) };
+    config = { get: jest.fn().mockReturnValue(undefined) };
+    httpService = { post: jest.fn().mockReturnValue(of({ data: {} })) };
 
     const module = await Test.createTestingModule({
       providers: [
@@ -48,6 +58,9 @@ describe('CallTrackingService', () => {
         { provide: ContactsService, useValue: contacts },
         { provide: LeadsService, useValue: leads },
         { provide: RealtimeGateway, useValue: realtime },
+        { provide: CallSummaryService, useValue: callSummary },
+        { provide: ConfigService, useValue: config },
+        { provide: HttpService, useValue: httpService },
       ],
     }).compile();
 

@@ -121,6 +121,15 @@ function buildMockTicket(i: number): any {
 
 export const mockTickets = Array.from({ length: 12 }, (_, i) => buildMockTicket(i));
 
+const callSummaries = [
+  'Discussed pricing options for enterprise plan. Client will review and get back by next week.',
+  'Walked through product demo focusing on automation features. Requested a trial account.',
+  'Addressed billing concerns regarding the recent upgrade. Issue resolved with a partial credit.',
+  'Introduction call with prospect interested in WhatsApp integration. Follow-up scheduled for Thursday.',
+  'Troubleshot integration issue with their CRM. Engineering team will provide a fix in 48 hours.',
+  'Contract negotiation call — agreed on annual plan with 15% discount. Awaiting signed contract.',
+];
+
 function buildMockCallLog(i: number): any {
   const directions = ['INBOUND', 'OUTBOUND'];
   const sources = ['SIM', 'SIM', 'WHATSAPP'];
@@ -129,6 +138,7 @@ function buildMockCallLog(i: number): any {
   const direction = randomItem(directions);
   const status = randomItem(statuses);
   const phone = lead.contact?.phone || `+1 (555) 010-${1000 + i}`;
+  const hasSummary = status === 'COMPLETED' && Math.random() > 0.5;
   return {
     id: `call-${i + 1}`,
     direction,
@@ -142,6 +152,8 @@ function buildMockCallLog(i: number): any {
     lead: { id: lead.id, status: lead.status },
     device: { id: 'device-1', name: "Sarah's phone", model: 'Pixel 8' },
     createdAt: randomDate(7),
+    summary: hasSummary ? randomItem(callSummaries) : null,
+    summaryStatus: hasSummary ? 'DONE' : 'PENDING',
   };
 }
 
@@ -691,9 +703,104 @@ export function getMockResponse(path: string, method: string, body?: any): any |
     return { success: true };
   }
 
+  // --- Sync Logs ---
+  if (normalized === '/call-tracking/sync-logs' && method === 'GET') {
+    const url = new URL(path, 'http://localhost');
+    const status = url.searchParams.get('status') || '';
+    const page = parseInt(url.searchParams.get('page') || '1', 10);
+    const limit = parseInt(url.searchParams.get('limit') || '20', 10);
+    let filtered = [...mockSyncLogs];
+    if (status) filtered = filtered.filter(l => l.status === status);
+    const total = filtered.length;
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    const start = (page - 1) * limit;
+    const data = filtered.slice(start, start + limit);
+    return { data, total, page, limit, totalPages };
+  }
+
+  if (normalized.match(/^\/call-tracking\/sync-logs\/[\w-]+\/retry$/) && method === 'POST') {
+    return { success: true, message: 'Retry initiated' };
+  }
+
+  // --- Custom Webhooks ---
+  if (normalized === '/webhooks/custom' && method === 'GET') {
+    return mockCustomWebhooks;
+  }
+
+  if (normalized === '/webhooks/custom' && method === 'POST') {
+    const newWebhook = { id: `custom-wh-${Date.now()}`, ...body, createdAt: new Date().toISOString() };
+    mockCustomWebhooks.push(newWebhook);
+    return newWebhook;
+  }
+
+  if (normalized.match(/^\/webhooks\/custom\/[\w-]+$/) && method === 'PATCH') {
+    const id = normalized.split('/')[3];
+    const idx = mockCustomWebhooks.findIndex((w: any) => w.id === id);
+    if (idx >= 0) mockCustomWebhooks[idx] = { ...mockCustomWebhooks[idx], ...body };
+    return { success: true, ...mockCustomWebhooks[idx] };
+  }
+
+  if (normalized.match(/^\/webhooks\/custom\/[\w-]+$/) && method === 'DELETE') {
+    const id = normalized.split('/')[3];
+    const idx = mockCustomWebhooks.findIndex((w: any) => w.id === id);
+    if (idx >= 0) mockCustomWebhooks.splice(idx, 1);
+    return { success: true };
+  }
+
   if (method === 'DELETE') {
     return { success: true };
   }
 
   return null;
 }
+
+function buildMockSyncLog(i: number): any {
+  const status: 'SUCCESS' | 'FAILED' = Math.random() > 0.3 ? 'SUCCESS' : 'FAILED';
+  const crmTypes = ['webhook', 'hubspot', 'salesforce', 'zoho', 'pipedrive'];
+  const directions = ['INBOUND', 'OUTBOUND'];
+  const direction = randomItem(directions);
+  const phoneA = `+1 (${randomInt(200, 999)}) ${randomInt(200, 999)}-${randomInt(1000, 9999)}`;
+  const phoneB = `+1 (${randomInt(200, 999)}) ${randomInt(200, 999)}-${randomInt(1000, 9999)}`;
+  return {
+    id: `sync-log-${i + 1}`,
+    callLog: {
+      id: `call-${i + 1}`,
+      fromNumber: direction === 'INBOUND' ? phoneA : phoneB,
+      toNumber: direction === 'INBOUND' ? phoneB : phoneA,
+      direction,
+    },
+    crmType: randomItem(crmTypes),
+    status,
+    error: status === 'FAILED' ? randomItem(['Connection timeout', 'Invalid API key', 'Rate limit exceeded', 'Payload too large', 'Unsupported event type']) : null,
+    attemptAt: randomDate(7),
+  };
+}
+
+export const mockSyncLogs = Array.from({ length: 35 }, (_, i) => buildMockSyncLog(i));
+
+export const mockCustomWebhooks: any[] = [
+  {
+    id: 'custom-wh-1',
+    name: 'Slack Notifications',
+    url: 'https://hooks.slack.com/services/T00/B00/xxxxx',
+    events: ['call.synced', 'call.summarized'],
+    active: true,
+    createdAt: randomDate(14),
+  },
+  {
+    id: 'custom-wh-2',
+    name: 'CRM Sync',
+    url: 'https://api.hubspot.com/webhooks/calls',
+    events: ['call.synced', 'call.recorded'],
+    active: true,
+    createdAt: randomDate(7),
+  },
+  {
+    id: 'custom-wh-3',
+    name: 'Analytics Pipeline',
+    url: 'https://analytics.example.com/ingest/call-events',
+    events: ['call.synced', 'call.recorded', 'call.summarized'],
+    active: false,
+    createdAt: randomDate(30),
+  },
+];

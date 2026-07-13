@@ -22,6 +22,12 @@ class CallTrackerApp : Application(), Configuration.Provider {
         manager.createNotificationChannel(
             NotificationChannel(CHANNEL_RECORDING, "Call recording", NotificationManager.IMPORTANCE_LOW)
         )
+        manager.createNotificationChannel(
+            NotificationChannel(CHANNEL_CALLER_ID, "Caller ID", NotificationManager.IMPORTANCE_HIGH)
+        )
+        manager.createNotificationChannel(
+            NotificationChannel(CHANNEL_NOTES, "Call notes", NotificationManager.IMPORTANCE_HIGH)
+        )
     }
 
     override val workManagerConfiguration: Configuration
@@ -30,5 +36,7 @@ class CallTrackerApp : Application(), Configuration.Provider {
     companion object {
         const val CHANNEL_MONITOR = "monitor"
         const val CHANNEL_RECORDING = "recording"
+        const val CHANNEL_CALLER_ID = "caller_id"
+        const val CHANNEL_NOTES = "call_notes"
     }
 }

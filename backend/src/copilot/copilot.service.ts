@@ -165,7 +165,7 @@ You have access to the following tools:
 - search_leads: Search leads by status, segment, assignedAgentId, search text
 - search_contacts: Search contacts (people/companies) by name, email, or phone — use this instead of search_leads when the user asks about a contact/customer/company by name, not a lead's pipeline status
 - get_lead_detail: Get full detail on a specific lead
-- update_lead_status: Change a lead's status (high impact — requires confirmation)
+- update_lead_status: Change a lead's status. Internal-only, execute immediately, no confirmation needed.
 - create_task: Create a task for a lead
 - create_ticket: Create a support ticket
 - draft_message: Suggest a message text for a lead (does NOT send)
@@ -175,7 +175,7 @@ You have access to the following tools:
 - get_analytics_overview: Get CRM analytics summary
 - create_campaign: Create a campaign (high impact — requires confirmation)
 - run_report: Run a saved report or inline report query
-- update_ticket: Change ticket status/priority/assignee (high impact — requires confirmation)
+- update_ticket: Change ticket status, priority, or assignee. Internal-only, execute immediately, no confirmation needed.
 - initiate_call: Start an outbound call to a lead/contact (high impact — requires confirmation)
 - send_email: Send an email to a lead (high impact — requires confirmation)
 - create_custom_field: Create a new custom field definition
@@ -198,7 +198,9 @@ Rules:
 8. When asked to act on multiple leads at once (e.g. "follow up with everyone who...", "message all hot leads that..."), first use search_leads to find and inspect candidates yourself (reason over their status/segment/updatedAt), draft one personalized message per qualifying lead, then call bulk_send_message ONCE with all of them so the user reviews and approves the whole batch together — never call send_message repeatedly for a multi-lead request.
 9. NEVER invent, guess, or use placeholder/example IDs (like "lead_001") for leadId or any other id field. Always copy the exact id value from a previous tool result in this conversation (e.g. from search_leads or get_lead_detail). If you don't have a real id for a record, call a search/lookup tool first to get it.
 10. NEVER say something is "done", "sent", or "completed" unless you have seen a tool result in THIS conversation with status: success for that exact action. If a tool result says status: pending or requiresConfirmation: true, the action has NOT happened yet — say it's ready and waiting for the user's confirmation, not that it's done.
-11. When a user asks about company info, competitors, pricing, or past lead interactions, use the Khoj context provided below before answering from your own knowledge.`;
+11. When a user asks about company info, competitors, pricing, or past lead interactions, use the Khoj context provided below before answering from your own knowledge.
+12. Default to action over asking. If the request is reasonably clear, call the right tool immediately (search, navigate, draft) instead of asking what they want first. Only ask a clarifying question when the request is genuinely ambiguous, like multiple leads with the same name, or a high-impact action missing required detail.
+13. On a greeting or vague opener with no specific ask ("hey", "hi", "what's up"), never just reply with a generic question back. Call get_analytics_overview (and search_leads for anything time-sensitive, like hot leads untouched in a while) and lead with the one or two most relevant, specific things going on right now, then ask what they want to tackle. Make the first reply prove you're already paying attention, not a blank prompt for input.`;
 
     const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
       {
@@ -242,7 +244,7 @@ Rules:
         type: 'function',
         function: {
           name: 'update_lead_status',
-          description: 'Change lead status (high impact)',
+          description: 'Change lead status. Internal-only, execute immediately.',
           parameters: {
             type: 'object', properties: {
               leadId: { type: 'string' },
@@ -373,7 +375,7 @@ Rules:
         type: 'function',
         function: {
           name: 'update_ticket',
-          description: 'Update ticket status, priority, or assignee (high impact)',
+          description: 'Update ticket status, priority, or assignee. Internal-only, execute immediately.',
           parameters: {
             type: 'object', properties: {
               ticketId: { type: 'string' },
@@ -561,7 +563,10 @@ Rules:
       },
     ];
 
-    const highImpactTools = ['update_lead_status', 'send_message', 'create_campaign', 'update_ticket', 'initiate_call', 'send_email', 'bulk_send_message'];
+    // Anything that reaches a real customer or costs money stays confirmation-gated.
+    // Internal-only changes (lead status, ticket status/priority/assignee) auto-execute,
+    // per the user's explicit choice to let Mikey handle internal bookkeeping on its own.
+    const highImpactTools = ['send_message', 'create_campaign', 'initiate_call', 'send_email', 'bulk_send_message'];
 
     let khojContext = '';
     try {
@@ -598,6 +603,9 @@ Rules:
         messages,
         tools,
         tool_choice: 'auto',
+        // Caps worst-case generation time and keeps replies matching the "keep it
+        // short" system prompt rule instead of letting the model ramble.
+        max_tokens: 400,
       });
 
       const choice = response.choices[0];
@@ -667,6 +675,14 @@ Rules:
             case 'create_ticket':
               result = await this.ticketsService.create(args, userId);
               break;
+            case 'update_lead_status':
+              result = await this.leadsService.update(args.leadId, { status: args.status });
+              break;
+            case 'update_ticket': {
+              const { ticketId, ...ticketUpdates } = args;
+              result = await this.ticketsService.update(ticketId, ticketUpdates, userId);
+              break;
+            }
             case 'draft_message':
               const lead = await this.leadsService.findOne(args.leadId);
               result = { suggestedMessage: `[Draft for ${lead.contact?.name || 'lead'}]: ${args.instructions}` };
@@ -744,6 +760,7 @@ Rules:
     const finalResponse = await this.client.chat.completions.create({
       model: 'deepseek-chat',
       messages,
+      max_tokens: 400,
     });
 
     const reply = this.sanitizeReply(finalResponse.choices[0].message.content || 'Done.');
@@ -774,9 +791,6 @@ Rules:
 
     let result: any;
     switch (action.tool) {
-      case 'update_lead_status':
-        result = await this.leadsService.update(action.args.leadId, { status: action.args.status });
-        break;
       case 'send_message': {
         result = await this.conversationsService.create({
           leadId: action.args.leadId,
@@ -807,10 +821,6 @@ Rules:
       }
       case 'create_campaign':
         result = await this.campaignsService.create(action.args);
-        break;
-      case 'update_ticket':
-        const { ticketId, ...ticketUpdates } = action.args;
-        result = await this.ticketsService.update(ticketId, ticketUpdates, userId);
         break;
       case 'initiate_call': {
         result = await this.telephonyService.initiateCall(action.args.leadId, userId);

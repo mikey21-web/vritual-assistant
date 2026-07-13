@@ -1,14 +1,18 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { HttpService } from '@nestjs/axios';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
+import { firstValueFrom } from 'rxjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { ContactsService } from '../contacts/contacts.service';
 import { LeadsService } from '../leads/leads.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { getTenantId } from '../shared/tenant-helper';
 import { hashApiKey } from './device-auth.guard';
-import { CallSyncDto } from './dto/call-tracking.dto';
+import { CallSummaryService } from './call-summary.service';
+import { CallSyncDto, SyncLogsQueryDto } from './dto/call-tracking.dto';
 
 const PAIRING_CODE_TTL_MS = 10 * 60 * 1000;
 
@@ -19,11 +23,16 @@ function randomPairingCode(): string {
 
 @Injectable()
 export class CallTrackingService {
+  private readonly logger = new Logger(CallTrackingService.name);
+
   constructor(
     private prisma: PrismaService,
     private contactsService: ContactsService,
     private leadsService: LeadsService,
     private realtime: RealtimeGateway,
+    private callSummaryService: CallSummaryService,
+    private config: ConfigService,
+    private http: HttpService,
   ) {}
 
   async generatePairingCode(userId: string, name: string | undefined, req?: any) {
@@ -112,6 +121,11 @@ export class CallTrackingService {
         createdAt: callLog.createdAt,
       });
 
+      // Fire-and-forget: push to CRM integrations + webhooks
+      this.pushToIntegrationsAndWebhooks(device.tenantId, callLog, contact).catch((err: Error) =>
+        this.logger.error(`Background sync push failed for call ${callLog.id}: ${err.message}`),
+      );
+
       results.push({ localId: entry.localId, callLogId: callLog.id, status: 'synced' });
     }
 
@@ -127,10 +141,24 @@ export class CallTrackingService {
     const fileName = `${callLog.id}-${crypto.randomBytes(6).toString('hex')}${path.extname(file.originalname) || '.m4a'}`;
     fs.writeFileSync(path.join(storagePath, fileName), file.buffer);
 
-    return this.prisma.callLog.update({
+    const updated = await this.prisma.callLog.update({
       where: { id: callLog.id },
       data: { recordingUrl: `/uploads/call-recordings/${fileName}`, recordedLocally: true },
     });
+
+    const openaiKey = this.config.get<string>('OPENAI_API_KEY');
+    if (openaiKey) {
+      this.callSummaryService.summarizeRecording(callLog.id).catch((err: Error) =>
+        this.logger.error(`Background summarization failed for call ${callLog.id}: ${err.message}`),
+      );
+    } else {
+      await this.prisma.callLog.update({
+        where: { id: callLog.id },
+        data: { summaryStatus: 'SKIPPED' },
+      });
+    }
+
+    return updated;
   }
 
   async findAll(query: any = {}, req?: any) {
@@ -177,5 +205,325 @@ export class CallTrackingService {
   async revokeDevice(id: string, req?: any) {
     await this.prisma.device.updateMany({ where: { id, tenantId: getTenantId(req) }, data: { revokedAt: new Date(), apiKeyHash: null } });
     return { message: 'Device revoked.' };
+  }
+
+  // ─── Analytics ────────────────────────────────────────────────────────────
+
+  async analytics(range: '7d' | '30d' | '90d' = '7d', req?: any) {
+    const tenantId = getTenantId(req);
+    const rangeDays = range === '90d' ? 90 : range === '30d' ? 30 : 7;
+    const since = new Date();
+    since.setDate(since.getDate() - rangeDays);
+    since.setHours(0, 0, 0, 0);
+
+    const where = { tenantId, createdAt: { gte: since } };
+
+    // ── Base counts ──
+    const [totalCalls, durationRows, sourceRows, directionRows, callsForTime, agentRows, contactRows] = await Promise.all([
+      this.prisma.callLog.count({ where }),
+      this.prisma.callLog.findMany({ where: { ...where, durationSec: { not: null } }, select: { durationSec: true } }),
+
+      // bySource
+      this.prisma.callLog.groupBy({ by: ['source'], where, _count: { id: true } }),
+
+      // byDirection
+      this.prisma.callLog.groupBy({ by: ['direction'], where, _count: { id: true } }),
+
+      // overTime — fetch all for date groupping
+      this.prisma.callLog.findMany({
+        where,
+        select: { id: true, status: true, durationSec: true, createdAt: true },
+        orderBy: { createdAt: 'asc' },
+      }),
+
+      // byAgent — group by agentId
+      this.prisma.callLog.groupBy({ by: ['agentId'], where, _count: { id: true }, _avg: { durationSec: true }, _sum: { durationSec: true } }),
+
+      // byContact — group by contactId
+      this.prisma.callLog.groupBy({ by: ['contactId'], where, _count: { id: true }, _sum: { durationSec: true } }),
+    ]);
+
+    const totalDurationSec = durationRows.reduce((s, r) => s + (r.durationSec || 0), 0);
+    const avgDurationSec = totalCalls > 0 ? Math.round(totalDurationSec / totalCalls) : 0;
+
+    // Count missed (NO_ANSWER, BUSY, FAILED) vs answered (COMPLETED)
+    const statusCounts = callsForTime.reduce(
+      (acc, c) => {
+        if (['NO_ANSWER', 'BUSY', 'FAILED'].includes(c.status)) acc.missed++;
+        else if (c.status === 'COMPLETED') acc.answered++;
+        return acc;
+      },
+      { missed: 0, answered: 0 },
+    );
+    const answeredRate = totalCalls > 0 ? Math.round((statusCounts.answered / totalCalls) * 100) / 100 : 0;
+
+    // ── overTime: group by date ──
+    const dateMap = new Map<string, { count: number; missed: number; durations: number[] }>();
+    for (const c of callsForTime) {
+      const key = c.createdAt.toISOString().slice(0, 10);
+      if (!dateMap.has(key)) dateMap.set(key, { count: 0, missed: 0, durations: [] });
+      const bucket = dateMap.get(key)!;
+      bucket.count++;
+      if (['NO_ANSWER', 'BUSY', 'FAILED'].includes(c.status)) bucket.missed++;
+      if (c.durationSec) bucket.durations.push(c.durationSec);
+    }
+    const overTime = Array.from(dateMap.entries())
+      .map(([date, v]) => ({
+        date,
+        count: v.count,
+        missed: v.missed,
+        avgDuration: v.durations.length ? Math.round(v.durations.reduce((a, b) => a + b, 0) / v.durations.length) : 0,
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    // ── byAgent: resolve names ──
+    const agentIds = agentRows.filter((r) => r.agentId).map((r) => r.agentId!);
+    const agents = agentIds.length
+      ? await this.prisma.user.findMany({ where: { id: { in: agentIds } }, select: { id: true, name: true } })
+      : [];
+    const agentNameMap = new Map(agents.map((a) => [a.id, a.name]));
+    const byAgent = agentRows
+      .filter((r) => r.agentId)
+      .map((r) => ({
+        userId: r.agentId!,
+        name: agentNameMap.get(r.agentId!) || 'Unknown',
+        count: r._count.id,
+        avgDuration: r._avg.durationSec ? Math.round(r._avg.durationSec) : 0,
+        totalDuration: r._sum.durationSec || 0,
+      }));
+
+    // ── byContact: resolve names ──
+    const contactIds = contactRows.filter((r) => r.contactId).map((r) => r.contactId!);
+    const contacts = contactIds.length
+      ? await this.prisma.contact.findMany({ where: { id: { in: contactIds } }, select: { id: true, name: true, company: true } })
+      : [];
+    const contactMap = new Map(contacts.map((c) => [c.id, c]));
+    const byContact = contactRows
+      .filter((r) => r.contactId)
+      .map((r) => {
+        const contact = contactMap.get(r.contactId!);
+        return {
+          contactId: r.contactId!,
+          name: contact?.name || 'Unknown',
+          company: contact?.company || null,
+          count: r._count.id,
+          totalDuration: r._sum.durationSec || 0,
+        };
+      });
+
+    const bySource: Record<string, number> = {};
+    for (const r of sourceRows) bySource[r.source] = r._count.id;
+
+    const byDirection: Record<string, number> = {};
+    for (const r of directionRows) byDirection[r.direction] = r._count.id;
+
+    return {
+      totalCalls,
+      totalDurationSec,
+      avgDurationSec,
+      missedCalls: statusCounts.missed,
+      answeredCalls: statusCounts.answered,
+      answeredRate,
+      bySource,
+      byDirection,
+      overTime,
+      byAgent,
+      byContact,
+    };
+  }
+
+  // ─── Sync Logs ────────────────────────────────────────────────────────────
+
+  async syncLogs(query: SyncLogsQueryDto, req?: any) {
+    const tenantId = getTenantId(req);
+    const { page = 1, limit = 20, status } = query;
+    const where: any = { tenantId };
+    if (status) where.status = status;
+
+    const [data, total] = await Promise.all([
+      this.prisma.callSyncLog.findMany({
+        where,
+        skip: (+page - 1) * +limit,
+        take: +limit,
+        orderBy: { attemptAt: 'desc' },
+        include: {
+          callLog: {
+            select: { id: true, direction: true, fromNumber: true, toNumber: true, durationSec: true, status: true, createdAt: true },
+          },
+          integration: { select: { id: true, type: true, name: true } },
+          webhook: { select: { id: true, name: true, url: true } },
+        },
+      }),
+      this.prisma.callSyncLog.count({ where }),
+    ]);
+
+    return { data, meta: { total, page: +page, limit: +limit } };
+  }
+
+  async retrySync(id: string, req?: any) {
+    const tenantId = getTenantId(req);
+    const syncLog = await this.prisma.callSyncLog.findFirst({
+      where: { id, tenantId, status: 'FAILED' },
+      include: {
+        callLog: true,
+        integration: true,
+        webhook: true,
+      },
+    });
+    if (!syncLog) throw new NotFoundException('Failed sync log not found');
+
+    const payload = this.buildCallPayload(syncLog.callLog);
+    let newStatus = 'SUCCESS';
+    let error: string | null = null;
+
+    try {
+      if (syncLog.webhookId && syncLog.webhook) {
+        await this.postToWebhook(syncLog.webhook, payload);
+      } else if (syncLog.integrationId && syncLog.integration) {
+        await this.postToCrm(syncLog.integration, payload);
+      } else {
+        throw new Error('No integration or webhook associated with this sync log');
+      }
+    } catch (err: any) {
+      newStatus = 'FAILED';
+      error = err.message || 'Unknown error';
+    }
+
+    await this.prisma.callSyncLog.update({
+      where: { id },
+      data: { status: newStatus, error, attemptAt: new Date() },
+    });
+
+    return { id, status: newStatus, error };
+  }
+
+  // ─── Post-Call Notes ──────────────────────────────────────────────────────
+
+  async updateNotes(id: string, notes: string, req?: any) {
+    const tenantId = getTenantId(req);
+    const callLog = await this.prisma.callLog.findFirst({ where: { id, tenantId } });
+    if (!callLog) throw new NotFoundException('Call log not found');
+
+    const updated = await this.prisma.callLog.update({
+      where: { id },
+      data: { notes },
+      select: { id: true, notes: true },
+    });
+    return updated;
+  }
+
+  // ─── Fire-and-forget: push to CRM integrations & outbound webhooks ────────
+
+  private async pushToIntegrationsAndWebhooks(tenantId: string, callLog: any, contact: any) {
+    const payload = this.buildCallPayload(callLog);
+
+    // Active CRM integrations for this tenant
+    const integrations = await this.prisma.integration.findMany({
+      where: { tenantId, isActive: true, type: { in: ['hubspot', 'salesforce', 'zoho'] } },
+    });
+
+    for (const integration of integrations) {
+      this.pushSingleCrm(integration, callLog, payload, tenantId).catch((err: Error) =>
+        this.logger.error(`CRM push to ${integration.type} failed for call ${callLog.id}: ${err.message}`),
+      );
+    }
+
+    // Active outbound webhooks subscribed to "call.synced"
+    const webhooks = await this.prisma.outboundWebhook.findMany({
+      where: { tenantId, active: true, events: { has: 'call.synced' } },
+    });
+
+    for (const webhook of webhooks) {
+      this.pushSingleWebhook(webhook, callLog, payload, tenantId).catch((err: Error) =>
+        this.logger.error(`Webhook push to ${webhook.url} failed for call ${callLog.id}: ${err.message}`),
+      );
+    }
+  }
+
+  private async pushSingleCrm(integration: any, callLog: any, payload: any, tenantId: string) {
+    try {
+      await this.postToCrm(integration, payload);
+      await this.prisma.callSyncLog.create({
+        data: { tenantId, callLogId: callLog.id, integrationId: integration.id, crmType: integration.type, status: 'SUCCESS' },
+      });
+    } catch (err: any) {
+      await this.prisma.callSyncLog.create({
+        data: {
+          tenantId, callLogId: callLog.id, integrationId: integration.id, crmType: integration.type, status: 'FAILED',
+          error: err.message || 'Unknown error',
+        },
+      });
+    }
+  }
+
+  private async pushSingleWebhook(webhook: any, callLog: any, payload: any, tenantId: string) {
+    try {
+      await this.postToWebhook(webhook, payload);
+      await this.prisma.callSyncLog.create({
+        data: { tenantId, callLogId: callLog.id, webhookId: webhook.id, crmType: 'webhook', status: 'SUCCESS' },
+      });
+    } catch (err: any) {
+      await this.prisma.callSyncLog.create({
+        data: {
+          tenantId, callLogId: callLog.id, webhookId: webhook.id, crmType: 'webhook', status: 'FAILED',
+          error: err.message || 'Unknown error',
+        },
+      });
+    }
+  }
+
+  private buildCallPayload(callLog: any) {
+    return {
+      event: 'call.synced',
+      callLogId: callLog.id,
+      tenantId: callLog.tenantId,
+      direction: callLog.direction,
+      status: callLog.status,
+      fromNumber: callLog.fromNumber,
+      toNumber: callLog.toNumber,
+      durationSec: callLog.durationSec,
+      recordingUrl: callLog.recordingUrl,
+      source: callLog.source,
+      notes: callLog.notes,
+      transcript: callLog.transcript,
+      summary: callLog.summary,
+      createdAt: callLog.createdAt,
+    };
+  }
+
+  private async postToCrm(integration: any, payload: any) {
+    const url = integration.config?.apiUrl || integration.config?.instanceUrl;
+    const apiKey = integration.config?.apiKey || integration.config?.accessToken;
+    if (!url) throw new Error(`CRM integration ${integration.type} has no configured URL`);
+
+    await firstValueFrom(
+      this.http.post(`${url}/calls`, payload, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+        },
+        timeout: 15000,
+      }),
+    );
+  }
+
+  private async postToWebhook(webhook: any, payload: any) {
+    const signature = this.signPayload(payload, webhook.secret);
+    await firstValueFrom(
+      this.http.post(webhook.url, payload, {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Webhook-Signature': signature,
+          'X-Webhook-Event': 'call.synced',
+        },
+        timeout: 15000,
+      }),
+    );
+  }
+
+  private signPayload(payload: any, secret: string): string {
+    const hmac = crypto.createHmac('sha256', secret || '');
+    hmac.update(JSON.stringify(payload));
+    return hmac.digest('hex');
   }
 }

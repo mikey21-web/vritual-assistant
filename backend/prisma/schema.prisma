@@ -165,12 +165,37 @@ model CallLog {
   device          Device?       @relation(fields: [deviceId], references: [id])
   recordedLocally Boolean       @default(false)
   syncedAt        DateTime?
+  transcript      String?       @db.Text
+  summary         String?
+  summaryStatus   String        @default("PENDING")
   createdAt       DateTime      @default(now())
+
+  callSyncLogs    CallSyncLog[]
 
   @@index([tenantId])
   @@index([leadId])
   @@index([deviceId])
   @@map("call_logs")
+}
+
+model CallSyncLog {
+  id            String          @id @default(uuid())
+  tenantId      String          @map("tenant_id")
+  callLogId     String          @map("call_log_id")
+  callLog       CallLog         @relation(fields: [callLogId], references: [id])
+  integrationId String?         @map("integration_id")
+  integration   Integration?    @relation(fields: [integrationId], references: [id])
+  webhookId     String?         @map("webhook_id")
+  webhook       OutboundWebhook? @relation(fields: [webhookId], references: [id])
+  crmType       String?         // hubspot, salesforce, zoho, webhook
+  status        String          // SUCCESS | FAILED
+  error         String?
+  attemptAt     DateTime        @default(now())
+
+  @@index([tenantId])
+  @@index([callLogId])
+  @@index([status])
+  @@map("call_sync_logs")
 }
 
 model Device {
@@ -899,6 +924,8 @@ model Integration {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
+  callSyncLogs CallSyncLog[]
+
   @@map("integrations")
 }
 
@@ -1015,6 +1042,8 @@ model OutboundWebhook {
   tenantId  String   @map("tenant_id")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  callSyncLogs CallSyncLog[]
 
   @@index([tenantId])
   @@map("outbound_webhooks")

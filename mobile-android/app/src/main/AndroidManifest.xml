@@ -12,6 +12,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <!-- Best-effort call recording only works while this app holds the default
          dialer / call-screening role; see CapabilityChecker. -->
     <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
@@ -55,8 +57,6 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
-        <!-- WhatsApp call *detection* only (no audio capture is possible for
-             E2E-encrypted WhatsApp calls) — see capture/WhatsAppCallListenerService.kt -->
         <service
             android:name=".capture.WhatsAppCallListenerService"
             android:exported="true"
@@ -65,6 +65,33 @@
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
         </service>
+
+        <service
+            android:name=".capture.WhatsAppCallRecorderService"
+            android:exported="false"
+            android:foregroundServiceType="phoneCall" />
+
+        <receiver
+            android:name=".capture.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <activity
+            android:name=".settings.SettingsActivity"
+            android:exported="true"
+            android:theme="@style/Theme.CallTracker" />
+
+        <activity
+            android:name=".capture.NoteActivity"
+            android:exported="false"
+            android:theme="@style/Theme.AppCompat.DayNight.Dialog" />
+
+        <receiver
+            android:name=".capture.DismissNoteBroadcastReceiver"
+            android:exported="false" />
 
     </application>
 </manifest>

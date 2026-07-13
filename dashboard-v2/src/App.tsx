@@ -1,5 +1,6 @@
 import { useState, useEffect, lazy, Suspense, useCallback } from "react";
 import { Toaster } from "react-hot-toast";
+import { HashRouter, Routes, Route } from "react-router-dom";
 import { useAuth } from "./lib/useAuth";
 import { AppProvider } from "./context/AppContext";
 import { BrandingProvider } from "./lib/useBranding";
@@ -12,6 +13,8 @@ import ExplainModePlayer from "./components/ExplainModePlayer";
 import { MikeyBanner, showMikeyToast } from "./components/mikey";
 import { SocketProvider, useSocket } from "./hooks";
 import { LoginPage } from "./pages/LoginPage";
+import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
+import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import LandingPage from "./pages/LandingPage";
 import { Skeleton } from "./components/ui/skeleton";
 import OverviewPage from "./pages/OverviewPage";
@@ -21,6 +24,7 @@ import CampaignsPage from "./pages/CampaignsPage";
 import FormsPage from "./pages/FormsPage";
 import QRCodesPage from "./pages/QRCodesPage";
 import MessagesPage from "./pages/MessagesPage";
+import SyncLogPage from "./pages/SyncLogPage";
 import PublicOrgPage from "./pages/PublicOrgPage";
 
 const PageComponents: Record<string, React.LazyExoticComponent<React.ComponentType<any>>> = {
@@ -112,7 +116,7 @@ function getPageKey(path: string): string {
     "/failures": "Failures", "/health": "Health",
     "/ai-campaigns": "AICampaigns", "/ai-agent": "AIAgent",
     "/webhooks": "Webhooks", "/sms": "SMS", "/widget": "Widget", "/ads": "AdIntegrations",
-    "/tickets": "Tickets", "/calls": "Calls", "/knowledge-base": "KnowledgeBase",
+    "/tickets": "Tickets",     "/calls": "Calls", "/sync-logs": "SyncLogs", "/knowledge-base": "KnowledgeBase",
     "/copilot": "Mikey", "/mikey": "Mikey",    "/studio": "Studio", "/reports": "Reports",
     "/events": "Events", "/calendar": "EventCalendar",
     "/accounting": "Accounting", "/invoices": "Invoices", "/quotations": "Quotations",
@@ -128,6 +132,7 @@ function getPageKey(path: string): string {
 const pageRoutes: Record<string, React.ComponentType<any>> = {
   Overview: OverviewPage, Leads: LeadsPage, Contacts: ContactsPage,
   Campaigns: CampaignsPage, Forms: FormsPage, QRCodes: QRCodesPage, Messages: MessagesPage,
+  SyncLogs: SyncLogPage,
 };
 
 function MikeyConnectedBanner() {
@@ -210,10 +215,18 @@ export default function App() {
   }
 
   if (!isLoggedIn) {
-    if (publicRoute === '/login') {
-      return <BrandingProvider><LoginPage onLogin={handleLogin} /></BrandingProvider>;
-    }
-    return <BrandingProvider><LandingPage onLogin={() => { window.location.hash = '/login'; }} /></BrandingProvider>;
+    return (
+      <BrandingProvider>
+        <HashRouter>
+          <Routes>
+            <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="*" element={<LandingPage onLogin={() => { window.location.hash = '/login'; }} />} />
+          </Routes>
+        </HashRouter>
+      </BrandingProvider>
+    );
   }
 
   const PageComponent = pageRoutes[page] || PageComponents[page];

@@ -1,6 +1,7 @@
 package com.diyaa.calltracker.pairing
 
 import android.Manifest
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -17,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.diyaa.calltracker.capture.CapabilityChecker
+import com.diyaa.calltracker.settings.SettingsActivity
 
 private val REQUIRED_PERMISSIONS = buildList {
     add(Manifest.permission.READ_CALL_LOG)
@@ -36,6 +38,7 @@ class PairingActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PairingScreen(viewModel: PairingViewModel = viewModel()) {
     val state by viewModel.state.collectAsState()
@@ -43,25 +46,38 @@ private fun PairingScreen(viewModel: PairingViewModel = viewModel()) {
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
         grantedPermissions = results.values.all { it }
     }
+    val context = androidx.compose.ui.platform.LocalContext.current
 
-    Surface(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier.fillMaxSize().padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Text("Call Tracker", fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(8.dp))
-
-            when (val s = state) {
-                is PairingState.Paired -> PairedContent(
-                    onUnpair = { viewModel.unpair() },
-                )
-                else -> UnpairedContent(
-                    state = s,
-                    onRequestPermissions = { permissionLauncher.launch(REQUIRED_PERMISSIONS.toTypedArray()) },
-                    onPair = { code -> viewModel.pair(code) },
-                )
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Call Tracker") },
+                actions = {
+                    TextButton(onClick = {
+                        context.startActivity(Intent(context, SettingsActivity::class.java))
+                    }) {
+                        Text("\u2699", fontSize = 22.sp)
+                    }
+                },
+            )
+        },
+    ) { padding ->
+        Surface(modifier = Modifier.fillMaxSize().padding(padding)) {
+            Column(
+                modifier = Modifier.fillMaxSize().padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                when (val s = state) {
+                    is PairingState.Paired -> PairedContent(
+                        onUnpair = { viewModel.unpair() },
+                    )
+                    else -> UnpairedContent(
+                        state = s,
+                        onRequestPermissions = { permissionLauncher.launch(REQUIRED_PERMISSIONS.toTypedArray()) },
+                        onPair = { code -> viewModel.pair(code) },
+                    )
+                }
             }
         }
     }

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { useBranding } from "../lib/useBranding";
@@ -93,7 +94,7 @@ export function LoginPage({ onLogin, error: externalError }: LoginPageProps) {
             </Button>
 
             <p className="text-center text-sm text-[var(--muted-foreground)]">
-              <a href="#" className="hover:text-[var(--primary)] underline underline-offset-4 transition-colors">Forgot password?</a>
+              <Link to="/forgot-password" className="hover:text-[var(--primary)] underline underline-offset-4 transition-colors">Forgot password?</Link>
             </p>
           </form>
         </div>

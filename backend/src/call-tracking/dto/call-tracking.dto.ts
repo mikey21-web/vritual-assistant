@@ -31,3 +31,37 @@ export class CallSyncDto {
   @Type(() => CallSyncEntryDto)
   calls: CallSyncEntryDto[];
 }
+
+export class AnalyticsQueryDto {
+  @ApiPropertyOptional({ enum: ['7d', '30d', '90d'], default: '7d' })
+  @IsOptional()
+  @IsIn(['7d', '30d', '90d'])
+  range?: '7d' | '30d' | '90d' = '7d';
+}
+
+export class SyncLogsQueryDto {
+  @ApiPropertyOptional({ default: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number = 1;
+
+  @ApiPropertyOptional({ default: 20 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  limit?: number = 20;
+
+  @ApiPropertyOptional({ enum: ['SUCCESS', 'FAILED'] })
+  @IsOptional()
+  @IsIn(['SUCCESS', 'FAILED'])
+  status?: string;
+}
+
+export class UpdateNotesDto {
+  @ApiProperty()
+  @IsString()
+  notes: string;
+}

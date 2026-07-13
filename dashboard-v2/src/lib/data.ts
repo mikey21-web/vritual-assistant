@@ -122,6 +122,7 @@ export async function deleteRoutingRule(id: string) { return api(`/routing-rules
 export async function fetchIntegrations() { return api('/integrations') as Promise<any>; }
 export async function createIntegration(data: any) { return api('/integrations', { method: 'POST', body: JSON.stringify(data) }); }
 export async function deleteIntegration(id: string) { return api(`/integrations/${id}`, { method: 'DELETE' }); }
+export async function updateIntegration(id: string, data: any) { return api(`/integrations/${id}`, { method: 'PATCH', body: JSON.stringify(data) }); }
 export async function testIntegration(id: string) { return api(`/integrations/${id}/test`, { method: 'POST' }); }
 
 export async function fetchCRMMappings() { return api('/crm-mappings') as Promise<any>; }

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Body, Param, Query, UseGuards, UseInterceptors, UploadedFile, Req, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, UseInterceptors, UploadedFile, Req, HttpCode } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
@@ -8,7 +8,7 @@ import { Roles } from '../auth/roles.decorator';
 import { Public } from '../auth/public.decorator';
 import { CallTrackingService } from './call-tracking.service';
 import { DeviceAuthGuard } from './device-auth.guard';
-import { GeneratePairingCodeDto, PairDeviceDto, CallSyncDto } from './dto/call-tracking.dto';
+import { GeneratePairingCodeDto, PairDeviceDto, CallSyncDto, AnalyticsQueryDto, SyncLogsQueryDto, UpdateNotesDto } from './dto/call-tracking.dto';
 
 @ApiTags('Call Tracking')
 @Controller('call-tracking')
@@ -95,5 +95,47 @@ export class CallTrackingController {
   @ApiOperation({ summary: 'Call tracking summary stats (today)' })
   stats(@Req() req) {
     return this.service.stats(req);
+  }
+
+  // ─── Analytics ──────────────────────────────────────────────────────────
+
+  @Get('analytics')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT', 'SUPPORT_AGENT', 'VIEWER')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Call analytics over a date range (7d/30d/90d)' })
+  analytics(@Query() q: AnalyticsQueryDto, @Req() req) {
+    return this.service.analytics(q.range || '7d', req);
+  }
+
+  // ─── Sync Logs ─────────────────────────────────────────────────────────
+
+  @Get('sync-logs')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT', 'SUPPORT_AGENT', 'VIEWER')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List sync logs (CRM pushes, webhook deliveries) with pagination' })
+  syncLogs(@Query() q: SyncLogsQueryDto, @Req() req) {
+    return this.service.syncLogs(q, req);
+  }
+
+  @Post('sync-logs/:id/retry')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('OWNER', 'ADMIN', 'MANAGER')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Retry a failed sync (CRM/webhook push)' })
+  retrySync(@Param('id') id: string, @Req() req) {
+    return this.service.retrySync(id, req);
+  }
+
+  // ─── Post-Call Notes ────────────────────────────────────────────────────
+
+  @Patch('calls/:id/notes')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT', 'SUPPORT_AGENT')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update post-call notes on a call log' })
+  updateNotes(@Param('id') id: string, @Body() d: UpdateNotesDto, @Req() req) {
+    return this.service.updateNotes(id, d.notes, req);
   }
 }

@@ -24,3 +24,9 @@ dashboard-v2/dist/
 backend/dist/
 backend/prisma/seed-mock.*
 *.bak
+
+# Android
+mobile-android/.gradle/
+mobile-android/app/build/
+mobile-android/build/
+mobile-android/local.properties

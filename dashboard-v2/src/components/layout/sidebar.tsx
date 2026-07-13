@@ -5,7 +5,7 @@ import {
   ShoppingCart, Link, Calendar, Layers, ChevronLeft, ChevronRight, ChevronDown,
   UserCircle, CheckSquare, Sparkles, Phone,   Bot, MessageCircle, Smartphone, Webhook, Globe, LogOut, Columns3,
   LifeBuoy, BookOpen, Puzzle, Download, Headset, Brain,
-  Truck, ClipboardList, Package, Box, MapPin, Building2,
+  Truck, ClipboardList, Package, Box, MapPin, Building2, Activity,
 } from "lucide-react";
 import { fetchProfile, fetchBusinessSettings } from "../../lib/data";
 import { useAuth } from "../../lib/useAuth";
@@ -80,8 +80,8 @@ const rawNavGroups = [
       { label: "SMS", icon: Smartphone, path: "/sms" },
       { label: "Chat Widget", icon: Globe, path: "/widget" },
       { label: "Calls", icon: Phone, path: "/calls" },
+      { label: "Sync Logs", icon: Activity, path: "/sync-logs" },
       { label: "Social Media", icon: MessageCircle, path: "/integrations" },
-      { label: "Mobile App", icon: Smartphone, path: "/integrations" },
     ],
   },
   {

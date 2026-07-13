@@ -31,3 +31,12 @@ data class CallSyncRequest(val calls: List<CallSyncEntry>)
 
 data class CallSyncResultEntry(val localId: String?, val callLogId: String, val status: String)
 data class CallSyncResponse(val results: List<CallSyncResultEntry>)
+
+data class ContactSearchResponse(
+    val found: Boolean,
+    val name: String?,
+    val company: String?,
+    val id: String?,
+)
+
+data class UpdateNotesRequest(val notes: String)

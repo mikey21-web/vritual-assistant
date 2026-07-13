@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { api } from "../lib/api";
 import { useSocket } from "../hooks";
 import toast from "react-hot-toast";
-import { Phone, PhoneIncoming, PhoneOutgoing, PhoneMissed, Smartphone, Plus, PlayCircle } from "lucide-react";
+import { Phone, PhoneIncoming, PhoneOutgoing, PhoneMissed, Smartphone, Plus, Check } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../components/ui/table";
 import { Badge } from "../components/ui/badge";
@@ -45,8 +45,13 @@ export default function CallsPage() {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    if (!lastEvent || lastEvent.type !== "call.synced") return;
-    load();
+    if (!lastEvent) return;
+    if (lastEvent.type === "call.synced") {
+      load();
+    } else if (lastEvent.type === "call.summarized") {
+      const p = lastEvent.payload as any;
+      setCalls(prev => prev.map(c => c.id === p.callLogId ? { ...c, summary: p.summary, transcript: p.transcript, summaryStatus: "DONE" } : c));
+    }
   }, [lastEvent, load]);
 
   return (
@@ -93,18 +98,23 @@ export default function CallsPage() {
             <TableHead>Source</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Recording</TableHead>
+            <TableHead>Notes</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {loading ? (
-            <TableRow><TableCell colSpan={8} className="text-center text-[var(--muted-foreground)] py-8">Loading...</TableCell></TableRow>
+            <TableRow><TableCell colSpan={9} className="text-center text-[var(--muted-foreground)] py-8">Loading...</TableCell></TableRow>
           ) : calls.length === 0 ? (
-            <TableRow><TableCell colSpan={8} className="text-center text-[var(--muted-foreground)] py-8">No calls synced yet. Pair a device to get started.</TableCell></TableRow>
+            <TableRow><TableCell colSpan={9} className="text-center text-[var(--muted-foreground)] py-8">No calls synced yet. Pair a device to get started.</TableCell></TableRow>
           ) : (
             calls.map((c) => (
               <TableRow key={c.id}>
                 <TableCell className="text-xs text-[var(--muted-foreground)] whitespace-nowrap">{new Date(c.createdAt).toLocaleString()}</TableCell>
-                <TableCell className="font-medium text-[var(--foreground)]">{c.contact?.name || "Unknown"}</TableCell>
+                <TableCell className="font-medium text-[var(--foreground)]">
+                  {c.contact?.name || "Unknown"}
+                  {c.summary && <div className="text-xs text-[var(--muted-foreground)] font-normal mt-0.5 max-w-[220px] truncate" title={c.summary}>{c.summary}</div>}
+                  {c.summaryStatus === "PENDING" && c.recordingUrl && <div className="text-xs text-[var(--muted-foreground)] font-normal mt-0.5 italic">Transcribing...</div>}
+                </TableCell>
                 <TableCell className="text-xs text-[var(--muted-foreground)]">{c.direction === "INBOUND" ? c.fromNumber : c.toNumber}</TableCell>
                 <TableCell>
                   <span className="inline-flex items-center gap-1 text-xs text-[var(--foreground)]">
@@ -123,13 +133,16 @@ export default function CallsPage() {
                 </TableCell>
                 <TableCell>
                   {c.recordingUrl ? (
-                    <a href={c.recordingUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-[var(--primary)] hover:underline">
-                      <PlayCircle size={14} /> Play
-                    </a>
+                    <audio controls className="h-8 w-48" preload="metadata">
+                      <source src={c.recordingUrl} type="audio/mpeg" />
+                    </audio>
                   ) : (
                     <span className="text-xs text-[var(--muted-foreground)]">—</span>
                   )}
                 </TableCell>
+                <NotesCell call={c} onUpdate={(id, notes) => {
+                  setCalls(prev => prev.map(call => call.id === id ? { ...call, notes } : call));
+                }} />
               </TableRow>
             ))
           )}
@@ -138,6 +151,89 @@ export default function CallsPage() {
 
       {showPair && <PairDeviceModal onClose={() => setShowPair(false)} />}
     </div>
+  );
+}
+
+function NotesCell({ call, onUpdate }: { call: any; onUpdate: (id: string, notes: string) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(call.notes || '');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (editing && textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  }, [editing]);
+
+  const handleSave = async () => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      await api(`/call-tracking/calls/${call.id}/notes`, {
+        method: 'PATCH',
+        body: JSON.stringify({ notes: value }),
+      });
+      setSaved(true);
+      onUpdate(call.id, value);
+      setTimeout(() => setSaved(false), 2000);
+    } catch {
+      toast.error("Failed to save note");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Show "+ Add note" when empty and not editing
+  if (!call.notes && !editing) {
+    return (
+      <TableCell>
+        <button
+          onClick={() => setEditing(true)}
+          className="text-xs text-[var(--primary)] hover:underline"
+        >
+          + Add note
+        </button>
+      </TableCell>
+    );
+  }
+
+  // Show textarea when editing
+  if (editing) {
+    return (
+      <TableCell>
+        <div className="flex items-start gap-1">
+          <textarea
+            ref={textareaRef}
+            value={value}
+            onChange={e => setValue(e.target.value)}
+            onBlur={handleSave}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSave(); } }}
+            className="w-40 h-16 rounded border border-[var(--border)] bg-[var(--background)] px-2 py-1 text-xs text-[var(--foreground)] resize-none focus:outline-none focus:ring-1 focus:ring-[var(--primary)]/50"
+          />
+          {saved && <Check size={14} className="text-emerald-500 shrink-0 mt-1" />}
+        </div>
+      </TableCell>
+    );
+  }
+
+  // Show notes text with edit button on hover
+  return (
+    <TableCell>
+      <div className="flex items-center gap-1 group">
+        <span className="text-xs text-[var(--foreground)] max-w-[150px] truncate block" title={call.notes}>
+          {call.notes}
+        </span>
+        <button
+          onClick={() => { setEditing(true); setValue(call.notes || ''); }}
+          className="text-xs text-[var(--muted-foreground)] hover:text-[var(--primary)] opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+          title="Edit note"
+        >
+          ✏️
+        </button>
+      </div>
+    </TableCell>
   );
 }
 

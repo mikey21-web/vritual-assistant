@@ -1,6 +1,7 @@
 package com.diyaa.calltracker.pairing
 
 import android.app.Application
+import android.content.Context
 import android.os.Build
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -21,7 +22,8 @@ sealed interface PairingState {
 }
 
 class PairingViewModel(application: Application) : AndroidViewModel(application) {
-    private val storage = SecureStorage(application).also { ApiClient.init(it) }
+    private val app: Application = application
+    private val storage = SecureStorage(app).also { ApiClient.init(it) }
 
     private val _state = MutableStateFlow<PairingState>(if (storage.isPaired) PairingState.Paired else PairingState.Unpaired)
     val state: StateFlow<PairingState> = _state
@@ -39,8 +41,8 @@ class PairingViewModel(application: Application) : AndroidViewModel(application)
                     val body = response.body()!!
                     storage.apiKey = body.apiKey
                     storage.deviceId = body.deviceId
-                    SyncScheduler.schedulePeriodicSync(application)
-                    MonitorForegroundService.start(application)
+                    SyncScheduler.schedulePeriodicSync(app)
+                    MonitorForegroundService.start(app)
                     _state.value = PairingState.Paired
                 } else {
                     _state.value = PairingState.Error("Pairing code is invalid or expired")
@@ -53,7 +55,7 @@ class PairingViewModel(application: Application) : AndroidViewModel(application)
 
     fun unpair() {
         storage.clear()
-        MonitorForegroundService.stop(getApplication())
+        MonitorForegroundService.stop(app)
         _state.value = PairingState.Unpaired
     }
 }

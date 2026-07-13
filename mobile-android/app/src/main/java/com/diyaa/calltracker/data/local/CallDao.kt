@@ -23,6 +23,9 @@ interface CallDao {
     @Query("SELECT * FROM calls WHERE synced = 1 AND localRecordingPath IS NOT NULL AND recordingUploaded = 0")
     suspend fun pendingRecordingUploads(): List<CallEntity>
 
+    @Query("SELECT * FROM calls WHERE localId = :localId LIMIT 1")
+    suspend fun getById(localId: String): CallEntity?
+
     // Guards against double-logging: the phone's own CallLog provider is also queried
     // after every state change, so the same system call could otherwise be captured twice.
     @Query("SELECT COUNT(*) FROM calls WHERE fromNumber = :from AND toNumber = :to AND startedAt = :startedAt")

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { MessageCircle, Globe, CheckCircle, XCircle, Copy, Mail, Save, Eye, EyeOff } from 'lucide-react';
+import { MessageCircle, Globe, CheckCircle, XCircle, Copy, Mail, Save, Eye, EyeOff, Building, Cloud, Zap, X, Trash2, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { fetchWebhooks } from '../lib/data';
+import { fetchWebhooks, fetchIntegrations, createIntegration, deleteIntegration, testIntegration, updateIntegration } from '../lib/data';
 import { api } from '../lib/api';
 
 const channels = [
@@ -23,6 +23,55 @@ const channels = [
   },
 ];
 
+const crmProviders = [
+  {
+    id: 'HUBSPOT',
+    name: 'HubSpot',
+    icon: Building,
+    color: 'text-orange-500',
+    bg: 'bg-orange-50 dark:bg-orange-900/20',
+    desc: 'Sync contacts, companies, deals, and tickets from HubSpot CRM',
+    fields: [
+      { key: 'apiKey', label: 'Private App Token', type: 'password', required: true, placeholder: 'Enter your HubSpot private app token' },
+    ],
+  },
+  {
+    id: 'SALESFORCE',
+    name: 'Salesforce',
+    icon: Cloud,
+    color: 'text-blue-600',
+    bg: 'bg-blue-50 dark:bg-blue-900/20',
+    desc: 'Sync leads, contacts, accounts, and opportunities from Salesforce',
+    fields: [
+      { key: 'clientId', label: 'Client ID', type: 'text', required: true, placeholder: 'Connected app client ID' },
+      { key: 'clientSecret', label: 'Client Secret', type: 'password', required: true, placeholder: 'Connected app client secret' },
+      { key: 'username', label: 'Username', type: 'text', required: true, placeholder: 'Salesforce username' },
+      { key: 'password', label: 'Password', type: 'password', required: true, placeholder: 'Salesforce password' },
+      { key: 'securityToken', label: 'Security Token', type: 'password', required: true, placeholder: 'Salesforce security token' },
+    ],
+  },
+  {
+    id: 'ZOHO',
+    name: 'Zoho',
+    icon: Zap,
+    color: 'text-red-500',
+    bg: 'bg-red-50 dark:bg-red-900/20',
+    desc: 'Sync leads, contacts, accounts, and deals from Zoho CRM',
+    fields: [
+      { key: 'clientId', label: 'Client ID', type: 'text', required: true, placeholder: 'Zoho client ID' },
+      { key: 'clientSecret', label: 'Client Secret', type: 'password', required: true, placeholder: 'Zoho client secret' },
+      { key: 'refreshToken', label: 'Refresh Token', type: 'password', required: true, placeholder: 'Zoho refresh token' },
+      { key: 'region', label: 'Region', type: 'select', required: false, default: 'us', options: [
+        { value: 'us', label: 'United States' },
+        { value: 'eu', label: 'Europe' },
+        { value: 'in', label: 'India' },
+        { value: 'au', label: 'Australia' },
+        { value: 'cn', label: 'China' },
+      ]},
+    ],
+  },
+];
+
 export default function IntegrationsPage() {
   const [webhooks, setWebhooks] = useState<any[]>([]);
   const [emailConfig, setEmailConfig] = useState({ smtpHost: '', smtpPort: '587', smtpUser: '', smtpPass: '', smtpFrom: '', imapHost: '', imapPort: '993', imapUser: '', imapPass: '', imapTls: true });
@@ -30,8 +79,26 @@ export default function IntegrationsPage() {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
 
+  const [crmIntegrations, setCrmIntegrations] = useState<any[]>([]);
+  const [crmLoading, setCrmLoading] = useState(true);
+  const [crmModal, setCrmModal] = useState<{
+    provider: typeof crmProviders[0];
+    integration?: any;
+    config: Record<string, string>;
+    saving: boolean;
+  } | null>(null);
+  const [crmTestingId, setCrmTestingId] = useState<string | null>(null);
+  const [crmShowPass, setCrmShowPass] = useState<Record<string, boolean>>({});
+
   useEffect(() => {
     fetchWebhooks().then((r: any) => setWebhooks(r.data || r || [])).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetchIntegrations()
+      .then((r: any) => setCrmIntegrations(Array.isArray(r) ? r : r.data || r || []))
+      .catch(() => toast.error('Failed to load integrations'))
+      .finally(() => setCrmLoading(false));
   }, []);
 
   const telegramWebhook = webhooks.find((w: any) => w.type === 'telegram');
@@ -57,7 +124,6 @@ export default function IntegrationsPage() {
         if (ek) body[ek] = key === 'imapTls' ? String(val) : val;
       }
       await api('/env-config', { method: 'PUT', body: JSON.stringify(body) }).catch(() => {
-        // env-config endpoint may not exist; fallback to showing info
         toast.success('Settings saved (restart required for some changes)');
       });
       toast.success('Email config saved');
@@ -88,6 +154,94 @@ export default function IntegrationsPage() {
       </button>
     </div>
   );
+
+  // --- CRM helpers ---
+
+  const getCrmIntegration = (type: string) => crmIntegrations.find((i: any) => i.type === type);
+
+  const isCrmConnected = (type: string) => {
+    const integ = getCrmIntegration(type);
+    return integ && (integ.status === 'CONNECTED' || integ.status === 'connected' || integ.status === 'ACTIVE' || integ.status === 'active');
+  };
+
+  const openCrmConnect = (provider: typeof crmProviders[0]) => {
+    const existing = getCrmIntegration(provider.id);
+    const config: Record<string, string> = {};
+    if (existing?.config) {
+      for (const field of provider.fields) {
+        config[field.key] = ((existing.config as Record<string, any>)[field.key] as string) || '';
+      }
+    }
+    // Apply defaults for fields not yet set
+    for (const field of provider.fields) {
+      if (!config[field.key] && field.type === 'select' && field.default) {
+        config[field.key] = field.default;
+      }
+    }
+    setCrmModal({ provider, integration: existing, config, saving: false });
+  };
+
+  const handleCrmSave = async () => {
+    if (!crmModal) return;
+    const { provider, integration, config } = crmModal;
+
+    // Validate required fields
+    for (const field of provider.fields) {
+      if (field.required && !config[field.key]?.trim()) {
+        toast.error(`${field.label} is required`);
+        return;
+      }
+    }
+
+    setCrmModal(prev => prev ? { ...prev, saving: true } : null);
+    try {
+      if (integration) {
+        await updateIntegration(integration.id, { config });
+        toast.success(`${provider.name} connection updated`);
+      } else {
+        await createIntegration({ type: provider.id, name: `${provider.name} CRM`, config });
+        toast.success(`${provider.name} connected successfully`);
+      }
+      // Refresh the list
+      const r = await fetchIntegrations();
+      setCrmIntegrations(Array.isArray(r) ? r : r.data || r || []);
+      setCrmModal(null);
+    } catch (err: any) {
+      toast.error(err.message || `Failed to connect ${provider.name}`);
+    } finally {
+      setCrmModal(prev => prev ? { ...prev, saving: false } : null);
+    }
+  };
+
+  const handleCrmDisconnect = async (id: string, name: string) => {
+    if (!window.confirm(`Disconnect ${name}? This will remove the integration configuration.`)) return;
+    try {
+      await deleteIntegration(id);
+      toast.success(`${name} disconnected`);
+      const r = await fetchIntegrations();
+      setCrmIntegrations(Array.isArray(r) ? r : r.data || r || []);
+    } catch (err: any) {
+      toast.error(err.message || `Failed to disconnect ${name}`);
+    }
+  };
+
+  const handleCrmTest = async (id: string) => {
+    setCrmTestingId(id);
+    try {
+      const res = await testIntegration(id);
+      toast.success(res.message || 'Connection test successful');
+    } catch (err: any) {
+      toast.error(err.message || 'Connection test failed');
+    } finally {
+      setCrmTestingId(null);
+    }
+  };
+
+  const handleCrmConfigChange = (key: string, value: string) => {
+    setCrmModal(prev => prev ? { ...prev, config: { ...prev.config, [key]: value } } : null);
+  };
+
+  const toggleCrmShowPass = (key: string) => setCrmShowPass(prev => ({ ...prev, [key]: !prev[key] }));
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -214,6 +368,205 @@ export default function IntegrationsPage() {
           </div>
         </div>
       </div>
+
+      {/* ===== CRM Connections ===== */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-xl font-bold text-[var(--foreground)]">CRM Connections</h2>
+            <p className="text-sm text-[var(--muted-foreground)] mt-0.5">Connect your CRM to sync leads, contacts, and deals automatically</p>
+          </div>
+        </div>
+
+        {crmLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 size={24} className="animate-spin text-[var(--muted-foreground)]" />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {crmProviders.map(provider => {
+              const integration = getCrmIntegration(provider.id);
+              const connected = isCrmConnected(provider.id);
+              const Icon = provider.icon;
+              return (
+                <div key={provider.id} className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 flex flex-col">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-xl ${connected ? provider.bg : 'bg-gray-50 dark:bg-gray-800'} flex items-center justify-center`}>
+                        <Icon size={20} className={connected ? provider.color : 'text-gray-400'} />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-[var(--foreground)]">{provider.name}</h3>
+                        {integration?.lastTested && (
+                          <p className="text-[10px] text-[var(--muted-foreground)] mt-0.5">
+                            Last tested: {new Date(integration.lastTested).toLocaleDateString()}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    {connected ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                        <CheckCircle size={12} /> Connected
+                      </span>
+                    ) : integration ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                        <XCircle size={12} /> Error
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+                        <XCircle size={12} /> Disconnected
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-[var(--muted-foreground)] flex-1">{provider.desc}</p>
+                  <div className="flex items-center gap-2 mt-4 pt-3 border-t border-[var(--border)]">
+                    {connected ? (
+                      <>
+                        <button
+                          onClick={() => openCrmConnect(provider)}
+                          className="flex-1 px-3 py-2 rounded-lg text-sm font-medium border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] hover:bg-[var(--accent)] transition-colors cursor-pointer"
+                        >
+                          Configure
+                        </button>
+                        <button
+                          onClick={() => handleCrmTest(integration!.id)}
+                          disabled={crmTestingId === integration!.id}
+                          className="px-3 py-2 rounded-lg text-sm font-medium border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] hover:bg-[var(--accent)] disabled:opacity-50 transition-colors cursor-pointer"
+                        >
+                          {crmTestingId === integration!.id ? (
+                            <Loader2 size={14} className="animate-spin" />
+                          ) : (
+                            'Test'
+                          )}
+                        </button>
+                        <button
+                          onClick={() => handleCrmDisconnect(integration!.id, provider.name)}
+                          className="p-2 rounded-lg text-sm font-medium border border-red-200 dark:border-red-900/30 bg-[var(--card)] text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors cursor-pointer"
+                          title={`Disconnect ${provider.name}`}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => openCrmConnect(provider)}
+                        className="w-full px-3 py-2 rounded-lg text-sm font-medium bg-[var(--primary)] text-[var(--primary-foreground)] hover:bg-[var(--primary)]/90 transition-colors cursor-pointer"
+                      >
+                        Connect
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ===== CRM Connect/Configure Modal ===== */}
+      {crmModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          onClick={() => setCrmModal(null)}
+        >
+          <div
+            className="bg-[var(--card)] border border-[var(--border)] rounded-xl w-full max-w-md shadow-2xl animate-fade-in"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between p-5 border-b border-[var(--border)]">
+              <div className="flex items-center gap-3">
+                <div className={`w-9 h-9 rounded-lg ${crmModal.provider.bg} flex items-center justify-center`}>
+                  {React.createElement(crmModal.provider.icon, { size: 18, className: crmModal.provider.color })}
+                </div>
+                <div>
+                  <h3 className="font-semibold text-[var(--foreground)]">
+                    {crmModal.integration ? 'Configure' : 'Connect'} {crmModal.provider.name}
+                  </h3>
+                  <p className="text-xs text-[var(--muted-foreground)]">
+                    {crmModal.integration ? 'Update your credentials' : 'Enter your CRM credentials'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setCrmModal(null)}
+                className="p-1.5 rounded-lg hover:bg-[var(--accent)] text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Body - form fields */}
+            <div className="p-5 space-y-3 max-h-80 overflow-y-auto">
+              {crmModal.provider.fields.map(field => (
+                <div key={field.key}>
+                  <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">
+                    {field.label}
+                    {field.required && <span className="text-red-400 ml-0.5">*</span>}
+                  </label>
+                  {field.type === 'select' ? (
+                    <select
+                      value={crmModal.config[field.key] || field.default || ''}
+                      onChange={e => handleCrmConfigChange(field.key, e.target.value)}
+                      className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/50"
+                    >
+                      {field.options?.map((opt: { value: string; label: string }) => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  ) : field.type === 'password' ? (
+                    <div className="relative">
+                      <input
+                        type={crmShowPass[field.key] ? 'text' : 'password'}
+                        value={crmModal.config[field.key] || ''}
+                        onChange={e => handleCrmConfigChange(field.key, e.target.value)}
+                        placeholder={field.placeholder}
+                        className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 pr-8 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/50"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => toggleCrmShowPass(field.key)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--muted-foreground)] hover:text-[var(--foreground)] cursor-pointer"
+                      >
+                        {crmShowPass[field.key] ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                    </div>
+                  ) : (
+                    <input
+                      type="text"
+                      value={crmModal.config[field.key] || ''}
+                      onChange={e => handleCrmConfigChange(field.key, e.target.value)}
+                      placeholder={field.placeholder}
+                      className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/50"
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-2 p-5 pt-0">
+              <button
+                onClick={() => setCrmModal(null)}
+                className="px-4 py-2 rounded-lg text-sm font-medium border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] hover:bg-[var(--accent)] transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCrmSave}
+                disabled={crmModal.saving}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--primary)] text-sm font-medium text-[var(--primary-foreground)] hover:bg-[var(--primary)]/90 disabled:opacity-50 transition-colors cursor-pointer"
+              >
+                {crmModal.saving ? (
+                  <><Loader2 size={14} className="animate-spin" /> Connecting...</>
+                ) : (
+                  <>{crmModal.integration ? 'Save Changes' : 'Connect'}</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

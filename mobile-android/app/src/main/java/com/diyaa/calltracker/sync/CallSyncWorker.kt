@@ -6,6 +6,8 @@ import androidx.work.WorkerParameters
 import com.diyaa.calltracker.data.ApiClient
 import com.diyaa.calltracker.data.CallSyncEntry
 import com.diyaa.calltracker.data.CallSyncRequest
+import com.diyaa.calltracker.data.CallSyncResultEntry
+import com.diyaa.calltracker.data.UpdateNotesRequest
 import com.diyaa.calltracker.data.local.AppDatabase
 import com.diyaa.calltracker.data.local.CallEntity
 import okhttp3.MediaType.Companion.toMediaType
@@ -41,6 +43,9 @@ class CallSyncWorker(context: Context, params: WorkerParameters) : CoroutineWork
                 dao.update(call.copy(synced = true, remoteCallLogId = result.callLogId))
             }
 
+            // Send any pending notes for calls that just received their callLogId
+            sendPendingNotes(applicationContext, pending, byLocalId)
+
             uploadPendingRecordings(dao)
             Result.success()
         } catch (e: Exception) {
@@ -63,6 +68,31 @@ class CallSyncWorker(context: Context, params: WorkerParameters) : CoroutineWork
                     dao.update(call.copy(recordingUploaded = true))
                 }
             } catch (e: Exception) {
+                // Left for the next periodic run to retry.
+            }
+        }
+    }
+
+    /**
+     * After a successful sync, checks if any of the newly-synced calls have pending
+     * notes stored in SharedPreferences (written by [NoteActivity] when the PATCH API
+     * was not yet available). If found, sends them via PATCH /call-tracking/calls/{callLogId}/notes.
+     */
+    private suspend fun sendPendingNotes(
+        context: Context,
+        pending: List<CallEntity>,
+        byLocalId: Map<String?, CallSyncResultEntry>,
+    ) {
+        val prefs = context.getSharedPreferences("pending_call_notes", Context.MODE_PRIVATE)
+        for (call in pending) {
+            val result = byLocalId[call.localId] ?: continue
+            val notes = prefs.getString(call.localId, null) ?: continue
+            try {
+                val response = ApiClient.api.updateCallNotes(result.callLogId, UpdateNotesRequest(notes))
+                if (response.isSuccessful) {
+                    prefs.edit().remove(call.localId).apply()
+                }
+            } catch (_: Exception) {
                 // Left for the next periodic run to retry.
             }
         }

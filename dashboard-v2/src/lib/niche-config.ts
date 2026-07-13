@@ -56,7 +56,7 @@ const hospitality: NicheConfig = {
 const healthcare: NicheConfig = {
   businessName: "CarePlus Clinic", primaryColor: "#2563EB",
   labels: { lead: "Patient Inquiry", leads: "Patient Inquiries", contact: "Patient", conversion: "Appointment" },
-  features: { nurture: false, scoring: true, routing: false, crm: false, booking: true, tickets: false, knowledgeBase: false, media: false, qrCodes: false, reports: false, campaigns: false, forms: true, messages: true, templates: true, aiCampaigns: false, aiAgent: true, copilot: false, webhooks: false, sms: false, widget: true, tasks: true, integrations: false, analytics: false, studio: false, events: true, finance: true, procurement: true, inventory: true, teamHr: true, publicProfile: true },
+  features: { nurture: false, scoring: true, routing: false, crm: false, booking: true, tickets: false, knowledgeBase: false, media: false, qrCodes: false, reports: false, campaigns: false, forms: true, messages: true, templates: true, aiCampaigns: false, aiAgent: true, copilot: false, webhooks: false, sms: false, widget: true, tasks: true, integrations: false, analytics: false, studio: false, events: false, finance: true, procurement: false, inventory: true, teamHr: true, publicProfile: true },
 };
 
 const agency: NicheConfig = {
@@ -71,6 +71,12 @@ const logistics: NicheConfig = {
   features: { nurture: false, scoring: true, routing: true, crm: false, booking: true, tickets: false, knowledgeBase: false, media: false, qrCodes: false, reports: false, campaigns: false, forms: true, messages: true, templates: true, aiCampaigns: false, aiAgent: true, copilot: false, webhooks: true, sms: false, widget: true, tasks: true, integrations: true, analytics: false, studio: false, events: true, finance: true, procurement: true, inventory: true, teamHr: true, publicProfile: true },
 };
 
+const eventMarketing: NicheConfig = {
+  businessName: "EventPro Marketing", primaryColor: "#0E9D6E",
+  labels: { lead: "Client", leads: "Clients", contact: "Contact", conversion: "Booking" },
+  features: { nurture: true, scoring: true, routing: false, crm: true, booking: true, tickets: false, knowledgeBase: false, media: true, qrCodes: true, reports: false, campaigns: true, forms: true, messages: true, templates: true, aiCampaigns: true, aiAgent: true, copilot: true, webhooks: false, sms: false, widget: true, tasks: true, integrations: true, analytics: true, studio: false, events: true, finance: true, procurement: true, inventory: true, teamHr: true, publicProfile: true },
+};
+
 const nicheName = import.meta.env.VITE_NICHE_NAME || "agency";
 
 const config: NicheConfig =
@@ -78,6 +84,7 @@ const config: NicheConfig =
   nicheName === "hospitality" ? hospitality :
   nicheName === "healthcare" ? healthcare :
   nicheName === "logistics" ? logistics :
+  nicheName === "event-marketing-agency" ? eventMarketing :
   agency;
 
 export function getNicheName(): string {
