@@ -77,4 +77,40 @@ describe('WebhooksService', () => {
     });
     expect(result.data.lead.id).toBe('lead-1');
   });
+
+  // ── mobile-app generic webhook ──────────────────
+
+  it('should create a lead from a mobile app event with contact info', async () => {
+    const result: any = await service.handleGeneric('mobile-app', 'app_event', {
+      name: 'Jane', email: 'jane@test.com', message: 'Interested in premium plan',
+    });
+    expect(contacts.findOrCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Jane', email: 'jane@test.com' }),
+    );
+    expect(leads.create).toHaveBeenCalledWith(
+      expect.objectContaining({ source: 'MOBILE_APP' }),
+    );
+    expect(conversations.create).toHaveBeenCalledWith(
+      expect.objectContaining({ text: 'Interested in premium plan', channel: 'SYSTEM' }),
+    );
+    expect(result.data.lead.id).toBe('lead-1');
+  });
+
+  it('should reuse an existing open lead instead of creating a new one', async () => {
+    prisma.lead.findFirst.mockResolvedValue(mockLead);
+    await service.handleGeneric('mobile-app', 'app_event', { phone: '+1234567890' });
+    expect(leads.create).not.toHaveBeenCalled();
+  });
+
+  it('should not create a lead for a mobile app event with no contact info', async () => {
+    const result: any = await service.handleGeneric('mobile-app', 'app_event', { event: 'app_opened' });
+    expect(leads.create).not.toHaveBeenCalled();
+    expect(contacts.findOrCreate).not.toHaveBeenCalled();
+    expect(result.data.received).toBe(true);
+  });
+
+  it('should not create a conversation message when the mobile app event has no message', async () => {
+    await service.handleGeneric('mobile-app', 'app_event', { email: 'jane@test.com' });
+    expect(conversations.create).not.toHaveBeenCalled();
+  });
 });

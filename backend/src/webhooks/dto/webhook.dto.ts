@@ -25,6 +25,12 @@ export class WhatsAppWebhookDto {
 export class GenericWebhookDto {
   @ApiPropertyOptional() @IsObject() @IsOptional() data?: unknown;
   @ApiPropertyOptional() @IsString() @IsOptional() event?: string;
+  // Declared explicitly so the global ValidationPipe's whitelist doesn't strip them —
+  // the chatbot/mobile-app handlers in WebhooksService read these flat, not off `data`.
+  @ApiPropertyOptional() @IsString() @IsOptional() name?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() email?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() phone?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() message?: string;
 }
 
 export class TelegramWebhookDto {

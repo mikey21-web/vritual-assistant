@@ -393,6 +393,45 @@ export class WebhooksService {
       return { data: result };
     }
 
+    // Mobile app events range from app-open pings to a user actually submitting contact
+    // info. Only worth a lead when there's something to act on, an email or phone.
+    if (provider === 'mobile-app' && (payload.email || payload.phone)) {
+      const contact = await this.contactsService.findOrCreate({
+        name: payload.name || 'App User',
+        email: payload.email,
+        phone: payload.phone,
+      });
+
+      const existingLead = await this.prisma.lead.findFirst({
+        where: { contactId: contact.id, status: { notIn: ['LOST', 'CONVERTED', 'SPAM'] } },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      const lead = existingLead || await this.leadsService.create({
+        contactId: contact.id,
+        source: 'MOBILE_APP',
+        message: payload.message,
+        metadata: { ...payload, channel: 'mobile_app' },
+      });
+
+      if (payload.message) {
+        await this.conversationsService.create({
+          text: payload.message,
+          channel: 'SYSTEM',
+          direction: 'INBOUND',
+          leadId: lead.id,
+          contactId: contact.id,
+          metadata: payload,
+        });
+      }
+
+      const result = { contact, lead };
+      await this.prisma.webhookEvent.create({
+        data: { provider, eventType, idempotencyKey: key, rawPayload: payload, processedResult: result },
+      });
+      return { data: result };
+    }
+
     const result = { received: true, eventType };
     await this.prisma.webhookEvent.create({ data: { provider, eventType, idempotencyKey: key, rawPayload: payload, processedResult: result } });
     return { data: result };
