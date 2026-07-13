@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from "react";
+import { useState, useEffect, lazy, Suspense, useCallback } from "react";
 import { Toaster } from "react-hot-toast";
 import { useAuth } from "./lib/useAuth";
 import { AppProvider } from "./context/AppContext";
@@ -9,6 +9,8 @@ import { Sidebar } from "./components/layout/sidebar";
 import { Topbar } from "./components/layout/topbar";
 import MikeyWidget from "./components/MikeyWidget";
 import ExplainModePlayer from "./components/ExplainModePlayer";
+import { JarvisBanner, showJarvisToast } from "./components/jarvis";
+import { SocketProvider, useSocket } from "./hooks";
 import { LoginPage } from "./pages/LoginPage";
 import LandingPage from "./pages/LandingPage";
 import { Skeleton } from "./components/ui/skeleton";
@@ -53,6 +55,7 @@ const PageComponents: Record<string, React.LazyExoticComponent<React.ComponentTy
   Tickets: lazy(() => import("./pages/TicketsPage")),
   KnowledgeBase: lazy(() => import("./pages/KnowledgeBasePage")),
   Copilot: lazy(() => import("./pages/CopilotPage")),
+  Jarvis: lazy(() => import("./pages/JarvisPage")),
   Studio: lazy(() => import("./pages/StudioPage")),
   Reports: lazy(() => import("./pages/ReportsPage")),
   Events: lazy(() => import("./pages/EventsPage")),
@@ -109,7 +112,7 @@ function getPageKey(path: string): string {
     "/ai-campaigns": "AICampaigns", "/ai-agent": "AIAgent",
     "/webhooks": "Webhooks", "/sms": "SMS", "/widget": "Widget", "/ads": "AdIntegrations",
     "/tickets": "Tickets", "/knowledge-base": "KnowledgeBase",
-    "/copilot": "Mikey",     "/studio": "Studio", "/reports": "Reports",
+    "/copilot": "Mikey", "/jarvis": "Jarvis",    "/studio": "Studio", "/reports": "Reports",
     "/events": "Events", "/calendar": "EventCalendar",
     "/accounting": "Accounting", "/invoices": "Invoices", "/quotations": "Quotations",
     "/contracts": "Contracts", "/finance-reports": "FinanceReports",
@@ -125,6 +128,36 @@ const pageRoutes: Record<string, React.ComponentType<any>> = {
   Overview: OverviewPage, Leads: LeadsPage, Contacts: ContactsPage,
   Campaigns: CampaignsPage, Forms: FormsPage, QRCodes: QRCodesPage, Messages: MessagesPage,
 };
+
+function JarvisConnectedBanner() {
+  const { eventBuffer } = useSocket();
+  const findings = eventBuffer
+    .filter(e => e.type.startsWith('jarvis.'))
+    .slice(-5)
+    .map(e => ({
+      id: `${e.type}-${e.timestamp}`,
+      severity: ((e.payload as any)?.severity === 'critical' ? 'critical' : (e.payload as any)?.severity === 'warning' ? 'warning' : 'info') as 'info' | 'warning' | 'critical',
+      title: (e.payload as any)?.title || e.type,
+      description: (e.payload as any)?.description || '',
+      timestamp: new Date(e.timestamp),
+    }));
+  return <JarvisBanner findings={findings} />;
+}
+
+function JarvisConnectedToast() {
+  const { lastEvent } = useSocket();
+  useEffect(() => {
+    if (!lastEvent || !lastEvent.type.startsWith('jarvis.')) return;
+    const p = lastEvent.payload as any;
+    if (!p?.title) return;
+    showJarvisToast({
+      title: p.title,
+      description: p.description || '',
+      severity: p.severity === 'critical' ? 'critical' : p.severity === 'warning' ? 'warning' : 'info',
+    });
+  }, [lastEvent]);
+  return null;
+}
 
 export default function App() {
   const { user, login, logout, fetchProfile, isLoggedIn } = useAuth();
@@ -187,6 +220,7 @@ export default function App() {
   return (
     <BrandingProvider>
     <AppProvider>
+    <SocketProvider>
       <div className="flex h-screen bg-[var(--background)] text-[var(--foreground)]">
         <Sidebar
           collapsed={sidebarCollapsed}
@@ -196,7 +230,8 @@ export default function App() {
         />
         <div className={`flex flex-1 flex-col transition-all duration-200 ${sidebarCollapsed ? "lg:ml-16" : "lg:ml-64"}`}>
           <Topbar onMenuToggle={() => setMobileNavOpen(!mobileNavOpen)} dark={dark} onThemeToggle={() => setDark(!dark)} />
-          <main className="flex-1 overflow-auto p-4 lg:p-6">
+          <main className="flex-1 overflow-auto p-4 lg:p-6 relative">
+            <JarvisConnectedBanner />
             <ErrorBoundary>
               <Suspense fallback={<PageFallback />}>
                 {PageComponent ? <PageComponent /> : (
@@ -209,11 +244,13 @@ export default function App() {
       </div>
       <MikeyWidget />
       <ExplainModePlayer />
+      <JarvisConnectedToast />
       <Toaster position="top-right" toastOptions={{
         style: { borderRadius: 'var(--radius)', background: 'var(--card)', color: 'var(--foreground)', border: '1px solid var(--border)', fontSize: '14px' },
         success: { iconTheme: { primary: '#0f766e', secondary: '#ffffff' } },
         error: { iconTheme: { primary: '#dc2626', secondary: '#ffffff' } },
       }} />
+    </SocketProvider>
     </AppProvider>
     </BrandingProvider>
   );

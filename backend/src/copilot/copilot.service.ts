@@ -13,6 +13,9 @@ import { EmailAdapter } from '../shared/adapters/email.adapter';
 import { FeatureFlagsService } from '../shared/feature-flags.service';
 import { AnalyticsService } from '../analytics/analytics.service';
 import { ContactsService } from '../contacts/contacts.service';
+import { KhojClientService } from '../khoj-client/khoj-client.service';
+import { JarvisService } from '../jarvis/jarvis.service';
+import { OutcomeEngineService } from '../jarvis/outcome-engine.service';
 
 const MAX_COPILOT_MESSAGES_PER_TENANT_PER_DAY = 500;
 import { PERMISSION_MATRIX } from '../permissions/permissions.matrix';
@@ -47,6 +50,9 @@ export class CopilotService {
     private featureFlags: FeatureFlagsService,
     private analyticsService: AnalyticsService,
     private contactsService: ContactsService,
+    private khoj: KhojClientService,
+    private jarvis: JarvisService,
+    private outcomeEngine: OutcomeEngineService,
   ) {
     const apiKey = this.config.get<string>('DEEPSEEK_API_KEY');
     const baseURL = this.config.get<string>('DEEPSEEK_BASE_URL') || 'https://api.deepseek.com/v1';
@@ -144,7 +150,9 @@ export class CopilotService {
       ? `\n\nRules you must always follow, no exceptions:\n${businessSettings.compliance.map((c: string) => `- ${c}`).join('\n')}`
       : '';
 
-    const systemPrompt = `You are Mikey, the CRM assistant for ${businessName}.${industryLine} You help staff manage leads, tickets, tasks, and campaigns. Talk like a helpful coworker, plainly and directly.
+    const systemPrompt = `You are Jarvis, the unified intelligence running the CRM for ${businessName}.${industryLine} You help staff manage leads, tickets, tasks, campaigns, and you also autonomously qualify leads and monitor the market. You have one mind that sees everything — internal ops and external lead conversations alike. Talk like a helpful executive assistant, plainly and directly.
+
+You have access to Khoj, your second brain — a knowledge base containing company docs, product info, lead conversation history, market intelligence, and tactical knowledge learned from past conversations. Use Khoj context (provided at the start of each conversation) to answer questions about the company, products, competitors, or past lead interactions before relying on your own training data.
 
 Formatting rules, follow these strictly:
 - Never use emojis.
@@ -176,6 +184,8 @@ You have access to the following tools:
 - explain_flow: Walk the user through a multi-step guided tour (2-5 steps), each step navigating to a page and highlighting a record with a one-sentence narration. Use this for "why" questions or multi-step explanations, after you've already gathered the relevant facts with other tools.
 - analyze_lead_source: Get conversion rate, status breakdown, and related ticket volume for one lead source, compared against the overall conversion rate. Use this when asked why leads from a specific source (e.g. Facebook, Google Ads, WhatsApp) are converting well or poorly.
 - bulk_send_message: Send personalized messages to multiple leads at once (high impact — requires a single confirmation for the whole batch, up to 20 messages).
+- define_outcome: Define a new business outcome or goal for Jarvis to achieve autonomously (e.g. "increase conversions by 20% this month"). Jarvis will break it into steps and track progress.
+- run_autonomous_action: Execute a low-risk action without waiting for confirmation (create_task, create_ticket). Use when the user says "go ahead and do it" or for routine follow-ups.
 
 Rules:
 1. For high-impact tools (marked above), set requiresConfirmation: true and do NOT execute — just return what you would do.
@@ -187,7 +197,8 @@ Rules:
 7. When asked why a specific lead source is converting well or poorly, call analyze_lead_source first, then use its sampleLeads to build an explain_flow walkthrough highlighting a few of those leads.
 8. When asked to act on multiple leads at once (e.g. "follow up with everyone who...", "message all hot leads that..."), first use search_leads to find and inspect candidates yourself (reason over their status/segment/updatedAt), draft one personalized message per qualifying lead, then call bulk_send_message ONCE with all of them so the user reviews and approves the whole batch together — never call send_message repeatedly for a multi-lead request.
 9. NEVER invent, guess, or use placeholder/example IDs (like "lead_001") for leadId or any other id field. Always copy the exact id value from a previous tool result in this conversation (e.g. from search_leads or get_lead_detail). If you don't have a real id for a record, call a search/lookup tool first to get it.
-10. NEVER say something is "done", "sent", or "completed" unless you have seen a tool result in THIS conversation with status: success for that exact action. If a tool result says status: pending or requiresConfirmation: true, the action has NOT happened yet — say it's ready and waiting for the user's confirmation, not that it's done.`;
+10. NEVER say something is "done", "sent", or "completed" unless you have seen a tool result in THIS conversation with status: success for that exact action. If a tool result says status: pending or requiresConfirmation: true, the action has NOT happened yet — say it's ready and waiting for the user's confirmation, not that it's done.
+11. When a user asks about company info, competitors, pricing, or past lead interactions, use the Khoj context provided below before answering from your own knowledge.`;
 
     const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
       {
@@ -519,12 +530,51 @@ Rules:
           },
         },
       },
+      {
+        type: 'function',
+        function: {
+          name: 'define_outcome',
+          description: 'Define a business outcome for Jarvis to achieve autonomously — e.g. "increase conversions by 20% this month"',
+          parameters: {
+            type: 'object', properties: {
+              goal: { type: 'string', description: 'The outcome to achieve' },
+              metric: { type: 'string', enum: ['conversion_rate', 'lead_volume', 'revenue', 'response_time', 'other'] },
+              target: { type: 'number', description: 'Target value' },
+              current: { type: 'number', description: 'Current value' },
+            }, required: ['goal', 'metric', 'target', 'current'],
+          },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'run_autonomous_action',
+          description: 'Execute a low-risk action autonomously (no confirmation needed)',
+          parameters: {
+            type: 'object', properties: {
+              action: { type: 'string', enum: ['create_task', 'create_ticket'] },
+              leadId: { type: 'string' },
+              args: { type: 'object', description: 'Action-specific arguments' },
+            }, required: ['action'],
+          },
+        },
+      },
     ];
 
     const highImpactTools = ['update_lead_status', 'send_message', 'create_campaign', 'update_ticket', 'initiate_call', 'send_email', 'bulk_send_message'];
 
+    let khojContext = '';
+    try {
+      const khojResult = await this.khoj.query(message);
+      if (khojResult?.answer) {
+        khojContext = `\n\nRelevant context from Khoj (company knowledge base):\n${khojResult.answer}`;
+      }
+    } catch {
+      // Khoj unavailable — continue without context
+    }
+
     const messages: any[] = [
-      { role: 'system', content: systemPrompt },
+      { role: 'system', content: systemPrompt + khojContext },
       ...conversation.messages.map(m => {
         const base: any = { role: m.role, content: m.content };
         if (m.role === 'tool') base.tool_call_id = `tc_${m.id}`;
@@ -651,6 +701,14 @@ Rules:
               break;
             case 'explain_flow':
               result = { steps: args.steps || [] };
+              break;
+            case 'define_outcome':
+              const outcome = await this.outcomeEngine.defineOutcome({ tenantId, goal: args.goal, metric: args.metric, target: args.target, current: args.current || 0 });
+              result = { outcomeId: outcome.id, goal: outcome.goal, steps: outcome.steps.map((s: any) => s.description), message: `Outcome defined! Jarvis will track progress across ${outcome.steps.length} steps.` };
+              break;
+            case 'run_autonomous_action':
+              const autoResult = await this.jarvis.runAutonomousAction({ leadId: args.leadId, action: args.action, args: args.args || {} });
+              result = autoResult;
               break;
             case 'analyze_lead_source':
               const sourceLeads = await this.prisma.lead.findMany({ where: { source: args.source as any }, include: { contact: { select: { name: true, email: true } } }, take: 20 });

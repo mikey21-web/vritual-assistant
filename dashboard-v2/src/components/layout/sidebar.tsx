@@ -4,7 +4,7 @@ import {
   Megaphone, FormInput, QrCode, FileText, Route, Target,
   ShoppingCart, Link, Calendar, Layers, ChevronLeft, ChevronRight, ChevronDown,
   UserCircle, CheckSquare, Sparkles, Phone,   Bot, MessageCircle, Smartphone, Webhook, Globe, LogOut, Columns3,
-  LifeBuoy, BookOpen, Puzzle, Download, Headset,
+  LifeBuoy, BookOpen, Puzzle, Download, Headset, Brain,
   Truck, ClipboardList, Package, Box, MapPin, Building2,
 } from "lucide-react";
 import { fetchProfile, fetchBusinessSettings } from "../../lib/data";
@@ -70,6 +70,7 @@ const rawNavGroups = [
       { label: "AI Campaigns", icon: Sparkles, path: "/ai-campaigns" },
       { label: "AI Agent", icon: Bot, path: "/ai-agent" },
       { label: "Mikey", icon: Headset, path: "/copilot" },
+      { label: "Jarvis", icon: Brain, path: "/jarvis" },
     ],
   },
   {
@@ -236,18 +237,18 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { co
     <>
       {mobileOpen && <div className="fixed inset-0 z-40 bg-black/30 lg:hidden" onClick={onMobileClose} />}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex h-full w-64 flex-col border-r border-[var(--border)] bg-[var(--sidebar)] transition-transform duration-200 lg:transition-[width] ${
+        className={`fixed inset-y-0 left-0 z-50 flex h-full w-64 flex-col border-r border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] transition-transform duration-200 lg:transition-[width] ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         } lg:translate-x-0 ${collapsed ? "lg:w-16" : "lg:w-64"}`}
       >
-        <div className="flex h-14 items-center justify-between border-b border-[var(--border)] px-4">
+        <div className="flex h-14 items-center justify-between border-b border-[var(--sidebar-border)] px-4">
           {!collapsed && (
             <div className="flex items-center gap-2.5">
               <BrandLogo logoUrl={branding.logoUrl} name={companyName} />
-              <span className="text-sm font-bold text-[var(--foreground)]">{companyName}</span>
+              <span className="text-sm font-bold text-[var(--sidebar-fg)]">{companyName}</span>
             </div>
           )}
-          <button onClick={onToggle} className="rounded-md p-1.5 hover:bg-[var(--accent)] text-[var(--muted-foreground)] transition-colors">
+          <button onClick={onToggle} className="rounded-md p-1.5 hover:bg-[var(--sidebar-hover)] text-[var(--sidebar-muted)] transition-colors">
             {collapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
           </button>
         </div>
@@ -262,13 +263,13 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { co
                   collapsible ? (
                     <button
                       onClick={() => toggleGroup(group.label)}
-                      className="w-full flex items-center justify-between px-2.5 py-1.5 text-[10px] font-semibold text-[var(--muted-foreground-light)] uppercase tracking-wider hover:text-[var(--foreground)] transition-colors"
+                      className="w-full flex items-center justify-between px-2.5 py-1.5 text-[10px] font-semibold text-[var(--sidebar-muted)] uppercase tracking-wider hover:text-[var(--sidebar-fg)] transition-colors"
                     >
                       <span>{group.label}</span>
                       <ChevronDown size={12} className={`transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
                     </button>
                   ) : (
-                    <p className="px-2.5 text-[10px] font-semibold text-[var(--muted-foreground-light)] uppercase tracking-wider mb-1">
+                    <p className="px-2.5 text-[10px] font-semibold text-[var(--sidebar-muted)] uppercase tracking-wider mb-1">
                       {group.label}
                     </p>
                   )
@@ -285,12 +286,13 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { co
                         key={item.path}
                         href={`#${item.path}`}
                         onClick={onMobileClose}
-                        className={`flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm transition-all font-medium ${
+                        className={`flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm transition-all font-medium relative ${
                           isActive
-                            ? "bg-[var(--accent)] text-[var(--foreground)]"
-                            : "text-[var(--muted-foreground)] hover:bg-[var(--accent)] hover:text-[var(--foreground)]"
+                            ? "bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-fg)]"
+                            : "text-[var(--sidebar-muted)] hover:bg-[var(--sidebar-hover)] hover:text-[var(--sidebar-fg)]"
                         }`}
                       >
+                        {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-[3px] rounded-full bg-[var(--sidebar-active-fg)]" />}
                         <item.icon size={17} strokeWidth={2} />
                         {!collapsed && <span>{item.label}</span>}
                       </a>
@@ -302,20 +304,20 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { co
           })}
         </nav>
 
-        <div className="border-t border-[var(--border)] p-3">
-          <div className="flex items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-[var(--accent)] transition-colors cursor-pointer">
-            <div className="h-7 w-7 rounded-full bg-[var(--primary)] flex items-center justify-center text-xs font-medium text-[var(--primary-foreground)] shrink-0">
+        <div className="border-t border-[var(--sidebar-border)] p-3">
+          <div className="flex items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-[var(--sidebar-hover)] transition-colors cursor-pointer">
+            <div className="h-7 w-7 rounded-full bg-[var(--sidebar-active-fg)] flex items-center justify-center text-xs font-semibold text-[#08130f] shrink-0">
               {profile?.name?.[0] || 'U'}
             </div>
             {!collapsed && (
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-[var(--foreground)] truncate">{userName}</p>
-                <p className="text-xs text-[var(--muted-foreground)] truncate">{userEmail}</p>
+                <p className="text-sm font-medium text-[var(--sidebar-fg)] truncate">{userName}</p>
+                <p className="text-xs text-[var(--sidebar-muted)] truncate">{userEmail}</p>
               </div>
             )}
             <button
               onClick={(e) => { e.preventDefault(); logout(); }}
-              className="rounded-md p-1.5 hover:bg-red-100 dark:hover:bg-red-900/20 text-[var(--muted-foreground)] hover:text-red-600 transition-colors"
+              className="rounded-md p-1.5 hover:bg-red-500/10 text-[var(--sidebar-muted)] hover:text-red-400 transition-colors"
               title="Sign out"
             >
               <LogOut size={15} />

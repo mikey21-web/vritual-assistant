@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { TimelineService } from '../timeline/timeline.service';
 import { AgentClientService } from './agent-client.service';
+import { KhojClientService } from '../khoj-client/khoj-client.service';
 
 export interface AgentConfig {
   toneStyle: string;
@@ -21,6 +22,7 @@ export class AgentService {
     private events: EventsService,
     private timeline: TimelineService,
     private agentClient: AgentClientService,
+    private khoj: KhojClientService,
   ) {}
 
   async recordRunSummary(dto: { runId: string; leadId: string; actions: any[]; model: string; startedAt: string; finishedAt: string }) {
@@ -44,8 +46,35 @@ export class AgentService {
       payload: dto,
     });
 
+    await this.persistToKhojMemory(dto);
+
     this.logger.log(`Run ${dto.runId} recorded for lead ${dto.leadId}: ${actionSummary}`);
     return { recorded: true, runId: dto.runId };
+  }
+
+  private async persistToKhojMemory(dto: { runId: string; leadId: string; actions: any[]; model: string; startedAt: string; finishedAt: string }) {
+    try {
+      const actions = dto.actions || [];
+      const sentMessages = actions.filter((a: any) => a.tool === 'send_message' && a.status === 'success');
+      const escalated = actions.find((a: any) => a.tool === 'escalate_to_human');
+      const statusChanges = actions.filter((a: any) => a.tool === 'update_status');
+
+      const parts: string[] = [`Lead ${dto.leadId} — Agent conversation completed`];
+      if (sentMessages.length > 0) parts.push(`Sent ${sentMessages.length} message(s)`);
+      if (statusChanges.length > 0) {
+        for (const sc of statusChanges) {
+          if (sc.args?.status) parts.push(`Status changed to ${sc.args.status}`);
+        }
+      }
+      if (escalated) parts.push('Escalated to human');
+      if (actions.length === 0) parts.push('No actions taken');
+
+      const memory = parts.join('. ') + '.';
+      await this.khoj.saveMemory(memory);
+      this.logger.debug(`Persisted run ${dto.runId} to Khoj memory`);
+    } catch (err: any) {
+      this.logger.warn(`Failed to persist to Khoj memory: ${err.message}`);
+    }
   }
 
   async getAgentConfig(): Promise<AgentConfig> {

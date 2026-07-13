@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as crypto from 'crypto';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
 
 export interface EventData {
   type: string;
@@ -19,7 +20,11 @@ export interface EventData {
 
 @Injectable()
 export class EventsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Inject(forwardRef(() => RealtimeGateway))
+    private realtime: RealtimeGateway,
+  ) {}
 
   async emit(data: EventData) {
     const idempotencyKey = data.idempotencyKey || crypto.randomUUID();
@@ -30,7 +35,7 @@ export class EventsService {
 
     if (existing) return existing;
 
-    return this.prisma.systemEvent.create({
+    const event = await this.prisma.systemEvent.create({
       data: {
         type: data.type,
         source: data.source || 'system',
@@ -48,6 +53,19 @@ export class EventsService {
         processedAt: new Date(),
       },
     });
+
+    this.realtime.emit(`event:${data.type}`, {
+      id: event.id,
+      type: data.type,
+      source: data.source,
+      entityType: data.entityType,
+      entityId: data.entityId,
+      leadId: data.leadId,
+      payload: data.payload,
+      createdAt: event.createdAt,
+    });
+
+    return event;
   }
 
   async findByLead(leadId: string) {

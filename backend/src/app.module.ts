@@ -64,6 +64,9 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { AdIntegrationsModule } from './ad-integrations/ad-integrations.module';
 import { WebsiteCrawlerModule } from './website-crawler/website-crawler.module';
 import { LeadIntelligenceModule } from './lead-intelligence/lead-intelligence.module';
+import { KhojClientModule } from './khoj-client/khoj-client.module';
+import { MarketMonitorModule } from './market-monitor/market-monitor.module';
+import { JarvisModule } from './jarvis/jarvis.module';
 
 @Module({
   imports: [
@@ -140,6 +143,9 @@ import { LeadIntelligenceModule } from './lead-intelligence/lead-intelligence.mo
     AdIntegrationsModule,
     WebsiteCrawlerModule,
     LeadIntelligenceModule,
+    KhojClientModule,
+    MarketMonitorModule,
+    JarvisModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

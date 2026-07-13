@@ -164,8 +164,84 @@ services:
       timeout: 5s
       retries: 5
 
+  # ── Khoj (Second Brain) ──────────────────────────────────────────
+  khoj-db:
+    image: docker.io/pgvector/pgvector:pg16
+    container_name: lead-automation-khoj-db
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+    environment:
+      POSTGRES_USER: khoj
+      POSTGRES_PASSWORD: ${KHOJ_DB_PASSWORD:-khoj}
+      POSTGRES_DB: khoj
+    volumes:
+      - khoj_db:/var/lib/postgresql/data/
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U khoj"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  khoj-search:
+    image: docker.io/searxng/searxng:latest
+    container_name: lead-automation-khoj-search
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+    volumes:
+      - khoj_search:/etc/searxng
+    environment:
+      - SEARXNG_BASE_URL=http://localhost:42112/
+
+  khoj-server:
+    image: ghcr.io/khoj-ai/khoj:latest
+    container_name: lead-automation-khoj-server
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+    ports:
+      - "42111:42110"
+    depends_on:
+      khoj-db:
+        condition: service_healthy
+    working_dir: /app
+    volumes:
+      - khoj_config:/root/.khoj/
+      - khoj_models:/root/.cache/torch/sentence_transformers
+      - khoj_models:/root/.cache/huggingface
+    environment:
+      - POSTGRES_DB=khoj
+      - POSTGRES_USER=khoj
+      - POSTGRES_PASSWORD=${KHOJ_DB_PASSWORD:-khoj}
+      - POSTGRES_HOST=khoj-db
+      - POSTGRES_PORT=5432
+      - KHOJ_DJANGO_SECRET_KEY=${KHOJ_DJANGO_SECRET_KEY:-khoj-local-dev-key}
+      - KHOJ_DEBUG=${KHOJ_DEBUG:-True}
+      - KHOJ_ADMIN_EMAIL=${KHOJ_ADMIN_EMAIL:-admin@localhost}
+      - KHOJ_ADMIN_PASSWORD=${KHOJ_ADMIN_PASSWORD:-admin}
+      - KHOJ_SEARXNG_URL=http://khoj-search:8080
+      - OPENAI_API_KEY=${DEEPSEEK_API_KEY}
+      - OPENAI_BASE_URL=https://api.deepseek.com/v1
+      - KHOJ_DEFAULT_CHAT_MODEL=deepseek-chat
+      - KHOJ_TELEMETRY_DISABLE=True
+    command: --host="0.0.0.0" --port=42110 -vv --anonymous-mode --non-interactive
+
 volumes:
   pgdata:
   redisdata:
   uploads:
   n8ndata:
+  khoj_db:
+  khoj_config:
+  khoj_models:
+  khoj_search:

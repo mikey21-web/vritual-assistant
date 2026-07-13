@@ -1,4 +1,5 @@
 import { NestFactory } from '@nestjs/core';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
@@ -31,6 +32,7 @@ async function bootstrap() {
     bodyParser: false,
   });
 
+  app.useWebSocketAdapter(new IoAdapter(app));
   app.enableShutdownHooks();
 
   const sentryService = app.get(SentryService);
