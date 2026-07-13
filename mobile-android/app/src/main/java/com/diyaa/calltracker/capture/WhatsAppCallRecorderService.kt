@@ -50,6 +50,8 @@ class WhatsAppCallRecorderService : Service() {
                 setAudioSource(MediaRecorder.AudioSource.VOICE_COMMUNICATION)
                 setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
                 setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+                setAudioEncodingBitRate(32000)
+                setAudioSamplingRate(16000)
                 setOutputFile(file.absolutePath)
                 prepare()
                 start()

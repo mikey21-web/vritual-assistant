@@ -528,4 +528,30 @@ export class CallTrackingService {
     hmac.update(JSON.stringify(payload));
     return hmac.digest('hex');
   }
+
+  // ─── Recording Retention ─────────────────────────────────────────────────
+
+  async getRecordingRetention(req?: any) {
+    const tenant = await this.prisma.tenant.findFirst({
+      where: { id: getTenantId(req) },
+      select: { settings: true },
+    });
+    return { days: (tenant?.settings as any)?.recordingRetentionDays ?? null };
+  }
+
+  async setRecordingRetention(days: number | null, req?: any) {
+    const tenantId = getTenantId(req);
+    const tenant = await this.prisma.tenant.findFirst({ where: { id: tenantId } });
+    if (!tenant) throw new NotFoundException('Tenant not found');
+
+    const current = (tenant.settings as any) || {};
+    const settings = { ...current, recordingRetentionDays: days };
+    if (days == null) delete settings.recordingRetentionDays;
+
+    await this.prisma.tenant.update({
+      where: { id: tenantId },
+      data: { settings },
+    });
+    return { days };
+  }
 }

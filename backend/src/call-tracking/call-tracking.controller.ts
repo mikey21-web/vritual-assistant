@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, UseInterceptors, UploadedFile, Req, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, UseGuards, UseInterceptors, UploadedFile, Req, HttpCode } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
@@ -137,5 +137,25 @@ export class CallTrackingController {
   @ApiOperation({ summary: 'Update post-call notes on a call log' })
   updateNotes(@Param('id') id: string, @Body() d: UpdateNotesDto, @Req() req) {
     return this.service.updateNotes(id, d.notes, req);
+  }
+
+  // ─── Recording Retention ─────────────────────────────────────────────────
+
+  @Get('recording-retention')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('OWNER', 'ADMIN')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get recording retention days setting' })
+  async getRecordingRetention(@Req() req) {
+    return this.service.getRecordingRetention(req);
+  }
+
+  @Put('recording-retention')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('OWNER', 'ADMIN')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Set recording retention days (null = keep forever)' })
+  async setRecordingRetention(@Body('days') days: number | null, @Req() req) {
+    return this.service.setRecordingRetention(days, req);
   }
 }
