@@ -9,7 +9,8 @@ RUN --mount=type=cache,target=/root/.npm npm ci
 # Vite's worker plugin (which resolves this via new URL(), not module resolution)
 # can find it. Remove once jsvoice fixes its packaging upstream.
 RUN mkdir -p /app/node_modules/jsvoice/workers && \
-    cp /app/node_modules/jsvoice/src/workers/local-asr.worker.js /app/node_modules/jsvoice/workers/local-asr.worker.js
+    cp /app/node_modules/jsvoice/src/workers/local-asr.worker.js /app/node_modules/jsvoice/workers/local-asr.worker.js && \
+    node -e "const fs=require('fs');const p='/app/node_modules/jsvoice/src/modules/RecognitionManager.js';let c=fs.readFileSync(p,'utf8');c=c.replace('handleSpeechResult(transcript);','handleSpeechResult(transcript);callCallback(\"onResult\",transcript,true);');fs.writeFileSync(p,c);"
 COPY . .
 # Vite inlines VITE_* at build time, so the API URL must be set BEFORE `npm run build`.
 # Same-origin default: the frontend calls /api/* which the reverse proxy routes to the backend.

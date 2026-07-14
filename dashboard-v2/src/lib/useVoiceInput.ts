@@ -20,6 +20,8 @@ let voiceState: VoiceInputState = {
   error: null,
   engineMode: 'idle',
 };
+let wakeWordPending = false;
+const WAKE_WORD = 'okay mikey';
 
 function notify() { listeners.forEach(l => l()); }
 
@@ -51,14 +53,30 @@ export function useVoiceInput() {
         lang: 'en-US',
         autoRestart: true,
         restartDelay: 1000,
-        wakeWord: 'okay mikey',
-        onWakeWordDetected: () => {
-          updateState({ wakeWordDetected: true });
-        },
+        wakeWord: null,
         onResult: (transcript: string, isFinal: boolean) => {
-          if (isFinal && transcript) {
-            updateState({ transcript: transcript.toLowerCase() });
+          if (!isFinal || !transcript) return;
+          const text = transcript.toLowerCase().trim();
+          if (!text) return;
+
+          if (!wakeWordPending) {
+            if (text.includes(WAKE_WORD)) {
+              wakeWordPending = true;
+              updateState({ wakeWordDetected: true });
+              const afterWake = text.replace(WAKE_WORD, '').trim();
+              if (afterWake) {
+                wakeWordPending = false;
+                updateState({ transcript: afterWake, wakeWordDetected: false });
+              }
+              return;
+            }
+            return;
           }
+
+          wakeWordPending = false;
+          updateState({ wakeWordDetected: false });
+          const clean = text.replace(WAKE_WORD, '').trim();
+          updateState({ transcript: clean || text });
         },
         onError: (err: any) => {
           updateState({ error: err.message || 'Voice error' });
@@ -83,6 +101,7 @@ export function useVoiceInput() {
 
   const stop = useCallback(() => {
     voiceInstance?.stop();
+    wakeWordPending = false;
     updateState({ listening: false, wakeWordDetected: false });
   }, []);
 
