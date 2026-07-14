@@ -21,6 +21,15 @@ export default defineConfig(() => {
             'charts': ['recharts'],
             'motion': ['motion', 'framer-motion'],
             'ui': ['@headlessui/react', 'sonner'],
+            // lucide-react exports hundreds of named icon components. Left to
+            // Rollup's automatic code-splitting, icons get scattered across
+            // the ~80 lazy-loaded page chunks inconsistently, which can
+            // produce a chunk load-order bug where an icon is referenced
+            // before its defining chunk has executed - a runtime
+            // "X is not defined" ReferenceError in production only (dev
+            // mode serves unbundled ESM, so it never reproduces there).
+            // Forcing all icons into one deterministic chunk avoids it.
+            'icons': ['lucide-react'],
           },
         },
       },
