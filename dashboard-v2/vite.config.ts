@@ -9,8 +9,10 @@ export default defineConfig(() => {
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
+        '@xenova/transformers': path.resolve(__dirname, 'node_modules/@huggingface/transformers'),
       },
     },
+    worker: { format: 'es' },
     build: {
       rollupOptions: {
         output: {

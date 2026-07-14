@@ -1,31 +1,46 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+
+let speechListeners: Array<() => void> = [];
+let speechState = { speaking: false };
+
+function notifySpeech() {
+  speechListeners.forEach(l => l());
+}
 
 export function useVoiceOutput() {
   const [speaking, setSpeaking] = useState(false);
-  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+
+  useEffect(() => {
+    const updater = () => setSpeaking(speechState.speaking);
+    speechListeners.push(updater);
+    return () => {
+      speechListeners = speechListeners.filter(l => l !== updater);
+    };
+  }, []);
 
   const speak = useCallback((text: string) => {
-    if (!('speechSynthesis' in window)) return;
+    if (!text) return;
+    const synth = window.speechSynthesis;
+    if (!synth) return;
 
-    window.speechSynthesis.cancel();
-
+    synth.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = 1.1;
     utterance.pitch = 1.0;
-    utterance.volume = 1;
+    utterance.volume = 1.0;
 
-    utterance.onstart = () => setSpeaking(true);
-    utterance.onend = () => setSpeaking(false);
-    utterance.onerror = () => setSpeaking(false);
+    utterance.onstart = () => { speechState.speaking = true; notifySpeech(); };
+    utterance.onend = () => { speechState.speaking = false; notifySpeech(); };
+    utterance.onerror = () => { speechState.speaking = false; notifySpeech(); };
 
-    utteranceRef.current = utterance;
-    window.speechSynthesis.speak(utterance);
+    synth.speak(utterance);
   }, []);
 
   const stop = useCallback(() => {
-    window.speechSynthesis.cancel();
-    setSpeaking(false);
+    window.speechSynthesis?.cancel();
+    speechState.speaking = false;
+    notifySpeech();
   }, []);
 
-  return { speak, stop, speaking };
+  return { speaking, speak, stop };
 }
