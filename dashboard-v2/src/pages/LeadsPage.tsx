@@ -4,7 +4,7 @@ import { fetchLeads, getLeadTimeline } from '../lib/data';
 import { consumePendingFilter, PENDING_FILTER_APPLIED_EVENT } from '../lib/pendingSearch';
 import { startExplainFlow } from '../lib/explainMode';
 import { useApp } from '../context/AppContext';
-import { Search, RefreshCw, Phone, Mail, Calendar, Users, Play } from 'lucide-react';
+import { Search, RefreshCw, Phone, Mail, Calendar, Users, Play, Sparkles, X } from 'lucide-react';
 import { api } from '../lib/api';
 import toast from 'react-hot-toast';
 import type { Lead } from '../lib/types';
@@ -40,6 +40,8 @@ export default function LeadsPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [timeline, setTimeline] = useState<any[]>([]);
   const [highlightId, setHighlightId] = useState<string | null>(null);
+  const [zoom, setZoom] = useState<string | null>(null);
+  const [voiceSummary, setVoiceSummary] = useState<string | null>(null);
   const highlightRef = useRef<HTMLTableRowElement | null>(null);
 
   const refresh = async (page = 1) => {
@@ -60,6 +62,8 @@ export default function LeadsPage() {
     setStatusFilter(pending.filters?.status || '');
     setSegmentFilter(pending.filters?.segment || '');
     setHighlightId(pending.highlightId || null);
+    setZoom(pending.zoom || null);
+    setVoiceSummary(pending.summary || null);
   };
 
   useEffect(() => {
@@ -201,8 +205,18 @@ export default function LeadsPage() {
         </div>
       ) : (
         <>
+          {/* Voice command summary banner */}
+          {voiceSummary && (
+            <div className="mb-4 rounded-xl bg-[var(--primary-light)] border border-[var(--primary)]/30 p-4 flex items-center gap-3 animate-fade-in">
+              <Sparkles size={18} className="text-[var(--primary)]" />
+              <p className="text-sm font-semibold text-[var(--primary)]">{voiceSummary}</p>
+              <button onClick={() => setVoiceSummary(null)} className="ml-auto text-[var(--muted-foreground)] hover:text-[var(--foreground)]">
+                <X size={14} />
+              </button>
+            </div>
+          )}
           {/* Desktop table */}
-          <div className="hidden sm:block rounded-lg border border-[var(--border)] bg-[var(--card)]">
+          <div className={`hidden sm:block rounded-lg border border-[var(--border)] bg-[var(--card)] ${zoom === 'data' ? 'ring-2 ring-[var(--primary)] shadow-lg shadow-[var(--primary)]/20 scale-[1.01] transition-all duration-500' : ''}`}>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>

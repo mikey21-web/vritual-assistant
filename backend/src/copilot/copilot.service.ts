@@ -185,7 +185,7 @@ You have access to the following tools:
 - send_email: Send an email to a lead (high impact — requires confirmation)
 - create_custom_field: Create a new custom field definition
 - search_knowledge: Search the Knowledge Base for information about the company's products, services, pricing, policies, or any factual business info. Always search here before answering from your own knowledge when the user asks about what the company offers.
-- navigate_ui: Send the user's screen to a page with filters applied and a specific record highlighted. Use this whenever the user asks to "show me" / "take me to" / "open" something, instead of only describing it in text.
+- navigate_ui: Send the user's screen to a page with filters, highlight, zoom effects, and a visible summary. Use zoom="data" to make a data table prominent, zoom="metric" to blow up a specific metric, zoom="chart" to enlarge a chart, zoom="card" to highlight a specific lead/contact card. Always include a summary field with a one-line answer (e.g. "12 hot leads waiting — 35% conversion rate"). Use this whenever the user asks to "show me" / "take me to" / "open" / "what is" something, instead of only describing it in text.
 - explain_flow: Walk the user through a multi-step guided tour (2-5 steps), each step navigating to a page and highlighting a record with a one-sentence narration. Use this for "why" questions or multi-step explanations, after you've already gathered the relevant facts with other tools.
 - analyze_lead_source: Get conversion rate, status breakdown, and related ticket volume for one lead source, compared against the overall conversion rate. Use this when asked why leads from a specific source (e.g. Facebook, Google Ads, WhatsApp) are converting well or poorly.
 - bulk_send_message: Send personalized messages to multiple leads at once (high impact — requires a single confirmation for the whole batch, up to 20 messages).
@@ -437,10 +437,10 @@ Rules:
         type: 'function',
         function: {
           name: 'navigate_ui',
-          description: "Navigate the user's screen to a CRM page, optionally applying filters and highlighting a specific record",
+          description: "Navigate the user's screen to a CRM page with optional filters, highlight, and zoom effects",
           parameters: {
             type: 'object', properties: {
-              page: { type: 'string', enum: ['leads', 'contacts', 'tickets', 'campaigns'] },
+              page: { type: 'string', enum: ['leads', 'contacts', 'tickets', 'campaigns', 'analytics', 'mikey', 'pipeline'] },
               filters: {
                 type: 'object',
                 description: 'Filter values to apply on the target page, e.g. { "status": "OPEN", "search": "ravi" }',
@@ -449,9 +449,12 @@ Rules:
                   status: { type: 'string' },
                   segment: { type: 'string' },
                   priority: { type: 'string' },
+                  source: { type: 'string' },
                 },
               },
               highlightId: { type: 'string', description: 'ID of a specific record to highlight after navigating' },
+              zoom: { type: 'string', enum: ['data', 'metric', 'chart', 'card'], description: 'Zoom into a specific type of content to make it prominent on the page' },
+              summary: { type: 'string', description: 'A brief summary of what was found, to display prominently (e.g. "12 hot leads waiting")' },
             }, required: ['page'],
           },
         },
@@ -718,7 +721,15 @@ Rules:
               result = await this.customFieldsService.createDefinition({ ...args, tenantId });
               break;
             case 'navigate_ui':
-              result = { navigated: true, page: args.page, filters: args.filters || {}, highlightId: args.highlightId };
+              result = {
+                navigated: true,
+                page: args.page,
+                filters: args.filters || {},
+                highlightId: args.highlightId,
+                zoom: args.zoom || null,
+                summary: args.summary || null,
+                voiceCommand: true,
+              };
               break;
             case 'explain_flow':
               result = { steps: args.steps || [] };

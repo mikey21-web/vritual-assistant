@@ -15,6 +15,8 @@ export function consumePendingSearch(scope: 'leads' | 'contacts'): string | null
 export interface PendingFilter {
   filters?: Record<string, string>;
   highlightId?: string;
+  zoom?: string;
+  summary?: string;
 }
 
 export const PENDING_FILTER_APPLIED_EVENT = 'pendingFilter:applied';

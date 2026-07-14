@@ -10,6 +10,7 @@ import { Sidebar } from "./components/layout/sidebar";
 import { Topbar } from "./components/layout/topbar";
 import MikeyWidget from "./components/MikeyWidget";
 import ExplainModePlayer from "./components/ExplainModePlayer";
+import VoiceCommandUI from "./components/VoiceCommandUI";
 import { MikeyBanner, showMikeyToast } from "./components/mikey";
 import { SocketProvider, useSocket } from "./hooks";
 import { FeatureGuard } from "./components/FeatureGuard";
@@ -266,6 +267,7 @@ export default function App() {
       </div>
       <MikeyWidget />
       <ExplainModePlayer />
+      <VoiceCommandUI />
       <MikeyConnectedToast />
       <Toaster position="top-right" toastOptions={{
         style: { borderRadius: 'var(--radius)', background: 'var(--card)', color: 'var(--foreground)', border: '1px solid var(--border)', fontSize: '14px' },
