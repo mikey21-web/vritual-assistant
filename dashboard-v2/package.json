@@ -7,6 +7,7 @@
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",
     "preview": "vite preview",
+    "postinstall": "node -e \"try{const fs=require('fs');fs.mkdirSync('node_modules/jsvoice/workers',{recursive:true});fs.copyFileSync('node_modules/jsvoice/src/workers/local-asr.worker.js','node_modules/jsvoice/workers/local-asr.worker.js')}catch(e){console.warn('jsvoice worker patch:',e.message)}\"",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
     "test": "vitest run",
