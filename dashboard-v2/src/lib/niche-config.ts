@@ -61,7 +61,7 @@ const realestate: NicheConfig = {
 const hospitality: NicheConfig = {
   businessName: "StayWell Hotels", primaryColor: "#0E7C7B",
   labels: { lead: "Guest", leads: "Guests", contact: "Contact", conversion: "Booking" },
-  features: { overview: true, leads: true, pipeline: true, contacts: true, calls: true, syncLogs: true, conversions: true, settings: true, import: true, adIntegrations: false, websiteCrawler: false, nurture: false, scoring: false, routing: false, crm: false, booking: true, tickets: false, knowledgeBase: false, media: false, qrCodes: true, reports: false, campaigns: false, forms: true, messages: true, templates: true, aiCampaigns: false, aiAgent: true, copilot: false, webhooks: false, sms: false, widget: true, tasks: true, integrations: true, analytics: true, studio: false, events: false, finance: false, procurement: false, inventory: false, teamHr: false, publicProfile: true },
+  features: { overview: true, leads: true, pipeline: true, contacts: true, calls: true, syncLogs: true, conversions: true, settings: true, import: true, adIntegrations: false, websiteCrawler: false, nurture: true, scoring: true, routing: false, crm: true, booking: true, tickets: false, knowledgeBase: false, media: true, qrCodes: true, reports: true, campaigns: true, forms: true, messages: true, templates: true, aiCampaigns: false, aiAgent: true, copilot: false, webhooks: false, sms: true, widget: true, tasks: true, integrations: true, analytics: true, studio: false, events: false, finance: false, procurement: false, inventory: false, teamHr: false, publicProfile: true },
 };
 
 const healthcare: NicheConfig = {
