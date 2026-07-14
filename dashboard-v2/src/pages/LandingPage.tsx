@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, useScroll } from 'framer-motion';
 import {
   ArrowRight, Check, Bot, MessageSquare, BarChart3,
-  Globe, Zap, Shield, Users, Target, Sparkles, Phone,
+  Globe, Zap, Shield, Users, Target, Phone,
   MessageCircle, Route, ShoppingCart, Link, Smartphone,
   Webhook, QrCode, Send, Building2, Calendar,
 } from 'lucide-react';
@@ -312,19 +312,18 @@ export default function LandingPage({ onLogin }: { onLogin?: () => void }) {
         <div className="max-w-6xl mx-auto px-6 w-full relative z-10">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <motion.div initial={reduced ? undefined : { opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.25, 0.1, 0.15, 1] }}>
-              <div className="inline-flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.15em] px-3 py-1.5 rounded-full mb-6"
-                style={{ color: t.accent, background: t.accentDim, border: `1px solid ${t.accentBorder}` }}>
-                <Sparkles size={11} />
+              <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] mb-5" style={{ color: t.accent }}>
+                <span className="h-1.5 w-1.5 rounded-full" style={{ background: t.accent }} />
                 {c.badge}
               </div>
-              <h1 className="text-[clamp(2.2rem,5vw,3.6rem)] font-bold font-['Space_Grotesk'] leading-[1.05] tracking-[-0.03em] mb-5">
+              <h1 className="text-[clamp(2.6rem,6vw,4.4rem)] font-bold font-['Space_Grotesk'] leading-[0.98] tracking-[-0.04em] mb-6">
                 {c.hero[0]}<br />{c.hero[1]}<br />
                 <span style={{ color: t.accent }}>{c.hero[2]}</span>
               </h1>
               <p className="text-base leading-relaxed mb-8 max-w-md" style={{ color: t.muted }}>
                 {c.description}
               </p>
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-wrap items-center gap-5">
                 <motion.button onClick={onLogin}
                   className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl text-sm font-semibold text-white"
                   style={{ background: t.accent }}
@@ -333,17 +332,11 @@ export default function LandingPage({ onLogin }: { onLogin?: () => void }) {
                   Start Free <ArrowRight size={15} />
                 </motion.button>
                 <button onClick={() => scrollTo('product')}
-                  className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl text-sm font-medium"
-                  style={{ border: `1px solid ${t.border}`, color: t.muted }}>
-                  See how it works
+                  className="inline-flex items-center gap-1.5 text-sm font-medium underline-offset-4 hover:underline"
+                  style={{ color: t.text }}>
+                  See how it works <ArrowRight size={13} />
                 </button>
               </div>
-              <motion.div className="flex items-center gap-6 mt-8 text-xs" style={{ color: t.muted }}
-                initial={reduced ? undefined : { opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
-                <span className="flex items-center gap-1.5"><Check size={12} style={{ color: t.accent }} /> No credit card</span>
-                <span className="flex items-center gap-1.5"><Check size={12} style={{ color: t.accent }} /> Self-hosted</span>
-                <span className="flex items-center gap-1.5"><Check size={12} style={{ color: t.accent }} /> 1-day setup</span>
-              </motion.div>
             </motion.div>
 
             {/* Product mockup */}
