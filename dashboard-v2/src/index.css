@@ -152,6 +152,17 @@ code, pre, .font-mono {
   outline-offset: 2px;
 }
 
+/* Floating action buttons (Mikey chat, voice command) sit in the same
+   bottom-right corner as every Dialog/Drawer footer and use z-indexes
+   (999/9999) that keep winning over the overlay regardless of z-index
+   tuning. Hide them globally whenever an overlay is open. Enforced here
+   (not as inline classes on the widgets themselves) because those
+   components get rewritten independently of dashboard styling work. */
+body.overlay-open [title*="Mikey Voice"],
+body.overlay-open .mikey-widget-fab {
+  display: none !important;
+}
+
 
 
 /* Mobile touch-friendly sizing */
