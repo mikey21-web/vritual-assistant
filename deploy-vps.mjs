@@ -1,6 +1,12 @@
 import { Client } from 'ssh2';
-const HOST = '160.250.204.162';
-const PASS = 'Maheshwari21!';
+
+const HOST = process.env.DEPLOY_HOST || '160.250.204.162';
+const PASS = process.env.DEPLOY_PASS;
+if (!PASS) {
+  console.error('Set DEPLOY_PASS env var');
+  process.exit(1);
+}
+
 const conn = new Client();
 const run = (c) => new Promise((resolve) => {
   conn.exec(c, (err, stream) => {
@@ -11,14 +17,16 @@ const run = (c) => new Promise((resolve) => {
     stream.on('data', d => o += d.toString());
   });
 });
+
 conn.on('ready', async () => {
   const cmds = [
-    'cd /opt/lead-automation-demo && cp .env.example .env && cat deploy-demo/.env.agency >> .env',
     'cd /opt/lead-automation-demo && git stash && git pull origin master && git stash pop',
-    'docker rm -f lead-automation-dashboard lead-automation-backend 2>/dev/null; echo done',
-    'cd /opt/lead-automation-demo && docker compose up -d --no-deps --build dashboard 2>&1 | tail -5',
-    'cd /opt/lead-automation-demo && docker compose up -d --no-deps --build backend 2>&1 | tail -5',
-    'cd /opt/lead-automation-demo && docker compose up -d --no-deps --build agent-service 2>&1 | tail -5',
+    'docker rm -f lead-automation-dashboard lead-automation-backend lead-automation-agent 2>/dev/null; echo done',
+    'cd /opt/lead-automation-demo && docker compose -p virtual-assistant up -d --build dashboard backend agent-service 2>&1 | tail -5',
+    'sleep 15 && docker exec lead-automation-backend npx prisma migrate deploy 2>&1 | tail -3',
+    'docker restart lead-automation-backend',
+    'grep -q "Caddyfile.additions" /etc/caddy/Caddyfile || echo "import /opt/lead-automation-demo/deploy-demo/Caddyfile.additions" >> /etc/caddy/Caddyfile',
+    'caddy reload --config /etc/caddy/Caddyfile 2>&1 | tail -1',
   ];
   for (const c of cmds) {
     const code = await run(c);

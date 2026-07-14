@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { fetchTemplates, createTemplate, previewTemplate } from '../lib/data';
-import { Plus, Eye, X, FileText, MessageSquare, Mail } from 'lucide-react';
+import { Plus, Eye, FileText, MessageSquare, Mail } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { Dialog } from '../components/ui/dialog';
+import { Input } from '../components/ui/input';
+import { Select } from '../components/ui/select';
+import { Button } from '../components/ui/button';
 
 const channelIcons: Record<string, any> = { WHATSAPP: MessageSquare, EMAIL: Mail, SMS: FileText };
 
@@ -40,62 +44,59 @@ export default function TemplatesPage() {
           <h1 className="text-2xl font-bold text-[var(--foreground)]">Message Templates</h1>
           <p className="text-sm text-[var(--muted-foreground)] mt-1">{data.length} templates</p>
         </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90 transition-opacity shadow-sm"
-        >
+        <Button onClick={() => setShowCreate(true)}>
           <Plus size={16} /> Create Template
-        </button>
+        </Button>
       </div>
 
-      {showCreate && (
-        <form onSubmit={create} className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 animate-scale-in">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <input
-              placeholder="Template name"
-              value={form.name}
-              onChange={e => setForm({ ...form, name: e.target.value })}
-              className="h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
-              required
-            />
-            <select
-              value={form.type}
-              onChange={e => setForm({ ...form, type: e.target.value })}
-              className="h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
-            >
+      <Dialog
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        title="Create template"
+        description="Reusable message template for WhatsApp, email, or SMS."
+        maxWidth="max-w-xl"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
+            <Button type="submit" form="create-template-form">Save</Button>
+          </>
+        }
+      >
+        <form id="create-template-form" onSubmit={create} className="space-y-4">
+          <Input
+            label="Template name"
+            value={form.name}
+            onChange={e => setForm({ ...form, name: e.target.value })}
+            required
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <Select label="Type" value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}>
               {['WELCOME', 'FOLLOW_UP', 'QUALIFICATION_QUESTION', 'RECONNECT', 'APPOINTMENT_LINK', 'THANK_YOU'].map(t => (
                 <option key={t} value={t}>{t}</option>
               ))}
-            </select>
-            <select
-              value={form.channel}
-              onChange={e => setForm({ ...form, channel: e.target.value })}
-              className="h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
-            >
+            </Select>
+            <Select label="Channel" value={form.channel} onChange={e => setForm({ ...form, channel: e.target.value })}>
               {['WHATSAPP', 'EMAIL', 'SMS'].map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-            <input
-              placeholder='Variables (JSON array)'
-              value={form.variables}
-              onChange={e => setForm({ ...form, variables: e.target.value })}
-              className="h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
-            />
+            </Select>
+          </div>
+          <Input
+            label="Variables (JSON array)"
+            value={form.variables}
+            onChange={e => setForm({ ...form, variables: e.target.value })}
+          />
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-[var(--foreground)]">Message body</label>
             <textarea
               placeholder="Message body with {{variables}}"
               value={form.body}
               onChange={e => setForm({ ...form, body: e.target.value })}
-              className="col-span-2 h-24 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
+              rows={4}
+              className="w-full rounded-lg border border-[var(--input)] bg-[var(--card)] px-3.5 py-2 text-sm text-[var(--foreground)] shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20 focus:border-[var(--ring)]"
               required
             />
           </div>
-          <div className="flex gap-2 mt-3">
-            <button type="submit" className="h-8 px-4 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90">Save</button>
-            <button type="button" onClick={() => setShowCreate(false)} className="h-8 px-4 rounded-lg border border-[var(--border)] text-sm text-[var(--foreground)] hover:bg-[var(--accent)] transition-colors">
-              <X size={14} />
-            </button>
-          </div>
         </form>
-      )}
+      </Dialog>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {data.length === 0 && (

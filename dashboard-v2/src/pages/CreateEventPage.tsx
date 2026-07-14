@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { createEvent, fetchContacts } from '../lib/data';
 import { CheckCircle2, Circle } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { Input } from '../components/ui/input';
+import { Select } from '../components/ui/select';
+import { Button } from '../components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 
 const EVENT_TYPES = ['Wedding', 'Reception', 'Birthday', 'Corporate', 'Personal'];
 
@@ -43,77 +47,93 @@ export default function CreateEventPage() {
   ];
 
   return (
-    <div className="max-w-3xl space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in">
       <div>
         <h1 className="text-2xl font-bold text-[var(--foreground)]">Create new event</h1>
-        <p className="text-sm text-[var(--muted-foreground)] mt-1">Start with the essentials. You can add more from the event detail page later.</p>
+        <p className="text-sm text-[var(--muted-foreground)] mt-1">Start with the essentials. Add optional setup only if you need it.</p>
       </div>
 
-      <form onSubmit={submit} className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 space-y-4">
-        <div>
-          <label className="text-xs font-medium text-[var(--muted-foreground)]">Event title *</label>
-          <input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} required
-            className="mt-1 w-full h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20" />
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="text-xs font-medium text-[var(--muted-foreground)]">Event type *</label>
-            <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}
-              className="mt-1 w-full h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20">
-              {EVENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs font-medium text-[var(--muted-foreground)]">CRM customer</label>
-            <select value={form.contactId} onChange={e => setForm({ ...form, contactId: e.target.value })}
-              className="mt-1 w-full h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20">
+      <form id="create-event-form" onSubmit={submit} className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Event essentials</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                label="Event title *"
+                placeholder="e.g. Sharma-Kapoor wedding"
+                value={form.title}
+                onChange={e => setForm({ ...form, title: e.target.value })}
+                required
+              />
+              <Select label="Event type *" value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}>
+                {EVENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              </Select>
+            </div>
+            <Select label="CRM customer" value={form.contactId} onChange={e => setForm({ ...form, contactId: e.target.value })}>
               <option value="">No customer linked</option>
               {contacts.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs font-medium text-[var(--muted-foreground)]">Event date *</label>
-            <input type="date" value={form.eventDate} onChange={e => setForm({ ...form, eventDate: e.target.value })} required
-              className="mt-1 w-full h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20" />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-[var(--muted-foreground)]">Venue</label>
-            <input value={form.venue} onChange={e => setForm({ ...form, venue: e.target.value })}
-              className="mt-1 w-full h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20" />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-[var(--muted-foreground)]">Expected guests</label>
-            <input type="number" value={form.expectedGuests} onChange={e => setForm({ ...form, expectedGuests: e.target.value })}
-              className="mt-1 w-full h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20" />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-[var(--muted-foreground)]">Budget (₹)</label>
-            <input type="number" value={form.budget} onChange={e => setForm({ ...form, budget: e.target.value })}
-              className="mt-1 w-full h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20" />
-          </div>
-        </div>
-        <div>
-          <label className="text-xs font-medium text-[var(--muted-foreground)]">Description</label>
-          <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={3}
-            className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20" />
-        </div>
+            </Select>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                label="Event date *"
+                type="date"
+                value={form.eventDate}
+                onChange={e => setForm({ ...form, eventDate: e.target.value })}
+                required
+              />
+              <Input
+                label="Venue"
+                placeholder="Venue name & city"
+                value={form.venue}
+                onChange={e => setForm({ ...form, venue: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                label="Expected guests"
+                type="number"
+                value={form.expectedGuests}
+                onChange={e => setForm({ ...form, expectedGuests: e.target.value })}
+              />
+              <Input
+                label="Budget (₹)"
+                type="number"
+                value={form.budget}
+                onChange={e => setForm({ ...form, budget: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-[var(--foreground)]">Description</label>
+              <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={3}
+                className="w-full rounded-lg border border-[var(--input)] bg-[var(--card)] px-3.5 py-2 text-sm text-[var(--foreground)] shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20 focus:border-[var(--ring)]" />
+            </div>
+          </CardContent>
+        </Card>
 
-        <div className="rounded-lg border border-[var(--border)] p-3 bg-[var(--muted)]">
-          <h4 className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider mb-2">Event setup summary</h4>
-          <ul className="space-y-1">
-            {checklist.map(c => (
-              <li key={c.label} className="flex items-center gap-2 text-sm text-[var(--foreground)]">
-                {c.done ? <CheckCircle2 size={14} className="text-emerald-500" /> : <Circle size={14} className="text-[var(--muted-foreground)]" />}
-                {c.label}
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="flex gap-2">
-          <button type="submit" className="h-9 px-4 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90">Create event</button>
-          <a href="#/events" className="h-9 px-4 rounded-lg border border-[var(--border)] text-sm text-[var(--foreground)] hover:bg-[var(--accent)] transition-colors inline-flex items-center">Cancel</a>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Event setup summary</CardTitle>
+            <CardDescription>A quick view of what is ready before you create.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <ul className="space-y-2.5">
+              {checklist.map(c => (
+                <li key={c.label} className="flex items-center gap-2 text-sm text-[var(--foreground)]">
+                  {c.done ? <CheckCircle2 size={14} className="text-emerald-500" /> : <Circle size={14} className="text-[var(--muted-foreground)]" />}
+                  {c.label}
+                </li>
+              ))}
+            </ul>
+            <div className="space-y-2 pt-2">
+              <Button type="submit" className="w-full">Create event</Button>
+              <a href="#/events" className="block">
+                <Button type="button" variant="outline" className="w-full">Cancel</Button>
+              </a>
+            </div>
+          </CardContent>
+        </Card>
       </form>
     </div>
   );

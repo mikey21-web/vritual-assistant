@@ -11,6 +11,7 @@ from app.graph import build_graph
 from app.tools import build_tools, ToolContext
 from app.logging_config import utc_now_iso
 from app.idempotency import already_processed, mark_processing, mark_done
+from app.khoj_client import KhojClient
 
 logger = structlog.get_logger()
 
@@ -30,6 +31,7 @@ async def execute_run(settings: Settings, req: AgentRunRequest) -> str:
     logger.info("run_started", leadId=req.leadId, trigger=req.trigger)
 
     client = BackendClient(settings)
+    khoj = KhojClient(settings) if req.messageText else None
 
     ctx = ToolContext(client=client, lead_id=req.leadId, tenant_id=req.tenantId, channel=req.channel)
     tools = build_tools(ctx)
@@ -55,14 +57,34 @@ async def execute_run(settings: Settings, req: AgentRunRequest) -> str:
                 "tools": tools,
             },
         }
-        await graph.ainvoke(initial_state, config)
+        final_state = await graph.ainvoke(initial_state, config)
         logger.info("run_completed", leadId=req.leadId)
         await mark_done(req.triggerId, success=True)
+
+        # Post conversation summary to Khoj memory
+        if khoj and final_state:
+            messages = final_state.get("messages", [])
+            ai_messages = [m for m in messages if hasattr(m, "type") and m.type == "ai"]
+            if ai_messages:
+                summary = (
+                    f"## Agent Conversation Summary\n\n"
+                    f"- **Lead ID**: {req.leadId}\n"
+                    f"- **Tenant**: {req.tenantId}\n"
+                    f"- **Channel**: {req.channel}\n"
+                    f"- **Trigger**: {req.trigger}\n"
+                    f"- **Incoming**: {req.messageText[:500]}\n\n"
+                )
+                for i, m in enumerate(ai_messages[-3:]):
+                    content = (m.content or "")[:500]
+                    summary += f"### AI Response {i+1}\n{content}\n\n"
+                await khoj.save_memory(summary)
     except Exception as e:
         logger.error("run_failed", error=str(e), leadId=req.leadId)
         await mark_done(req.triggerId, success=False)
     finally:
         await client.close()
+        if khoj:
+            await khoj.close()
 
     return run_id
 

@@ -31,6 +31,25 @@
 - Route-level gating added (FeatureGuard + 404 if feature disabled). Niche config moved from env-var to DB-driven (fetch from /api/business-settings on login, fallback to env var). Confidence: 0.85
 - Landing page + login page now render niche-specific copy (taglines, features, pain points, stats). Color scheme matches niche config. Confidence: 0.80
 
+# deploy-vps
+- The VPS host is 160.250.204.162, password Maheshwari21!, root user
+- Production code is at /opt/lead-automation-demo (NOT /opt/lead-automation)
+- On deploy: rebuild .env from deploy-demo/.env.agency + fix POSTGRES_PASSWORD + add DEEPSEEK_API_KEY + set VITE_API_URL=/api
+- Docker compose project name must be `-p virtual-assistant` so containers connect to the correct network (old infra on virtual-assistant_default)
+- After deploy: run `docker exec lead-automation-backend npx prisma migrate deploy` if DB was re-initialized
+- Per-niche subdomains Caddy config is in deploy-demo/Caddyfile.additions but NOT loaded by main Caddyfile
+- The actual postgres password is `d49cec7ed7523c8be799aa01bf04e1823f8fe5fbc0a4adaf` (from container inspect), but the PG volume has an original password from first init. Use `ALTER USER postgres PASSWORD 'e990e9086b754491fdc11b79'` as fallback.
+- Backend health check: ports 3001 (backend), 3000 (dashboard), 8000 (agent-service)
+
+# deployment-log-2026-07-14
+- Fixed deploy script: changed branch from single-tenant-arch to master, directory from lead-automation to lead-automation-demo
+- Fixed docker network mismatch: containers on lead-automation-demo_default couldn't reach redis/postgres on virtual-assistant_default
+- Fixed .env: had wrong POSTGRES_PASSWORD (change-me from example) and DATABASE_URL hardcoded to localhost
+- Agent service crashed: DEEPSEEK_API_KEY was empty
+- Dashboard had VITE_API_URL=http://localhost:3001 baked in → browser blocked CORS loopback access
+- All fixed: backend healthy, dashboard healthy, agent healthy
+- Per-niche subdomains (agency.deploysafe.in, realestate.deploysafe.in) don't work — Caddyfile.additions not loaded by main Caddyfile
+
 # assessment
 - When assessing project completion percentage, exclude credentials, environment setup, and configuration work — focus on what has been built (features, code, modules). Confidence: 0.70
 - When asked to audit or assess a system, perform exhaustive multi-pass deep dives across multiple dimensions (reliability, security, data integrity, observability, operability, compliance, integrations) — surface-level single-pass analysis is not acceptable. Confidence: 0.75

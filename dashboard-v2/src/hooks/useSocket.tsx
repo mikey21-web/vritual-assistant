@@ -76,7 +76,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
 
     if (!token) return;
 
-    const s = io(API_URL, {
+    const s = io(`${API_URL}/realtime`, {
       auth: { token },
       transports: ['websocket', 'polling'],
       reconnection: true,

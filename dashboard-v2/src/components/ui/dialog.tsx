@@ -20,16 +20,20 @@ export function Dialog({
 }) {
   React.useEffect(() => {
     if (!open) return;
+    document.body.classList.add("overlay-open");
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    return () => {
+      document.body.classList.remove("overlay-open");
+      document.removeEventListener("keydown", onKey);
+    };
   }, [open, onClose]);
 
   if (!open) return null;
 
   return (
     <div
-      className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 p-4 animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 animate-fade-in"
       onClick={onClose}
       role="presentation"
     >

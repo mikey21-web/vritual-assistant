@@ -54,7 +54,7 @@ export class EventsService {
       },
     });
 
-    this.realtime.emit(`event:${data.type}`, {
+    const eventPayload = {
       id: event.id,
       type: data.type,
       source: data.source,
@@ -63,7 +63,14 @@ export class EventsService {
       leadId: data.leadId,
       payload: data.payload,
       createdAt: event.createdAt,
-    });
+    };
+
+    // Scoped emission: tenant if available, else global
+    if (data.metadata?.tenantId) {
+      this.realtime.emitToTenant(data.metadata.tenantId as string, `event:${data.type}`, eventPayload);
+    } else {
+      this.realtime.emit(`event:${data.type}`, eventPayload);
+    }
 
     return event;
   }

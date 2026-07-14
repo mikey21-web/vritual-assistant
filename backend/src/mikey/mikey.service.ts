@@ -26,9 +26,12 @@ const ACTION_RULES: ActionRule[] = [
   { tool: 'analyze_lead_source', risk: 'low', autoExecute: true, description: 'Analyze lead source' },
   { tool: 'draft_message', risk: 'low', autoExecute: true, description: 'Draft message' },
   { tool: 'create_custom_field', risk: 'low', autoExecute: true, description: 'Create custom field' },
-  { tool: 'create_task', risk: 'medium', autoExecute: false, description: 'Create task (auto-executable)' },
-  { tool: 'create_ticket', risk: 'medium', autoExecute: false, description: 'Create ticket (auto-executable)' },
-  { tool: 'update_lead_status', risk: 'high', autoExecute: false, description: 'Update lead status' },
+  { tool: 'create_task', risk: 'medium', autoExecute: true, description: 'Create task (auto-executable)' },
+  { tool: 'create_ticket', risk: 'medium', autoExecute: true, description: 'Create ticket (auto-executable)' },
+  { tool: 'update_lead_status', risk: 'medium', autoExecute: true, description: 'Update lead status (auto-executable)' },
+  { tool: 'set_segment', risk: 'medium', autoExecute: true, description: 'Set lead segment (auto-executable)' },
+  { tool: 'update_score', risk: 'medium', autoExecute: true, description: 'Update lead score (auto-executable)' },
+  { tool: 'draft_message', risk: 'low', autoExecute: true, description: 'Draft message (auto-executable)' },
   { tool: 'send_message', risk: 'high', autoExecute: false, description: 'Send message' },
   { tool: 'create_campaign', risk: 'high', autoExecute: false, description: 'Create campaign' },
   { tool: 'update_ticket', risk: 'high', autoExecute: false, description: 'Update ticket' },
@@ -119,6 +122,27 @@ export class MikeyService {
           break;
         case 'create_ticket':
           result = await this.prisma.ticket.create({ data: { ...params.args, leadId: params.leadId } });
+          break;
+        case 'update_lead_status':
+          result = await this.prisma.lead.update({
+            where: { id: params.leadId },
+            data: { status: params.args.status },
+          });
+          break;
+        case 'set_segment':
+          result = await this.prisma.lead.update({
+            where: { id: params.leadId },
+            data: { segment: params.args.segment },
+          });
+          break;
+        case 'update_score':
+          result = await this.prisma.lead.update({
+            where: { id: params.leadId },
+            data: { score: params.args.score },
+          });
+          break;
+        case 'draft_message':
+          result = { draft: true, instructions: params.args.instructions || '' };
           break;
         default:
           return { success: false, result: `Unknown autonomous action: ${params.action}` };
