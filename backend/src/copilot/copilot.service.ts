@@ -468,7 +468,7 @@ Rules:
           description: "Navigate the user's screen to a CRM page with optional filters, highlight, and zoom effects",
           parameters: {
             type: 'object', properties: {
-              page: { type: 'string', enum: ['leads', 'contacts', 'tickets', 'campaigns', 'analytics', 'mikey', 'pipeline'] },
+              page: { type: 'string', description: 'Page name to navigate to. Examples: leads, contacts, tickets, campaigns, analytics, mikey, pipeline, qr-codes, qr, overview, settings, events, bookings, conversions, reports, integrations, crm, inbox, tasks, properties, shipments, invoices, quotations, contracts, team, timesheet, inventory, purchases, vendor-bookings, media, templates, nurture, scoring, routing, webhooks, forms, sync-logs, audit-logs, health, import, advanced' },
               filters: {
                 type: 'object',
                 description: 'Filter values to apply on the target page, e.g. { "status": "OPEN", "search": "ravi" }',

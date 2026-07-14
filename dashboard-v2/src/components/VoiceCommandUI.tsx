@@ -15,7 +15,27 @@ interface NavigationAction {
 const PAGE_MAP: Record<string, string> = {
   leads: '/leads', contacts: '/contacts', tickets: '/tickets',
   campaigns: '/campaigns', analytics: '/analytics', mikey: '/mikey',
-  pipeline: '/pipeline', overview: '/', crm: '/crm',
+  pipeline: '/pipeline', overview: '/', crm: '/crm', inbox: '/messages',
+  'qr-codes': '/qr-codes', qr: '/qr-codes', qrcodes: '/qr-codes',
+  settings: '/settings', events: '/events', bookings: '/bookings',
+  conversions: '/conversions', reports: '/reports', tasks: '/tasks',
+  properties: '/properties', shipments: '/shipments',
+  invoices: '/invoices', quotations: '/quotations', contracts: '/contracts',
+  team: '/team', timesheet: '/timesheet', inventory: '/inventory',
+  'purchase-orders': '/purchase-orders', 'vendor-bookings': '/vendor-bookings',
+  media: '/media', templates: '/templates', nurture: '/nurture',
+  scoring: '/scoring', routing: '/routing', webhooks: '/webhooks',
+  forms: '/forms', 'sync-logs': '/sync-logs', 'audit-logs': '/audit-logs',
+  health: '/health', import: '/import', advanced: '/advanced',
+  integrations: '/integrations', 'ad-integrations': '/ad-integrations',
+  'ai-campaign': '/ai-campaign', 'ai-agent': '/ai-agent',
+  studio: '/studio', 'knowledge-base': '/knowledge-base',
+  'website-crawler': '/website-crawler', 'public-profile': '/public-profile',
+  calendar: '/calendar', calls: '/calls', 'finance-reports': '/finance-reports',
+  'stock-movements': '/stock-movements', locations: '/locations',
+  partners: '/partners', procurements: '/purchase-orders',
+  salaries: '/salaries', leaves: '/leaves', 's-m-s': '/sms-settings',
+  widgets: '/widgets', workspaces: '/workspace',
 };
 
 function VoiceDiagnostics({ voice }: { voice: any }) {
@@ -133,12 +153,12 @@ export default function VoiceCommandUI() {
     <>
       <button
         onClick={() => { voice.start(); setActive(true); }}
-        className="fixed bottom-6 right-6 z-[999] w-12 h-12 rounded-full shadow-lg flex items-center justify-center bg-[var(--card)] text-[var(--foreground)] border border-[var(--border)] hover:bg-[var(--accent)] hover:scale-105 transition-all duration-200 [body.overlay-open_&]:hidden"
+        className="fixed bottom-20 right-6 z-[9999] w-12 h-12 rounded-full shadow-lg flex items-center justify-center bg-[var(--card)] text-[var(--foreground)] border border-[var(--border)] hover:bg-[var(--accent)] hover:scale-105 transition-all duration-200 [body.overlay-open_&]:hidden"
         title="Activate Mikey Voice (Ctrl+H)"
       >
         <Mic size={18} />
       </button>
-      <div className="fixed bottom-20 right-6 z-[999] text-[10px] text-[var(--muted-foreground)] opacity-50 text-right [body.overlay-open_&]:hidden">
+      <div className="fixed bottom-[5.5rem] right-6 z-[9999] text-[10px] text-[var(--muted-foreground)] opacity-50 text-right [body.overlay-open_&]:hidden">
         <kbd className="px-1 py-0.5 rounded bg-[var(--accent)] font-mono">Ctrl+H</kbd>
       </div>
     </>
