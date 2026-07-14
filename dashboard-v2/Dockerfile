@@ -3,6 +3,14 @@ FROM node:20-alpine AS build
 WORKDIR /app
 COPY package*.json ./
 RUN --mount=type=cache,target=/root/.npm npm ci
+# jsvoice's published npm package omits its own workers/ dir from its "files"
+# allowlist, so a clean `npm ci` can't resolve jsvoice/workers/local-asr.worker.js
+# even though the identical file ships under src/workers/. Copy it into place so
+# Vite's worker plugin (which resolves this via new URL(), not module resolution)
+# can find it. Remove once jsvoice fixes its packaging upstream.
+RUN test -f node_modules/jsvoice/src/workers/local-asr.worker.js && \
+    mkdir -p node_modules/jsvoice/workers && \
+    cp node_modules/jsvoice/src/workers/local-asr.worker.js node_modules/jsvoice/workers/local-asr.worker.js || true
 COPY . .
 # Vite inlines VITE_* at build time, so the API URL must be set BEFORE `npm run build`.
 # Same-origin default: the frontend calls /api/* which the reverse proxy routes to the backend.

@@ -15,12 +15,6 @@ export default defineConfig(() => {
     worker: { format: 'es' },
     build: {
       rollupOptions: {
-        // jsvoice's published package omits its own `workers/` dir from its npm "files"
-        // allowlist, so a clean `npm ci` (e.g. in Docker) can't resolve
-        // jsvoice/workers/local-asr.worker.js even though it resolves locally from a
-        // pre-existing node_modules cache. Externalizing keeps the rest of the app
-        // buildable; the voice feature itself needs an upstream/patch fix separately.
-        external: (id) => id.includes('jsvoice/workers/'),
         output: {
           manualChunks: {
             'vendor': ['react', 'react-dom', 'react-router'],
