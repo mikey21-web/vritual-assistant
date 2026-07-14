@@ -1,8 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { Mic, MicOff, Sparkles, X } from 'lucide-react';
-import annyang from 'annyang';
 import { setPendingFilter } from '../lib/pendingSearch';
-import { startExplainFlow } from '../lib/explainMode';
 import { api } from '../lib/api';
 
 const PAGE_MAP: Record<string, string> = {
@@ -79,16 +77,33 @@ function navigateToPage(page: string, filterKw?: string) {
   return true;
 }
 
-export default function VoiceCommandUI() {
+function VoiceCommandUIInner() {
+  const [annyangRef, setAnnyangRef] = useState<any>(null);
   const [supported, setSupported] = useState(false);
   const [listening, setListening] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [mode, setMode] = useState<'idle' | 'listening' | 'copilot'>('idle');
+  const [initError, setInitError] = useState<string | null>(null);
   const resultTimer = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
-    setSupported(typeof annyang !== 'undefined' && annyang && annyang.isSupported());
+    try {
+      import('annyang').then(mod => {
+        const a = mod.default || mod;
+        const hasSupport = typeof a === 'function' ? true : (a && a.isSupported ? a.isSupported() : false);
+        setSupported(hasSupport);
+        setAnnyangRef(a);
+      }).catch(() => {
+        setSupported(false);
+      });
+    } catch {
+      setSupported(false);
+    }
   }, []);
+
+  if (initError) return null;
+  if (annyangRef === null) return null; // still loading
+  if (!supported) return null;
 
   // Auto-dismiss result
   useEffect(() => {
@@ -98,10 +113,11 @@ export default function VoiceCommandUI() {
   }, [result]);
 
   const startListening = useCallback(() => {
-    if (!annyang) return;
+    const a = annyangRef;
+    if (!a) return;
 
     // Clear previous commands
-    annyang.removeCommands();
+    if (a.removeCommands) a.removeCommands();
 
     // Direct navigation commands — no LLM needed
     const commands: Record<string, (...args: string[]) => void> = {};
@@ -163,38 +179,43 @@ export default function VoiceCommandUI() {
       askCopilot(query);
     };
 
-    annyang.addCommands(commands);
-    annyang.setLanguage('en-US');
-    annyang.debug();
+    if (a.addCommands) a.addCommands(commands);
+    if (a.setLanguage) a.setLanguage('en-US');
+    if (a.debug) a.debug();
 
-    annyang.addCallback('resultMatch', () => {
-      setMode('idle');
-    });
+    if (a.addCallback) {
+      a.addCallback('resultMatch', () => {
+        setMode('idle');
+      });
+      a.addCallback('resultNoMatch', () => {
+        setResult("Sorry, I didn't catch that. Try 'show me leads' or 'go to qr'.");
+      });
+      a.addCallback('error', (err: any) => {
+        if (err?.error === 'not-allowed') {
+          setResult('Microphone access denied. Allow mic in browser settings.');
+          setListening(false);
+        } else if (err?.error) {
+          setResult('Mic error: ' + err.error);
+        }
+      });
+    }
 
-    annyang.addCallback('resultNoMatch', () => {
-      setResult("Sorry, I didn't catch that. Try 'show me leads' or 'go to qr'.");
-    });
-
-    annyang.addCallback('error', (err: any) => {
-      if (err?.error === 'not-allowed') {
-        setResult('Microphone access denied. Allow mic in browser settings.');
-        setListening(false);
-      }
-    });
-
-    annyang.start({ autoRestart: true, continuous: false });
+    try { a.start({ autoRestart: true, continuous: false }); } catch (e) {
+      setResult('Failed to start voice. Check mic permissions.');
+    }
     setListening(true);
     setMode('listening');
   }, []);
 
   const stopListening = useCallback(() => {
-    if (annyang) {
-      annyang.abort();
-      annyang.removeCommands();
+    const a = annyangRef;
+    if (a) {
+      try { if (a.abort) a.abort(); } catch {}
+      try { if (a.removeCommands) a.removeCommands(); } catch {}
     }
     setListening(false);
     setMode('idle');
-  }, []);
+  }, [annyangRef]);
 
   const askCopilot = async (query: string) => {
     setMode('copilot');
@@ -289,4 +310,19 @@ export default function VoiceCommandUI() {
       </div>
     </>
   );
+}
+
+export default function VoiceCommandUI() {
+  const [errored, setErrored] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
+
+  if (errored || !mounted) return null;
+
+  try {
+    return <VoiceCommandUIInner />;
+  } catch {
+    return null;
+  }
 }
