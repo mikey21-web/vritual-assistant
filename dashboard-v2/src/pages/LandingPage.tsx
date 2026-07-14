@@ -1,24 +1,163 @@
 import { useState, useRef, useEffect } from 'react';
-import { motion, useScroll, useTransform } from 'framer-motion';
+import { motion, useScroll } from 'framer-motion';
 import {
   ArrowRight, Check, Bot, MessageSquare, BarChart3,
   Globe, Zap, Shield, Users, Target, Sparkles, Phone,
   MessageCircle, Route, ShoppingCart, Link, Smartphone,
-  Webhook, QrCode, ChevronRight, Send,
+  Webhook, QrCode, Send, Building2, Calendar,
 } from 'lucide-react';
+import { getPrimaryColor, getNicheName } from '../lib/niche-config';
 
-const t = {
-  accent: '#0d6b6b',
-  accentDim: 'rgba(13,107,107,0.08)',
-  accentBorder: 'rgba(13,107,107,0.2)',
-  warm: '#d97706',
-  warmDim: 'rgba(217,119,6,0.08)',
-  text: '#171717',
-  muted: '#6b7280',
-  border: '#e5e7eb',
-  bg: '#faf9f6',
-  card: '#ffffff',
+const reduced = typeof window !== 'undefined' ? window.matchMedia('(prefers-reduced-motion: reduce)').matches : true;
+
+const nicheContent: Record<string, {
+  name: string;
+  tagline: string;
+  hero: string[];
+  heroHighlight: string;
+  description: string;
+  badge: string;
+  channels: { label: string; icon: any; color?: string }[];
+  features: { icon: any; title: string; desc: string }[];
+  painPoints: string[];
+  solutions: string[];
+}> = {
+  agency: {
+    name: 'LeadFlow',
+    tagline: 'Omnichannel Lead Automation',
+    hero: ['Your leads never', 'wait for a reply', 'ever again'],
+    heroHighlight: 'ever again',
+    description: 'AI agent that captures, qualifies, and converts leads across WhatsApp, chat, email, SMS, and phone, 24/7. Then pushes everything to your CRM.',
+    badge: 'Omnichannel Lead Automation',
+    channels: [
+      { label: 'WhatsApp', icon: MessageCircle, color: '#25D366' },
+      { label: 'SMS', icon: Smartphone },
+      { label: 'Web Widget', icon: Globe, color: '#2563eb' },
+      { label: 'Voice', icon: Phone },
+      { label: 'Email', icon: MessageSquare },
+      { label: 'QR Codes', icon: QrCode },
+      { label: 'Telegram', icon: Send, color: '#0088cc' },
+    ],
+    features: [
+      { icon: MessageCircle, title: 'Captures everywhere', desc: 'Chat widget, WhatsApp, SMS, web forms, QR codes, Telegram, social media, phone calls, all route to one inbox.' },
+      { icon: Bot, title: 'AI qualifies automatically', desc: 'AI responds in your brand voice. Asks qualifying questions, extracts budget/timeline, scores leads, books appointments.' },
+      { icon: Route, title: 'Nurtures on schedule', desc: 'Multi-step sequences over WhatsApp, email, and SMS. Conditional branches, booking links, re-engagement logic.' },
+      { icon: Target, title: 'Scores & routes', desc: 'Rule-based scoring (budget, urgency, behavior). Hot leads go to senior reps.' },
+      { icon: BarChart3, title: 'Analytics in real-time', desc: 'Pipeline view, source performance, conversion tracking, team metrics.' },
+      { icon: Link, title: 'Pushes to CRM', desc: 'HubSpot, Salesforce, Zoho, or 400+ tools via n8n. Custom field mapping.' },
+    ],
+    painPoints: ['Leads sit for hours before anyone replies', 'Follow-ups get forgotten or delayed', 'Data scattered across 4-5 separate tools', 'Hot leads go cold waiting for attention', 'No visibility into pipeline or conversion'],
+    solutions: ['AI responds in under 30 seconds, 24/7', 'Automated follow-ups across every channel', 'Everything unified in one dashboard', 'Smart scoring routes hot leads instantly', 'Real-time analytics and conversion tracking'],
+  },
+  realestate: {
+    name: 'PropConnect',
+    tagline: 'Real Estate Lead Conversion Platform',
+    hero: ['Never lose a', 'buyer to slow', 'follow-up again'],
+    heroHighlight: 'slow follow-up',
+    description: 'AI agent that responds to buyer inquiries on WhatsApp 24/7, qualifies budget and preferences, sends listings, schedules showings, and tracks every deal from inquiry to close.',
+    badge: 'Real Estate Lead Automation',
+    channels: [
+      { label: 'WhatsApp', icon: MessageCircle, color: '#25D366' },
+      { label: 'SMS', icon: Smartphone },
+      { label: 'Website Widget', icon: Globe, color: '#2563eb' },
+      { label: 'Voice', icon: Phone },
+      { label: 'Property Portal', icon: Building2 },
+      { label: 'QR Codes', icon: QrCode },
+    ],
+    features: [
+      { icon: MessageCircle, title: 'WhatsApp-first lead capture', desc: 'Buyers message you on WhatsApp. AI responds instantly, qualifies budget & area, sends matching listings.' },
+      { icon: Bot, title: 'AI buyer qualification', desc: 'Extracts budget, property type, location preference, timeline. Automatically scores and segments.' },
+      { icon: Calendar, title: 'Showing scheduler', desc: 'Syncs with your calendar. Sends available slots, confirms showings, sends reminders.' },
+      { icon: Target, title: 'Smart deal pipeline', desc: 'Track every buyer from inquiry → showing → offer → closing. Know your pipeline in real-time.' },
+      { icon: BarChart3, title: 'Agent performance', desc: 'See which listings get inquiries, response times, conversion rates. Data-driven selling.' },
+      { icon: Link, title: 'Push to CRM', desc: 'Sync leads to your existing CRM. Never double-enter data.' },
+    ],
+    painPoints: ['Buyers message at night — no reply till morning', 'Hot leads go cold waiting for listing details', 'Follow-ups slip through the cracks', 'No unified view of active deals', 'Manual data entry into CRM'],
+    solutions: ['AI responds in seconds, 24/7', 'Auto-sends matching listings instantly', 'Automated follow-up sequences', 'Pipeline view from inquiry to close', 'Auto-syncs to your CRM'],
+  },
+  hospitality: {
+    name: 'StayHub',
+    tagline: 'Hotel Guest Communication Platform',
+    hero: ['Every guest gets', 'a 5-star check-in', 'starting with the first message'],
+    heroHighlight: '5-star check-in',
+    description: 'AI concierge that handles guest inquiries, booking confirmations, check-in instructions, room service requests, and feedback collection — all over WhatsApp.',
+    badge: 'Hospitality Guest Automation',
+    channels: [
+      { label: 'WhatsApp', icon: MessageCircle, color: '#25D366' },
+      { label: 'Website Widget', icon: Globe, color: '#2563eb' },
+      { label: 'Voice', icon: Phone },
+      { label: 'QR Codes', icon: QrCode },
+      { label: 'Email', icon: MessageSquare },
+    ],
+    features: [
+      { icon: MessageCircle, title: 'WhatsApp guest messaging', desc: 'Confirmations, check-in details, WiFi codes, and concierge requests — all on WhatsApp.' },
+      { icon: Bot, title: 'AI concierge 24/7', desc: 'Guests ask about amenities, room service, checkout, local attractions. AI answers instantly.' },
+      { icon: Calendar, title: 'Booking management', desc: 'Manage inquiries, holds, confirmations, and cancellations. Integrated with your calendar.' },
+      { icon: Target, title: 'Guest preference tracking', desc: 'Store room preferences, dietary needs, special requests. Personalized stays every time.' },
+      { icon: BarChart3, title: 'Review management', desc: 'Auto-request reviews after checkout. Monitor Google rating. Respond to feedback.' },
+      { icon: Link, title: 'Channel sync', desc: 'Connect Booking.com, Expedia, Agoda. Unified booking inbox.' },
+    ],
+    painPoints: ['Guests text late — no one replies', 'Check-in info sent manually every time', 'Review requests get forgotten', 'No guest preference memory', 'Multiple booking channels, no unified view'],
+    solutions: ['AI replies instantly, 24/7', 'Auto-sends check-in details before arrival', 'Auto-review requests after checkout', 'Guest profile with past preferences', 'Unified booking inbox'],
+  },
+  healthcare: {
+    name: 'CareConnect',
+    tagline: 'Clinic Patient Communication Platform',
+    hero: ['Patients get', 'answers in seconds,', 'not on hold'],
+    heroHighlight: 'in seconds',
+    description: 'AI assistant that handles appointment booking, prescription refills, lab result delivery, and FAQ — all over WhatsApp. No call waiting, no missed patients.',
+    badge: 'Healthcare Patient Automation',
+    channels: [
+      { label: 'WhatsApp', icon: MessageCircle, color: '#25D366' },
+      { label: 'Website Widget', icon: Globe, color: '#2563eb' },
+      { label: 'SMS', icon: Smartphone },
+      { label: 'Voice', icon: Phone },
+    ],
+    features: [
+      { icon: MessageCircle, title: 'WhatsApp patient communication', desc: 'Appointment reminders, follow-ups, prescription refills, lab results — all on WhatsApp.' },
+      { icon: Bot, title: 'AI patient assistant', desc: 'Answers FAQs (timings, fees, doctor availability). Books appointments 24/7.' },
+      { icon: Calendar, title: 'Appointment scheduling', desc: 'Patients book from WhatsApp or website. Auto-confirm, reschedule, cancel.' },
+      { icon: Target, title: 'Patient intake forms', desc: 'Pre-visit forms sent automatically. Collect history before the appointment.' },
+      { icon: BarChart3, title: 'Clinic analytics', desc: 'No-show rates, peak hours, popular services. Data-driven scheduling.' },
+      { icon: Shield, title: 'Consent & compliance', desc: 'Built-in consent management. DPDP compliant. Full audit trail.' },
+    ],
+    painPoints: ['Phone rings constantly for appointment bookings', 'Patients forget appointments — high no-show rate', 'Lab result delivery is manual', 'Same questions answered repeatedly', 'Paper forms take up visit time'],
+    solutions: ['AI books appointments 24/7', 'Auto-reminders cut no-shows', 'Lab results delivered on WhatsApp', 'AI handles FAQ instantly', 'Digital pre-visit forms'],
+  },
+  logistics: {
+    name: 'FreightConnect',
+    tagline: 'Logistics & Transport Lead Platform',
+    hero: ['Shipment inquiries', 'get answers before', 'the truck rolls out'],
+    heroHighlight: 'before the truck rolls',
+    description: 'AI agent that handles shipping inquiries, provides quotes, books shipments, and tracks deliveries across WhatsApp and web. No more missed freight opportunities.',
+    badge: 'Logistics Lead Automation',
+    channels: [
+      { label: 'WhatsApp', icon: MessageCircle, color: '#25D366' },
+      { label: 'Website Widget', icon: Globe, color: '#2563eb' },
+      { label: 'SMS', icon: Smartphone },
+      { label: 'Voice', icon: Phone },
+    ],
+    features: [
+      { icon: MessageCircle, title: 'WhatsApp shipment inquiries', desc: 'Shippers ask for quotes, book shipments, track deliveries — all on WhatsApp.' },
+      { icon: Bot, title: 'AI quoting agent', desc: 'Asks origin/destination, weight, timeline. Generates instant quotes. Books directly.' },
+      { icon: Calendar, title: 'Pickup scheduling', desc: 'Shippers choose pickup windows. Auto-assigns to nearest driver.' },
+      { icon: Target, title: 'Shipment pipeline', desc: 'Track every inquiry from quote → booked → picked up → delivered. Pipeline visibility.' },
+      { icon: BarChart3, title: 'Operations dashboard', desc: 'Quote conversion, driver performance, on-time delivery rates.' },
+      { icon: Link, title: 'Carrier network', desc: 'Manage partner carriers, rate cards, and capacity allocation.' },
+    ],
+    painPoints: ['Quote requests pile up — slow response loses business', 'Back-and-forth calls for shipment details', 'No record of inquiry-to-booking conversion', 'Carrier assignment is manual', 'Delivery status updates require calls'],
+    solutions: ['AI quotes instantly, 24/7', 'WhatsApp-based self-service booking', 'Pipeline tracking from inquiry to delivery', 'Auto-carrier assignment', 'Real-time delivery status updates'],
+  },
 };
+
+const defaultContent = nicheContent.agency;
+let currentNiche = '';
+
+function getContent() {
+  const n = getNicheName();
+  if (n !== currentNiche) currentNiche = n;
+  return nicheContent[n] || defaultContent;
+}
 
 function useInView(threshold = 0.1) {
   const ref = useRef<HTMLDivElement>(null);
@@ -33,12 +172,18 @@ function useInView(threshold = 0.1) {
   return [ref, inView] as const;
 }
 
-const reduced = typeof window !== 'undefined' ? window.matchMedia('(prefers-reduced-motion: reduce)').matches : true;
-
 export default function LandingPage({ onLogin }: { onLogin?: () => void }) {
   const { scrollY } = useScroll();
   const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
   const [activeSlide, setActiveSlide] = useState(0);
+
+  const prim = getPrimaryColor();
+  const accent = prim || '#0d6b6b';
+  const accentDim = `${accent}14`;
+  const accentBorder = `${accent}33`;
+  const t = { accent, accentDim, accentBorder, warm: '#d97706', warmDim: 'rgba(217,119,6,0.08)', text: '#171717', muted: '#6b7280', border: '#e5e7eb', bg: '#faf9f6', card: '#ffffff' };
+
+  const c = getContent();
 
   const slides = [
     {
@@ -134,9 +279,9 @@ export default function LandingPage({ onLogin }: { onLogin?: () => void }) {
         <div className="max-w-6xl mx-auto px-6 h-full flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="h-7 w-7 rounded flex items-center justify-center" style={{ background: t.accent }}>
-              <span className="text-[9px] font-bold text-white">LF</span>
+              <span className="text-[9px] font-bold text-white">{c.name[0]}{c.name[1]}</span>
             </div>
-            <span className="text-sm font-bold font-['Space_Grotesk']">LeadFlow</span>
+            <span className="text-sm font-bold font-['Space_Grotesk']">{c.name}</span>
           </div>
           <div className="hidden md:flex items-center gap-6">
             {['Product', 'Pricing'].map(item => (
@@ -166,19 +311,18 @@ export default function LandingPage({ onLogin }: { onLogin?: () => void }) {
         }} />
         <div className="max-w-6xl mx-auto px-6 w-full relative z-10">
           <div className="grid md:grid-cols-2 gap-12 items-center">
-            <motion.div initial={reduced ? undefined : { opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0, ease: [0.25, 0.1, 0.15, 1] }}>
+            <motion.div initial={reduced ? undefined : { opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.25, 0.1, 0.15, 1] }}>
               <div className="inline-flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.15em] px-3 py-1.5 rounded-full mb-6"
                 style={{ color: t.accent, background: t.accentDim, border: `1px solid ${t.accentBorder}` }}>
                 <Sparkles size={11} />
-                Omnichannel Lead Automation
+                {c.badge}
               </div>
               <h1 className="text-[clamp(2.2rem,5vw,3.6rem)] font-bold font-['Space_Grotesk'] leading-[1.05] tracking-[-0.03em] mb-5">
-                Your leads never
-                <br />wait for a reply<br />
-                <span style={{ color: t.accent }}>ever again</span>
+                {c.hero[0]}<br />{c.hero[1]}<br />
+                <span style={{ color: t.accent }}>{c.hero[2]}</span>
               </h1>
               <p className="text-base leading-relaxed mb-8 max-w-md" style={{ color: t.muted }}>
-                AI agent that captures, qualifies, and converts leads across WhatsApp, chat, email, SMS, and phone, 24/7. Then pushes everything to your CRM.
+                {c.description}
               </p>
               <div className="flex flex-wrap items-center gap-3">
                 <motion.button onClick={onLogin}
@@ -205,7 +349,6 @@ export default function LandingPage({ onLogin }: { onLogin?: () => void }) {
             {/* Product mockup */}
             <motion.div initial={reduced ? undefined : { opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.15, ease: [0.25, 0.1, 0.15, 1] }}>
               <div className="rounded-2xl overflow-hidden shadow-[0_25px_50px_-12px_rgba(0,0,0,0.15)]" style={{ background: t.card, border: '1px solid rgba(0,0,0,0.06)' }}>
-                {/* Slide tabs */}
                 <div className="flex" style={{ background: '#f8f7f4', borderBottom: `1px solid ${t.border}` }}>
                   {slides.map((s, i) => (
                     <button key={i} onClick={() => setActiveSlide(i)}
@@ -237,13 +380,9 @@ export default function LandingPage({ onLogin }: { onLogin?: () => void }) {
         <div className="max-w-5xl mx-auto px-6">
           <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-xs font-medium" style={{ color: t.muted }}>
             <span className="text-[9px] uppercase tracking-widest font-semibold" style={{ color: '#9ca3af' }}>Channels</span>
-            <span className="flex items-center gap-1.5"><MessageCircle size={13} style={{ color: '#25D366' }} /> WhatsApp</span>
-            <span className="flex items-center gap-1.5"><Smartphone size={13} /> SMS</span>
-            <span className="flex items-center gap-1.5"><Globe size={13} style={{ color: '#2563eb' }} /> Web Widget</span>
-            <span className="flex items-center gap-1.5"><Phone size={13} style={{ color: t.warm }} /> Voice</span>
-            <span className="flex items-center gap-1.5"><MessageSquare size={13} /> Email</span>
-            <span className="flex items-center gap-1.5"><QrCode size={13} style={{ color: t.accent }} /> QR Codes</span>
-            <span className="flex items-center gap-1.5"><Send size={13} style={{ color: '#0088cc' }} /> Telegram</span>
+            {c.channels.map((ch, i) => (
+              <span key={i} className="flex items-center gap-1.5">{ch.color ? <ch.icon size={13} style={{ color: ch.color }} /> : <ch.icon size={13} />} {ch.label}</span>
+            ))}
           </div>
         </div>
       </section>
@@ -276,20 +415,13 @@ export default function LandingPage({ onLogin }: { onLogin?: () => void }) {
           <div className="text-center max-w-xl mx-auto mb-16">
             <span className="text-[10px] font-medium uppercase tracking-[0.2em]" style={{ color: t.accent }}>Product</span>
             <h2 className="text-[30px] md:text-[40px] font-bold font-['Space_Grotesk'] leading-[1.05] tracking-[-0.03em] mt-4 mb-4">
-              What LeadFlow does
+              What {c.name} does
             </h2>
-            <p className="text-sm" style={{ color: t.muted }}>One platform replaces your chatbot, CRM entry, follow-up tool, and analytics, with AI stitching it all together.</p>
+            <p className="text-sm" style={{ color: t.muted }}>{c.description}</p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-5 mb-16">
-            {[
-              { icon: MessageCircle, title: 'Captures everywhere', desc: 'Chat widget, WhatsApp, SMS, web forms, QR codes, Telegram, social media, phone calls, all route to one inbox. No lead slips through.' },
-              { icon: Bot, title: 'AI qualifies automatically', desc: 'AI agent responds in your brand voice. Asks qualifying questions, extracts budget/timeline, scores leads, and books appointments.' },
-              { icon: Route, title: 'Nurtures on schedule', desc: 'Multi-step sequences over WhatsApp, email, and SMS. Conditional branches, booking links, re-engagement logic. Set once, runs forever.' },
-              { icon: Target, title: 'Scores & routes', desc: 'Rule-based scoring (budget, urgency, behavior). Hot leads go to senior reps. Warm leads get nurtured. Cold leads get re-engagement.' },
-              { icon: BarChart3, title: 'Analytics in real-time', desc: 'Pipeline view, source performance, conversion tracking, team metrics. Know exactly where every lead is and what happened.' },
-              { icon: Link, title: 'Pushes to CRM', desc: 'HubSpot, Salesforce, Zoho, or 400+ tools via n8n. Custom field mapping, dedup, audit trail. Your CRM stays current.' },
-            ].map((f, i) => (
+            {c.features.map((f, i) => (
               <motion.div key={i} className="p-5 rounded-xl" style={{ background: t.card, border: `1px solid ${t.border}` }}
                 initial={reduced ? undefined : { opacity: 0, y: 16 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -303,32 +435,6 @@ export default function LandingPage({ onLogin }: { onLogin?: () => void }) {
               </motion.div>
             ))}
           </div>
-
-          {/* Visual flow */}
-          <motion.div className="p-8 rounded-2xl" style={{ background: t.card, border: `1px solid ${t.border}` }}
-            initial={reduced ? undefined : { opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}>
-            <p className="text-xs font-semibold mb-6 text-center" style={{ color: t.muted }}>End-to-end lead flow</p>
-            <div className="grid grid-cols-5 gap-3">
-              {[
-                { label: 'Lead arrives', channel: 'Any channel', icon: Users },
-                { label: 'AI responds', channel: '< 30 seconds', icon: Bot },
-                { label: 'Scored & routed', channel: 'Auto-segmented', icon: Target },
-                { label: 'Nurtured', channel: 'Multi-step', icon: Route },
-                { label: 'Pushed to CRM', channel: 'HubSpot/SF/Zoho', icon: ShoppingCart },
-              ].map((step, i) => (
-                <div key={i} className="text-center">
-                  <div className="h-10 w-10 rounded-full flex items-center justify-center mx-auto mb-2" style={{ background: t.accentDim }}>
-                    <step.icon size={16} style={{ color: t.accent }} />
-                  </div>
-                  <p className="text-xs font-semibold">{step.label}</p>
-                  <p className="text-[10px]" style={{ color: t.muted }}>{step.channel}</p>
-                  {i < 4 && <div className="hidden md:block text-xs mt-2" style={{ color: t.border }}>→</div>}
-                </div>
-              ))}
-            </div>
-          </motion.div>
         </div>
       </section>
 
@@ -337,15 +443,9 @@ export default function LandingPage({ onLogin }: { onLogin?: () => void }) {
         <div className="max-w-6xl mx-auto px-6">
           <div className="grid md:grid-cols-2 gap-12 md:gap-20">
             <div>
-              <span className="text-[10px] font-medium uppercase tracking-[0.2em]" style={{ color: '#6b7280' }}>Without LeadFlow</span>
+              <span className="text-[10px] font-medium uppercase tracking-[0.2em]" style={{ color: '#6b7280' }}>Without {c.name}</span>
               <ul className="mt-8 space-y-4">
-                {[
-                  'Leads sit for hours before anyone replies',
-                  'Follow-ups get forgotten or delayed',
-                  'Data scattered across 4-5 separate tools',
-                  'Hot leads go cold waiting for attention',
-                  'No visibility into pipeline or conversion',
-                ].map((item, i) => (
+                {c.painPoints.map((item, i) => (
                   <motion.li key={i} className="flex items-start gap-3 text-sm" style={{ color: '#9ca3af' }}
                     initial={reduced ? undefined : { opacity: 0, x: -12 }}
                     whileInView={{ opacity: 1, x: 0 }}
@@ -358,15 +458,9 @@ export default function LandingPage({ onLogin }: { onLogin?: () => void }) {
               </ul>
             </div>
             <div>
-              <span className="text-[10px] font-medium uppercase tracking-[0.2em]" style={{ color: t.accent }}>With LeadFlow</span>
+              <span className="text-[10px] font-medium uppercase tracking-[0.2em]" style={{ color: t.accent }}>With {c.name}</span>
               <ul className="mt-8 space-y-4">
-                {[
-                  'AI responds in under 30 seconds, 24/7',
-                  'Automated follow-ups across every channel',
-                  'Everything unified in one dashboard',
-                  'Smart scoring routes hot leads instantly',
-                  'Real-time analytics and conversion tracking',
-                ].map((item, i) => (
+                {c.solutions.map((item, i) => (
                   <motion.li key={i} className="flex items-start gap-3 text-sm" style={{ color: '#d1d5db' }}
                     initial={reduced ? undefined : { opacity: 0, x: -12 }}
                     whileInView={{ opacity: 1, x: 0 }}
@@ -467,16 +561,16 @@ export default function LandingPage({ onLogin }: { onLogin?: () => void }) {
         <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
             <div className="h-6 w-6 rounded flex items-center justify-center" style={{ background: t.accent }}>
-              <span className="text-[7px] font-bold text-white">LF</span>
+              <span className="text-[7px] font-bold text-white">{c.name[0]}{c.name[1]}</span>
             </div>
-            <span className="text-xs font-bold font-['Space_Grotesk']" style={{ color: '#f5f5f5' }}>LeadFlow</span>
+            <span className="text-xs font-bold font-['Space_Grotesk']" style={{ color: '#f5f5f5' }}>{c.name}</span>
           </div>
           <div className="flex items-center gap-6 text-xs" style={{ color: '#6b7280' }}>
             <span>Privacy</span>
             <span>Terms</span>
             <span>Contact</span>
           </div>
-          <p className="text-[10px]" style={{ color: '#525252' }}>© 2026 LeadFlow</p>
+          <p className="text-[10px]" style={{ color: '#525252' }}>© 2026 {c.name}</p>
         </div>
       </footer>
     </div>

@@ -12,6 +12,8 @@ import MikeyWidget from "./components/MikeyWidget";
 import ExplainModePlayer from "./components/ExplainModePlayer";
 import { MikeyBanner, showMikeyToast } from "./components/mikey";
 import { SocketProvider, useSocket } from "./hooks";
+import { FeatureGuard } from "./components/FeatureGuard";
+import { initNicheConfig } from "./lib/niche-config";
 import { LoginPage } from "./pages/LoginPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
@@ -174,6 +176,7 @@ export default function App() {
   const [publicRoute, setPublicRoute] = useState(() => window.location.hash.replace("#", "") || "/");
 
   useEffect(() => {
+    initNicheConfig();
     fetchProfile();
     const onHash = () => {
       const hash = window.location.hash.replace("#", "") || "/";
@@ -204,6 +207,7 @@ export default function App() {
 
   const handleLogin = async (email: string, password: string) => {
     await login(email, password);
+    await initNicheConfig();
     window.location.hash = '/';
   };
 
@@ -248,7 +252,11 @@ export default function App() {
             <MikeyConnectedBanner />
             <ErrorBoundary>
               <Suspense fallback={<PageFallback />}>
-                {PageComponent ? <PageComponent /> : (
+                {PageComponent ? (
+                  <FeatureGuard pageKey={page}>
+                    <PageComponent />
+                  </FeatureGuard>
+                ) : (
                   <div className="flex h-full items-center justify-center text-[var(--muted-foreground)]">Page not found</div>
                 )}
               </Suspense>

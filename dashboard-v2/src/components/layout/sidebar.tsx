@@ -14,22 +14,25 @@ import BrandLogo from "../BrandLogo";
 import { isFeatureEnabled, getLabel, getBusinessName } from "../../lib/niche-config";
 
 const featureMap: Record<string, string> = {
+  "/": "overview", "/leads": "leads", "/pipeline": "pipeline", "/contacts": "contacts",
+  "/campaigns": "campaigns", "/forms": "forms", "/qr-codes": "qrCodes",
+  "/conversations": "messages", "/templates": "templates", "/media": "media",
   "/nurture": "nurture", "/scoring": "scoring", "/rules": "routing",
-  "/crm": "crm", "/booking": "booking", "/tickets": "tickets",
-  "/knowledge-base": "knowledgeBase", "/media": "media", "/qr-codes": "qrCodes", "/reports": "reports",
-  "/campaigns": "campaigns", "/forms": "forms",
-  "/conversations": "messages", "/templates": "templates",
   "/ai-campaigns": "aiCampaigns", "/ai-agent": "aiAgent", "/copilot": "copilot",
-  "/webhooks": "webhooks", "/sms": "sms", "/widget": "widget",
-  "/tasks": "tasks", "/integrations": "integrations",
-  "/analytics": "analytics", "/studio": "studio",
-  "/events": "events", "/calendar": "events",
+  "/webhooks": "webhooks", "/sms": "sms", "/widget": "widget", "/calls": "calls", "/sync-logs": "syncLogs",
+  "/tasks": "tasks", "/conversions": "conversions",
+  "/events": "events", "/calendar": "events", "/create-event": "events",
+  "/event-detail": "events",
   "/accounting": "finance", "/invoices": "finance", "/quotations": "finance",
   "/contracts": "finance", "/finance-reports": "finance",
   "/partners": "procurement", "/vendor-bookings": "procurement", "/purchase-orders": "procurement",
   "/inventory": "inventory", "/stock-movements": "inventory", "/locations": "inventory",
-  "/leave-log": "teamHr", "/salaries": "teamHr", "/timesheet": "teamHr",
-  "/public-profile": "publicProfile",
+  "/team": "teamHr", "/leave-log": "teamHr", "/salaries": "teamHr", "/timesheet": "teamHr",
+  "/integrations": "integrations", "/crm": "crm", "/booking": "booking",
+  "/tickets": "tickets", "/knowledge-base": "knowledgeBase",
+  "/analytics": "analytics", "/reports": "reports", "/studio": "studio",
+  "/settings": "settings", "/import": "import", "/ads": "adIntegrations",
+  "/website-crawler": "websiteCrawler", "/public-profile": "publicProfile",
 };
 
 const labelMap: Record<string, "contact" | "conversion"> = {

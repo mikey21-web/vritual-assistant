@@ -4,6 +4,15 @@ import { ArrowRight } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { useBranding } from "../lib/useBranding";
 import BrandLogo from "../components/BrandLogo";
+import { getNicheName, getPrimaryColor } from "../lib/niche-config";
+
+const nicheLoginContent: Record<string, { title: string; desc: string; stats: { stat: string; label: string }[] }> = {
+  realestate: { title: "AI-powered\nbuyer conversion", desc: "Capture, qualify, and close buyers automatically with intelligent conversations across WhatsApp and web.", stats: [{ stat: "24/7", label: "Buyer Engagement" }, { stat: "3x", label: "More Showings" }, { stat: "60s", label: "Avg. Response" }] },
+  hospitality: { title: "AI-powered\nguest communication", desc: "Handle bookings, check-ins, and guest requests automatically across WhatsApp and web.", stats: [{ stat: "24/7", label: "Guest Support" }, { stat: "50%", label: "Less Phone Calls" }, { stat: "4.8★", label: "Guest Rating" }] },
+  healthcare: { title: "AI-powered\npatient care", desc: "Book appointments, send reminders, deliver results automatically across WhatsApp.", stats: [{ stat: "70%", label: "Less No-Shows" }, { stat: "24/7", label: "Patient Support" }, { stat: "5min", label: "Avg. Booking" }] },
+  logistics: { title: "AI-powered\nfreight management", desc: "Quote, book, and track shipments automatically across WhatsApp and web.", stats: [{ stat: "24/7", label: "Quote Requests" }, { stat: "2x", label: "More Bookings" }, { stat: "30s", label: "Quote Time" }] },
+  agency: { title: "AI-powered\nlead conversion", desc: "Capture, nurture, and convert leads automatically across WhatsApp, email, and web.", stats: [{ stat: "24/7", label: "AI Lead Engagement" }, { stat: "85%", label: "Avg. Response Rate" }, { stat: "3x", label: "More Bookings" }] },
+};
 
 interface LoginPageProps {
   onLogin: (email: string, password: string) => Promise<void>;
@@ -104,19 +113,14 @@ export function LoginPage({ onLogin, error: externalError }: LoginPageProps) {
         <div className="absolute inset-0 opacity-[0.03]"
           style={{ backgroundImage: 'radial-gradient(circle at 25% 25%, white 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
         <div className="relative max-w-md text-white">
-          <h2 className="text-3xl font-bold leading-[1.15] tracking-tight">
-            AI-powered<br />
-            lead conversion
+          <h2 className="text-3xl font-bold leading-[1.15] tracking-tight whitespace-pre-line">
+            {nicheLoginContent[getNicheName()]?.title || nicheLoginContent.agency.title}
           </h2>
           <p className="mt-4 text-white/70 leading-relaxed text-sm max-w-sm">
-            Capture, nurture, and convert leads automatically with intelligent conversations across WhatsApp, email, and web.
+            {nicheLoginContent[getNicheName()]?.desc || nicheLoginContent.agency.desc}
           </p>
           <div className="mt-10 space-y-5">
-            {[
-              { stat: "24/7", label: "AI Lead Engagement" },
-              { stat: "85%", label: "Avg. Response Rate" },
-              { stat: "3x", label: "More Bookings" },
-            ].map((item) => (
+            {(nicheLoginContent[getNicheName()]?.stats || nicheLoginContent.agency.stats).map((item) => (
               <div key={item.label} className="flex items-center gap-4">
                 <div className="h-px w-6 bg-white/30" />
                 <span className="text-xl font-bold tracking-tight">{item.stat}</span>

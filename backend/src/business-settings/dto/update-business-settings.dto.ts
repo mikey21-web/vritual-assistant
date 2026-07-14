@@ -16,4 +16,5 @@ export class UpdateBusinessSettingsDto {
   @IsString() @IsOptional() faviconUrl?: string;
   @IsString() @IsOptional() primaryColor?: string;
   @IsObject() @IsOptional() labels?: Record<string, string>;
+  @IsString() @IsOptional() industry?: string;
 }
