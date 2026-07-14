@@ -185,7 +185,7 @@ export default function VoiceCommandUI() {
     <>
       <button
         onClick={() => voice.listening ? voice.stop() : voice.start()}
-        className={`fixed bottom-24 right-6 z-[999] w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 ${
+        className={`fixed bottom-24 right-6 z-[999] w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 [body.overlay-open_&]:hidden ${
           voice.listening
             ? 'bg-red-500 text-white scale-110 shadow-red-500/50 animate-pulse'
             : voice.wakeWordDetected
@@ -220,7 +220,7 @@ export default function VoiceCommandUI() {
       )}
 
       {!voice.listening && !fullScreenResult && (
-        <div className="fixed bottom-40 right-6 z-[999] text-[10px] text-[var(--muted-foreground)] opacity-50 text-right">
+        <div className="fixed bottom-40 right-6 z-[999] text-[10px] text-[var(--muted-foreground)] opacity-50 text-right [body.overlay-open_&]:hidden">
           Press <kbd className="px-1 py-0.5 rounded bg-[var(--accent)] font-mono">M</kbd> for voice
         </div>
       )}

@@ -88,6 +88,13 @@ export default function AccountingPage() {
             </Select>
             <Input label="Amount" type="number" value={txnForm.amount} onChange={e => setTxnForm({ ...txnForm, amount: e.target.value })} required />
           </div>
+          <Input label="Category" placeholder="e.g. Vendor payment, Booking advance" value={txnForm.category} onChange={e => setTxnForm({ ...txnForm, category: e.target.value })} />
+          <Select label="Status" value={txnForm.status} onChange={e => setTxnForm({ ...txnForm, status: e.target.value })}>
+            <option value="PENDING">Pending</option>
+            <option value="RECEIVED">Received</option>
+            <option value="PAID">Paid</option>
+            <option value="OVERDUE">Overdue</option>
+          </Select>
         </form>
       </Drawer>
 

@@ -32,12 +32,12 @@ export function Drawer({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/40 animate-fade-in" onClick={onClose} role="presentation">
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/40" onClick={onClose} role="presentation">
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="drawer-title"
-        className={`flex h-full w-full ${width} flex-col bg-[var(--card)] border-l border-[var(--border)] shadow-[var(--shadow-lg)] animate-slide-in-right`}
+        className={`flex h-full w-full ${width} flex-col bg-[var(--card)] border-l border-[var(--border)] shadow-[var(--shadow-lg)]`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between px-6 pt-6 pb-4 border-b border-[var(--border)]">

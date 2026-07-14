@@ -33,7 +33,7 @@ export function Dialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
       onClick={onClose}
       role="presentation"
     >
@@ -41,7 +41,7 @@ export function Dialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="dialog-title"
-        className={`w-full ${maxWidth} rounded-xl border border-[var(--border)] bg-[var(--card)] shadow-[var(--shadow-lg)] animate-scale-in`}
+        className={`w-full ${maxWidth} rounded-xl border border-[var(--border)] bg-[var(--card)] shadow-[var(--shadow-lg)]`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between px-6 pt-5 pb-4">
