@@ -3,6 +3,7 @@ import { MikeyService } from './mikey.service';
 import { OutcomeEngineService } from './outcome-engine.service';
 import { TemporalStrategyService } from './temporal-strategy.service';
 import { StaffAwarenessService } from './staff-awareness.service';
+import { EventsService } from '../events/events.service';
 
 @Controller('mikey')
 export class MikeyController {
@@ -13,7 +14,27 @@ export class MikeyController {
     private outcomes: OutcomeEngineService,
     private temporal: TemporalStrategyService,
     private staff: StaffAwarenessService,
+    private events: EventsService,
   ) {}
+
+  /**
+   * Everything Mikey has noticed and done, persisted (SystemEvent rows with a
+   * `mikey.` type prefix) so it survives a restart and isn't limited to whatever
+   * happens to be in the live socket buffer.
+   */
+  @Get('activity')
+  async getActivity(@Query('limit') limit?: string) {
+    const events = await this.events.findByTypePrefix('mikey.', limit ? parseInt(limit, 10) : 50);
+    return events.map(e => ({
+      id: e.id,
+      type: e.type,
+      severity: (e.payload as any)?.severity || 'info',
+      title: (e.payload as any)?.title || e.type.replace('mikey.', '').replace(/_/g, ' '),
+      description: (e.payload as any)?.description || '',
+      payload: e.payload,
+      createdAt: e.createdAt,
+    }));
+  }
 
   @Post('outcome')
   async defineOutcome(@Body() params: { tenantId: string; goal: string; metric: string; target: number; current: number }) {

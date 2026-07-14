@@ -94,7 +94,7 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
 
       for (const finding of newFindings) {
         await this.events.emit({
-          type: `Mikey.${finding.type}`,
+          type: `mikey.${finding.type}`,
           source: 'mikey-scheduler',
           payload: finding as any,
         });

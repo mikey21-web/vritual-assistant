@@ -98,4 +98,12 @@ export class EventsService {
       take: limit,
     });
   }
+
+  async findByTypePrefix(prefix: string, limit: number = 50) {
+    return this.prisma.systemEvent.findMany({
+      where: { type: { startsWith: prefix } },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+  }
 }

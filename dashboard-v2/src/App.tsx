@@ -85,6 +85,8 @@ const PageComponents: Record<string, React.LazyExoticComponent<React.ComponentTy
   Salaries: lazy(() => import("./pages/SalariesPage")),
   Timesheet: lazy(() => import("./pages/TimesheetPage")),
   PublicProfile: lazy(() => import("./pages/PublicProfilePage")),
+  Properties: lazy(() => import("./pages/PropertiesPage")),
+  Shipments: lazy(() => import("./pages/ShipmentsPage")),
 };
 
 function PageFallback() {
@@ -128,6 +130,8 @@ function getPageKey(path: string): string {
     "/inventory": "InventoryItems", "/stock-movements": "StockMovements", "/locations": "Locations",
     "/leave-log": "LeaveLog", "/salaries": "Salaries", "/timesheet": "Timesheet",
     "/public-profile": "PublicProfile",
+    "/properties": "Properties",
+    "/shipments": "Shipments",
   };
   return map[path] || "Overview";
 }
@@ -138,15 +142,30 @@ const pageRoutes: Record<string, React.ComponentType<any>> = {
   SyncLogs: SyncLogPage,
 };
 
+// EventsService.emit() broadcasts socket events as `event:${type}`, e.g.
+// `event:mikey.stale_hot_leads` — strip that wrapper prefix before matching
+// against the semantic "mikey." event namespace.
+function stripEventPrefix(type: string): string {
+  return type.startsWith('event:') ? type.slice('event:'.length) : type;
+}
+
+// Not every Mikey finding carries a `title` (only scheduler findings do —
+// temporal/staff/outcome findings don't), so fall back to a readable label
+// derived from the event type instead of silently dropping it.
+function fallbackTitle(type: string): string {
+  const suffix = type.split('.').pop() || type;
+  return suffix.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
 function MikeyConnectedBanner() {
   const { eventBuffer } = useSocket();
   const findings = eventBuffer
-    .filter(e => e.type.startsWith('mikey.'))
+    .filter(e => stripEventPrefix(e.type).startsWith('mikey.'))
     .slice(-5)
     .map(e => ({
       id: `${e.type}-${e.timestamp}`,
       severity: ((e.payload as any)?.severity === 'critical' ? 'critical' : (e.payload as any)?.severity === 'warning' ? 'warning' : 'info') as 'info' | 'warning' | 'critical',
-      title: (e.payload as any)?.title || e.type,
+      title: (e.payload as any)?.title || fallbackTitle(stripEventPrefix(e.type)),
       description: (e.payload as any)?.description || '',
       timestamp: new Date(e.timestamp),
     }));
@@ -156,13 +175,14 @@ function MikeyConnectedBanner() {
 function MikeyConnectedToast() {
   const { lastEvent } = useSocket();
   useEffect(() => {
-    if (!lastEvent || !lastEvent.type.startsWith('mikey.')) return;
+    if (!lastEvent) return;
+    const semanticType = stripEventPrefix(lastEvent.type);
+    if (!semanticType.startsWith('mikey.')) return;
     const p = lastEvent.payload as any;
-    if (!p?.title) return;
     showMikeyToast({
-      title: p.title,
-      description: p.description || '',
-      severity: p.severity === 'critical' ? 'critical' : p.severity === 'warning' ? 'warning' : 'info',
+      title: p?.title || fallbackTitle(semanticType),
+      description: p?.description || '',
+      severity: p?.severity === 'critical' ? 'critical' : p?.severity === 'warning' ? 'warning' : 'info',
     });
   }, [lastEvent]);
   return null;

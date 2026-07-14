@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
-import { Bot, Activity, CheckCircle, Calendar, Send, RefreshCw, Brain, Users, Clock, AlertTriangle, TrendingUp, Target, Shield } from 'lucide-react';
+import { Bot, Activity, CheckCircle, Calendar, Send, RefreshCw, Brain, Users, Clock, AlertTriangle, TrendingUp, Target, Shield, Bell } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function MikeyPage() {
@@ -9,25 +9,28 @@ export default function MikeyPage() {
   const [insights, setInsights] = useState<any[]>([]);
   const [staff, setStaff] = useState<any[]>([]);
   const [actions, setActions] = useState<any[]>([]);
+  const [activity, setActivity] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'outcomes' | 'insights' | 'staff'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'outcomes' | 'insights' | 'staff' | 'activity'>('overview');
   const [goalInput, setGoalInput] = useState('');
 
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [s, o, i, st, a] = await Promise.all([
+      const [s, o, i, st, a, act] = await Promise.all([
         api('/mikey/status').catch(() => null),
         api('/mikey/outcomes').catch(() => []),
         api('/mikey/temporal-insights').catch(() => []),
         api('/mikey/staff').catch(() => []),
         api('/mikey/actions').catch(() => []),
+        api('/mikey/activity').catch(() => []),
       ]);
       setStatus(s);
       setOutcomes(Array.isArray(o) ? o : o?.data || []);
       setInsights(Array.isArray(i) ? i : []);
       setStaff(Array.isArray(st) ? st : []);
       setActions(Array.isArray(a) ? a : []);
+      setActivity(Array.isArray(act) ? act : []);
     } catch (e: any) {
       toast.error('Failed to load Mikey data');
     } finally {
@@ -124,9 +127,10 @@ export default function MikeyPage() {
       </div>
 
       <div className="flex gap-2 border-b border-[var(--border)] pb-2">
-        {(['overview', 'outcomes', 'insights', 'staff'] as const).map(tab => (
+        {(['overview', 'activity', 'outcomes', 'insights', 'staff'] as const).map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors capitalize ${activeTab === tab ? 'bg-[var(--primary)] text-white' : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'}`}>
             {tab === 'overview' && <Activity className="w-4 h-4 inline mr-1.5" />}
+            {tab === 'activity' && <Bell className="w-4 h-4 inline mr-1.5" />}
             {tab === 'outcomes' && <Target className="w-4 h-4 inline mr-1.5" />}
             {tab === 'insights' && <TrendingUp className="w-4 h-4 inline mr-1.5" />}
             {tab === 'staff' && <Users className="w-4 h-4 inline mr-1.5" />}
@@ -228,6 +232,38 @@ export default function MikeyPage() {
               </p>
             </div>
           </div>
+        </div>
+      )}
+
+      {activeTab === 'activity' && (
+        <div className="space-y-4">
+          <p className="text-sm text-[var(--muted-foreground)]">
+            Everything Mikey has noticed and done — persisted, so it's still here after a restart.
+          </p>
+          {activity.length === 0 && (
+            <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-8 text-center">
+              <Bell className="w-12 h-12 text-[var(--muted-foreground)] mx-auto mb-3" />
+              <p className="text-[var(--muted-foreground)]">Nothing yet — Mikey scans every 5 minutes.</p>
+            </div>
+          )}
+          {activity.map((a: any) => (
+            <div key={a.id} className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 flex items-start gap-3">
+              <span className={`mt-0.5 shrink-0 text-xs px-2 py-0.5 rounded-full font-medium capitalize ${
+                a.severity === 'critical' ? 'bg-red-500/10 text-red-600' :
+                a.severity === 'warning' ? 'bg-amber-500/10 text-amber-600' :
+                'bg-blue-500/10 text-blue-600'
+              }`}>
+                {a.severity}
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium capitalize">{a.title}</p>
+                {a.description && <p className="text-xs text-[var(--muted-foreground)] mt-0.5">{a.description}</p>}
+              </div>
+              <span className="text-xs text-[var(--muted-foreground)] shrink-0">
+                {new Date(a.createdAt).toLocaleString()}
+              </span>
+            </div>
+          ))}
         </div>
       )}
 
