@@ -23,6 +23,11 @@ let voiceState: VoiceInputState = {
 
 function notify() { listeners.forEach(l => l()); }
 
+function updateState(partial: Partial<VoiceInputState>) {
+  voiceState = { ...voiceState, ...partial };
+  notify();
+}
+
 export function useVoiceInput() {
   const [state, setState] = useState<VoiceInputState>(voiceState);
 
@@ -35,8 +40,7 @@ export function useVoiceInput() {
   }, []);
 
   const clearTranscript = useCallback(() => {
-    voiceState.transcript = '';
-    notify();
+    updateState({ transcript: '' });
   }, []);
 
   const start = useCallback(async () => {
@@ -49,33 +53,37 @@ export function useVoiceInput() {
         restartDelay: 1000,
         wakeWord: 'okay mikey',
         onWakeWordDetected: () => {
-          voiceState.wakeWordDetected = true;
-          notify();
+          updateState({ wakeWordDetected: true });
+        },
+        onResult: (transcript: string, isFinal: boolean) => {
+          if (isFinal && transcript) {
+            updateState({ transcript: transcript.toLowerCase() });
+          }
+        },
+        onError: (err: any) => {
+          updateState({ error: err.message || 'Voice error' });
+        },
+        onEngineSelected: (info: any) => {
+          updateState({ engineMode: info?.name || 'jsvoice' });
         },
       });
     }
 
     try {
       await voiceInstance.start();
-      voiceState.listening = true;
-      voiceState.wakeWordDetected = false;
-      voiceState.error = null;
+      updateState({ listening: true, wakeWordDetected: false, error: null });
       try {
         const info = voiceInstance.getEngineInfo();
-        voiceState.engineMode = info?.name || 'jsvoice';
-      } catch { voiceState.engineMode = 'jsvoice'; }
-      notify();
+        updateState({ engineMode: info?.name || 'jsvoice' });
+      } catch { updateState({ engineMode: 'jsvoice' }); }
     } catch (err: any) {
-      voiceState.error = err.message || 'Failed to start voice';
-      notify();
+      updateState({ error: err.message || 'Failed to start voice' });
     }
   }, []);
 
   const stop = useCallback(() => {
     voiceInstance?.stop();
-    voiceState.listening = false;
-    voiceState.wakeWordDetected = false;
-    notify();
+    updateState({ listening: false, wakeWordDetected: false });
   }, []);
 
   const toggle = useCallback(() => {
