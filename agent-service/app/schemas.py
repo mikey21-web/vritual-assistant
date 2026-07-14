@@ -71,3 +71,4 @@ class SharedMikeyState(TypedDict, total=False):
     next_agent: Literal["supervisor", "lead_voice", "operator_voice"] | None
     working_memory: dict | None
     procedural_rules: list[dict] | None
+    niche_benchmarks: list[dict] | None

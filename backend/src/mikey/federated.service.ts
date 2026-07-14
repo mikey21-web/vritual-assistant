@@ -139,100 +139,51 @@ export class FederatedService {
     };
   }
 
-  async pushToAggregator(tenantId: string): Promise<boolean> {
-    const localData = await this.getLocalForPush(tenantId);
-    if (!localData) {
-      this.logger.warn(`Federated: insufficient data for tenant ${tenantId}`);
-      return false;
-    }
+  async pullBenchmarksFromAggregator(niche: string): Promise<NicheBenchmark[]> {
+    const aggregatorUrl = this.config.get<string>('FEDERATED_AGGREGATOR_URL');
+    if (!aggregatorUrl) return [];
 
     try {
-      const aggregatorUrl = this.config.get<string>('FEDERATED_AGGREGATOR_URL');
-      if (!aggregatorUrl) {
-        this.logger.warn('Federated: no aggregator URL configured — storing locally');
-
-        await this.prisma.systemEvent.create({
-          data: {
-            type: 'mikey.federated_aggregate',
-            source: 'federated-service',
-            entityType: 'tenant',
-            entityId: tenantId,
-            payload: localData as any,
-          },
-        });
-        return true;
-      }
-
       const https = await import('https');
       const http = await import('http');
       const transporter = aggregatorUrl.startsWith('https') ? https : http;
+      const url = new URL(aggregatorUrl);
 
       return new Promise((resolve) => {
-        const data = JSON.stringify(localData);
-        const url = new URL(aggregatorUrl);
-        const req = transporter.request(
-          {
-            hostname: url.hostname,
-            port: url.port,
-            path: '/api/v1/federated/push',
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) },
-          },
+        const req = transporter.get(
+          `${url.protocol}//${url.hostname}${url.port ? ':' + url.port : ''}/mikey/aggregator/benchmarks?niche=${encodeURIComponent(niche)}`,
           (res) => {
-            resolve(res.statusCode === 200);
+            let data = '';
+            res.on('data', (chunk: string) => data += chunk);
+            res.on('end', () => {
+              try {
+                const parsed = JSON.parse(data);
+                resolve(parsed.benchmarks || []);
+              } catch {
+                resolve([]);
+              }
+            });
           },
         );
-        req.on('error', () => resolve(false));
-        req.write(data);
+        req.on('error', () => resolve([]));
         req.end();
       });
-    } catch (err: any) {
-      this.logger.error(`Federated push failed: ${err.message}`);
-      return false;
+    } catch {
+      return [];
     }
   }
 
   async getLocalBenchmarks(tenantId: string): Promise<NicheBenchmark[]> {
     const niche = await this.getNicheForTenant(tenantId);
-    const myAggs = await this.computeLocalAggregates(tenantId);
-    const myMap = new Map(myAggs.map(a => [a.metric, a]));
 
-    const events = await this.prisma.systemEvent.findMany({
-      where: {
-        type: 'mikey.federated_aggregate',
-        createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
-      },
-      take: 1000,
-    });
-
-    const peerAggs: Map<string, number[]> = new Map();
-    for (const e of events) {
-      const payload = e.payload as any;
-      if (!payload?.niche || payload.niche !== niche) continue;
-      if (!payload?.aggregates) continue;
-      for (const a of payload.aggregates) {
-        if (!peerAggs.has(a.metric)) peerAggs.set(a.metric, []);
-        peerAggs.get(a.metric)!.push(a.value);
-      }
+    const aggregatorBenchmarks = await this.pullBenchmarksFromAggregator(niche);
+    if (aggregatorBenchmarks.length > 0) {
+      this.logger.log(`Federated: pulled ${aggregatorBenchmarks.length} benchmarks from aggregator for niche "${niche}"`);
+      return aggregatorBenchmarks;
     }
 
-    const benchmarks: NicheBenchmark[] = [];
-    for (const [metric, values] of peerAggs) {
-      if (values.length < this.MIN_COHORT_SIZE) continue;
-      const sorted = [...values].sort((a, b) => a - b);
-      benchmarks.push({
-        niche,
-        metric,
-        avgValue: sorted.reduce((s, v) => s + v, 0) / sorted.length,
-        sampleSize: sorted.length,
-        p25: sorted[Math.floor(sorted.length * 0.25)],
-        p50: sorted[Math.floor(sorted.length * 0.5)],
-        p75: sorted[Math.floor(sorted.length * 0.75)],
-        p90: sorted[Math.floor(sorted.length * 0.9)],
-      });
-    }
-
-    return benchmarks;
+    this.logger.warn(`Federated: no aggregator benchmarks available for niche "${niche}". Push your local data first.`);
+    return [];
   }
 
   private async getNicheForTenant(tenantId: string): Promise<string> {
@@ -247,6 +198,7 @@ export class FederatedService {
     const localData = await this.computeLocalAggregates(tenantId);
     const dpApplied = localData.filter(a => a.noise !== -1).length;
     const suppressed = localData.filter(a => a.noise === -1).length;
+    const optIn = await this.getOptIn(tenantId);
     return {
       tenantId,
       totalMetrics: localData.length,
@@ -256,6 +208,84 @@ export class FederatedService {
       minCohortSize: this.MIN_COHORT_SIZE,
       rawDataNeverLeaves: true,
       onlyAggregatesTransmitted: true,
+      optedIn: optIn,
     };
+  }
+
+  async setOptIn(tenantId: string, optedIn: boolean) {
+    return this.prisma.federatedOptIn.upsert({
+      where: { tenantId },
+      create: { tenantId, optedIn },
+      update: { optedIn },
+    });
+  }
+
+  async getOptIn(tenantId: string): Promise<boolean> {
+    const record = await this.prisma.federatedOptIn.findUnique({ where: { tenantId } });
+    return record?.optedIn ?? false;
+  }
+
+  async shouldShareWithAggregator(tenantId: string): Promise<boolean> {
+    const optedIn = await this.getOptIn(tenantId);
+    if (!optedIn) {
+      this.logger.debug(`Federated: tenant ${tenantId} has not opted in — skipping push`);
+      return false;
+    }
+    return true;
+  }
+
+  async pushToAggregator(tenantId: string): Promise<boolean> {
+    if (!(await this.shouldShareWithAggregator(tenantId))) return false;
+    const aggregatorUrl = this.config.get<string>('FEDERATED_AGGREGATOR_URL');
+    if (!aggregatorUrl) {
+      this.logger.warn('Federated: no aggregator URL configured — push skipped.');
+      return false;
+    }
+    const localData = await this.getLocalForPush(tenantId);
+    if (!localData) return false;
+    // ... rest of push logic stays the same
+    return this._doPush(aggregatorUrl, localData);
+  }
+
+  private async _doPush(aggregatorUrl: string, localData: any): Promise<boolean> {
+    try {
+      const https = await import('https');
+      const http = await import('http');
+      const transporter = aggregatorUrl.startsWith('https') ? https : http;
+      const url = new URL(aggregatorUrl);
+
+      const body = JSON.stringify({
+        niche: localData.niche,
+        tenantId: localData.tenantId,
+        aggregates: localData.aggregates,
+        computedAt: localData.computedAt,
+      });
+
+      return new Promise((resolve) => {
+        const req = transporter.request(
+          {
+            hostname: url.hostname,
+            port: url.port,
+            path: '/mikey/aggregator/push',
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+          },
+          (res) => {
+            let data = '';
+            res.on('data', (chunk: string) => data += chunk);
+            res.on('end', () => resolve(res.statusCode === 200));
+          },
+        );
+        req.on('error', (err: Error) => {
+          this.logger.error(`Federated: push request failed: ${err.message}`);
+          resolve(false);
+        });
+        req.write(body);
+        req.end();
+      });
+    } catch (err: any) {
+      this.logger.error(`Federated push failed: ${err.message}`);
+      return false;
+    }
   }
 }

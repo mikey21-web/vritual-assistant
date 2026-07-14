@@ -16,7 +16,7 @@ class MemoryError(Exception):
 
 @dataclass
 class MemoryEntry:
-    type: str  # WORKING | EPISODIC | SEMANTIC | PROCEDURAL
+    type: str
     key: str
     value: str
     summary: str | None = None
@@ -166,6 +166,36 @@ class MemoryClient:
             params["category"] = category
         try:
             r = await self.client.get(self._url("/rules/active"), params=params)
+            if r.is_success:
+                data = r.json()
+                return data if isinstance(data, list) else data.get("data", [])
+            return []
+        except Exception:
+            return []
+
+    async def get_relevant_rules(self, context: str, category: str | None = None, max_rules: int = 5) -> list[dict]:
+        try:
+            r = await self.client.post(
+                self._url("/rules/relevant"),
+                json={
+                    "tenantId": self.tenant_id,
+                    "context": context,
+                    "category": category,
+                    "maxRules": max_rules,
+                },
+            )
+            if r.is_success:
+                data = r.json()
+                return data if isinstance(data, list) else data.get("data", [])
+            return []
+        except Exception:
+            return []
+
+    async def get_benchmarks(self, niche: str) -> list[dict]:
+        try:
+            r = await self.client.get(
+                f"{self.base}/mikey/federated/benchmarks/{self.tenant_id}",
+            )
             if r.is_success:
                 data = r.json()
                 return data if isinstance(data, list) else data.get("data", [])

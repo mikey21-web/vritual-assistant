@@ -48,6 +48,19 @@ export class MemoryController {
     return this.memory.recallRecent(tenantId, type, limit ? parseInt(limit, 10) : 10);
   }
 
+  @Post('search/similar')
+  async searchSimilar(@Body() body: { tenantId: string; query: string; type?: any; leadId?: string; topK?: number }) {
+    return this.memory.searchBySimilarity(body.tenantId, body.query, body.type, body.leadId, body.topK);
+  }
+
+  @Post('store-embedding')
+  async storeWithEmbedding(@Body() body: {
+    tenantId: string; type: any; key: string; value: string;
+    summary?: string; source?: string; leadId?: string; confidence?: number;
+  }) {
+    return this.memory.storeWithEmbedding(body.tenantId, body);
+  }
+
   @Get('working')
   async working(
     @Query('tenantId') tenantId: string,
@@ -79,6 +92,16 @@ export class MemoryController {
   @Get('rules/active')
   async getActiveRules(@Query('tenantId') tenantId: string, @Query('category') category?: string) {
     return this.memory.getActiveRules(tenantId, category);
+  }
+
+  @Post('rules/relevant')
+  async getRelevantRules(@Body() body: { tenantId: string; context: string; category?: string; maxRules?: number }) {
+    return this.memory.getRelevantRules(body.tenantId, body.context, body.category, body.maxRules);
+  }
+
+  @Post('rules/record-impact')
+  async recordRuleImpact(@Body() body: { ruleId: string; impactDelta: number; metric: string }) {
+    return this.memory.recordRuleImpact(body.ruleId, body.impactDelta, body.metric);
   }
 
   @Get('rules/pending')

@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Param, Query, Logger } from '@nestjs/common';
+import { Controller, Post, Get, Param, Query, Body, Logger } from '@nestjs/common';
 import { FederatedService } from './federated.service';
 
 @Controller('mikey/federated')
@@ -26,5 +26,16 @@ export class FederatedController {
   @Get('privacy-report/:tenantId')
   async getPrivacyReport(@Param('tenantId') tenantId: string) {
     return this.federated.getPrivacyReport(tenantId);
+  }
+
+  @Get('opt-in/:tenantId')
+  async getOptIn(@Param('tenantId') tenantId: string) {
+    const optedIn = await this.federated.getOptIn(tenantId);
+    return { tenantId, optedIn };
+  }
+
+  @Post('opt-in/:tenantId')
+  async setOptIn(@Param('tenantId') tenantId: string, @Body() body: { optedIn: boolean }) {
+    return this.federated.setOptIn(tenantId, body.optedIn);
   }
 }

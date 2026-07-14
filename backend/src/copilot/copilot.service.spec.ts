@@ -18,6 +18,8 @@ import { ContactsService } from '../contacts/contacts.service';
 import { KhojClientService } from '../khoj-client/khoj-client.service';
 import { MikeyService } from '../mikey/mikey.service';
 import { OutcomeEngineService } from '../mikey/outcome-engine.service';
+import { MemoryService } from '../mikey/memory.service';
+import { FederatedService } from '../mikey/federated.service';
 
 function toolCallResponse(name: string, args: any) {
   return {
@@ -78,6 +80,8 @@ describe('CopilotService', () => {
         { provide: KhojClientService, useValue: { query: jest.fn().mockResolvedValue(null) } },
         { provide: MikeyService, useValue: { runAutonomousAction: jest.fn() } },
         { provide: OutcomeEngineService, useValue: { defineOutcome: jest.fn() } },
+        { provide: MemoryService, useValue: { recallRecent: jest.fn().mockResolvedValue([]) } },
+        { provide: FederatedService, useValue: { getLocalBenchmarks: jest.fn().mockResolvedValue([]) } },
       ],
     }).compile();
 

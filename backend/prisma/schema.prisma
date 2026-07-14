@@ -2526,6 +2526,34 @@ model InventoryAllocation {
   @@map("inventory_allocations")
 }
 
+// === PEAK MIKEY — P5 FEDERATED AGGREGATOR ===
+
+model FederatedOptIn {
+  id        String   @id @default(uuid())
+  tenantId  String   @unique @map("tenant_id")
+  optedIn   Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@map("federated_opt_ins")
+}
+
+model FederatedAggregate {
+  id         String   @id @default(uuid())
+  niche      String
+  tenantId   String   @map("tenant_id")
+  metric     String
+  value      Float
+  noise      Float
+  sampleSize Int
+  reportedAt DateTime @default(now())
+  expiresAt  DateTime?
+
+  @@index([niche, metric])
+  @@index([reportedAt])
+  @@map("federated_aggregates")
+}
+
 // === PEAK MIKEY — P3 REAL MEMORY SYSTEM ===
 
 enum MemoryType {
@@ -2549,6 +2577,7 @@ model MikeyMemory {
   validAt      DateTime   @default(now())
   invalidAt    DateTime?
   confidence   Float      @default(0.5)
+  embedding    Float[]   @default([]) // pgvector embedding
   metadata     Json       @default("{}")
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt

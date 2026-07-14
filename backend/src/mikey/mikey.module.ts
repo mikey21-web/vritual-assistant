@@ -11,10 +11,12 @@ import { ReflexionService } from './reflexion.service';
 import { ReflexionController } from './reflexion.controller';
 import { FederatedService } from './federated.service';
 import { FederatedController } from './federated.controller';
+import { AggregatorController } from './aggregator.controller';
+import { EmbeddingService } from './embedding.service';
 import { MikeyController } from './mikey.controller';
 
 @Module({
-  controllers: [MikeyController, MemoryController, ReflexionController, FederatedController],
+  controllers: [MikeyController, MemoryController, ReflexionController, FederatedController, AggregatorController],
   providers: [
     MikeySchedulerService,
     OutcomeEngineService,
@@ -23,6 +25,7 @@ import { MikeyController } from './mikey.controller';
     StaffAwarenessService,
     MetaCycleService,
     MemoryService,
+    EmbeddingService,
     ReflexionService,
     FederatedService,
   ],
@@ -33,6 +36,7 @@ import { MikeyController } from './mikey.controller';
     StaffAwarenessService,
     MetaCycleService,
     MemoryService,
+    EmbeddingService,
     ReflexionService,
     FederatedService,
   ],

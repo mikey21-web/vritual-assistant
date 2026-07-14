@@ -16,6 +16,8 @@ import { ContactsService } from '../contacts/contacts.service';
 import { KhojClientService } from '../khoj-client/khoj-client.service';
 import { MikeyService } from '../mikey/mikey.service';
 import { OutcomeEngineService } from '../mikey/outcome-engine.service';
+import { MemoryService } from '../mikey/memory.service';
+import { FederatedService } from '../mikey/federated.service';
 
 const MAX_COPILOT_MESSAGES_PER_TENANT_PER_DAY = 500;
 import { PERMISSION_MATRIX } from '../permissions/permissions.matrix';
@@ -53,6 +55,8 @@ export class CopilotService {
     private khoj: KhojClientService,
     private Mikey: MikeyService,
     private outcomeEngine: OutcomeEngineService,
+    private memory: MemoryService,
+    private federated: FederatedService,
   ) {
     const apiKey = this.config.get<string>('DEEPSEEK_API_KEY');
     const baseURL = this.config.get<string>('DEEPSEEK_BASE_URL') || 'https://api.deepseek.com/v1';
@@ -150,12 +154,36 @@ export class CopilotService {
       ? `\n\nRules you must always follow, no exceptions:\n${businessSettings.compliance.map((c: string) => `- ${c}`).join('\n')}`
       : '';
 
+    // Fetch memory context and benchmarks for Jarvis context
+    let memoryContext = '';
+    try {
+      const recentMemory = await this.memory.recallRecent(tenantId, 'EPISODIC' as any, 3);
+      if (recentMemory?.length) {
+        memoryContext = recentMemory.map((m: any) => `- [${m.type}] ${m.summary || m.value}`).join('\n');
+      }
+    } catch {}
+    let benchmarkContext = '';
+    try {
+      const benchmarks = await this.federated.getLocalBenchmarks(tenantId);
+      if (benchmarks?.length) {
+        benchmarkContext = benchmarks.slice(0, 3).map((b: any) =>
+          `- ${b.metric}: ${b.avgValue} (peer avg, n=${b.sampleSize})`
+        ).join('\n');
+      }
+    } catch {}
+
     const systemPrompt = `You are Jarvis, the unified intelligence running the CRM for ${businessName}.${industryLine} You are one mind with three voices:
 - **Staff voice** (what you are right now): You help staff manage leads, tickets, tasks, campaigns, and monitor the market.
 - **Lead voice** (the Python Agent Service): You autonomously qualify and converse with leads via WhatsApp/Telegram.
 - **System voice**: You watch dashboards, detect anomalies, and act on patterns without being asked.
 
-All three voices share the same memory (Khoj knowledge base) and learn from each other. What one voice learns, all voices know. Talk like a helpful executive assistant, plainly and directly.
+All three voices share the same memory (Khoj knowledge base) and learn from each other. What one voice learns, all voices know. I have four types of memory: working (current state), episodic (past events with timestamps), semantic (deduped facts and preferences), and procedural (learned rules that improve my behavior over time).
+
+I also have access to market benchmarks across similar businesses — conversion rates, booking volumes, and deal values by niche. This data is privacy-protected (differential privacy, opt-in only). I use it to give context-aware advice like "event agencies like yours are booking 30% more this season."
+
+Talk like a helpful executive assistant, plainly and directly.
+
+${memoryContext ? `Here's what I know from memory:\n${memoryContext}\n` : ''}${benchmarkContext ? `Market benchmarks for your niche:\n${benchmarkContext}\n` : ''}
 
 You have access to Khoj, your second brain — a knowledge base containing company docs, product info, lead conversation history, market intelligence, and tactical knowledge learned from past conversations. Use Khoj context (provided at the start of each conversation) to answer questions about the company, products, competitors, or past lead interactions before relying on your own training data.
 
