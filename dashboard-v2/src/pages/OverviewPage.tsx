@@ -85,23 +85,23 @@ export default function OverviewPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 border border-[var(--border)] rounded-xl overflow-hidden divide-y sm:divide-y-0 sm:divide-x divide-[var(--border)]">
         {cards.map((c, i) => (
           <div key={c.label}
-            className={`rounded-xl bg-[var(--card)] border border-[var(--border)] p-5 shadow-[var(--shadow-sm)] transition-all duration-200 cursor-default animate-fade-up delay-${Math.min(i + 1, 8)}`}>
-            <div className="flex items-center justify-between mb-4">
-              <div className="h-9 w-9 rounded-lg bg-[var(--primary-light)] flex items-center justify-center">
-                <c.icon size={17} className="text-[var(--primary)]" />
+            className={`bg-[var(--card)] p-5 transition-all duration-200 cursor-default animate-fade-up delay-${Math.min(i + 1, 8)}`}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-1.5 text-xs font-medium text-[var(--muted-foreground)]">
+                <c.icon size={13} />
+                {c.label}
               </div>
               {c.change && (
-                <span className="flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-full">
+                <span className="flex items-center gap-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
                   <ArrowUpRight size={10} />
                   {c.change}
                 </span>
               )}
             </div>
-            <div className="text-2xl font-bold text-[var(--foreground)]">{c.value}</div>
-            <div className="text-xs text-[var(--muted-foreground)] mt-0.5">{c.label}</div>
+            <div className="text-2xl font-bold text-[var(--foreground)] tracking-tight">{c.value}</div>
           </div>
         ))}
       </div>
@@ -187,11 +187,9 @@ export default function OverviewPage() {
               <a
                 key={action.label}
                 href={action.href}
-                className="group flex items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--background)] p-4 transition-all duration-200 hover:shadow-[var(--shadow-md)] hover:-translate-y-0.5"
+                className="group flex items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--background)] p-4 transition-colors duration-150 hover:border-[var(--ring)]"
               >
-                <div className="h-9 w-9 rounded-lg bg-[var(--primary-light)] flex items-center justify-center shrink-0">
-                  <action.icon size={16} className="text-[var(--primary)]" />
-                </div>
+                <action.icon size={15} className="text-[var(--muted-foreground)] group-hover:text-[var(--primary)] transition-colors shrink-0" />
                 <div>
                   <div className="text-sm font-medium text-[var(--foreground)]">{action.label}</div>
                   <div className="text-xs text-[var(--muted-foreground)] mt-0.5">{action.desc}</div>
