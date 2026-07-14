@@ -146,12 +146,12 @@ export default function VoiceCommandUI() {
     <>
       <button
         onClick={() => { voice.start(); setActive(true); }}
-        className="fixed bottom-6 right-6 z-[999] w-12 h-12 rounded-full shadow-lg flex items-center justify-center bg-[var(--card)] text-[var(--foreground)] border border-[var(--border)] hover:bg-[var(--accent)] hover:scale-105 transition-all duration-200"
+        className="fixed bottom-6 right-6 z-[999] w-12 h-12 rounded-full shadow-lg flex items-center justify-center bg-[var(--card)] text-[var(--foreground)] border border-[var(--border)] hover:bg-[var(--accent)] hover:scale-105 transition-all duration-200 [body.overlay-open_&]:hidden"
         title="Activate Mikey Voice (Ctrl+H)"
       >
         <Mic size={18} />
       </button>
-      <div className="fixed bottom-20 right-6 z-[999] text-[10px] text-[var(--muted-foreground)] opacity-50 text-right">
+      <div className="fixed bottom-20 right-6 z-[999] text-[10px] text-[var(--muted-foreground)] opacity-50 text-right [body.overlay-open_&]:hidden">
         <kbd className="px-1 py-0.5 rounded bg-[var(--accent)] font-mono">Ctrl+H</kbd>
       </div>
     </>
