@@ -67,7 +67,7 @@ const hospitality: NicheConfig = {
 const healthcare: NicheConfig = {
   businessName: "CarePlus Clinic", primaryColor: "#2563EB",
   labels: { lead: "Patient Inquiry", leads: "Patient Inquiries", contact: "Patient", conversion: "Appointment" },
-  features: { overview: true, leads: true, pipeline: true, contacts: true, calls: true, syncLogs: true, conversions: true, settings: true, import: true, adIntegrations: false, websiteCrawler: false, nurture: false, scoring: false, routing: false, crm: false, booking: true, tickets: false, knowledgeBase: false, media: false, qrCodes: false, reports: false, campaigns: false, forms: true, messages: true, templates: true, aiCampaigns: false, aiAgent: true, copilot: false, webhooks: false, sms: false, widget: true, tasks: true, integrations: false, analytics: true, studio: false, events: false, finance: false, procurement: false, inventory: false, teamHr: true, publicProfile: true },
+  features: { overview: true, leads: true, pipeline: true, contacts: true, calls: true, syncLogs: true, conversions: true, settings: true, import: true, adIntegrations: false, websiteCrawler: false, nurture: true, scoring: true, routing: false, crm: true, booking: true, tickets: false, knowledgeBase: false, media: false, qrCodes: false, reports: true, campaigns: false, forms: true, messages: true, templates: true, aiCampaigns: false, aiAgent: true, copilot: false, webhooks: false, sms: true, widget: true, tasks: true, integrations: false, analytics: true, studio: false, events: false, finance: false, procurement: false, inventory: false, teamHr: true, publicProfile: true },
 };
 
 const agency: NicheConfig = {
@@ -79,7 +79,7 @@ const agency: NicheConfig = {
 const logistics: NicheConfig = {
   businessName: "SwiftFreight Logistics", primaryColor: "#EA580C",
   labels: { lead: "Shipper", leads: "Shippers", contact: "Contact", conversion: "Shipment" },
-  features: { overview: true, leads: true, pipeline: true, contacts: true, calls: true, syncLogs: true, conversions: true, settings: true, import: true, adIntegrations: false, websiteCrawler: false, nurture: false, scoring: false, routing: false, crm: false, booking: true, tickets: false, knowledgeBase: false, media: false, qrCodes: true, reports: false, campaigns: false, forms: true, messages: true, templates: true, aiCampaigns: false, aiAgent: true, copilot: false, webhooks: true, sms: false, widget: true, tasks: true, integrations: true, analytics: true, studio: false, events: false, finance: false, procurement: true, inventory: false, teamHr: false, publicProfile: true },
+  features: { overview: true, leads: true, pipeline: true, contacts: true, calls: true, syncLogs: true, conversions: true, settings: true, import: true, adIntegrations: false, websiteCrawler: false, nurture: true, scoring: true, routing: true, crm: true, booking: true, tickets: false, knowledgeBase: false, media: true, qrCodes: true, reports: true, campaigns: false, forms: true, messages: true, templates: true, aiCampaigns: false, aiAgent: true, copilot: false, webhooks: true, sms: true, widget: true, tasks: true, integrations: true, analytics: true, studio: false, events: false, finance: false, procurement: true, inventory: false, teamHr: false, publicProfile: true },
 };
 
 const eventMarketing: NicheConfig = {
