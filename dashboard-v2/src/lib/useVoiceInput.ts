@@ -21,6 +21,7 @@ let voiceState: VoiceInputState = {
   engineMode: 'idle',
 };
 let wakeWordPending = false;
+let unsubSnapshot: (() => void) | null = null;
 const WAKE_WORD = 'okay mikey';
 
 function notify() { listeners.forEach(l => l()); }
@@ -28,6 +29,46 @@ function notify() { listeners.forEach(l => l()); }
 function updateState(partial: Partial<VoiceInputState>) {
   voiceState = { ...voiceState, ...partial };
   notify();
+}
+
+/* 
+ * jsvoice's dist bundle never calls the user's onResult option through the
+ * engine pipeline. Results arrive only via onCommandRecognized / onCommandNotRecognized
+ * events through the subscribe() API. We subscribe to those instead.
+ */
+function handleTranscript(text: string) {
+  if (!text) return;
+  const t = text.toLowerCase().trim();
+  if (!t) return;
+
+  if (!wakeWordPending) {
+    if (t.includes(WAKE_WORD)) {
+      wakeWordPending = true;
+      updateState({ wakeWordDetected: true });
+      const after = t.replace(WAKE_WORD, '').trim();
+      if (after) {
+        wakeWordPending = false;
+        updateState({ transcript: after, wakeWordDetected: false });
+      }
+      return;
+    }
+    return;
+  }
+
+  wakeWordPending = false;
+  updateState({ wakeWordDetected: false });
+  const after = t.replace(WAKE_WORD, '').trim();
+  updateState({ transcript: after || t });
+}
+
+function subscribeVoice(voice: JSVoice) {
+  unsubSnapshot = voice.subscribe((_snap: any, event: any) => {
+    if (!event) return;
+    if (event.type === 'onCommandNotRecognized' || event.type === 'onCommandRecognized') {
+      const raw = Array.isArray(event.payload) ? event.payload[0] : '';
+      if (raw) handleTranscript(raw);
+    }
+  });
 }
 
 export function useVoiceInput() {
@@ -54,30 +95,6 @@ export function useVoiceInput() {
         autoRestart: true,
         restartDelay: 1000,
         wakeWord: null,
-        onResult: (transcript: string, isFinal: boolean) => {
-          if (!isFinal || !transcript) return;
-          const text = transcript.toLowerCase().trim();
-          if (!text) return;
-
-          if (!wakeWordPending) {
-            if (text.includes(WAKE_WORD)) {
-              wakeWordPending = true;
-              updateState({ wakeWordDetected: true });
-              const afterWake = text.replace(WAKE_WORD, '').trim();
-              if (afterWake) {
-                wakeWordPending = false;
-                updateState({ transcript: afterWake, wakeWordDetected: false });
-              }
-              return;
-            }
-            return;
-          }
-
-          wakeWordPending = false;
-          updateState({ wakeWordDetected: false });
-          const clean = text.replace(WAKE_WORD, '').trim();
-          updateState({ transcript: clean || text });
-        },
         onError: (err: any) => {
           updateState({ error: err.message || 'Voice error' });
         },
@@ -85,6 +102,7 @@ export function useVoiceInput() {
           updateState({ engineMode: info?.name || 'jsvoice' });
         },
       });
+      subscribeVoice(voiceInstance);
     }
 
     try {
@@ -109,6 +127,10 @@ export function useVoiceInput() {
     if (voiceState.listening) stop();
     else start();
   }, [start, stop]);
+
+  useEffect(() => {
+    return () => { if (unsubSnapshot) { unsubSnapshot(); unsubSnapshot = null; } };
+  }, []);
 
   return {
     supported: state.supported,
