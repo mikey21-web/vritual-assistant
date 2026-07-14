@@ -5,6 +5,10 @@ import {
 } from '../lib/data';
 import { Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { Drawer } from '../components/ui/drawer';
+import { Input } from '../components/ui/input';
+import { Select } from '../components/ui/select';
+import { Button } from '../components/ui/button';
 
 const SUB_TABS = ['Transactions', 'Invoices', 'Receivables', 'Event Analytics', 'Tax', 'Reports'];
 
@@ -49,9 +53,9 @@ export default function AccountingPage() {
           <h1 className="text-2xl font-bold text-[var(--foreground)]">Accounting & Finance</h1>
           <p className="text-sm text-[var(--muted-foreground)] mt-1">Manage finances, invoices, and tax totals.</p>
         </div>
-        <button onClick={() => setShowAddTxn(true)} className="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90">
+        <Button onClick={() => setShowAddTxn(true)}>
           <Plus size={16} /> Add transaction
-        </button>
+        </Button>
       </div>
 
       <div className="flex gap-1 border-b border-[var(--border)]">
@@ -63,25 +67,29 @@ export default function AccountingPage() {
         ))}
       </div>
 
-      {showAddTxn && (
-        <form onSubmit={addTxn} className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 space-y-3">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <input placeholder="Description" value={txnForm.description} onChange={e => setTxnForm({ ...txnForm, description: e.target.value })} required
-              className="col-span-2 h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)]" />
-            <select value={txnForm.type} onChange={e => setTxnForm({ ...txnForm, type: e.target.value })}
-              className="h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)]">
+      <Drawer
+        open={showAddTxn}
+        onClose={() => setShowAddTxn(false)}
+        title="Add transaction"
+        description="Log income or expense."
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowAddTxn(false)}>Cancel</Button>
+            <Button type="submit" form="add-txn-form">Add transaction</Button>
+          </>
+        }
+      >
+        <form id="add-txn-form" onSubmit={addTxn} className="space-y-4">
+          <Input label="Description" value={txnForm.description} onChange={e => setTxnForm({ ...txnForm, description: e.target.value })} required />
+          <div className="grid grid-cols-2 gap-3">
+            <Select label="Type" value={txnForm.type} onChange={e => setTxnForm({ ...txnForm, type: e.target.value })}>
               <option value="INCOME">Income</option>
               <option value="EXPENSE">Expense</option>
-            </select>
-            <input type="number" placeholder="Amount" value={txnForm.amount} onChange={e => setTxnForm({ ...txnForm, amount: e.target.value })} required
-              className="h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)]" />
-          </div>
-          <div className="flex gap-2">
-            <button type="submit" className="h-9 px-4 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90">Add transaction</button>
-            <button type="button" onClick={() => setShowAddTxn(false)} className="h-9 px-4 rounded-lg border border-[var(--border)] text-sm text-[var(--foreground)]">Cancel</button>
+            </Select>
+            <Input label="Amount" type="number" value={txnForm.amount} onChange={e => setTxnForm({ ...txnForm, amount: e.target.value })} required />
           </div>
         </form>
-      )}
+      </Drawer>
 
       <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
         {tab === 'Transactions' && (

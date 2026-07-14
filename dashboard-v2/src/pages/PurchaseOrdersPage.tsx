@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { fetchPurchaseOrders, createPurchaseOrder, updatePurchaseOrder, fetchPartners } from '../lib/data';
 import { Plus, Package } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { Drawer } from '../components/ui/drawer';
+import { Input } from '../components/ui/input';
+import { Select } from '../components/ui/select';
+import { Button } from '../components/ui/button';
 
 function money(n: number | undefined) { return `₹${(n || 0).toLocaleString('en-IN')}`; }
 const STATUSES = ['DRAFT', 'SUBMITTED', 'PARTIAL', 'RECEIVED', 'CANCELLED'];
@@ -42,9 +46,9 @@ export default function PurchaseOrdersPage() {
           <h1 className="text-2xl font-bold text-[var(--foreground)]">Purchase Orders</h1>
           <p className="text-sm text-[var(--muted-foreground)] mt-1">Order inventory and materials from your suppliers.</p>
         </div>
-        <button onClick={() => setShowCreate(true)} className="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90">
+        <Button onClick={() => setShowCreate(true)}>
           <Plus size={16} /> New PO
-        </button>
+        </Button>
       </div>
 
       <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
@@ -62,32 +66,35 @@ export default function PurchaseOrdersPage() {
 
       <p className="text-xs text-[var(--muted-foreground)]">Purchase orders are for suppliers. To book vendors for event services, use Vendor Bookings from the event Vendors tab.</p>
 
-      <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="h-9 rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 text-sm text-[var(--foreground)]">
+      <Select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="max-w-xs">
         <option value="">All statuses</option>
         {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-      </select>
+      </Select>
 
-      {showCreate && (
-        <form onSubmit={create} className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-            <select value={form.partnerId} onChange={e => setForm({ ...form, partnerId: e.target.value })} required
-              className="h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)]">
-              <option value="">Search suppliers...</option>
-              {partners.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-            <input placeholder="Item / description" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} required
-              className="h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)]" />
-            <input type="number" placeholder="Qty" value={form.qty} onChange={e => setForm({ ...form, qty: e.target.value })}
-              className="h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)]" />
-            <input type="number" placeholder="Unit cost" value={form.unitCost} onChange={e => setForm({ ...form, unitCost: e.target.value })} required
-              className="h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)]" />
-          </div>
-          <div className="flex gap-2">
-            <button type="submit" className="h-9 px-4 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90">Create PO</button>
-            <button type="button" onClick={() => setShowCreate(false)} className="h-9 px-4 rounded-lg border border-[var(--border)] text-sm text-[var(--foreground)]">Cancel</button>
+      <Drawer
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        title="New purchase order"
+        description="Order inventory or materials from a supplier."
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
+            <Button type="submit" form="create-po-form">Create PO</Button>
+          </>
+        }
+      >
+        <form id="create-po-form" onSubmit={create} className="space-y-4">
+          <Select label="Supplier" value={form.partnerId} onChange={e => setForm({ ...form, partnerId: e.target.value })} required>
+            <option value="">Select supplier</option>
+            {partners.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </Select>
+          <Input label="Item / description" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} required />
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Qty" type="number" value={form.qty} onChange={e => setForm({ ...form, qty: e.target.value })} />
+            <Input label="Unit cost" type="number" value={form.unitCost} onChange={e => setForm({ ...form, unitCost: e.target.value })} required />
           </div>
         </form>
-      )}
+      </Drawer>
 
       {pos.length === 0 ? (
         <div className="text-center py-12 text-[var(--muted-foreground)]">

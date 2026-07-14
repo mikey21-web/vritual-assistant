@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { fetchPartners, createPartner } from '../lib/data';
 import { Plus, Truck } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { Drawer } from '../components/ui/drawer';
+import { Input } from '../components/ui/input';
+import { Select } from '../components/ui/select';
+import { Button } from '../components/ui/button';
 
 export default function PartnersPage() {
   const [partners, setPartners] = useState<any[]>([]);
@@ -37,9 +41,9 @@ export default function PartnersPage() {
           <h1 className="text-2xl font-bold text-[var(--foreground)]">Partners</h1>
           <p className="text-sm text-[var(--muted-foreground)] mt-1">Unified directory of every vendor and supplier. A single company can be both.</p>
         </div>
-        <button onClick={() => setShowCreate(true)} className="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90">
+        <Button onClick={() => setShowCreate(true)}>
           <Plus size={16} /> New partner
-        </button>
+        </Button>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -51,35 +55,38 @@ export default function PartnersPage() {
         ))}
       </div>
 
-      <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="h-9 rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 text-sm text-[var(--foreground)]">
+      <Select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="max-w-xs">
         <option value="">All types</option>
         <option value="VENDOR">Vendor</option>
         <option value="SUPPLIER">Supplier</option>
         <option value="BOTH">Both</option>
-      </select>
+      </Select>
 
-      {showCreate && (
-        <form onSubmit={create} className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-            <input placeholder="Name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required
-              className="h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)]" />
-            <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}
-              className="h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)]">
+      <Drawer
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        title="New partner"
+        description="Add a vendor or supplier to your directory."
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
+            <Button type="submit" form="create-partner-form">Create partner</Button>
+          </>
+        }
+      >
+        <form id="create-partner-form" onSubmit={create} className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
+            <Select label="Type" value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}>
               <option value="VENDOR">Vendor</option>
               <option value="SUPPLIER">Supplier</option>
               <option value="BOTH">Both (vendor + supplier)</option>
-            </select>
-            <input placeholder="Company" value={form.company} onChange={e => setForm({ ...form, company: e.target.value })}
-              className="h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)]" />
-            <input placeholder="Category" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}
-              className="h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)]" />
+            </Select>
           </div>
-          <div className="flex gap-2">
-            <button type="submit" className="h-9 px-4 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90">Create partner</button>
-            <button type="button" onClick={() => setShowCreate(false)} className="h-9 px-4 rounded-lg border border-[var(--border)] text-sm text-[var(--foreground)]">Cancel</button>
-          </div>
+          <Input label="Company" value={form.company} onChange={e => setForm({ ...form, company: e.target.value })} />
+          <Input label="Category" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} />
         </form>
-      )}
+      </Drawer>
 
       {partners.length === 0 ? (
         <div className="text-center py-12 text-[var(--muted-foreground)]">

@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { fetchTasks, createTask, updateTask } from '../lib/data';
-import { Plus, CheckCircle, Circle, X, ListTodo } from 'lucide-react';
+import { Plus, CheckCircle, Circle } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { Dialog } from '../components/ui/dialog';
+import { Input } from '../components/ui/input';
+import { Select } from '../components/ui/select';
+import { Button } from '../components/ui/button';
 
 export default function TasksPage() {
   const [data, setData] = useState<any>({ data: [], meta: {} });
@@ -38,42 +42,42 @@ export default function TasksPage() {
           <h1 className="text-2xl font-bold text-[var(--foreground)]">Tasks</h1>
           <p className="text-sm text-[var(--muted-foreground)] mt-1">{Array.isArray(items) ? items.length : 0} tasks</p>
         </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90 transition-opacity shadow-sm"
-        >
+        <Button onClick={() => setShowCreate(true)}>
           <Plus size={16} /> New Task
-        </button>
+        </Button>
       </div>
 
-      {showCreate && (
-        <form onSubmit={create} className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 animate-scale-in">
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-            <input
-              placeholder="Task title"
-              value={form.title}
-              onChange={e => setForm({ ...form, title: e.target.value })}
-              className="col-span-2 h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
-              required
-            />
-            <select
-              value={form.priority}
-              onChange={e => setForm({ ...form, priority: e.target.value })}
-              className="h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
-            >
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-            </select>
-            <div className="flex gap-2">
-              <button type="submit" className="h-9 px-4 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90">Add</button>
-              <button type="button" onClick={() => setShowCreate(false)} className="h-9 px-4 rounded-lg border border-[var(--border)] text-sm text-[var(--foreground)] hover:bg-[var(--accent)] transition-colors">
-                <X size={14} />
-              </button>
-            </div>
-          </div>
+      <Dialog
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        title="Create task"
+        description="Add a to-do or reminder for your team."
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
+            <Button type="submit" form="create-task-form">Create task</Button>
+          </>
+        }
+      >
+        <form id="create-task-form" onSubmit={create} className="space-y-4">
+          <Input
+            label="Title"
+            placeholder="e.g. Confirm catering count"
+            value={form.title}
+            onChange={e => setForm({ ...form, title: e.target.value })}
+            required
+          />
+          <Select
+            label="Priority"
+            value={form.priority}
+            onChange={e => setForm({ ...form, priority: e.target.value })}
+          >
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </Select>
         </form>
-      )}
+      </Dialog>
 
       <div className="space-y-2">
         {(!Array.isArray(items) || items.length === 0) ? (

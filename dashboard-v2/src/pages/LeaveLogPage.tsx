@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { fetchLeaveRequests, fetchLeaveStats, createLeaveRequest, updateLeaveRequest, fetchUsers } from '../lib/data';
 import toast from 'react-hot-toast';
+import { Dialog } from '../components/ui/dialog';
+import { Input } from '../components/ui/input';
+import { Select } from '../components/ui/select';
+import { Button } from '../components/ui/button';
 
 export default function LeaveLogPage() {
   const [requests, setRequests] = useState<any[]>([]);
@@ -54,25 +58,46 @@ export default function LeaveLogPage() {
         ))}
       </div>
 
-      {showRequest && (
-        <form onSubmit={request} className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <select value={form.userId} onChange={e => setForm({ ...form, userId: e.target.value })} required
-              className="h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)]">
-              <option value="">Team member</option>
-              {users.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}
-            </select>
-            <input type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} required
-              className="h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)]" />
-            <input type="date" value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })} required
-              className="h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)]" />
-          </div>
-          <div className="flex gap-2">
-            <button type="submit" className="h-9 px-4 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90">Request</button>
-            <button type="button" onClick={() => setShowRequest(false)} className="h-9 px-4 rounded-lg border border-[var(--border)] text-sm text-[var(--foreground)]">Cancel</button>
+      <Dialog
+        open={showRequest}
+        onClose={() => setShowRequest(false)}
+        title="Add leave request"
+        description="Record a planned leave for a team member."
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowRequest(false)}>Cancel</Button>
+            <Button type="submit" form="leave-request-form">Add</Button>
+          </>
+        }
+      >
+        <form id="leave-request-form" onSubmit={request} className="space-y-4">
+          <Select
+            label="Team member"
+            value={form.userId}
+            onChange={e => setForm({ ...form, userId: e.target.value })}
+            required
+          >
+            <option value="">Select</option>
+            {users.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}
+          </Select>
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Start"
+              type="date"
+              value={form.startDate}
+              onChange={e => setForm({ ...form, startDate: e.target.value })}
+              required
+            />
+            <Input
+              label="End"
+              type="date"
+              value={form.endDate}
+              onChange={e => setForm({ ...form, endDate: e.target.value })}
+              required
+            />
           </div>
         </form>
-      )}
+      </Dialog>
 
       {requests.length === 0 ? (
         <p className="text-center py-12 text-sm text-[var(--muted-foreground)]">No leave records yet.</p>

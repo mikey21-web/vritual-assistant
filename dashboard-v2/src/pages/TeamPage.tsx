@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../lib/api';
-import { UserPlus, Trash2, Users, Shield } from 'lucide-react';
+import { UserPlus, Trash2, Shield } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { fetchPermissionPresets, fetchUserPermissions, setUserPermission, applyPermissionPreset } from '../lib/data';
+import { Drawer } from '../components/ui/drawer';
+import { Input } from '../components/ui/input';
+import { Select } from '../components/ui/select';
+import { Button } from '../components/ui/button';
 
 const PERMISSION_MODULES = ['DASHBOARD', 'EVENTS', 'CRM', 'VENDORS', 'TEAM', 'TIMESHEET', 'ACCOUNTING', 'INVENTORY', 'PROCUREMENT'];
 const PERMISSION_LEVELS = ['NO_ACCESS', 'VIEW_ONLY', 'EDIT', 'FULL_ACCESS'];
@@ -82,56 +86,48 @@ export default function TeamPage() {
           <h1 className="text-2xl font-bold text-[var(--foreground)]">Team</h1>
           <p className="text-sm text-[var(--muted-foreground)] mt-1">{users.length} members</p>
         </div>
-        <button
-          onClick={() => setShowInvite(true)}
-          className="inline-flex items-center justify-center gap-2 h-9 px-4 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90 transition-opacity shadow-sm w-full sm:w-auto"
-        >
+        <Button onClick={() => setShowInvite(true)} className="w-full sm:w-auto">
           <UserPlus size={16} /> Invite Member
-        </button>
+        </Button>
       </div>
 
-      {showInvite && (
-        <form onSubmit={invite} className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 animate-scale-in">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-[var(--muted-foreground)] mb-1">Name</label>
-              <input
-                value={form.name}
-                onChange={e => setForm({ ...form, name: e.target.value })}
-                className="w-full h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-[var(--muted-foreground)] mb-1">Email</label>
-              <input
-                type="email"
-                value={form.email}
-                onChange={e => setForm({ ...form, email: e.target.value })}
-                className="w-full h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-[var(--muted-foreground)] mb-1">Role</label>
-              <select
-                value={form.role}
-                onChange={e => setForm({ ...form, role: e.target.value })}
-                className="w-full h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
-              >
-                {['SALES_AGENT', 'TEAM_LEAD', 'ADMIN', 'SUPER_ADMIN'].map(r => (
-                  <option key={r} value={r}>{r.replace('_', ' ')}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="flex justify-end mt-3">
-            <button type="submit" className="w-full sm:w-auto h-9 px-6 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90">
-              Invite
-            </button>
-          </div>
+      <Drawer
+        open={showInvite}
+        onClose={() => setShowInvite(false)}
+        title="Invite team member"
+        description="Add someone to your workspace and set their role."
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowInvite(false)}>Cancel</Button>
+            <Button type="submit" form="invite-team-form">Invite</Button>
+          </>
+        }
+      >
+        <form id="invite-team-form" onSubmit={invite} className="space-y-4">
+          <Input
+            label="Name"
+            value={form.name}
+            onChange={e => setForm({ ...form, name: e.target.value })}
+            required
+          />
+          <Input
+            label="Email"
+            type="email"
+            value={form.email}
+            onChange={e => setForm({ ...form, email: e.target.value })}
+            required
+          />
+          <Select
+            label="Role"
+            value={form.role}
+            onChange={e => setForm({ ...form, role: e.target.value })}
+          >
+            {['SALES_AGENT', 'TEAM_LEAD', 'ADMIN', 'SUPER_ADMIN'].map(r => (
+              <option key={r} value={r}>{r.replace('_', ' ')}</option>
+            ))}
+          </Select>
         </form>
-      )}
+      </Drawer>
 
       <div className="hidden sm:block rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden">
         <div className="overflow-x-auto">

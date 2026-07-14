@@ -24,6 +24,12 @@ const endpointInfo: Record<string, { label: string; description: string; auth: s
   chatbot: { label: 'Chatbot', description: 'Chat widget messages', auth: 'API Key (x-api-key)', icon: '🤖' },
   'mobile-app': { label: 'Mobile App', description: 'App event forwarding', auth: 'API Key (x-api-key)', icon: '📲' },
   payments: { label: 'Payments', description: 'Stripe payment events', auth: 'Stripe Signature', icon: '💳' },
+  indiamart: { label: 'IndiaMART', description: 'B2B buyer enquiries', auth: 'API Key or HMAC', icon: '🏭' },
+  '99acres': { label: '99acres', description: 'Property enquiries', auth: 'API Key or HMAC', icon: '🏠' },
+  justdial: { label: 'JustDial', description: 'Business enquiries', auth: 'API Key or HMAC', icon: '📋' },
+  magicbricks: { label: 'MagicBricks', description: 'Real estate enquiries', auth: 'API Key or HMAC', icon: '🔑' },
+  housing: { label: 'Housing.com', description: 'Property leads', auth: 'API Key or HMAC', icon: '🏡' },
+  tradeindia: { label: 'TradeIndia', description: 'B2B buyer enquiries', auth: 'API Key or HMAC', icon: '🌐' },
 };
 
 function isValidUrl(str: string): boolean {

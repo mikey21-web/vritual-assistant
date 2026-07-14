@@ -81,7 +81,7 @@ export default function OverviewPage() {
         </div>
         <h1 className="text-2xl font-bold text-[var(--foreground)]">{niche?.display_name || 'Dashboard'} Overview</h1>
         <p className="text-sm text-[var(--muted-foreground)] mt-1">
-          {niche ? `${niche.industry} · ${niche.conversion_goals?.join(', ') || 'No goals configured'}` : 'Loading configuration...'}
+          {niche ? `${niche.industry} · ${niche.conversion_goals?.join(', ') || 'No goals configured'}` : "Here's what's happening today."}
         </p>
       </div>
 

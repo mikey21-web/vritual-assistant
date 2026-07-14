@@ -68,6 +68,7 @@ import { KhojClientModule } from './khoj-client/khoj-client.module';
 import { MarketMonitorModule } from './market-monitor/market-monitor.module';
 import { MikeyModule } from './mikey/mikey.module';
 import { CallTrackingModule } from './call-tracking/call-tracking.module';
+import { PortalIntegrationsModule } from './portal-integrations/portal-integrations.module';
 
 @Module({
   imports: [
@@ -148,6 +149,7 @@ import { CallTrackingModule } from './call-tracking/call-tracking.module';
     MarketMonitorModule,
     MikeyModule,
     CallTrackingModule,
+    PortalIntegrationsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

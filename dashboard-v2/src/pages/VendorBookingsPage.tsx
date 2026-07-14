@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { fetchVendorBookings, createVendorBooking, updateVendorBooking, fetchPartners, fetchEvents } from '../lib/data';
 import { Plus, ClipboardList } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { Drawer } from '../components/ui/drawer';
+import { Input } from '../components/ui/input';
+import { Select } from '../components/ui/select';
+import { Button } from '../components/ui/button';
 
 function money(n: number | undefined) { return `₹${(n || 0).toLocaleString('en-IN')}`; }
 const STATUSES = ['DRAFT', 'SENT', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
@@ -52,9 +56,9 @@ export default function VendorBookingsPage() {
           <h1 className="text-2xl font-bold text-[var(--foreground)]">Vendor Bookings</h1>
           <p className="text-sm text-[var(--muted-foreground)] mt-1">Booking orders sent to your event vendors.</p>
         </div>
-        <button onClick={() => setShowCreate(true)} className="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90">
+        <Button onClick={() => setShowCreate(true)}>
           <Plus size={16} /> New Booking
-        </button>
+        </Button>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -66,37 +70,39 @@ export default function VendorBookingsPage() {
         ))}
       </div>
 
-      <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="h-9 rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 text-sm text-[var(--foreground)]">
+      <Select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="max-w-xs">
         <option value="">All</option>
         {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-      </select>
+      </Select>
 
-      {showCreate && (
-        <form onSubmit={create} className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <select value={form.partnerId} onChange={e => setForm({ ...form, partnerId: e.target.value })} required
-              className="h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)]">
-              <option value="">Select vendor</option>
-              {partners.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-            <select value={form.eventId} onChange={e => setForm({ ...form, eventId: e.target.value })} required
-              className="h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)]">
-              <option value="">Link to event</option>
-              {events.map((ev: any) => <option key={ev.id} value={ev.id}>{ev.title}</option>)}
-            </select>
-            <input placeholder="Title" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} required
-              className="h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)]" />
-            <input type="number" placeholder="Agreed fee" value={form.agreedFee} onChange={e => setForm({ ...form, agreedFee: e.target.value })}
-              className="h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)]" />
-            <input type="number" placeholder="Advance amount" value={form.advanceAmount} onChange={e => setForm({ ...form, advanceAmount: e.target.value })}
-              className="h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)]" />
-          </div>
-          <div className="flex gap-2">
-            <button type="submit" className="h-9 px-4 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90">Create booking</button>
-            <button type="button" onClick={() => setShowCreate(false)} className="h-9 px-4 rounded-lg border border-[var(--border)] text-sm text-[var(--foreground)]">Cancel</button>
+      <Drawer
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        title="New vendor booking"
+        description="Document a booking order sent to a vendor."
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
+            <Button type="submit" form="create-booking-form">Create booking</Button>
+          </>
+        }
+      >
+        <form id="create-booking-form" onSubmit={create} className="space-y-4">
+          <Select label="Vendor" value={form.partnerId} onChange={e => setForm({ ...form, partnerId: e.target.value })} required>
+            <option value="">Select vendor</option>
+            {partners.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </Select>
+          <Select label="Link to event" value={form.eventId} onChange={e => setForm({ ...form, eventId: e.target.value })} required>
+            <option value="">Select event</option>
+            {events.map((ev: any) => <option key={ev.id} value={ev.id}>{ev.title}</option>)}
+          </Select>
+          <Input label="Title" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} required />
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Agreed fee" type="number" value={form.agreedFee} onChange={e => setForm({ ...form, agreedFee: e.target.value })} />
+            <Input label="Advance amount" type="number" value={form.advanceAmount} onChange={e => setForm({ ...form, advanceAmount: e.target.value })} />
           </div>
         </form>
-      )}
+      </Drawer>
 
       {bookings.length === 0 ? (
         <div className="text-center py-12 text-[var(--muted-foreground)]">

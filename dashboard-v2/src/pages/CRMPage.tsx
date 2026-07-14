@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../lib/api';
-import { Plus, Trash2, X, TestTube, Building, Edit3 } from 'lucide-react';
+import { Plus, Trash2, X, TestTube, Edit3 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { Dialog } from '../components/ui/dialog';
+import { Input } from '../components/ui/input';
+import { Select } from '../components/ui/select';
+import { Button } from '../components/ui/button';
 
 const crmTypes = ['HUBSPOT', 'SALESFORCE', 'ZOHO'];
 const crmIcons: Record<string, string> = { HUBSPOT: '🔵', SALESFORCE: '☁️', ZOHO: '🟢' };
@@ -113,36 +117,44 @@ export default function CRMPage() {
           <h1 className="text-2xl font-bold text-[var(--foreground)]">CRM Mappings</h1>
           <p className="text-sm text-[var(--muted-foreground)] mt-1">{data.length} mappings</p>
         </div>
-        <button
-          onClick={() => { resetForm(); setShowCreate(true); }}
-          className="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90 transition-opacity shadow-sm"
-        >
+        <Button onClick={() => { resetForm(); setShowCreate(true); }}>
           <Plus size={16} /> Add Mapping
-        </button>
+        </Button>
       </div>
 
-      {showCreate && (
-        <form onSubmit={handleSubmit} className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 animate-scale-in space-y-4">
+      <Dialog
+        open={showCreate}
+        onClose={() => { setShowCreate(false); resetForm(); }}
+        title={editingId ? 'Edit CRM mapping' : 'Add CRM mapping'}
+        description="Map your lead fields to your external CRM's field names."
+        maxWidth="max-w-2xl"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => { setShowCreate(false); resetForm(); }}>Cancel</Button>
+            <Button type="submit" form="crm-mapping-form">{editingId ? 'Update' : 'Save'}</Button>
+          </>
+        }
+      >
+        <form id="crm-mapping-form" onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <input
-              placeholder="Mapping name"
+            <Input
+              label="Mapping name"
               value={form.name}
               onChange={e => setForm({ ...form, name: e.target.value })}
-              className="h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
               required
             />
-            <select
+            <Select
+              label="CRM type"
               value={form.crmType}
               onChange={e => handleCrmTypeChange(e.target.value)}
-              className="h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
             >
               {crmTypes.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
+            </Select>
           </div>
 
           <div>
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-semibold text-[var(--foreground)]">Field Mappings</h3>
+              <h3 className="text-sm font-medium text-[var(--foreground)]">Field Mappings</h3>
               <button type="button" onClick={addMapping} className="text-xs text-[var(--primary)] hover:underline">+ Add field</button>
             </div>
 
@@ -153,21 +165,20 @@ export default function CRMPage() {
             <div className="space-y-2">
               {form.mappings.map((m, i) => (
                 <div key={i} className="flex items-center gap-2">
-                  <div className="flex-1 flex items-center gap-2">
-                    <select
+                  <div className="flex-1 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                    <Select
                       value={m.source}
                       onChange={e => updateMapping(i, 'source', e.target.value)}
-                      className="flex-1 h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
                     >
                       <option value="">Select field...</option>
                       {systemFields.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
-                    </select>
+                    </Select>
                     <span className="text-[var(--muted-foreground)] text-xs">→</span>
-                    <input
+                    <Input
                       placeholder={`${form.crmType} field name`}
                       value={m.target}
                       onChange={e => updateMapping(i, 'target', e.target.value)}
-                      className="flex-1 h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20 font-mono"
+                      className="font-mono"
                     />
                   </div>
                   <button type="button" onClick={() => removeMapping(i)} className="p-1.5 rounded-md hover:bg-[var(--accent)] text-red-400"><X size={14} /></button>
@@ -175,15 +186,8 @@ export default function CRMPage() {
               ))}
             </div>
           </div>
-
-          <div className="flex gap-2">
-            <button type="submit" className="h-8 px-4 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90">
-              {editingId ? 'Update' : 'Save'}
-            </button>
-            <button type="button" onClick={() => { setShowCreate(false); resetForm(); }} className="h-8 px-4 rounded-lg border border-[var(--border)] text-sm text-[var(--foreground)] hover:bg-[var(--accent)]">Cancel</button>
-          </div>
         </form>
-      )}
+      </Dialog>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {data.length === 0 ? (
