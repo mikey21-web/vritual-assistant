@@ -85,7 +85,7 @@ const logistics: NicheConfig = {
 const eventMarketing: NicheConfig = {
   businessName: "EventPro Marketing", primaryColor: "#0E9D6E",
   labels: { lead: "Client", leads: "Clients", contact: "Contact", conversion: "Booking" },
-  features: { overview: true, leads: true, pipeline: true, contacts: true, calls: true, syncLogs: true, conversions: true, settings: true, import: true, adIntegrations: true, websiteCrawler: true, nurture: true, scoring: true, routing: false, crm: true, booking: true, tickets: false, knowledgeBase: false, media: true, qrCodes: true, reports: false, campaigns: true, forms: true, messages: true, templates: true, aiCampaigns: true, aiAgent: true, copilot: true, webhooks: false, sms: false, widget: true, tasks: true, integrations: true, analytics: true, studio: false, events: true, finance: true, procurement: true, inventory: true, teamHr: true, publicProfile: true },
+  features: { overview: true, leads: true, pipeline: true, contacts: true, calls: true, syncLogs: true, conversions: true, settings: true, import: true, adIntegrations: false, websiteCrawler: false, nurture: false, scoring: false, routing: false, crm: true, booking: true, tickets: false, knowledgeBase: true, media: true, qrCodes: true, reports: true, campaigns: true, forms: true, messages: true, templates: true, aiCampaigns: true, aiAgent: true, copilot: true, webhooks: false, sms: true, widget: true, tasks: true, integrations: true, analytics: true, studio: false, events: true, finance: true, procurement: true, inventory: true, teamHr: true, publicProfile: true },
 };
 
 const nicheMap: Record<string, NicheConfig> = {
