@@ -69,6 +69,9 @@ import { MarketMonitorModule } from './market-monitor/market-monitor.module';
 import { MikeyModule } from './mikey/mikey.module';
 import { CallTrackingModule } from './call-tracking/call-tracking.module';
 import { PortalIntegrationsModule } from './portal-integrations/portal-integrations.module';
+import { BookingsModule } from './bookings/bookings.module';
+import { PropertiesModule } from './properties/properties.module';
+import { ShipmentsModule } from './shipments/shipments.module';
 
 @Module({
   imports: [
@@ -113,6 +116,9 @@ import { PortalIntegrationsModule } from './portal-integrations/portal-integrati
     ModulePermissionsModule,
     PublicProfileModule,
     ConversionsModule,
+    BookingsModule,
+    PropertiesModule,
+    ShipmentsModule,
     IntegrationsModule,
     CrmMappingsModule,
     BookingSettingsModule,

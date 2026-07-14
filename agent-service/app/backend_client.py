@@ -162,3 +162,68 @@ class BackendClient:
 
     async def post_run_summary(self, payload: dict) -> dict:
         return await self._retry_post("/agent/run-summary", payload)
+
+    async def check_availability(self, start_time: str, duration_minutes: int = 60) -> dict:
+        return await self._retry_post("/bookings/check-availability", {
+            "startTime": start_time,
+            "durationMinutes": duration_minutes,
+        })
+
+    async def create_booking(self, lead_id: str, title: str, start_time: str, end_time: str | None = None,
+                             description: str | None = None, price: float | None = None) -> dict:
+        body = {
+            "leadId": lead_id,
+            "title": title,
+            "startTime": start_time,
+        }
+        if end_time: body["endTime"] = end_time
+        if description: body["description"] = description
+        if price is not None: body["price"] = price
+        return await self._retry_post(f"/leads/{lead_id}/bookings", body)
+
+    async def create_booking_payment_link(self, booking_id: str) -> dict:
+        return await self._retry_post(f"/bookings/{booking_id}/payment-link")
+
+    async def get_quote(self, origin: str, destination: str, weight: float, shipment_type: str = "FTL", cargo_type: str = "GENERAL") -> dict:
+        return await self._retry_post("/shipments/quote", {
+            "origin": origin, "destination": destination, "weight": weight,
+            "shipmentType": shipment_type, "cargoType": cargo_type,
+        })
+
+    async def create_shipment(self, lead_id: str, origin: str, destination: str, weight: float, shipment_type: str, cargo_type: str, quoted_price: float, pickup_date: str | None = None, notes: str | None = None) -> dict:
+        body = {
+            "leadId": lead_id, "origin": origin, "destination": destination,
+            "weight": weight, "shipmentType": shipment_type, "cargoType": cargo_type,
+            "quotedPrice": quoted_price,
+        }
+        if pickup_date: body["pickupDate"] = pickup_date
+        if notes: body["notes"] = notes
+        return await self._retry_post(f"/leads/{lead_id}/shipments", body)
+
+    async def update_shipment_status(self, shipment_id: str, status: str, notes: str | None = None, location: str | None = None) -> dict:
+        body = {"status": status}
+        if notes: body["notes"] = notes
+        if location: body["location"] = location
+        return await self._retry_patch(f"/shipments/{shipment_id}/status", body)
+
+    async def create_event(self, tenant_id: str, lead_id: str, title: str, event_type: str, event_date: str | None = None,
+                           venue: str | None = None, expected_guests: int | None = None, budget: float | None = None,
+                           description: str | None = None) -> dict:
+        body = {
+            "tenantId": tenant_id, "leadId": lead_id,
+            "title": title, "type": event_type,
+        }
+        if event_date: body["eventDate"] = event_date
+        if venue: body["venue"] = venue
+        if expected_guests: body["expectedGuests"] = expected_guests
+        if budget: body["budget"] = budget
+        if description: body["description"] = description
+        return await self._retry_post("/events-ops", body)
+
+    async def search_properties(self, tenant_id: str, query: dict) -> list:
+        params = [f"tenantId={tenant_id}"]
+        for k, v in query.items():
+            if v is not None:
+                params.append(f"{k}={v}")
+        result = await self._retry_get(f"/properties/search?{'&'.join(params)}")
+        return result if isinstance(result, list) else result.get("data", [])

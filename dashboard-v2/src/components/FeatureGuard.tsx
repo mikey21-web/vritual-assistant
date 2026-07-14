@@ -57,6 +57,8 @@ const pageToFeature: Record<string, string> = {
   WebsiteCrawler: "websiteCrawler",
   PublicProfile: "publicProfile",
   Copilot: "copilot",
+  Properties: "properties",
+  Shipments: "shipments",
 };
 
 export function FeatureGuard({ pageKey, children }: { pageKey: string; children: React.ReactNode }) {

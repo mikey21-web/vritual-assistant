@@ -134,6 +134,18 @@ export class ConfigLoaderService implements OnApplicationBootstrap {
   private async ensureAdminUser(config: any) {
     const seedEmail = this.configService.get<string>('SEED_OWNER_EMAIL') || 'admin@' + (config.niche?.key || 'default') + '.local';
     const seedPasswordRaw = this.configService.get<string>('SEED_OWNER_PASSWORD') || 'dev-admin-change-me';
+    const displayName = config.niche?.display_name || 'Business';
+    const nicheKey = config.niche?.key || 'default';
+    const domain = (config.niche?.key || 'default') + '.local';
+
+    // Ensure tenant exists first (FK constraint)
+    let tenant = await this.prisma.tenant.findUnique({ where: { slug: nicheKey } });
+    if (!tenant) {
+      tenant = await this.prisma.tenant.create({
+        data: { name: displayName, slug: nicheKey, domain, active: true },
+      });
+      this.logger.log(`Created tenant: ${tenant.name} (${tenant.slug})`);
+    }
 
     let user = await this.prisma.user.findFirst({
       where: { email: seedEmail },
@@ -143,12 +155,12 @@ export class ConfigLoaderService implements OnApplicationBootstrap {
       const hashedPassword = await bcrypt.hash(seedPasswordRaw, 12);
       user = await this.prisma.user.create({
         data: {
-          name: config.niche?.display_name || 'Admin',
+          name: displayName,
           email: seedEmail,
           password: hashedPassword,
           role: 'OWNER',
           active: true,
-          tenantId: 'default-tenant',
+          tenantId: tenant.id,
         },
       });
       this.logger.log(`Created admin user: ${user.email}`);

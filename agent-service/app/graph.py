@@ -121,6 +121,11 @@ async def _load_context(state: AgentState, config: RunnableConfig) -> AgentState
     state["conversation"] = prior_messages
     state["niche_config"] = nich
     state["messages"] = lc_messages
+
+    # Propagate features to tool context so tools can check feature flags
+    ctx_ = config["configurable"].get("ctx")
+    if ctx_:
+        ctx_.features = nich.get("features", {})
     state["steps"] = 0
     state["actions_taken"] = []
     state["terminate"] = False

@@ -62,3 +62,7 @@ packs:
           channel: WHATSAPP
           body: "Hi {{name}}, here's your quote for the {{shipment_type}} shipment from {{origin}} to {{destination}}. Let me know if you'd like to confirm the booking."
           active: true
+features:
+  booking: false
+  properties: false
+  shipments: true

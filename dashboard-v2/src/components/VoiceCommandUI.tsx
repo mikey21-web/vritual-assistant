@@ -18,18 +18,34 @@ const PAGE_MAP: Record<string, string> = {
   pipeline: '/pipeline', overview: '/', crm: '/crm',
 };
 
+function VoiceDiagnostics({ voice }: { voice: any }) {
+  if (!voice.debug && !voice.error) return null;
+  return (
+    <div className="fixed bottom-28 left-1/2 -translate-x-1/2 z-[9999] animate-fade-up pointer-events-none">
+      <div className="rounded-lg border border-[var(--border)] bg-[var(--card)]/90 backdrop-blur px-4 py-2 shadow-xl">
+        {voice.error && <p className="text-xs text-red-400">{voice.error}</p>}
+        {voice.debug && !voice.error && <p className="text-xs text-[var(--muted-foreground)]">{voice.debug}</p>}
+      </div>
+    </div>
+  );
+}
+
 export default function VoiceCommandUI() {
   const voice = useVoiceInput();
   const [processing, setProcessing] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [active, setActive] = useState(false);
+  // Ref mirror of `processing` so the transcript effect (which only depends on
+  // voice.transcript) never reads a stale value and drop/duplicate a command.
+  const processingRef = useRef(false);
 
   // Transcript → copilot
   useEffect(() => {
-    if (!voice.transcript || processing) return;
+    if (!voice.transcript || processingRef.current) return;
     const cmd = voice.transcript.trim();
     if (!cmd) return;
 
+    processingRef.current = true;
     setProcessing(true);
     setResult(null);
     setActive(false);
@@ -57,8 +73,12 @@ export default function VoiceCommandUI() {
         setResult(reply);
       }
     }).catch((err) => {
+      console.error('[MikeyVoice] copilot request failed:', err);
       setResult(err.message || 'Something went wrong');
-    }).finally(() => setProcessing(false));
+    }).finally(() => {
+      processingRef.current = false;
+      setProcessing(false);
+    });
   }, [voice.transcript]);
 
   // Ctrl+H toggle

@@ -1,11 +1,12 @@
 import { Module } from '@nestjs/common';
 import { ConfigLoaderService } from './config-loader.service';
+import { SeedDataService } from './seed-data.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { SharedModule } from '../shared/shared.module';
 
 @Module({
   imports: [PrismaModule, SharedModule],
-  providers: [ConfigLoaderService],
+  providers: [ConfigLoaderService, SeedDataService],
   exports: [ConfigLoaderService],
 })
 export class BootstrapModule {}

@@ -76,3 +76,6 @@ packs:
         - { name: "Site Visit Booked", destination: APPOINTMENT_BOOKING }
         - { name: "Quote Requested", destination: QUOTE_REQUEST }
         - { name: "Deal Closed", destination: PURCHASE_ONLINE }
+features:
+  booking: false
+  properties: true

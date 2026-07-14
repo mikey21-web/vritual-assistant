@@ -21,7 +21,7 @@ const run = (c) => new Promise((resolve) => {
 conn.on('ready', async () => {
   const cmds = [
     'cd /opt/lead-automation-demo && git stash && git pull origin master && git stash pop',
-    'docker rm -f lead-automation-dashboard lead-automation-backend lead-automation-agent 2>/dev/null; echo done',
+    'docker compose -p virtual-assistant down --remove-orphans 2>/dev/null; docker stop $(docker ps -aq --filter name=lead-automation) 2>/dev/null; docker rm -f $(docker ps -aq --filter name=lead-automation) 2>/dev/null; docker rm -f $(docker ps -aq --filter name=virtual-assistant) 2>/dev/null; echo done',
     'cd /opt/lead-automation-demo && docker compose -p virtual-assistant up -d --build dashboard backend agent-service 2>&1 | tail -5',
     'sleep 15 && docker exec lead-automation-backend npx prisma migrate deploy 2>&1 | tail -3',
     'docker restart lead-automation-backend',

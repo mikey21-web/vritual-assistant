@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     agent_inbound_key: str = ""
     deepseek_api_key: str = ""
     deepseek_base_url: str = "https://api.deepseek.com/v1"
-    agent_model: str = "deepseek-chat"
+    agent_model: str = "deepseek-chat"  # deepseek-chat alias → V3.2 (thinking+tool use)
     agent_max_tokens: int = 2048
     redis_url: str | None = None
     max_agent_steps: int = 12

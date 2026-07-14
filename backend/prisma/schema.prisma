@@ -62,6 +62,9 @@ model Tenant {
   adCampaigns AdCampaign[]
   events        Event[]
   devices       Device[]
+  bookings      Booking[]
+  properties    Property[]
+  shipments     Shipment[]
 
   @@index([slug])
   @@map("tenants")
@@ -562,6 +565,8 @@ model Lead {
   tickets           Ticket[]
   callLogs          CallLog[]
   events            Event[]
+  bookings          Booking[]
+  shipments         Shipment[]
 
   @@index([status])
   @@index([segment])
@@ -908,6 +913,9 @@ model Conversion {
   leadId         String
   lead           Lead                 @relation(fields: [leadId], references: [id])
   requestedById  String?
+  scheduledAt    DateTime?
+  duration       Int?
+  notes          String?
   completedAt    DateTime?
   createdAt      DateTime             @default(now())
   updatedAt      DateTime             @updatedAt
@@ -916,6 +924,216 @@ model Conversion {
   @@index([destination])
   @@index([status])
   @@map("conversions")
+}
+
+// === PROPERTY / LISTING (Real Estate) ===
+
+enum PropertyType {
+  APARTMENT
+  VILLA
+  PLOT
+  COMMERCIAL
+  PENTHOUSE
+  DUPLEX
+  STUDIO
+
+  @@map("property_type")
+}
+
+enum PropertyStatus {
+  AVAILABLE
+  SOLD
+  UNDER_OFFER
+  ON_HOLD
+  RENTED
+  DRAFT
+
+  @@map("property_status")
+}
+
+model Property {
+  id            String         @id @default(uuid())
+  tenantId      String         @map("tenant_id")
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  deletedAt     DateTime?
+  title         String
+  description   String?
+  propertyType  PropertyType   @default(APARTMENT)
+  status        PropertyStatus @default(AVAILABLE)
+  price         Float?
+  currency      String         @default("INR")
+  bedrooms      Int?
+  bathrooms     Int?
+  areaSqft      Float?
+  areaUnit      String         @default("sqft")
+  location      String?
+  address       String?
+  latitude      Float?
+  longitude     Float?
+  features      String[]       @default([])
+  amenities     String[]       @default([])
+  reraId        String?
+  metadata      Json           @default("{}")
+  featured      Boolean        @default(false)
+  availableFrom DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  images  PropertyImage[]
+  bookings Booking[]
+
+  @@index([tenantId])
+  @@index([propertyType])
+  @@index([status])
+  @@index([price])
+  @@index([location])
+  @@index([bedrooms])
+  @@map("properties")
+}
+
+model PropertyImage {
+  id         String   @id @default(uuid())
+  propertyId String   @map("property_id")
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  url        String
+  caption    String?
+  isPrimary  Boolean  @default(false)
+  orderIndex Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  @@index([propertyId])
+  @@map("property_images")
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+
+  @@map("booking_status")
+}
+
+model Booking {
+  id            String        @id @default(uuid())
+  tenantId      String
+  leadId        String
+  propertyId    String?       @map("property_id")
+  title         String
+  description   String?
+  startTime     DateTime
+  endTime       DateTime?
+  status        BookingStatus @default(PENDING)
+  price         Float?
+  currency      String        @default("INR")
+  paymentLink   String?
+  paymentStatus String        @default("pending")
+  notes         String?
+  metadata      Json          @default("{}")
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  lead     Lead      @relation(fields: [leadId], references: [id])
+  tenant   Tenant    @relation(fields: [tenantId], references: [id])
+  property Property? @relation(fields: [propertyId], references: [id])
+
+  @@index([tenantId])
+  @@index([leadId])
+  @@index([startTime])
+  @@map("bookings")
+}
+
+// === SHIPMENT / CONSIGNMENT (Logistics) ===
+
+enum ShipmentType {
+  FTL
+  LTL
+  AIR_FREIGHT
+  SEA_FREIGHT
+  EXPRESS
+  COURIER
+
+  @@map("shipment_type")
+}
+
+enum ShipmentStatus {
+  QUOTE_REQUESTED
+  QUOTE_SENT
+  BOOKED
+  PICKED_UP
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+  EXCEPTION
+
+  @@map("shipment_status")
+}
+
+enum CargoType {
+  GENERAL
+  PERISHABLE
+  FRAGILE
+  HAZARDOUS
+  OVERSIZED
+  VEHICLE
+  ELECTRONICS
+
+  @@map("cargo_type")
+}
+
+model Shipment {
+  id                  String        @id @default(uuid())
+  tenantId            String        @map("tenant_id")
+  leadId              String
+  title               String?
+  origin              String
+  destination         String
+  cargoType           CargoType     @default(GENERAL)
+  shipmentType        ShipmentType  @default(FTL)
+  weight              Float?
+  weightUnit          String        @default("kg")
+  pickupDate          DateTime?
+  deliveryDate        DateTime?
+  scheduledPickupAt   DateTime?
+  scheduledDeliveryAt DateTime?
+  quotedPrice         Float?
+  currency            String        @default("INR")
+  finalPrice          Float?
+  trackingNumber      String?
+  vehicleType         String?
+  carrierId           String?
+  carrierName         String?
+  notes               String?
+  metadata            Json          @default("{}")
+  status              ShipmentStatus @default(QUOTE_REQUESTED)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  lead          Lead                    @relation(fields: [leadId], references: [id])
+  tenant        Tenant                  @relation(fields: [tenantId], references: [id])
+  statusHistory ShipmentStatusHistory[]
+
+  @@index([tenantId])
+  @@index([leadId])
+  @@index([status])
+  @@index([trackingNumber])
+  @@index([createdAt])
+  @@map("shipments")
+}
+
+model ShipmentStatusHistory {
+  id         String         @id @default(uuid())
+  shipmentId String         @map("shipment_id")
+  shipment   Shipment       @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  status     ShipmentStatus
+  location   String?
+  notes      String?
+  createdAt  DateTime       @default(now())
+
+  @@index([shipmentId])
+  @@map("shipment_status_history")
 }
 
 model Integration {
@@ -2306,4 +2524,78 @@ model InventoryAllocation {
   @@index([eventId])
   @@index([itemId])
   @@map("inventory_allocations")
+}
+
+// === PEAK MIKEY — P3 REAL MEMORY SYSTEM ===
+
+enum MemoryType {
+  WORKING
+  EPISODIC
+  SEMANTIC
+  PROCEDURAL
+}
+
+model MikeyMemory {
+  id           String     @id @default(uuid())
+  tenantId     String     @map("tenant_id")
+  type         MemoryType
+  key          String
+  value        String
+  summary      String?
+  source       String?     // "lead_voice" | "operator_voice" | "scheduler" | "reflexion"
+  leadId       String?
+  episodeStart DateTime?
+  episodeEnd   DateTime?
+  validAt      DateTime   @default(now())
+  invalidAt    DateTime?
+  confidence   Float      @default(0.5)
+  metadata     Json       @default("{}")
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([tenantId, type])
+  @@index([tenantId, key])
+  @@index([tenantId, type, leadId])
+  @@index([validAt])
+  @@map("mikey_memory")
+}
+
+model MikeyProceduralRule {
+  id            String    @id @default(uuid())
+  tenantId      String    @map("tenant_id")
+  rule          String
+  rationale     String?
+  category      String?   // "follow_up" | "pricing" | "routing" | "messaging" | "general"
+  impactMetric  String?   // "conversion_rate" | "response_time" | "booking_rate"
+  impactDelta   Float?    // measured % change after rule was applied
+  status        String    @default("pending") // pending | approved | active | retired
+  approvedAt    DateTime?
+  approvedById  String?
+  firstAppliedAt DateTime?
+  lastAppliedAt DateTime?
+  retireAt      DateTime?
+  applyCount    Int       @default(0)
+  metadata      Json      @default("{}")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([tenantId, status])
+  @@index([tenantId, category])
+  @@map("mikey_procedural_rules")
+}
+
+model MikeyReflexionLog {
+  id            String    @id @default(uuid())
+  tenantId      String    @map("tenant_id")
+  outcomeType   String    // "lead_converted" | "lead_lost" | "campaign_result" | "booking_outcome"
+  entityId      String?
+  trajectory    Json      // sequence of actions taken
+  reflection    String    // natural-language post-mortem
+  candidateRule String?   // extracted procedural rule suggestion
+  perspectives  Json?     // multi-perspective reflections (skeptic + optimizer)
+  approvedRuleId String?
+  createdAt     DateTime  @default(now())
+
+  @@index([tenantId, outcomeType])
+  @@map("mikey_reflexion_logs")
 }

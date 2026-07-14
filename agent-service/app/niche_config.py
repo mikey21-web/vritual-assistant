@@ -29,6 +29,7 @@ SAFE_DEFAULT_CONFIG = {
     ],
     "labels": {"lead": "Lead", "leads": "Leads"},
     "compliance": [],
+    "features": {},
 }
 
 
@@ -114,6 +115,9 @@ def normalize_niche_config(raw: dict | None) -> dict:
     if not booking_types:
         booking_types = SAFE_DEFAULT_CONFIG["booking_types"]
 
+    # Extract features from raw config (dashboard niche-config.ts mirrored in YAML)
+    features = raw.get("features", SAFE_DEFAULT_CONFIG.get("features", {}))
+
     return {
         "industry": template.get("industry") or niche_meta.get("industry") or raw.get("industry", "generic"),
         "display_name": template.get("name") or niche_meta.get("display_name") or raw.get("name", "Business"),
@@ -125,6 +129,7 @@ def normalize_niche_config(raw: dict | None) -> dict:
         "tone_examples": tone_examples[:5],
         "labels": labels or SAFE_DEFAULT_CONFIG["labels"],
         "compliance": compliance or SAFE_DEFAULT_CONFIG["compliance"],
+        "features": features,
     }
 
 

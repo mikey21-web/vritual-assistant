@@ -11,4 +11,5 @@ export class CreateEventDto {
   @IsString() @IsOptional() description?: string;
   @IsString() @IsOptional() contactId?: string;
   @IsString() @IsOptional() leadId?: string;
+  @IsString() @IsOptional() tenantId?: string;
 }

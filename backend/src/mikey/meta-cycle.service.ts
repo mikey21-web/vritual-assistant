@@ -2,6 +2,7 @@ import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { OutcomeEngineService } from './outcome-engine.service';
+import { ReflexionService } from './reflexion.service';
 
 export interface DecisionRecord {
   id: string;
@@ -35,6 +36,7 @@ export class MetaCycleService implements OnApplicationBootstrap {
     private prisma: PrismaService,
     private events: EventsService,
     private outcomeEngine: OutcomeEngineService,
+    private reflexion: ReflexionService,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -290,6 +292,22 @@ export class MetaCycleService implements OnApplicationBootstrap {
         this.logger.log(
           `${confirmations} new confirmation(s), ${newPatterns.length} total patterns`,
         );
+      }
+
+      // Trigger reflexion on confirmed outcomes
+      const confirmedDecisions = Array.from(this.decisions.values()).filter(
+        d => d.status === 'confirmed' && d.type === 'outcome_step',
+      );
+      for (const d of confirmedDecisions.slice(0, 3)) {
+        const m = d.action.match(/^outcome_step:([a-zA-Z0-9_]+):([a-zA-Z0-9_]+):\s*(.*)/);
+        if (m) {
+          const outcome = await this.outcomeEngine.getOutcome(m[1]);
+          if (outcome) {
+            const leadId = outcome.id;
+            const outcomeType = outcome.goal?.includes('convert') ? 'lead_converted' : 'lead_lost';
+            this.reflexion.reflectOnOutcome('default', outcomeType, leadId).catch(() => {});
+          }
+        }
       }
 
       this.logger.log(`Cycle check complete`);

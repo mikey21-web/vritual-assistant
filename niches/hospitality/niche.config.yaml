@@ -56,3 +56,6 @@ packs:
           channel: WHATSAPP
           body: "Hi {{name}}, your booking is confirmed for {{check_in_date}} to {{check_out_date}}. We look forward to hosting you!"
           active: true
+features:
+  booking: true
+  properties: false

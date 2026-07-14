@@ -58,3 +58,7 @@ packs:
           channel: WHATSAPP
           body: "Hi {{name}}, your appointment with {{department}} is confirmed for {{preferred_date}}. Please arrive 15 minutes early with any prior reports."
           active: true
+features:
+  booking: true
+  properties: false
+  shipments: false

@@ -32,7 +32,7 @@ const featureMap: Record<string, string> = {
   "/tickets": "tickets", "/knowledge-base": "knowledgeBase",
   "/analytics": "analytics", "/reports": "reports", "/studio": "studio",
   "/settings": "settings", "/import": "import", "/ads": "adIntegrations",
-  "/website-crawler": "websiteCrawler", "/public-profile": "publicProfile",
+  "/website-crawler": "websiteCrawler", "/public-profile": "publicProfile",   "/properties": "properties", "/shipments": "shipments",
 };
 
 const labelMap: Record<string, "contact" | "conversion"> = {
@@ -92,6 +92,18 @@ const rawNavGroups = [
     items: [
       { label: "Conversions", icon: ShoppingCart, path: "/conversions" },
       { label: "Tasks", icon: CheckSquare, path: "/tasks" },
+    ],
+  },
+  {
+    label: "Listings",
+    items: [
+      { label: "Properties", icon: Building2, path: "/properties" },
+    ],
+  },
+  {
+    label: "Shipments",
+    items: [
+      { label: "Shipments", icon: Truck, path: "/shipments" },
     ],
   },
   {

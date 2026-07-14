@@ -29,14 +29,14 @@ packs:
   - type: pipeline_stages
     payload:
       stages:
-        - { name: "New Inquiry", order: 0, color: "#7C3AED", isDefault: true }
-        - { name: "Contacted", order: 1, color: "#F59E0B" }
-        - { name: "Proposal Sent", order: 2, color: "#3B82F6" }
-        - { name: "Negotiation", order: 3, color: "#F97316" }
-        - { name: "Deposit Paid", order: 4, color: "#06B6D4" }
-        - { name: "Event Confirmed", order: 5, color: "#10B981", isEnd: true }
-        - { name: "Post-Event Follow-up", order: 6, color: "#8B5CF6" }
-        - { name: "Cancelled", order: 7, color: "#EF4444", isEnd: true }
+        - { name: "New Inquiry", status: NEW, order: 0, color: "#7C3AED", isDefault: true }
+        - { name: "Contacted", status: CONTACTED, order: 1, color: "#F59E0B" }
+        - { name: "Proposal Sent", status: PROPOSAL_SENT, order: 2, color: "#3B82F6" }
+        - { name: "Negotiation", status: QUALIFYING, order: 3, color: "#F97316" }
+        - { name: "Deposit Paid", status: APPOINTMENT_BOOKED, order: 4, color: "#06B6D4" }
+        - { name: "Event Confirmed", status: CONVERTED, order: 5, color: "#10B981", isEnd: true }
+        - { name: "Post-Event Follow-up", status: ENGAGED, order: 6, color: "#8B5CF6" }
+        - { name: "Cancelled", status: LOST, order: 7, color: "#EF4444", isEnd: true }
   - type: scoring_rules
     payload:
       rules:
@@ -77,3 +77,7 @@ packs:
         - { name: "Consultation Booked", destination: APPOINTMENT_BOOKING }
         - { name: "Proposal Accepted", destination: QUOTE_REQUEST }
         - { name: "Deposit Paid", destination: PURCHASE_ONLINE }
+features:
+  booking: true
+  properties: false
+  shipments: false
