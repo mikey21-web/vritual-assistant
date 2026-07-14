@@ -55,7 +55,7 @@ export type NicheConfig = {
 const realestate: NicheConfig = {
   businessName: "Acme Realty", primaryColor: "#0B5B7A",
   labels: { lead: "Buyer", leads: "Buyers", contact: "Contact", conversion: "Deal" },
-  features: { overview: true, leads: true, pipeline: true, contacts: true, calls: true, syncLogs: true, conversions: true, settings: true, import: true, adIntegrations: true, websiteCrawler: true, nurture: false, scoring: true, routing: false, crm: false, booking: true, tickets: false, knowledgeBase: false, media: false, qrCodes: true, reports: false, campaigns: true, forms: true, messages: true, templates: true, aiCampaigns: true, aiAgent: true, copilot: false, webhooks: true, sms: true, widget: true, tasks: true, integrations: true, analytics: true, studio: false, events: false, finance: false, procurement: false, inventory: false, teamHr: false, publicProfile: true },
+  features: { overview: true, leads: true, pipeline: true, contacts: true, calls: true, syncLogs: true, conversions: true, settings: true, import: true, adIntegrations: true, websiteCrawler: true, nurture: false, scoring: true, routing: true, crm: true, booking: true, tickets: false, knowledgeBase: false, media: true, qrCodes: true, reports: true, campaigns: true, forms: true, messages: true, templates: true, aiCampaigns: true, aiAgent: true, copilot: false, webhooks: true, sms: true, widget: true, tasks: true, integrations: true, analytics: true, studio: false, events: false, finance: true, procurement: false, inventory: false, teamHr: false, publicProfile: true },
 };
 
 const hospitality: NicheConfig = {
