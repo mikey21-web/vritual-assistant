@@ -263,7 +263,6 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { co
         <div className="flex h-14 items-center justify-between border-b border-[var(--sidebar-border)] px-4">
           {!collapsed && (
             <div className="flex items-center gap-2.5">
-              <span className="text-xl">{getNicheLogo()}</span>
               <span className="text-sm font-bold text-[var(--sidebar-fg)]">{companyName}</span>
             </div>
           )}

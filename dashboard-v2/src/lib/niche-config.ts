@@ -60,48 +60,48 @@ export type NicheConfig = {
 
 const realestate: NicheConfig = {
   businessName: "Acme Realty", primaryColor: "#0B5B7A",
-  sidebarBg: "#081c2a", sidebarActiveBg: "#0B5B7A33", sidebarAccent: "#0B5B7A",
-  logo: "🏠",
+  sidebarBg: "#f8f8f8", sidebarActiveBg: "#0B5B7A12", sidebarAccent: "#0B5B7A",
+  logo: "",
   labels: { lead: "Buyer", leads: "Buyers", contact: "Contact", conversion: "Deal" },
   features: { overview: true, leads: true, pipeline: true, contacts: true, calls: true, syncLogs: false, conversions: true, settings: true, import: false, adIntegrations: false, websiteCrawler: false, nurture: true, scoring: true, routing: true, crm: true, booking: true, tickets: false, knowledgeBase: false, media: true, qrCodes: true, reports: true, campaigns: true, forms: true, messages: true, templates: true, aiCampaigns: true, aiAgent: true, copilot: true, webhooks: true, sms: true, widget: true, tasks: true, integrations: false, analytics: false, studio: false, events: false, finance: false, procurement: false, inventory: false, teamHr: false, publicProfile: true, properties: true, shipments: false },
 };
 
 const hospitality: NicheConfig = {
   businessName: "StayWell Hotels", primaryColor: "#0E7C7B",
-  sidebarBg: "#0a2120", sidebarActiveBg: "#0E7C7B33", sidebarAccent: "#0E7C7B",
-  logo: "🏨",
+  sidebarBg: "#f8f8f8", sidebarActiveBg: "#0E7C7B12", sidebarAccent: "#0E7C7B",
+  logo: "",
   labels: { lead: "Guest", leads: "Guests", contact: "Contact", conversion: "Booking" },
   features: { overview: true, leads: true, pipeline: true, contacts: true, calls: true, syncLogs: false, conversions: true, settings: true, import: false, adIntegrations: false, websiteCrawler: false, nurture: true, scoring: true, routing: false, crm: true, booking: true, tickets: true, knowledgeBase: false, media: true, qrCodes: false, reports: false, campaigns: false, forms: true, messages: true, templates: true, aiCampaigns: false, aiAgent: true, copilot: true, webhooks: true, sms: true, widget: true, tasks: true, integrations: true, analytics: false, studio: false, events: true, finance: false, procurement: true, inventory: true, teamHr: true, publicProfile: true, properties: false, shipments: false },
 };
 
 const healthcare: NicheConfig = {
   businessName: "CarePlus Clinic", primaryColor: "#2563EB",
-  sidebarBg: "#0f1729", sidebarActiveBg: "#2563EB33", sidebarAccent: "#2563EB",
-  logo: "🏥",
+  sidebarBg: "#f8f8f8", sidebarActiveBg: "#2563EB12", sidebarAccent: "#2563EB",
+  logo: "",
   labels: { lead: "Patient Inquiry", leads: "Patient Inquiries", contact: "Patient", conversion: "Appointment" },
   features: { overview: true, leads: true, pipeline: true, contacts: true, calls: true, syncLogs: false, conversions: true, settings: true, import: false, adIntegrations: false, websiteCrawler: false, nurture: true, scoring: true, routing: true, crm: true, booking: true, tickets: true, knowledgeBase: true, media: false, qrCodes: false, reports: true, campaigns: false, forms: true, messages: true, templates: true, aiCampaigns: false, aiAgent: true, copilot: true, webhooks: true, sms: true, widget: true, tasks: true, integrations: true, analytics: false, studio: false, events: true, finance: true, procurement: true, inventory: true, teamHr: true, publicProfile: true, properties: false, shipments: false },
 };
 
 const agency: NicheConfig = {
   businessName: "GrowthEdge Marketing", primaryColor: "#DB2777",
-  sidebarBg: "#1c0a13", sidebarActiveBg: "#DB277733", sidebarAccent: "#DB2777",
-  logo: "📈",
+  sidebarBg: "#f8f8f8", sidebarActiveBg: "#DB277712", sidebarAccent: "#DB2777",
+  logo: "",
   labels: { lead: "Prospect", leads: "Prospects", contact: "Client", conversion: "Signed Client" },
   features: { overview: true, leads: true, pipeline: true, contacts: true, calls: true, syncLogs: false, conversions: true, settings: true, import: true, adIntegrations: true, websiteCrawler: true, nurture: true, scoring: true, routing: true, crm: true, booking: true, tickets: true, knowledgeBase: true, media: true, qrCodes: true, reports: true, campaigns: true, forms: true, messages: true, templates: true, aiCampaigns: true, aiAgent: true, copilot: true, webhooks: true, sms: true, widget: true, tasks: true, integrations: true, analytics: true, studio: true, events: true, finance: true, procurement: false, inventory: false, teamHr: true, publicProfile: true, properties: false, shipments: false },
 };
 
 const logistics: NicheConfig = {
   businessName: "SwiftFreight Logistics", primaryColor: "#EA580C",
-  sidebarBg: "#1e0f04", sidebarActiveBg: "#EA580C33", sidebarAccent: "#EA580C",
-  logo: "🚚",
+  sidebarBg: "#f8f8f8", sidebarActiveBg: "#EA580C12", sidebarAccent: "#EA580C",
+  logo: "",
   labels: { lead: "Shipper", leads: "Shippers", contact: "Contact", conversion: "Shipment" },
   features: { overview: true, leads: true, pipeline: true, contacts: true, calls: true, syncLogs: false, conversions: true, settings: true, import: false, adIntegrations: false, websiteCrawler: false, nurture: true, scoring: true, routing: true, crm: true, booking: true, tickets: true, knowledgeBase: false, media: true, qrCodes: true, reports: true, campaigns: false, forms: true, messages: true, templates: true, aiCampaigns: false, aiAgent: true, copilot: true, webhooks: true, sms: true, widget: true, tasks: true, integrations: true, analytics: false, studio: false, events: false, finance: true, procurement: true, inventory: true, teamHr: true, publicProfile: true, properties: false, shipments: true },
 };
 
 const eventMarketing: NicheConfig = {
   businessName: "EventPro Marketing", primaryColor: "#0E9D6E",
-  sidebarBg: "#081f14", sidebarActiveBg: "#0E9D6E33", sidebarAccent: "#0E9D6E",
-  logo: "🎪",
+  sidebarBg: "#f8f8f8", sidebarActiveBg: "#0E9D6E12", sidebarAccent: "#0E9D6E",
+  logo: "",
   labels: { lead: "Client", leads: "Clients", contact: "Contact", conversion: "Booking" },
   features: { overview: true, leads: true, pipeline: true, contacts: true, calls: true, syncLogs: false, conversions: true, settings: true, import: false, adIntegrations: false, websiteCrawler: false, nurture: true, scoring: true, routing: true, crm: true, booking: true, tickets: true, knowledgeBase: true, media: true, qrCodes: true, reports: true, campaigns: true, forms: true, messages: true, templates: true, aiCampaigns: true, aiAgent: true, copilot: true, webhooks: true, sms: true, widget: true, tasks: true, integrations: true, analytics: false, studio: false, events: true, finance: true, procurement: true, inventory: true, teamHr: true, publicProfile: true, properties: false, shipments: false },
 };
@@ -209,9 +209,6 @@ export function applyNicheTheme(): void {
   root.style.setProperty("--primary", currentConfig.primaryColor);
   root.style.setProperty("--ring", currentConfig.primaryColor);
   root.style.setProperty("--primary-light", `${currentConfig.primaryColor}22`);
-  root.style.setProperty("--sidebar-bg", currentConfig.sidebarBg);
-  root.style.setProperty("--sidebar-active-bg", currentConfig.sidebarActiveBg);
-  root.style.setProperty("--sidebar-accent", currentConfig.sidebarAccent);
   root.style.setProperty("--sidebar-active-fg", currentConfig.primaryColor);
 }
 
