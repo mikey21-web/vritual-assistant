@@ -50,7 +50,12 @@ async def execute_run(settings: Settings, req: AgentRunRequest) -> str:
                     from psycopg import Connection
                     conn = Connection.connect(DATABASE_URL)
                     checkpointer = PostgresSaver(conn)
-                    await checkpointer.setup()
+                    try:
+                        conn.autocommit = True
+                        await checkpointer.setup()
+                    except Exception as setup_e:
+                        logger.warning("checkpointer_setup_partial", error=str(setup_e))
+                    conn.autocommit = False
                     logger.info("checkpointer_enabled", db_url=DATABASE_URL.split("@")[-1] if "@" in DATABASE_URL else "local")
                 except Exception as e:
                     logger.warning("checkpointer_failed_fallback_to_none", error=str(e))
