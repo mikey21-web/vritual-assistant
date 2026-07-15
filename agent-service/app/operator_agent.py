@@ -21,6 +21,15 @@ def build_operator_tools(client: BackendClient, tenant_id: str) -> list:
             return f"error: {e}"
 
     @tool
+    async def search_contacts(search: str):
+        """Search contacts by name, email, or phone."""
+        try:
+            result = await client._get(f"/contacts?search={search}")
+            return str(result)[:1000]
+        except Exception as e:
+            return f"error: {e}"
+
+    @tool
     async def get_lead_detail(lead_id: str):
         """Get detailed info on a lead by ID."""
         try:
@@ -64,13 +73,22 @@ def build_operator_tools(client: BackendClient, tenant_id: str) -> list:
             return f"error: {e}"
 
     @tool
-    async def send_message(lead_id: str, text: str, channel: str = "WHATSAPP"):
-        """Send a message to a lead (high impact — requires confirmation)."""
+    async def update_ticket(ticket_id: str, status: str | None = None, priority: str | None = None, assigned_to_id: str | None = None):
+        """Update a support ticket's status, priority, or assignee."""
         try:
-            result = await client.send_message(lead_id, channel, text)
-            return f"Message sent to {lead_id}"
+            body = {}
+            if status: body["status"] = status
+            if priority: body["priority"] = priority
+            if assigned_to_id: body["assignedToId"] = assigned_to_id
+            result = await client._patch(f"/tickets/{ticket_id}", body)
+            return f"Ticket {ticket_id} updated"
         except Exception as e:
             return f"error: {e}"
+
+    @tool
+    async def send_message(lead_id: str, text: str, channel: str = "WHATSAPP"):
+        """Send a message to a lead (high impact — requires confirmation)."""
+        return f"pending confirmation: message to {lead_id} via {channel}"
 
     @tool
     async def draft_message(lead_id: str, instructions: str):
@@ -102,6 +120,22 @@ def build_operator_tools(client: BackendClient, tenant_id: str) -> list:
             if status: params["status"] = status
             result = await client._get("/campaigns?" + "&".join(f"{k}={v}" for k, v in params.items()))
             return str(result)[:1000]
+        except Exception as e:
+            return f"error: {e}"
+
+    @tool
+    async def create_campaign(name: str, type: str = "", description: str = ""):
+        """Create a marketing campaign (high impact — requires confirmation)."""
+        return f"pending confirmation: campaign '{name}' will be created"
+
+    @tool
+    async def create_custom_field(name: str, field_type: str, target: str, options: list[str] | None = None):
+        """Create a custom field for leads, contacts, or deals."""
+        try:
+            body = {"name": name, "fieldType": field_type, "target": target}
+            if options: body["options"] = options
+            result = await client._post("/custom-fields", body)
+            return f"Custom field created: {result.get('id', '')}"
         except Exception as e:
             return f"error: {e}"
 
@@ -158,10 +192,41 @@ def build_operator_tools(client: BackendClient, tenant_id: str) -> list:
         except Exception as e:
             return f"error: {e}"
 
+    @tool
+    async def navigate_ui(page: str, filters: dict | None = None, highlight_id: str | None = None, zoom: str | None = None, summary: str | None = None):
+        """Navigate the CRM UI to a specific page with optional filters, highlights, and zoom."""
+        parts = [f"navigated to {page}"]
+        if summary:
+            parts.append(summary)
+        return ": ".join(parts)
+
+    @tool
+    async def explain_flow(steps: list[dict]):
+        """Explain a sequence of steps the user should follow in the CRM UI."""
+        return "explanation prepared"
+
+    @tool
+    async def define_outcome(goal: str, metric: str, target: float, current: float):
+        """Define a measurable outcome to track (high impact — requires confirmation)."""
+        return f"pending confirmation: outcome '{goal}' with metric {metric}"
+
+    @tool
+    async def run_autonomous_action(action: str, lead_id: str | None = None, args: dict | None = None):
+        """Run an autonomous action on a lead (e.g. enrichment, scoring)."""
+        try:
+            body = {"action": action}
+            if lead_id: body["leadId"] = lead_id
+            if args: body["args"] = args
+            result = await client._post("/mikey/autonomous-action", body)
+            return str(result)[:1000]
+        except Exception as e:
+            return f"error: {e}"
+
     return [
-        search_leads, get_lead_detail, update_lead_status,
-        create_task, create_ticket, send_message, draft_message,
-        list_tickets, list_campaigns, get_analytics_overview,
-        run_report, initiate_call, send_email, bulk_send_message,
-        analyze_lead_source, search_knowledge,
+        search_leads, search_contacts, get_lead_detail, update_lead_status,
+        create_task, create_ticket, update_ticket, send_message, draft_message,
+        list_tickets, list_campaigns, create_campaign, create_custom_field,
+        get_analytics_overview, run_report, initiate_call, send_email,
+        bulk_send_message, analyze_lead_source, search_knowledge,
+        navigate_ui, explain_flow, define_outcome, run_autonomous_action,
     ]

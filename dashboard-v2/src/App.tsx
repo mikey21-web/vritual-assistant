@@ -5,7 +5,7 @@ import { useAuth } from "./lib/useAuth";
 import { AppProvider } from "./context/AppContext";
 import { BrandingProvider } from "./lib/useBranding";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-import { getPrimaryColor } from "./lib/niche-config";
+import { applyNicheTheme } from "./lib/niche-config";
 import { Sidebar } from "./components/layout/sidebar";
 import { Topbar } from "./components/layout/topbar";
 import MikeyWidget from "./components/MikeyWidget";
@@ -122,7 +122,7 @@ function getPageKey(path: string): string {
     "/ai-campaigns": "AICampaigns", "/ai-agent": "AIAgent",
     "/webhooks": "Webhooks", "/sms": "SMS", "/widget": "Widget", "/ads": "AdIntegrations",
     "/tickets": "Tickets",     "/calls": "Calls", "/sync-logs": "SyncLogs", "/knowledge-base": "KnowledgeBase",
-    "/copilot": "Mikey", "/mikey": "Mikey",    "/studio": "Studio", "/reports": "Reports",
+    "/copilot": "Copilot", "/mikey": "Mikey",    "/studio": "Studio", "/reports": "Reports",
     "/events": "Events", "/calendar": "EventCalendar",
     "/accounting": "Accounting", "/invoices": "Invoices", "/quotations": "Quotations",
     "/contracts": "Contracts", "/finance-reports": "FinanceReports",
@@ -215,10 +215,7 @@ export default function App() {
   }, [dark]);
 
   useEffect(() => {
-    const color = getPrimaryColor();
-    document.documentElement.style.setProperty("--primary", color);
-    document.documentElement.style.setProperty("--ring", color);
-    document.documentElement.style.setProperty("--primary-light", `${color}22`);
+    applyNicheTheme();
   }, []);
 
   const navigate = (path: string) => {

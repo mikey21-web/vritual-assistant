@@ -66,13 +66,13 @@ export default function MikeyWidget() {
   };
 
   return (
-    <div className="mikey-widget-fab fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3 [body.overlay-open_&]:hidden">
+    <div className="copilot-widget-fab fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3 [body.overlay-open_&]:hidden">
       {open && (
         <div className="w-[380px] h-[520px] rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-2xl flex flex-col overflow-hidden animate-scale-in origin-bottom-right">
           <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] bg-[var(--primary)] text-white">
             <div className="flex items-center gap-2">
               <div className="h-7 w-7 rounded-full bg-white/20 flex items-center justify-center"><MessageCircle size={14} /></div>
-              <span className="text-sm font-semibold">Mikey</span>
+              <span className="text-sm font-semibold">Copilot</span>
             </div>
             <button onClick={() => setOpen(false)} className="rounded-md p-1 hover:bg-white/20 transition-colors"><X size={15} /></button>
           </div>

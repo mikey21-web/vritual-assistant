@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import sys
+import uuid as _uuid
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, BackgroundTasks, HTTPException, Header
@@ -129,6 +130,110 @@ async def agent_chat(req: AgentRunRequest, x_agent_key: str = Header(None)):
     except asyncio.TimeoutError:
         logger.warning("agent_chat_timeout", lead_id=req.lead_id)
         return await _agent_test_response_fallback(req.messageText or "")
+
+
+@app.post("/agent/copilot/chat")
+async def agent_copilot_chat(body: dict, x_agent_key: str = Header(None)):
+    """Unified copilot chat — routes staff dashboard queries through the supervisor graph."""
+    if settings.agent_inbound_key and x_agent_key != settings.agent_inbound_key:
+        raise HTTPException(status_code=401, detail="Invalid agent key")
+
+    from app.supervisor_graph import build_supervisor
+    from app.backend_client import BackendClient
+
+    tenant_id = body.get("tenantId", "default")
+    message = body.get("message", "")
+    conversation_history = body.get("conversationHistory", [])
+    business_settings = body.get("businessSettings", {})
+    khoj_context = body.get("khojContext", "")
+    memory_context = body.get("memoryContext", "")
+    benchmark_context = body.get("benchmarkContext", "")
+
+    from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
+
+    messages_lc = []
+    for msg in conversation_history:
+        role = msg.get("role", "")
+        content = msg.get("content", "")
+        if role == "user":
+            messages_lc.append(HumanMessage(content=content))
+        elif role == "assistant":
+            messages_lc.append(AIMessage(content=content))
+        elif role == "tool":
+            messages_lc.append(ToolMessage(content=content, tool_call_id=msg.get("tool_call_id", "")))
+    messages_lc.append(HumanMessage(content=message))
+
+    client = BackendClient(settings)
+    try:
+        graph = build_supervisor(
+            settings=settings,
+            client=client,
+            tenant_id=tenant_id,
+            memory=None,
+        )
+
+        from app.schemas import SharedMikeyState
+        from app.logging_config import utc_now_iso
+
+        initial_state: SharedMikeyState = {
+            "tenant_id": tenant_id,
+            "lead_id": f"copilot-{tenant_id}",
+            "trigger": "copilot_chat",
+            "channel": "DASHBOARD",
+            "messages": messages_lc,
+            "copilot_context": {
+                "business_name": business_settings.get("businessName", ""),
+                "industry": business_settings.get("industry", ""),
+                "tone_examples": business_settings.get("toneExamples", []),
+                "goals": business_settings.get("goals", []),
+                "compliance": business_settings.get("compliance", []),
+                "khoj_context": khoj_context,
+                "memory_context": memory_context,
+                "benchmark_context": benchmark_context,
+            },
+            "run_id": str(_uuid.uuid4()),
+            "started_at": utc_now_iso(),
+        }
+
+        config = {
+            "configurable": {
+                "settings": settings,
+                "client": client,
+                "thread_id": f"copilot-{tenant_id}",
+            },
+        }
+
+        final_state = await graph.ainvoke(initial_state, config)
+
+        response_text = ""
+        for m in reversed(final_state.get("messages", [])):
+            if hasattr(m, "type") and m.type == "ai" and m.content and not (hasattr(m, "tool_calls") and m.tool_calls):
+                response_text = m.content
+                break
+
+        if not response_text:
+            response_text = "Done."
+
+        actions = []
+        for a in final_state.get("actions_taken", []):
+            tool_name = a.get("tool", "")
+            if not tool_name:
+                continue
+            status = "pending" if a.get("status") == "pending_confirmation" else a.get("status", "success")
+            actions.append({
+                "tool": tool_name,
+                "args": a.get("args", {}),
+                "status": status,
+                "result": a.get("result", ""),
+            })
+
+        return {"response": response_text, "actions": actions}
+
+    except Exception as e:
+        logger.exception("copilot_chat_failed")
+        return {"response": "I'm having trouble connecting to the AI service. Please try again.", "actions": []}
+    finally:
+        await client.close()
 
 
 @app.post("/agent/test")

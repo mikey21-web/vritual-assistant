@@ -148,7 +148,7 @@ export default function CopilotPage() {
             <Menu size={18} />
           </button>
           <MessageCircle size={18} className="text-[var(--primary)] shrink-0" />
-          <span className="text-sm font-semibold text-[var(--foreground)]">CRM Copilot</span>
+          <span className="text-sm font-semibold text-[var(--foreground)]">Copilot</span>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-4">

@@ -72,3 +72,4 @@ class SharedMikeyState(TypedDict, total=False):
     working_memory: dict | None
     procedural_rules: list[dict] | None
     niche_benchmarks: list[dict] | None
+    copilot_context: dict | None

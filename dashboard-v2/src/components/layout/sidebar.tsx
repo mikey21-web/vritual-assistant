@@ -10,8 +10,8 @@ import {
 import { fetchProfile, fetchBusinessSettings } from "../../lib/data";
 import { useAuth } from "../../lib/useAuth";
 import { useBranding } from "../../lib/useBranding";
-import BrandLogo from "../BrandLogo";
-import { isFeatureEnabled, getLabel, getBusinessName } from "../../lib/niche-config";
+
+import { isFeatureEnabled, getLabel, getBusinessName, getNicheLogo } from "../../lib/niche-config";
 
 const featureMap: Record<string, string> = {
   "/": "overview", "/leads": "leads", "/pipeline": "pipeline", "/contacts": "contacts",
@@ -72,7 +72,7 @@ const rawNavGroups = [
       { label: "Rules", icon: Target, path: "/rules" },
       { label: "AI Campaigns", icon: Sparkles, path: "/ai-campaigns" },
       { label: "AI Agent", icon: Bot, path: "/ai-agent" },
-      { label: "Mikey", icon: Headset, path: "/copilot" },
+      { label: "Copilot", icon: MessageCircle, path: "/copilot" },
       { label: "Mikey", icon: Brain, path: "/mikey" },
     ],
   },
@@ -259,7 +259,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { co
         <div className="flex h-14 items-center justify-between border-b border-[var(--sidebar-border)] px-4">
           {!collapsed && (
             <div className="flex items-center gap-2.5">
-              <BrandLogo logoUrl={branding.logoUrl} name={companyName} />
+              <span className="text-xl">{getNicheLogo()}</span>
               <span className="text-sm font-bold text-[var(--sidebar-fg)]">{companyName}</span>
             </div>
           )}

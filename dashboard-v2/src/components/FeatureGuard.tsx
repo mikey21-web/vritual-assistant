@@ -16,7 +16,8 @@ const pageToFeature: Record<string, string> = {
   Rules: "routing",
   AICampaigns: "aiCampaigns",
   AIAgent: "aiAgent",
-  Mikey: "copilot",
+  Copilot: "copilot",
+  Mikey: "mikey",
   Webhooks: "webhooks",
   SMS: "sms",
   Widget: "widget",
@@ -56,7 +57,6 @@ const pageToFeature: Record<string, string> = {
   AdIntegrations: "adIntegrations",
   WebsiteCrawler: "websiteCrawler",
   PublicProfile: "publicProfile",
-  Copilot: "copilot",
   Properties: "properties",
   Shipments: "shipments",
 };

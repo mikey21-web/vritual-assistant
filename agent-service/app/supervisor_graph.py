@@ -17,6 +17,7 @@ from app.memory_client import MemoryClient, MemoryEntry
 from app.lead_agent import build_lead_graph
 from app.operator_agent import build_operator_tools
 from app.tools import build_tools, ToolContext
+from app.prompt_copilot import build_copilot_prompt
 from app.prompt_supervisor import build_supervisor_prompt
 from app.logging_config import utc_now_iso
 
@@ -42,6 +43,20 @@ def build_supervisor(
     )
 
     async def load_context_node(state: SharedMikeyState, config: RunnableConfig) -> dict:
+        if state.get("trigger") == "copilot_chat":
+            return {
+                "lead_context": {},
+                "messages": state.get("messages", []),
+                "memory_context": state.get("copilot_context", {}).get("memory_context", ""),
+                "procedural_rules": [],
+                "niche_benchmarks": [],
+                "conversation": [],
+                "next_agent": "operator_voice",
+                "steps": 0,
+                "actions_taken": [],
+                "terminate": False,
+            }
+
         lead_id = state.get("lead_id")
 
         try:
@@ -153,7 +168,20 @@ def build_supervisor(
         agent_tools_node = ToolNode(operator_tools)
         model_with_tools = model.bind_tools(operator_tools)
 
-        system_prompt = build_supervisor_prompt(state)
+        if state.get("trigger") == "copilot_chat":
+            copilot_ctx = state.get("copilot_context") or {}
+            system_prompt = build_copilot_prompt(
+                business_name=copilot_ctx.get("business_name", "this business"),
+                industry=copilot_ctx.get("industry", ""),
+                tone_examples=copilot_ctx.get("tone_examples"),
+                goals=copilot_ctx.get("goals"),
+                compliance=copilot_ctx.get("compliance"),
+                memory_context=state.get("memory_context", ""),
+                benchmark_context=copilot_ctx.get("benchmark_context", ""),
+                khoj_context=copilot_ctx.get("khoj_context", ""),
+            )
+        else:
+            system_prompt = build_supervisor_prompt(state)
 
         messages = [SystemMessage(content=system_prompt)]
         if state.get("memory_context"):
@@ -178,7 +206,7 @@ def build_supervisor(
         for m in state.get("messages", []):
             messages.append(m)
 
-        high_impact_tools = {"send_message", "create_campaign", "initiate_call", "send_email", "bulk_send_message"}
+        high_impact_tools = {"send_message", "create_campaign", "initiate_call", "send_email", "bulk_send_message", "define_outcome"}
 
         actions_taken = state.get("actions_taken", [])
         steps = 0
@@ -234,6 +262,9 @@ def build_supervisor(
         }
 
     async def persist_node(state: SharedMikeyState, config: RunnableConfig) -> dict:
+        if state.get("trigger") == "copilot_chat":
+            return state
+
         actions = state.get("actions_taken", [])
         messages = state.get("messages", [])
 
