@@ -1,7 +1,10 @@
 import { Client } from 'ssh2';
 const conn = new Client();
+const cmds = [
+  `docker inspect lead-automation-dashboard -f '{{index .Config.Labels "com.docker.compose.project"}}'`,
+];
 conn.on('ready', () => {
-  conn.exec(`docker logs lead-automation-backend --tail 40 2>&1 | grep -iE "leads/0e9fcde2|metadata|email"`, (err, stream) => {
+  conn.exec(cmds[0], (err, stream) => {
     let o = '';
     stream.on('close', () => { console.log(o.trim()); conn.end(); });
     stream.on('data', d => o += d.toString());

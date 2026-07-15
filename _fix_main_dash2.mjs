@@ -1,7 +1,10 @@
 import { Client } from 'ssh2';
 const conn = new Client();
+const cmds = [
+  `cd /opt/lead-automation-demo && docker compose -p lead-automation-demo up -d --force-recreate --no-deps dashboard 2>&1 | tail -10`,
+];
 conn.on('ready', () => {
-  conn.exec(`docker inspect lead-automation-agent -f '{{json .NetworkSettings.Networks}}'`, (err, stream) => {
+  conn.exec(cmds[0], (err, stream) => {
     let o = '';
     stream.on('close', () => { console.log(o.trim()); conn.end(); });
     stream.on('data', d => o += d.toString());

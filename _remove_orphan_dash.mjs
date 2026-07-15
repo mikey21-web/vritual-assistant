@@ -1,14 +1,8 @@
 import { Client } from 'ssh2';
-import fs from 'fs';
-
-const b64 = fs.readFileSync('_b64_backend_client.txt', 'utf8').trim();
-
 const conn = new Client();
 const cmds = [
-  `echo "${b64}" | base64 -d > /opt/lead-automation-demo/agent-service/app/backend_client.py && echo WRITTEN`,
-  `cd /opt/lead-automation-demo && docker compose -p lead-automation-demo build agent-service 2>&1 | tail -10`,
-  `cd /opt/lead-automation-demo && docker compose -p lead-automation-demo up -d --force-recreate --no-deps agent-service 2>&1 | tail -10`,
-  `docker network connect --alias agent-service virtual-assistant_default lead-automation-agent 2>&1`,
+  `docker rm -f lead-automation-dashboard`,
+  `cd /opt/lead-automation-demo && docker compose -p lead-automation-demo up -d --no-deps dashboard 2>&1 | tail -10`,
 ];
 conn.on('ready', () => {
   let i = 0;

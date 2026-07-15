@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   LayoutDashboard, Users, MessageSquare, BarChart3, Settings,
   Megaphone, FormInput, QrCode, FileText, Route, Target,
@@ -10,8 +10,7 @@ import {
 import { fetchProfile, fetchBusinessSettings } from "../../lib/data";
 import { useAuth } from "../../lib/useAuth";
 import { useBranding } from "../../lib/useBranding";
-
-import { isFeatureEnabled, getLabel, getBusinessName, getNicheLogo } from "../../lib/niche-config";
+import { isFeatureEnabled, getLabel, getBusinessName, getNicheLogo, onConfigChange } from "../../lib/niche-config";
 
 const featureMap: Record<string, string> = {
   "/": "overview", "/leads": "leads", "/pipeline": "pipeline", "/contacts": "contacts",
@@ -178,22 +177,24 @@ const rawNavGroups = [
   },
 ];
 
-const nicheLabel = getLabel("leads");
-const navGroups = rawNavGroups
-  .map((g) => ({
-    ...g,
-    label: g.label === "Leads" ? nicheLabel : g.label,
-    items: g.items.filter((item) => {
-      const feature = featureMap[item.path];
-      return !feature || isFeatureEnabled(feature as any);
-    }).map((item) => {
-      const labelKey = labelMap[item.path];
-      if (labelKey) return { ...item, label: getLabel(labelKey) };
-      if (item.path === "/leads") return { ...item, label: getLabel("lead") };
-      return item;
-    }),
-  }))
-  .filter((g) => g.items.length > 0);
+function getNavGroups() {
+  const nicheLabel = getLabel("leads");
+  return rawNavGroups
+    .map((g) => ({
+      ...g,
+      label: g.label === "Leads" ? nicheLabel : g.label,
+      items: g.items.filter((item) => {
+        const feature = featureMap[item.path];
+        return !feature || isFeatureEnabled(feature as any);
+      }).map((item) => {
+        const labelKey = labelMap[item.path];
+        if (labelKey) return { ...item, label: getLabel(labelKey) };
+        if (item.path === "/leads") return { ...item, label: getLabel("lead") };
+        return item;
+      }),
+    }))
+    .filter((g) => g.items.length > 0);
+}
 
 export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { collapsed: boolean; onToggle: () => void; mobileOpen?: boolean; onMobileClose?: () => void }) {
   const { logout } = useAuth();
@@ -201,10 +202,13 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { co
   const [profile, setProfile] = useState<any>(null);
   const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [cfgRev, setCfgRev] = useState(0);
+
+  useEffect(() => onConfigChange(() => setCfgRev(v => v + 1)), []);
 
   const findActiveGroupLabel = () => {
     const hash = window.location.hash.replace('#', '') || '/';
-    const group = navGroups.find(g => g.items.some(item => hash === item.path || (item.path !== '/' && hash.startsWith(item.path))));
+    const group = getNavGroups().find(g => g.items.some(item => hash === item.path || (item.path !== '/' && hash.startsWith(item.path))));
     return group?.label;
   };
 
@@ -269,7 +273,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { co
         </div>
 
         <nav className="flex-1 overflow-y-auto p-3 space-y-1">
-          {navGroups.map((group) => {
+          {getNavGroups().map((group) => {
             const collapsible = group.items.length > 1;
             const isOpen = !collapsible || openGroups.has(group.label) || collapsed;
             return (

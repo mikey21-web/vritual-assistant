@@ -153,6 +153,13 @@ const industryToNiche: Record<string, string> = {
   marketing: "agency",
 };
 
+let configListeners: Array<() => void> = [];
+
+export function onConfigChange(fn: () => void): () => void {
+  configListeners.push(fn);
+  return () => { configListeners = configListeners.filter(l => l !== fn); };
+}
+
 export async function initNicheConfig(): Promise<void> {
   try {
     const res = await fetch("/api/business-settings");
@@ -162,6 +169,7 @@ export async function initNicheConfig(): Promise<void> {
     if (industry && industryToNiche[industry]) {
       currentConfig = { ...nicheMap[industryToNiche[industry]] };
       if (settings?.businessName) currentConfig.businessName = settings.businessName;
+      configListeners.forEach(fn => fn());
     }
   } catch {
     // fallback to env var
