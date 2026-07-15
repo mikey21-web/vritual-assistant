@@ -14,6 +14,7 @@ import { FederatedController } from './federated.controller';
 import { AggregatorController } from './aggregator.controller';
 import { EmbeddingService } from './embedding.service';
 import { NicheScannerService } from './niche-scanner.service';
+import { NicheActionService } from './niche-action.service';
 import { MikeyController } from './mikey.controller';
 
 @Module({
@@ -30,6 +31,7 @@ import { MikeyController } from './mikey.controller';
     ReflexionService,
     FederatedService,
     NicheScannerService,
+    NicheActionService,
   ],
   exports: [
     MikeyService,

@@ -56,7 +56,7 @@ export class NicheScannerService {
         title: `${upcoming.length} active leads in the pipeline`,
         description: `${names.join(', ')}${upcoming.length > 3 ? ` and ${upcoming.length - 3} more` : ''}. Review and move them through the pipeline.`,
         count: upcoming.length,
-        metadata: { leadIds: upcoming.map(l => l.id) },
+        metadata: { leadIds: upcoming.map(l => l.id), suggestedAction: 'notify_staff' },
       });
     }
 
@@ -75,7 +75,7 @@ export class NicheScannerService {
         title: `${staleAppointments.length} booking(s) stuck`,
         description: `${staleAppointments.slice(0, 3).map(l => l.contact?.name || 'Unknown').join(', ')}${staleAppointments.length > 3 ? ` and ${staleAppointments.length - 3} more` : ''} have booked but no update in 48h. Follow up.`,
         count: staleAppointments.length,
-        metadata: { leadIds: staleAppointments.map(l => l.id) },
+        metadata: { leadIds: staleAppointments.map(l => l.id), suggestedAction: 'create_followup_tasks', taskTitle: 'Follow up on stale booking' },
       });
     }
 
@@ -103,7 +103,7 @@ export class NicheScannerService {
         title: `${tomorrowAppts.length} appointment(s) to manage`,
         description: `${tomorrowAppts.slice(0, 3).map(l => l.contact?.name || 'Unknown').join(', ')}${tomorrowAppts.length > 3 ? ` and ${tomorrowAppts.length - 3} more` : ''} have upcoming appointments. 24h reminders recommended.`,
         count: tomorrowAppts.length,
-        metadata: { leadIds: tomorrowAppts.map(l => l.id) },
+        metadata: { leadIds: tomorrowAppts.map(l => l.id), suggestedAction: 'create_followup_tasks', taskTitle: 'Send 24h appointment reminder' },
       });
     }
 
@@ -117,7 +117,7 @@ export class NicheScannerService {
         title: `No-show rate: ${noShows} lost in 30 days`,
         description: `${noShows} patients marked LOST in last 30 days. Dual reminders (24h + 1h) can reduce this.`,
         count: noShows,
-        metadata: {},
+        metadata: { suggestedAction: 'escalate_critical' },
       });
     }
 
@@ -144,7 +144,7 @@ export class NicheScannerService {
         title: `${upcomingStays.length} upcoming booking(s)`,
         description: `${upcomingStays.slice(0, 3).map(l => l.contact?.name || 'Unknown').join(', ')}${upcomingStays.length > 3 ? ` and ${upcomingStays.length - 3} more` : ''}. Prep rooms and confirm details.`,
         count: upcomingStays.length,
-        metadata: { leadIds: upcomingStays.map(l => l.id) },
+        metadata: { leadIds: upcomingStays.map(l => l.id), suggestedAction: 'notify_staff' },
       });
     }
 
@@ -159,7 +159,7 @@ export class NicheScannerService {
         title: `${recentCheckins.length} guest(s) currently checked in`,
         description: `${recentCheckins.length} guest(s) are checked in. Ensure front desk is briefed on any preferences.`,
         count: recentCheckins.length,
-        metadata: { leadIds: recentCheckins.map(l => l.id) },
+        metadata: { leadIds: recentCheckins.map(l => l.id), suggestedAction: 'notify_staff' },
       });
     }
 
@@ -185,14 +185,14 @@ export class NicheScannerService {
         return now.getTime() - updated > 48 * 60 * 60 * 1000;
       });
       if (staleInTransit.length > 0) {
-        findings.push({
-          type: 'logistics_stale_transit',
-          severity: 'warning',
-          title: `${staleInTransit.length} shipment(s) stale in transit`,
-          description: `${staleInTransit.slice(0, 3).map(l => l.contact?.name || 'Unknown').join(', ')}${staleInTransit.length > 3 ? ` and ${staleInTransit.length - 3} more` : ''} haven't updated in 48h. Notify customers.`,
-          count: staleInTransit.length,
-          metadata: { leadIds: staleInTransit.map(l => l.id) },
-        });
+      findings.push({
+        type: 'logistics_stale_transit',
+        severity: 'warning',
+        title: `${staleInTransit.length} shipment(s) stale in transit`,
+        description: `${staleInTransit.slice(0, 3).map(l => l.contact?.name || 'Unknown').join(', ')}${staleInTransit.length > 3 ? ` and ${staleInTransit.length - 3} more` : ''} haven't updated in 48h. Notify customers.`,
+        count: staleInTransit.length,
+        metadata: { leadIds: staleInTransit.map(l => l.id), suggestedAction: 'create_followup_tasks', taskTitle: 'Check stale shipment status' },
+      });
       }
     }
 
@@ -209,7 +209,7 @@ export class NicheScannerService {
         title: `${pendingQuotes} quote(s) awaiting response`,
         description: `${pendingQuotes} shippers received quotes this week but haven't booked. Follow up.`,
         count: pendingQuotes,
-        metadata: {},
+        metadata: { suggestedAction: 'create_followup_tasks', taskTitle: 'Follow up on pending quote' },
       });
     }
 
@@ -236,7 +236,7 @@ export class NicheScannerService {
         title: `${freshBuyers.length} new buyer(s) in 48h`,
         description: `${freshBuyers.slice(0, 3).map(l => l.contact?.name || 'Unknown').join(', ')}${freshBuyers.length > 3 ? ` and ${freshBuyers.length - 3} more` : ''}. Assign agents and contact ASAP.`,
         count: freshBuyers.length,
-        metadata: { leadIds: freshBuyers.map(l => l.id) },
+        metadata: { leadIds: freshBuyers.map(l => l.id), suggestedAction: 'create_followup_tasks', taskTitle: 'Contact new buyer' },
       });
     }
 
@@ -255,7 +255,7 @@ export class NicheScannerService {
         title: `Qualified buyers — no site visit yet`,
         description: `${noFollowUp.slice(0, 2).map(l => l.contact?.name || 'Unknown').join(', ')}${noFollowUp.length > 2 ? ` and ${noFollowUp.length - 2} more` : ''} haven't been offered a site visit in 72h.`,
         count: noFollowUp.length,
-        metadata: { leadIds: noFollowUp.map(l => l.id) },
+        metadata: { leadIds: noFollowUp.map(l => l.id), suggestedAction: 'create_followup_tasks', taskTitle: 'Invite to weekend site visit' },
       });
     }
 
@@ -281,7 +281,7 @@ export class NicheScannerService {
         title: `${stalledNegotiations.length} deal(s) stuck in negotiation`,
         description: `${stalledNegotiations.slice(0, 3).map(l => l.contact?.name || 'Unknown').join(', ')}${stalledNegotiations.length > 3 ? ` and ${stalledNegotiations.length - 3} more` : ''} haven't moved in 72h.`,
         count: stalledNegotiations.length,
-        metadata: { leadIds: stalledNegotiations.map(l => l.id) },
+        metadata: { leadIds: stalledNegotiations.map(l => l.id), suggestedAction: 'create_followup_tasks', taskTitle: 'Follow up on stalled deal' },
       });
     }
 
@@ -298,7 +298,7 @@ export class NicheScannerService {
         title: `${staleProposals} proposal(s) sent, no response in 5 days`,
         description: `${staleProposals} prospect(s) haven't responded to proposals. A follow-up could help close them.`,
         count: staleProposals,
-        metadata: {},
+        metadata: { suggestedAction: 'create_followup_tasks', taskTitle: 'Follow up on stale proposal' },
       });
     }
 

@@ -5,6 +5,7 @@ import { TemporalStrategyService } from './temporal-strategy.service';
 import { StaffAwarenessService } from './staff-awareness.service';
 import { MetaCycleService } from './meta-cycle.service';
 import { NicheScannerService } from './niche-scanner.service';
+import { NicheActionService } from './niche-action.service';
 
 interface SchedulerFinding {
   type: 'stale_hot_leads' | 'stale_new_leads' | 'conversion_anomaly' | 'overdue_tasks' | 'lead_source_shift' | 'unassigned_hot_leads' | 'staff_performance_update';
@@ -28,6 +29,7 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
     private staff: StaffAwarenessService,
     private metaCycle: MetaCycleService,
     private nicheScanner: NicheScannerService,
+    private nicheAction: NicheActionService,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -116,6 +118,13 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
         );
 
         this.logger.warn(`[${finding.severity}] ${finding.title}: ${finding.description}`);
+
+        if (finding.severity === 'info') {
+          const result = await this.nicheAction.execute(finding);
+          if (result.executed) {
+            this.logger.log(`Auto-executed action for ${finding.type}: ${result.result}`);
+          }
+        }
       }
 
       this.lastFindings = findings;
