@@ -1,70 +1,16 @@
+/* Tailwind */
 @import "tailwindcss";
 
-:root {
-  --font-display: 'Inter', sans-serif;
-  --font-body: 'Inter', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
-
-  --background: #ffffff;
-  --foreground: #1a1a1a;
-  --card: #ffffff;
-  --card-foreground: #1a1a1a;
-  --muted: #f5f5f5;
-  --muted-foreground: #8a8a8a;
-  --muted-foreground-light: #b8b8b8;
-  --primary: #4668f5;
-  --primary-hover: #3b5bdb;
-  --primary-foreground: #ffffff;
-  --primary-light: color-mix(in srgb, var(--primary) 8%, white);
-  --accent: rgba(0, 0, 0, 0.04);
-  --accent-foreground: #1a1a1a;
-  --secondary: #f5f5f5;
-  --secondary-foreground: #1a1a1a;
-  --destructive: #e03131;
-  --destructive-foreground: #ffffff;
-  --border: #e8e8e8;
-  --border-strong: #d4d4d4;
-  --input: #d4d4d4;
-  --ring: var(--primary);
-  --radius-sm: 4px;
-  --radius: 8px;
-  --radius-lg: 16px;
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.08);
-
-  --sidebar-bg: #f8f8f8;
-  --sidebar-bg-elevated: #ffffff;
-  --sidebar-fg: #1a1a1a;
-  --sidebar-muted: #8a8a8a;
-  --sidebar-border: #e8e8e8;
-  --sidebar-hover: rgba(0, 0, 0, 0.04);
-  --sidebar-active-bg: color-mix(in srgb, var(--primary) 8%, white);
-  --sidebar-active-fg: var(--primary);
-
-  /* Twenty CRM Design System */
-  --t-background-noisy: #f5f5f5;
-  --t-background-primary: #ffffff;
-  --t-background-secondary: #fcfcfc;
-  --t-background-tertiary: #f8f8f8;
-  --t-background-transparent-light: rgba(0,0,0,0.04);
-  --t-background-transparent-lighter: rgba(0,0,0,0.02);
-  --t-border-color-medium: #e8e8e8;
-  --t-border-color-light: #f0f0f0;
-  --t-border-radius-md: 8px;
-  --t-border-radius-lg: 16px;
-  --t-font-color-primary: #1a1a1a;
-  --t-font-color-secondary: #666666;
-  --t-font-color-tertiary: #999999;
-  --t-font-color-light: #b3b3b3;
-  --t-font-weight-regular: 400;
-  --t-font-weight-medium: 500;
-  --t-font-weight-semiBold: 600;
-  --t-font-size-xs: 0.85rem;
-  --t-font-size-sm: 0.92rem;
-  --t-font-size-md: 1rem;
-  --t-font-size-lg: 1.23rem;
-  --t-gray-scale-gray3: #f0f0f0;
+/* Twenty CRM theme CSS variables */
+.light {
+  --t-icon-size-sm: 14;
+  --t-icon-size-md: 16;
+  --t-icon-size-lg: 20;
+  --t-icon-size-xl: 24;
+  --t-icon-stroke-sm: 1.6;
+  --t-icon-stroke-md: 2;
+  --t-icon-stroke-lg: 2.5;
+  --t-spacing-0: 0px;
   --t-spacing-1: 4px;
   --t-spacing-2: 8px;
   --t-spacing-3: 12px;
@@ -73,276 +19,130 @@
   --t-spacing-6: 24px;
   --t-spacing-7: 28px;
   --t-spacing-8: 32px;
+  --t-spacing-0_5: 2px;
+  --t-spacing-1_5: 6px;
+  --t-border-radius-xs: 2px;
+  --t-border-radius-sm: 4px;
+  --t-border-radius-md: 8px;
+  --t-border-radius-lg: 16px;
+  --t-border-radius-xl: 20px;
+  --t-border-radius-pill: 999px;
+  --t-font-family: Inter, sans-serif;
+  --t-font-size-xxs: 0.625rem;
+  --t-font-size-xs: 0.85rem;
+  --t-font-size-sm: 0.92rem;
+  --t-font-size-md: 1rem;
+  --t-font-size-lg: 1.23rem;
+  --t-font-size-xl: 1.54rem;
+  --t-font-size-xxl: 1.85rem;
+  --t-font-weight-regular: 400;
+  --t-font-weight-medium: 500;
+  --t-font-weight-semi-bold: 600;
+  --t-font-color-primary: #333;
+  --t-font-color-secondary: #666;
+  --t-font-color-tertiary: #999;
+  --t-font-color-light: #b3b3b3;
+  --t-font-color-inverted: #fff;
+  --t-background-primary: #fff;
+  --t-background-secondary: #fcfcfc;
+  --t-background-tertiary: #f5f5f5;
+  --t-background-transparent-light: rgba(0,0,0,0.04);
+  --t-background-transparent-lighter: rgba(0,0,0,0.02);
+  --t-background-transparent-medium: rgba(0,0,0,0.08);
+  --t-border-color-strong: #ccc;
+  --t-border-color-medium: #e0e0e0;
+  --t-border-color-light: #f0f0f0;
   --t-box-shadow-light: 0px 2px 4px 0px rgba(0,0,0,0.04), 0px 0px 4px 0px rgba(0,0,0,0.08);
+  --t-box-shadow-strong: 2px 4px 16px 0px rgba(0,0,0,0.16), 0px 2px 4px 0px rgba(0,0,0,0.08);
+  --t-gray-scale-gray1: #fff;
+  --t-gray-scale-gray2: #fcfcfc;
+  --t-gray-scale-gray3: #f5f5f5;
+  --t-gray-scale-gray4: #f0f0f0;
+  --t-gray-scale-gray5: #e8e8e8;
+  --t-gray-scale-gray6: #d0d0d0;
+  --t-gray-scale-gray7: #b3b3b3;
+  --t-gray-scale-gray8: #999;
+  --t-gray-scale-gray9: #808080;
+  --t-gray-scale-gray10: #666;
+  --t-gray-scale-gray11: #4d4d4d;
+  --t-gray-scale-gray12: #333;
+  --t-color-blue: #4668f5;
+  --t-color-blue10: #3b5bdb;
+  --t-color-green: #34a853;
+  --t-color-red: #ea4335;
+  --t-color-orange: #fb8500;
+  --sidebar-bg: #f8f8f8;
+  --sidebar-fg: #1a1a1a;
+  --sidebar-muted: #888;
+  --sidebar-border: #e8e8e8;
+  --sidebar-hover: rgba(0,0,0,0.04);
+  --sidebar-active-bg: rgba(70,104,245,0.08);
+  --sidebar-active-fg: #4668f5;
+  --primary: #4668f5;
+  --ring: #4668f5;
+  --background: #fff;
+  --foreground: #333;
+  --card: #fff;
+  --border: #e0e0e0;
+  --radius: 8px;
 }
 
 .dark {
-  --background: #171717;
-  --foreground: #ebebeb;
-  --card: #1f1f1f;
-  --card-foreground: #ebebeb;
-  --muted: #262626;
-  --muted-foreground: #8a8a8a;
-  --muted-foreground-light: #5c5c5c;
-  --primary: #5c7cfa;
-  --primary-hover: #748ffc;
-  --primary-foreground: #ffffff;
-  --primary-light: color-mix(in srgb, var(--primary) 12%, transparent);
-  --accent: rgba(255, 255, 255, 0.06);
-  --accent-foreground: #ebebeb;
-  --secondary: #262626;
-  --secondary-foreground: #ebebeb;
-  --destructive: #fa5252;
-  --destructive-foreground: #ffffff;
-  --border: #2a2a2a;
-  --border-strong: #404040;
-  --input: #404040;
-  --ring: var(--primary);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.25);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.3);
-
-  --sidebar-bg: #161616;
-  --sidebar-bg-elevated: #1f1f1f;
-  --sidebar-fg: #e8e8e8;
-  --sidebar-muted: #8a8a8a;
-  --sidebar-border: #2a2a2a;
-  --sidebar-hover: rgba(255, 255, 255, 0.06);
-  --sidebar-active-bg: color-mix(in srgb, var(--primary) 15%, transparent);
-  --sidebar-active-fg: #7c9cff;
-
-  /* Twenty CRM Design System - Dark */
-  --t-background-noisy: #1a1a1a;
+  --t-font-color-primary: #e8e8e8;
+  --t-font-color-secondary: #999;
+  --t-font-color-tertiary: #666;
+  --t-font-color-light: #4d4d4d;
+  --t-font-color-inverted: #1a1a1a;
   --t-background-primary: #1f1f1f;
   --t-background-secondary: #171717;
-  --t-background-tertiary: #222222;
+  --t-background-tertiary: #222;
   --t-background-transparent-light: rgba(255,255,255,0.06);
-  --t-border-color-medium: #333333;
+  --t-background-transparent-lighter: rgba(255,255,255,0.03);
+  --t-background-transparent-medium: rgba(255,255,255,0.1);
+  --t-border-color-strong: #444;
+  --t-border-color-medium: #333;
   --t-border-color-light: #2a2a2a;
-  --t-font-color-primary: #ebebeb;
-  --t-font-color-secondary: #999999;
-  --t-font-color-tertiary: #666666;
-  --t-font-color-light: #4c4c4c;
-  --t-gray-scale-gray3: #222222;
+  --t-gray-scale-gray1: #1a1a1a;
+  --t-gray-scale-gray2: #222;
+  --t-gray-scale-gray3: #2a2a2a;
   --t-box-shadow-light: 0px 2px 4px 0px rgba(0,0,0,0.2);
+  --sidebar-bg: #1a1a1a;
+  --sidebar-fg: #e8e8e8;
+  --sidebar-muted: #888;
+  --sidebar-border: #333;
+  --sidebar-hover: rgba(255,255,255,0.06);
+  --sidebar-active-bg: rgba(70,104,245,0.15);
+  --sidebar-active-fg: #7c9cff;
+  --primary: #5c7cfa;
+  --background: #1a1a1a;
+  --foreground: #e8e8e8;
+  --card: #222;
+  --border: #333;
 }
 
 * {
-  border-color: var(--border);
+  border-color: var(--t-border-color-medium);
 }
 
 body {
-  font-family: var(--font-body);
-  background: var(--background);
-  color: var(--foreground);
+  font-family: var(--t-font-family);
+  background: var(--t-background-secondary);
+  color: var(--t-font-color-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-display);
-  letter-spacing: -0.01em;
-}
-
-code, pre, .font-mono {
-  font-family: var(--font-mono);
+  margin: 0;
+  padding: 0;
 }
 
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--secondary); border-radius: 2px; }
-::-webkit-scrollbar-thumb:hover { background: var(--muted-foreground); }
+::-webkit-scrollbar-thumb { background: var(--t-gray-scale-gray4); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--t-gray-scale-gray6); }
 
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(16px); }
-  to { opacity: 1; transform: translateY(0); }
-}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.animate-fade-in { animation: fadeIn 0.2s ease-out forwards; }
+.animate-fade-up { animation: fadeUp 0.3s ease-out forwards; }
 
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes scaleIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
-}
-
-@keyframes slideInRight {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
-}
-
-.animate-fade-up { animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-.animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
-.animate-scale-in { animation: scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-.animate-slide-in-right { animation: slideInRight 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-
-.delay-1 { animation-delay: 0.06s; }
-.delay-2 { animation-delay: 0.12s; }
-.delay-3 { animation-delay: 0.18s; }
-.delay-4 { animation-delay: 0.24s; }
-.delay-5 { animation-delay: 0.30s; }
-.delay-6 { animation-delay: 0.36s; }
-.delay-7 { animation-delay: 0.42s; }
-.delay-8 { animation-delay: 0.48s; }
-
-::selection {
-  background: var(--primary-light);
-  color: var(--primary);
-}
-
-*:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
-}
-
-body.overlay-open [title*="Mikey Voice"],
-body.overlay-open .mikey-widget-fab {
-  display: none !important;
-}
-
-@media (hover: none) and (pointer: coarse) {
-  button, select, input, textarea, a, [role="button"] {
-    min-height: 44px;
-  }
-  button, select, a, [role="button"] {
-    min-width: 44px;
-  }
-}
-
-@media print {
-  aside, nav, .no-print, [data-no-print], button, .print-hidden { display: none !important; }
-  body { background: white !important; color: black !important; font-size: 11pt; }
-  main { padding: 0 !important; margin: 0 !important; }
-}
-
-/* Twenty CRM Utility Classes */
-/* Twenty-style card */
-.tw-card {
-  background: var(--t-background-primary);
-  border: 1px solid var(--t-border-color-medium);
-  border-radius: var(--t-border-radius-md);
-  overflow: hidden;
-}
-
-.tw-card-header {
-  background: var(--t-background-primary);
-  border-bottom: 1px solid var(--t-border-color-medium);
-  padding: var(--t-spacing-2) var(--t-spacing-4);
-  font-size: var(--t-font-size-sm);
-  font-weight: var(--t-font-weight-medium);
-}
-
-.tw-card-content {
-  background: var(--t-background-secondary);
-  padding: var(--t-spacing-4);
-}
-
-.tw-card-footer {
-  background: var(--t-background-primary);
-  border-top: 1px solid var(--t-border-color-medium);
-  padding: var(--t-spacing-2) var(--t-spacing-4);
-  font-size: var(--t-font-size-sm);
-}
-
-/* Twenty-style table */
-.tw-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--t-font-size-sm);
-}
-
-.tw-table th {
-  text-align: left;
-  font-weight: var(--t-font-weight-medium);
-  color: var(--t-font-color-tertiary);
-  padding: var(--t-spacing-2) var(--t-spacing-3);
-  border-bottom: 1px solid var(--t-border-color-light);
-  font-size: var(--t-font-size-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.tw-table td {
-  padding: var(--t-spacing-2) var(--t-spacing-3);
-  border-bottom: 1px solid var(--t-border-color-light);
-  color: var(--t-font-color-primary);
-}
-
-.tw-table tr:hover td {
-  background: var(--t-background-transparent-lighter);
-}
-
-/* Twenty-style button */
-.tw-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--t-spacing-1);
-  font-family: inherit;
-  font-size: var(--t-font-size-sm);
-  font-weight: var(--t-font-weight-medium);
-  padding: var(--t-spacing-1) var(--t-spacing-3);
-  border-radius: var(--t-border-radius-md);
-  border: 1px solid var(--t-border-color-medium);
-  background: var(--t-background-primary);
-  color: var(--t-font-color-primary);
-  cursor: pointer;
-  transition: background 0.1s ease;
-  line-height: 1;
-  height: 28px;
-}
-
-.tw-btn:hover {
-  background: var(--t-background-transparent-light);
-}
-
-.tw-btn-primary {
-  background: var(--primary);
-  color: white;
-  border-color: var(--primary);
-}
-
-.tw-btn-primary:hover {
-  opacity: 0.9;
-}
-
-/* Twenty-style input */
-.tw-input {
-  font-family: inherit;
-  font-size: var(--t-font-size-sm);
-  padding: var(--t-spacing-1) var(--t-spacing-3);
-  border: 1px solid var(--t-border-color-medium);
-  border-radius: var(--t-border-radius-md);
-  background: var(--t-background-primary);
-  color: var(--t-font-color-primary);
-  outline: none;
-  height: 28px;
-  transition: border-color 0.1s ease;
-}
-
-.tw-input:focus {
-  border-color: var(--primary);
-}
-
-/* Twenty-style badge/tag */
-.tw-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 8px;
-  border-radius: var(--t-border-radius-sm, 4px);
-  font-size: 0.75rem;
-  font-weight: var(--t-font-weight-medium);
-  line-height: 1.2;
-}
-
-/* Twenty-style page container */
-.tw-page-body {
-  background: var(--t-background-noisy);
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  padding: 0;
-  overflow: auto;
-}
+::selection { background: var(--t-color-blue); color: white; }
+*:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: var(--t-border-radius-sm); }
