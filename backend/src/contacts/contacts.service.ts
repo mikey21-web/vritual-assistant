@@ -65,15 +65,12 @@ export class ContactsService {
     }, { isolationLevel: 'Serializable' });
   }
 
-  async create(data: Omit<Prisma.ContactUncheckedCreateInput, 'tenantId'> & { tenantId?: string }, req?: any) {
+  async create(data: Prisma.ContactUncheckedCreateInput, req?: any) {
     const orClauses: any[] = [];
     if (data.email) orClauses.push({ email: data.email });
     if (data.phone) orClauses.push({ phone: data.phone });
 
     try {
-      // Serializable transaction so the pre-check and the create are atomic. Without this,
-      // two concurrent requests for the same email/phone can both pass the pre-check before
-      // either creates, producing duplicate contacts (same race findOrCreate already guards against).
       return await this.prisma.$transaction(async (tx) => {
         if (orClauses.length > 0) {
           const existing = await tx.contact.findFirst({ where: { OR: orClauses } });
@@ -81,7 +78,7 @@ export class ContactsService {
             throw new ConflictException('Contact with this email or phone already exists');
           }
         }
-        return tx.contact.create({ data: { ...data, tenantId: getTenantId(req) } });
+        return tx.contact.create({ data: { ...data, tenantId: getTenantId(req) } as Prisma.ContactUncheckedCreateInput });
       }, { isolationLevel: 'Serializable' });
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2034') {

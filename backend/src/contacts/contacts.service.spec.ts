@@ -44,7 +44,7 @@ describe('ContactsService', () => {
   });
 
   it('should create a contact', async () => {
-    const c = await service.create({ name: 'Jane', email: 'jane@test.com' });
+    const c = await service.create({ name: 'Jane', email: 'jane@test.com', tenantId: 'tenant-1' });
     expect(c.email).toBe('john@test.com');
   });
 

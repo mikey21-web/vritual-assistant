@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
-import { Mic, MicOff, Sparkles, X } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Mic, MicOff, Sparkles } from 'lucide-react';
 import { setPendingFilter } from '../lib/pendingSearch';
 import { api } from '../lib/api';
 
@@ -18,94 +18,59 @@ const PAGE_MAP: Record<string, string> = {
   scoring: '/scoring', routing: '/routing', webhooks: '/webhooks',
   forms: '/forms', 'sync-logs': '/sync-logs', 'audit-logs': '/audit-logs',
   health: '/health', import: '/import', advanced: '/advanced',
-  integrations: '/integrations', 'ad-integrations': '/ad-integrations',
-  'ai-campaign': '/ai-campaign', 'ai-agent': '/ai-agent',
-  studio: '/studio', 'knowledge-base': '/knowledge-base',
-  calendar: '/calendar', calls: '/calls', 'finance-reports': '/finance-reports',
-  locations: '/locations', partners: '/partners',
-  salaries: '/salaries', leaves: '/leaves',
-  widgets: '/widgets', workspaces: '/workspace',
-};
-
-const FILTER_KEYWORDS: Record<string, Record<string, string>> = {
-  hot: { segment: 'HOT' },
-  warm: { segment: 'WARM' },
-  cold: { segment: 'COLD' },
-  new: { status: 'NEW' },
-  open: { status: 'OPEN' },
-  converted: { status: 'CONVERTED' },
-  lost: { status: 'LOST' },
-  qualified: { status: 'QUALIFIED' },
-  urgent: { priority: 'URGENT' },
-  high: { priority: 'HIGH' },
-  medium: { priority: 'MEDIUM' },
-  low: { priority: 'LOW' },
 };
 
 const PAGE_ALIASES: Record<string, string> = {
   'qr code': 'qr-codes', 'qr codes': 'qr-codes',
-  'code': 'qr-codes', 'codes': 'qr-codes',
-  'properties': 'properties', 'property': 'properties',
-  'shipments': 'shipments', 'shipping': 'shipments',
-  'invoices': 'invoices', 'invoice': 'invoices',
-  'bookings': 'bookings', 'booking': 'bookings',
-  'settings': 'settings', 'setting': 'settings',
-  'integrations': 'integrations', 'integration': 'integrations',
-  'events': 'events', 'event': 'events',
-  'campaign': 'campaigns', 'ad campaign': 'campaigns',
-  'ticket': 'tickets', 'support': 'tickets',
-  'contact': 'contacts', 'people': 'contacts',
-  'task': 'tasks', 'todo': 'tasks',
-  'team': 'team', 'people': 'team',
-  'reports': 'reports', 'report': 'reports',
-  'dashboard': 'overview', 'home': 'overview',
-  'inbox': 'inbox', 'messages': 'inbox', 'chats': 'inbox',
+  settings: 'settings', 'setting': 'settings',
+  integrations: 'integrations', events: 'events', event: 'events',
+  campaign: 'campaigns', ticket: 'tickets', support: 'tickets',
+  contact: 'contacts', task: 'tasks', team: 'team',
+  reports: 'reports', report: 'reports',
+  dashboard: 'overview', home: 'overview', inbox: 'inbox',
 };
 
-function navigateToPage(page: string, filterKw?: string) {
+function navigateTo(page: string) {
   const resolved = PAGE_ALIASES[page] || page;
   const path = PAGE_MAP[resolved];
   if (!path) return false;
-
-  let filters: Record<string, string> | undefined;
-  if (filterKw && FILTER_KEYWORDS[filterKw]) {
-    filters = FILTER_KEYWORDS[filterKw];
-  }
-
-  setPendingFilter(resolved, { filters });
+  setPendingFilter(resolved, {});
   window.location.hash = path;
   return true;
 }
 
-function VoiceCommandUIInner() {
-  const [annyangRef, setAnnyangRef] = useState<any>(null);
+function matchCommand(text: string): { page: string; filter?: string } | null {
+  const t = text.toLowerCase().trim().replace(/^show me |^go to |^open |^navigate to |^navigate |^take me to /, '');
+  const words = t.split(/\s+/);
+
+  // Check for "show me [filter] [page]" pattern
+  const filters = ['hot', 'warm', 'cold', 'new', 'open', 'converted', 'lost', 'qualified', 'urgent', 'high', 'medium', 'low'];
+  if (words.length >= 2 && filters.includes(words[0])) {
+    const page = words.slice(1).join(' ');
+    const resolved = PAGE_ALIASES[page] || page;
+    if (PAGE_MAP[resolved]) return { page: resolved, filter: words[0] };
+  }
+
+  // Direct page match
+  const resolved = PAGE_ALIASES[t] || t;
+  if (PAGE_MAP[resolved]) return { page: resolved };
+
+  return null;
+}
+
+export default function VoiceCommandUI() {
   const [supported, setSupported] = useState(false);
   const [listening, setListening] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [mode, setMode] = useState<'idle' | 'listening' | 'copilot'>('idle');
-  const [initError, setInitError] = useState<string | null>(null);
+  const recognitionRef = useRef<any>(null);
   const resultTimer = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
-    try {
-      import('annyang').then(mod => {
-        const a = mod.default || mod;
-        const hasSupport = typeof a === 'function' ? true : (a && a.isSupported ? a.isSupported() : false);
-        setSupported(hasSupport);
-        setAnnyangRef(a);
-      }).catch(() => {
-        setSupported(false);
-      });
-    } catch {
-      setSupported(false);
-    }
+    const Ctor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    setSupported(!!Ctor);
   }, []);
 
-  if (initError) return null;
-  if (annyangRef === null) return null; // still loading
-  if (!supported) return null;
-
-  // Auto-dismiss result
   useEffect(() => {
     if (!result) return;
     resultTimer.current = setTimeout(() => setResult(null), 4000);
@@ -113,148 +78,75 @@ function VoiceCommandUIInner() {
   }, [result]);
 
   const startListening = useCallback(() => {
-    const a = annyangRef;
-    if (!a) return;
+    const Ctor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!Ctor) { setResult('Speech recognition not supported'); return; }
 
-    // Clear previous commands
-    if (a.removeCommands) a.removeCommands();
+    const r = new Ctor();
+    r.continuous = false;
+    r.interimResults = false;
+    r.lang = 'en-US';
 
-    // Direct navigation commands — no LLM needed
-    const commands: Record<string, (...args: string[]) => void> = {};
+    r.onstart = () => { setListening(true); setMode('listening'); };
 
-    // Dynamic page navigation: "show me leads", "go to qr", "navigate settings", "open tickets"
-    for (const [name, path] of Object.entries(PAGE_MAP)) {
-      const display = name.replace(/-/g, ' ');
-      commands[`show me ${display}`] = () => {
-        if (navigateToPage(name)) setResult(`Navigated to ${display}`);
-      };
-      commands[`go to ${display}`] = () => {
-        if (navigateToPage(name)) setResult(`Navigated to ${display}`);
-      };
-      commands[`open ${display}`] = () => {
-        if (navigateToPage(name)) setResult(`Opened ${display}`);
-      };
-      commands[`navigate to ${display}`] = () => {
-        if (navigateToPage(name)) setResult(`Navigated to ${display}`);
-      };
-      commands[`take me to ${display}`] = () => {
-        if (navigateToPage(name)) setResult(`Going to ${display}`);
-      };
-    }
+    r.onresult = (e: any) => {
+      const text = e.results[e.results.length - 1][0].transcript;
+      setMode('copilot');
 
-    // Filter commands: "show me hot leads", "show me open tickets"
-    for (const [kw, filter] of Object.entries(FILTER_KEYWORDS)) {
-      for (const [name] of Object.entries(PAGE_MAP)) {
-        const display = name.replace(/-/g, ' ');
-        commands[`show me ${kw} ${display}`] = () => {
-          if (navigateToPage(name, kw)) setResult(`Showing ${kw} ${display}`);
+      const cmd = matchCommand(text);
+      if (cmd) {
+        const filters: Record<string, string> = {};
+        const filterMap: Record<string, string> = {
+          hot: 'HOT', warm: 'WARM', cold: 'COLD', new: 'NEW',
+          open: 'OPEN', converted: 'CONVERTED', lost: 'LOST',
+          urgent: 'URGENT', high: 'HIGH',
         };
-      }
-    }
-
-    // Universal: "show me X" where X is any alias
-    commands['show me *page'] = (page: string) => {
-      const p = page.toLowerCase().trim();
-      if (navigateToPage(p)) setResult(`Showing ${p}`);
-      else askCopilot(`show me ${p}`);
-    };
-    commands['go to *page'] = (page: string) => {
-      const p = page.toLowerCase().trim();
-      if (navigateToPage(p)) setResult(`Going to ${p}`);
-      else askCopilot(`go to ${p}`);
-    };
-    commands['open *page'] = (page: string) => {
-      const p = page.toLowerCase().trim();
-      if (navigateToPage(p)) setResult(`Opened ${p}`);
-      else askCopilot(`open ${p}`);
-    };
-    commands['navigate *page'] = (page: string) => {
-      const p = page.toLowerCase().trim();
-      if (navigateToPage(p)) setResult(`Navigated to ${p}`);
-      else askCopilot(`navigate to ${p}`);
-    };
-
-    // General questions go to copilot
-    commands['*query'] = (query: string) => {
-      askCopilot(query);
-    };
-
-    if (a.addCommands) a.addCommands(commands);
-    if (a.setLanguage) a.setLanguage('en-US');
-    if (a.debug) a.debug();
-
-    if (a.addCallback) {
-      a.addCallback('resultMatch', () => {
-        setMode('idle');
-      });
-      a.addCallback('resultNoMatch', () => {
-        setResult("Sorry, I didn't catch that. Try 'show me leads' or 'go to qr'.");
-      });
-      a.addCallback('error', (err: any) => {
-        if (err?.error === 'not-allowed') {
-          setResult('Microphone access denied. Allow mic in browser settings.');
-          setListening(false);
-        } else if (err?.error) {
-          setResult('Mic error: ' + err.error);
+        if (cmd.filter && filterMap[cmd.filter]) {
+          filters.segment = filterMap[cmd.filter];
         }
-      });
-    }
+        setPendingFilter(cmd.page, { filters: Object.keys(filters).length ? filters : undefined });
+        window.location.hash = PAGE_MAP[cmd.page];
+        setResult(`Showing ${cmd.page}${cmd.filter ? ' (' + cmd.filter + ')' : ''}`);
+        return;
+      }
 
-    try { a.start({ autoRestart: true, continuous: false }); } catch (e) {
-      setResult('Failed to start voice. Check mic permissions.');
-    }
-    setListening(true);
-    setMode('listening');
+      // Fallback to copilot
+      api('/copilot/chat', {
+        method: 'POST',
+        body: JSON.stringify({ message: text }),
+      }).then((res: any) => {
+        const nav = (res.actions || []).find((a: any) => a.tool === 'navigate_ui' && a.status !== 'error');
+        if (nav) {
+          setPendingFilter(nav.args.page, { filters: nav.args.filters, highlightId: nav.args.highlightId, zoom: nav.args.zoom, summary: nav.args.summary });
+          window.location.hash = PAGE_MAP[nav.args.page] || '/' + nav.args.page;
+          setResult(nav.args.summary || `Navigated to ${nav.args.page}`);
+        } else {
+          setResult(res.reply || 'Done');
+        }
+      }).catch(() => {
+        setResult("I didn't understand that. Try 'show me leads' or 'go to qr'.");
+      });
+    };
+
+    r.onerror = () => { setResult('Microphone error. Check permissions.'); };
+    r.onend = () => { setListening(false); setMode('idle'); };
+
+    recognitionRef.current = r;
+    try { r.start(); } catch { setResult('Failed to start microphone.'); }
   }, []);
 
   const stopListening = useCallback(() => {
-    const a = annyangRef;
-    if (a) {
-      try { if (a.abort) a.abort(); } catch {}
-      try { if (a.removeCommands) a.removeCommands(); } catch {}
-    }
+    try { recognitionRef.current?.stop(); } catch {}
+    recognitionRef.current = null;
     setListening(false);
     setMode('idle');
-  }, [annyangRef]);
+  }, []);
 
-  const askCopilot = async (query: string) => {
-    setMode('copilot');
-    stopListening();
-    try {
-      const res = await api('/copilot/chat', {
-        method: 'POST',
-        body: JSON.stringify({ message: query }),
-      });
-      const actions = res.actions || [];
-      const nav = actions.find((a: any) => a.tool === 'navigate_ui' && a.status !== 'error');
-
-      if (nav) {
-        setPendingFilter(nav.args.page, {
-          filters: nav.args.filters,
-          highlightId: nav.args.highlightId,
-          zoom: nav.args.zoom,
-          summary: nav.args.summary,
-        });
-        const path = PAGE_MAP[nav.args.page] || `/${nav.args.page}`;
-        window.location.hash = path;
-        setResult(nav.args.summary || `Navigated to ${nav.args.page}`);
-      } else {
-        setResult(res.reply || 'Done');
-      }
-    } catch (err: any) {
-      setResult(err.message || 'Something went wrong');
-    }
-    setMode('idle');
-  };
-
-  // Keyboard: Ctrl+H to toggle
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'h' && e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey) {
         e.preventDefault();
         if (result) { setResult(null); return; }
-        if (listening) stopListening();
-        else startListening();
+        if (listening) stopListening(); else startListening();
       }
       if (e.key === 'Escape') { setResult(null); stopListening(); }
     };
@@ -281,7 +173,7 @@ function VoiceCommandUIInner() {
         <div className="rounded-full border border-[var(--border)] bg-[var(--card)] px-5 py-2.5 shadow-2xl flex items-center gap-3">
           <div className="flex items-end gap-0.5 h-5">
             {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="w-1 rounded-full bg-[var(--primary)] animate-pulse" style={{ height: `${20 + Math.random() * 60}%`, animationDelay: `${i * 0.1}s` }} />
+              <div key={i} className="w-1 rounded-full bg-[var(--primary)] animate-pulse" style={{ height: `${20 + Math.random() * 60}%` }} />
             ))}
           </div>
           <span className="text-xs text-[var(--muted-foreground)] whitespace-nowrap">
@@ -310,19 +202,4 @@ function VoiceCommandUIInner() {
       </div>
     </>
   );
-}
-
-export default function VoiceCommandUI() {
-  const [errored, setErrored] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => { setMounted(true); }, []);
-
-  if (errored || !mounted) return null;
-
-  try {
-    return <VoiceCommandUIInner />;
-  } catch {
-    return null;
-  }
 }

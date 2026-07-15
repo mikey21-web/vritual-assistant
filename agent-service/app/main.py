@@ -6,12 +6,12 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, BackgroundTasks, HTTPException, Header
 
+from app.logging_config import setup_logging, new_run_id
 from app.config import Settings
 from app.schemas import AgentRunRequest, AgentRunResponse
 from app.runner import execute_run, execute_run_and_get_response
 from app.config_runtime import runtime_config
 from app.idempotency import init as idempotency_init, close as idempotency_close
-from app.logging_config import setup_logging, new_run_id
 
 import httpx
 import structlog
