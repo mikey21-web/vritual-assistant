@@ -4,6 +4,7 @@ import { EventsService } from '../events/events.service';
 import { TemporalStrategyService } from './temporal-strategy.service';
 import { StaffAwarenessService } from './staff-awareness.service';
 import { MetaCycleService } from './meta-cycle.service';
+import { NicheScannerService } from './niche-scanner.service';
 
 interface SchedulerFinding {
   type: 'stale_hot_leads' | 'stale_new_leads' | 'conversion_anomaly' | 'overdue_tasks' | 'lead_source_shift' | 'unassigned_hot_leads' | 'staff_performance_update';
@@ -26,6 +27,7 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
     private temporal: TemporalStrategyService,
     private staff: StaffAwarenessService,
     private metaCycle: MetaCycleService,
+    private nicheScanner: NicheScannerService,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -50,6 +52,11 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
         this.checkLeadSourceShift(),
       ]);
       findings.push(...conversionAnomaly, ...sourceShift);
+
+      if (new Date().getMinutes() % 15 === 0) {
+        const nicheFindings = await this.nicheScanner.scanAll();
+        findings.push(...nicheFindings);
+      }
 
       const temporalInsights = await this.temporal.scan();
       if (temporalInsights.length > 0) {

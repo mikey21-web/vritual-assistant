@@ -13,6 +13,7 @@ import { FederatedService } from './federated.service';
 import { FederatedController } from './federated.controller';
 import { AggregatorController } from './aggregator.controller';
 import { EmbeddingService } from './embedding.service';
+import { NicheScannerService } from './niche-scanner.service';
 import { MikeyController } from './mikey.controller';
 
 @Module({
@@ -28,6 +29,7 @@ import { MikeyController } from './mikey.controller';
     EmbeddingService,
     ReflexionService,
     FederatedService,
+    NicheScannerService,
   ],
   exports: [
     MikeyService,
