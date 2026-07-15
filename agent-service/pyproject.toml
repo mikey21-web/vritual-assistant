@@ -17,6 +17,7 @@ dependencies = [
     "structlog>=24",
     "pyyaml>=6",
     "psycopg[binary]>=3.2",
+    "psycopg-pool>=3.2",
     "langgraph-checkpoint-postgres>=2.0",
 ]
 

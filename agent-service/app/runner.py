@@ -46,17 +46,15 @@ async def execute_run(settings: Settings, req: AgentRunRequest) -> str:
             checkpointer = None
             if USE_CHECKPOINTING:
                 try:
-                    from langgraph.checkpoint.postgres import PostgresSaver
-                    from psycopg import Connection
-                    conn = Connection.connect(DATABASE_URL)
-                    checkpointer = PostgresSaver(conn)
-                    try:
-                        checkpointer.setup()
-                    except Exception as setup_e:
-                        logger.warning("checkpointer_setup_partial", error=str(setup_e))
+                    from langgraph.checkpoint.postgres import AsyncPostgresSaver
+                    from psycopg_pool import AsyncConnectionPool
+                    pool = AsyncConnectionPool(DATABASE_URL, max_size=5)
+                    await pool.open()
+                    checkpointer = AsyncPostgresSaver(pool)
+                    await checkpointer.setup()
                     logger.info("checkpointer_enabled", db_url=DATABASE_URL.split("@")[-1] if "@" in DATABASE_URL else "local")
                 except Exception as e:
-                    logger.warning("checkpointer_failed_fallback_to_none", error=str(e))
+                    logger.warning("checkpointer_failed_fallback_to_none", error=str(e), error_type=type(e).__name__)
                     checkpointer = None
 
             graph = build_supervisor(
@@ -139,8 +137,6 @@ async def execute_run(settings: Settings, req: AgentRunRequest) -> str:
 
     except Exception as e:
         logger.error("run_failed", error=str(e), error_type=type(e).__name__, leadId=req.leadId)
-        import traceback
-        logger.warning("run_failed_traceback", tb=traceback.format_exc())
         await mark_done(req.triggerId, success=False)
     finally:
         await client.close()
