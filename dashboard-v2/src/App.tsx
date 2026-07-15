@@ -266,23 +266,19 @@ export default function App() {
         />
         <div className={`flex flex-1 flex-col transition-all duration-200 ${sidebarCollapsed ? "lg:ml-14" : "lg:ml-56"}`}>
           <Topbar onMenuToggle={() => setMobileNavOpen(!mobileNavOpen)} dark={dark} onThemeToggle={() => setDark(!dark)} />
-          <main className="flex-1 overflow-auto p-0 relative tw-page-body">
-            <div className="flex flex-col h-full p-3 pb-3 pr-3">
-              <MikeyConnectedBanner />
-              <ErrorBoundary>
-                <Suspense fallback={<PageFallback />}>
-                  <div className="bg-[var(--t-background-primary)] border border-[var(--t-border-color-medium)] rounded-[var(--t-border-radius-md)] overflow-hidden flex flex-col flex-1">
-                    {PageComponent ? (
-                      <FeatureGuard pageKey={page}>
-                        <PageComponent />
-                      </FeatureGuard>
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-[var(--muted-foreground)]">Page not found</div>
-                    )}
-                  </div>
-                </Suspense>
-              </ErrorBoundary>
-            </div>
+          <main className="flex-1 overflow-auto bg-[var(--t-background-secondary)]">
+            <MikeyConnectedBanner />
+            <ErrorBoundary>
+              <Suspense fallback={<PageFallback />}>
+                {PageComponent ? (
+                  <FeatureGuard pageKey={page}>
+                    <PageComponent />
+                  </FeatureGuard>
+                ) : (
+                  <div className="flex h-full items-center justify-center text-[var(--t-font-color-tertiary)]">Page not found</div>
+                )}
+              </Suspense>
+            </ErrorBoundary>
           </main>
         </div>
       </div>
