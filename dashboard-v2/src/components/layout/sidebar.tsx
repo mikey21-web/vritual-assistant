@@ -304,8 +304,8 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { co
                         onClick={onMobileClose}
                         className={`flex items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-colors ${
                           isActive
-                            ? "bg-white/10 text-white font-medium"
-                            : "text-[var(--sidebar-muted)] hover:bg-white/5 hover:text-[var(--sidebar-fg)]"
+                            ? "bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-fg)] font-medium"
+                            : "text-[var(--sidebar-muted)] hover:bg-[var(--sidebar-hover)] hover:text-[var(--sidebar-fg)]"
                         }`}
                       >
                         <item.icon size={16} strokeWidth={1.5} />
@@ -320,8 +320,8 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { co
         </nav>
 
         <div className="border-t border-[var(--sidebar-border)] px-2 py-2">
-          <div className="flex items-center gap-2.5 rounded-md px-2 py-1.5 hover:bg-white/5 transition-colors cursor-pointer">
-            <div className="h-6 w-6 rounded-full bg-white/20 flex items-center justify-center text-[10px] font-semibold text-white shrink-0">
+          <div className="flex items-center gap-2.5 rounded-md px-2 py-1.5 hover:bg-[var(--sidebar-hover)] transition-colors cursor-pointer">
+            <div className="h-6 w-6 rounded-full bg-[var(--primary)] flex items-center justify-center text-[10px] font-semibold text-white shrink-0">
               {profile?.name?.[0] || 'U'}
             </div>
             {!collapsed && (
