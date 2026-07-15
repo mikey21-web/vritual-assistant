@@ -9,7 +9,7 @@ from app.config import Settings
 from app.schemas import AgentRunRequest, SharedMikeyState
 from app.backend_client import BackendClient
 from app.supervisor_graph import build_supervisor
-from app.memory_client import MemoryClient
+from app.memory_client import MemoryClient, MemoryEntry
 from app.lead_agent import build_lead_graph
 from app.tools import build_tools, ToolContext
 from app.logging_config import utc_now_iso
@@ -122,7 +122,7 @@ async def execute_run(settings: Settings, req: AgentRunRequest) -> str:
                 for i, m in enumerate(ai_messages[-3:]):
                     content = (m.content or "")[:500]
                     summary += f"### AI Response {i+1}\n{content}\n\n"
-                await memory.store(memory.MemoryEntry(
+                await memory.store(MemoryEntry(
                     type="EPISODIC",
                     key=f"conversation:{req.leadId}:{started_at}",
                     value=summary,
