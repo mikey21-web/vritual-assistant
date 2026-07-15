@@ -151,6 +151,7 @@ services:
       REDIS_URL: redis://redis:6379
       PORT: 8000
       NICHE_CONFIG_PATH: /app/niche.config.yaml
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:-lead_automation}
     volumes:
       - ./niche.config.yaml:/app/niche.config.yaml:ro
     depends_on:
