@@ -51,7 +51,16 @@ async def execute_run(settings: Settings, req: AgentRunRequest) -> str:
                     conn = Connection.connect(DATABASE_URL)
                     checkpointer = PostgresSaver(conn)
                     checkpointer.setup()
-                    logger.info("checkpointer_enabled", db_url=DATABASE_URL.split("@")[-1] if "@" in DATABASE_URL else "local")
+                    try:
+                        import inspect
+                        if inspect.iscoroutinefunction(getattr(PostgresSaver, 'aget_tuple', None)):
+                            await checkpointer.aget_tuple({"configurable": {"thread_id": "probe"}})
+                            logger.info("checkpointer_enabled", db_url=DATABASE_URL.split("@")[-1] if "@" in DATABASE_URL else "local")
+                        else:
+                            raise NotImplementedError("sync-only checkpointer")
+                    except (NotImplementedError, Exception):
+                        logger.warning("checkpointer_unsupported_async_fallback", error="sync checkpointer cannot be used in async graph")
+                        checkpointer = None
                 except Exception as e:
                     logger.warning("checkpointer_failed_fallback_to_none", error=str(e), error_type=type(e).__name__)
                     checkpointer = None
