@@ -393,7 +393,10 @@ def build_supervisor(
     graph.add_node("operator_voice", operator_voice_node)
     graph.add_node("persist", persist_node)
 
-    graph.set_conditional_entry_point(
+    graph.set_entry_point("load_context")
+
+    graph.add_conditional_edges(
+        "load_context",
         should_continue,
         {
             "lead_voice": "lead_voice",
