@@ -146,3 +146,42 @@ body {
 
 ::selection { background: var(--t-color-blue); color: white; }
 *:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: var(--t-border-radius-sm); }
+
+/* ── Twenty Design overrides for common Tailwind utility classes ── */
+/* These make ALL existing pages instantly use Twenty design tokens */
+.bg-white { background-color: var(--t-background-primary) !important; }
+.bg-gray-50, .bg-gray-100 { background-color: var(--t-background-secondary) !important; }
+.bg-gray-200 { background-color: var(--t-background-tertiary) !important; }
+.text-gray-500, .text-gray-400 { color: var(--t-font-color-tertiary) !important; }
+.text-gray-600 { color: var(--t-font-color-secondary) !important; }
+.text-gray-700, .text-gray-800, .text-gray-900 { color: var(--t-font-color-primary) !important; }
+.border-gray-200, .border-gray-300 { border-color: var(--t-border-color-medium) !important; }
+.rounded-lg { border-radius: var(--t-border-radius-md) !important; }
+.rounded-xl { border-radius: var(--t-border-radius-lg) !important; }
+.shadow-sm { box-shadow: var(--t-box-shadow-light) !important; }
+.shadow-md { box-shadow: var(--t-box-shadow-strong) !important; }
+.font-medium { font-weight: var(--t-font-weight-medium) !important; }
+.font-semibold { font-weight: var(--t-font-weight-semi-bold) !important; }
+.text-sm { font-size: var(--t-font-size-sm) !important; }
+.text-xs { font-size: var(--t-font-size-xs) !important; }
+.text-lg { font-size: var(--t-font-size-lg) !important; }
+.text-xl { font-size: var(--t-font-size-xl) !important; }
+.gap-2 { gap: var(--t-spacing-2) !important; }
+.gap-3 { gap: var(--t-spacing-3) !important; }
+.gap-4 { gap: var(--t-spacing-4) !important; }
+.p-4 { padding: var(--t-spacing-4) !important; }
+.p-6 { padding: var(--t-spacing-6) !important; }
+.px-4 { padding-left: var(--t-spacing-4) !important; padding-right: var(--t-spacing-4) !important; }
+.py-2 { padding-top: var(--t-spacing-2) !important; padding-bottom: var(--t-spacing-2) !important; }
+tr:hover, .hover-bg:hover { background-color: var(--t-background-transparent-lighter) !important; }
+
+/* Twenty-style table overrides */
+table th { font-weight: var(--t-font-weight-medium) !important; color: var(--t-font-color-tertiary) !important; font-size: var(--t-font-size-xs) !important; text-transform: uppercase !important; letter-spacing: 0.05em !important; }
+table td { color: var(--t-font-color-primary) !important; font-size: var(--t-font-size-sm) !important; }
+table tr:hover { background-color: var(--t-background-transparent-lighter) !important; }
+
+/* Twenty-style button overrides */
+button:not(.nav-item):not([role="tab"]):not([role="menuitem"]):not(.no-twenty) { font-family: inherit !important; font-weight: var(--t-font-weight-medium) !important; border-radius: var(--t-border-radius-md) !important; transition: background 0.1s ease !important; }
+
+/* Twenty-style card borders */
+.bg-white.border, .bg-white.shadow-sm { border-color: var(--t-border-color-medium) !important; }
