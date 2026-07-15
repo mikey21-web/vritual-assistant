@@ -299,7 +299,7 @@ function NotificationsBell() {
 
 export function Topbar({ onMenuToggle, dark, onThemeToggle }: { onMenuToggle: () => void; dark: boolean; onThemeToggle: () => void }) {
   return (
-    <header className="sticky top-0 z-30 flex h-[39px] items-center gap-2 border-b border-[var(--t-border-color-light)] bg-[var(--t-background-primary)] px-3 lg:px-4">
+    <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b border-[var(--border)] bg-[var(--background)] px-4 lg:px-6">
       <button onClick={onMenuToggle} className="rounded-md p-2 text-[var(--muted-foreground)] hover:bg-[var(--accent)] hover:text-[var(--foreground)] transition-colors">
         <Menu size={17} />
       </button>

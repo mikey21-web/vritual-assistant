@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   LayoutDashboard, Users, MessageSquare, BarChart3, Settings,
   Megaphone, FormInput, QrCode, FileText, Route, Target,
@@ -256,20 +256,23 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { co
     <>
       {mobileOpen && <div className="fixed inset-0 z-40 bg-black/30 lg:hidden" onClick={onMobileClose} />}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex h-full flex-col border-r border-[var(--t-border-color-light)] bg-[var(--sidebar-bg)] transition-transform duration-200 lg:transition-[width] ${
+        className={`fixed inset-y-0 left-0 z-50 flex h-full w-64 flex-col border-r border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] transition-transform duration-200 lg:transition-[width] ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
-        } lg:translate-x-0 ${collapsed ? "lg:w-14" : "lg:w-56"}`}
+        } lg:translate-x-0 ${collapsed ? "lg:w-16" : "lg:w-64"}`}
       >
-        <div className="flex h-10 items-center justify-between px-2 pt-2 pb-1 shrink-0">
+        <div className="flex h-14 items-center justify-between border-b border-[var(--sidebar-border)] px-4">
           {!collapsed && (
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="text-base shrink-0">{getNicheLogo()}</span>
-              <span className="text-sm font-semibold text-[var(--t-font-color-primary)] truncate">{companyName}</span>
+            <div className="flex items-center gap-2.5">
+              <span className="text-xl">{getNicheLogo()}</span>
+              <span className="text-sm font-bold text-[var(--sidebar-fg)]">{companyName}</span>
             </div>
           )}
+          <button onClick={onToggle} className="rounded-md p-1.5 hover:bg-[var(--sidebar-hover)] text-[var(--sidebar-muted)] transition-colors">
+            {collapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
+          </button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-2 py-1 flex flex-col gap-1">
+        <nav className="flex-1 overflow-y-auto p-3 space-y-1">
           {getNavGroups().map((group) => {
             const collapsible = group.items.length > 1;
             const isOpen = !collapsible || openGroups.has(group.label) || collapsed;
@@ -279,13 +282,13 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { co
                   collapsible ? (
                     <button
                       onClick={() => toggleGroup(group.label)}
-                      className="w-full flex items-center justify-between h-7 rounded-[var(--t-border-radius-md)] px-1 text-xs font-medium text-[var(--t-font-color-tertiary)] hover:text-[var(--t-font-color-secondary)] hover:bg-[var(--t-background-transparent-lighter)] transition-colors"
+                      className="w-full flex items-center justify-between px-2.5 py-1.5 text-[10px] font-semibold text-[var(--sidebar-muted)] uppercase tracking-wider hover:text-[var(--sidebar-fg)] transition-colors"
                     >
                       <span>{group.label}</span>
                       <ChevronDown size={12} className={`transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
                     </button>
                   ) : (
-                    <p className="px-1 text-xs font-medium text-[var(--t-font-color-tertiary)]">
+                    <p className="px-2.5 text-[10px] font-semibold text-[var(--sidebar-muted)] uppercase tracking-wider mb-1">
                       {group.label}
                     </p>
                   )
@@ -302,14 +305,15 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { co
                         key={item.path}
                         href={`#${item.path}`}
                         onClick={onMobileClose}
-                        className={`flex items-center gap-2.5 rounded-[var(--t-border-radius-md)] h-7 px-1 text-base transition-colors ${
+                        className={`flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm transition-all font-medium relative ${
                           isActive
-                            ? "bg-[var(--t-background-transparent-light)] text-[var(--t-font-color-primary)] font-medium"
-                            : "text-[var(--t-font-color-secondary)] hover:bg-[var(--t-background-transparent-light)] hover:text-[var(--t-font-color-primary)]"
+                            ? "bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-fg)]"
+                            : "text-[var(--sidebar-muted)] hover:bg-[var(--sidebar-hover)] hover:text-[var(--sidebar-fg)]"
                         }`}
                       >
-                        <item.icon size={16} strokeWidth={1.5} className="shrink-0" />
-                        {!collapsed && <span className="truncate">{item.label}</span>}
+                        {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-[3px] rounded-full bg-[var(--sidebar-active-fg)]" />}
+                        <item.icon size={17} strokeWidth={2} />
+                        {!collapsed && <span>{item.label}</span>}
                       </a>
                     );
                   })}
@@ -319,22 +323,23 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { co
           })}
         </nav>
 
-        <div className="border-t border-[var(--t-border-color-light)] px-2 py-2 shrink-0">
-          <div className="flex items-center gap-2 rounded-[var(--t-border-radius-md)] px-1 py-1 hover:bg-[var(--t-background-transparent-lighter)] transition-colors cursor-pointer">
-            <div className="h-6 w-6 rounded-full bg-[var(--t-color-blue)] flex items-center justify-center text-[10px] font-semibold text-white shrink-0">
+        <div className="border-t border-[var(--sidebar-border)] p-3">
+          <div className="flex items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-[var(--sidebar-hover)] transition-colors cursor-pointer">
+            <div className="h-7 w-7 rounded-full bg-[var(--sidebar-active-fg)] flex items-center justify-center text-xs font-semibold text-[#08130f] shrink-0">
               {profile?.name?.[0] || 'U'}
             </div>
             {!collapsed && (
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-[var(--t-font-color-primary)] truncate">{userName}</p>
+                <p className="text-sm font-medium text-[var(--sidebar-fg)] truncate">{userName}</p>
+                <p className="text-xs text-[var(--sidebar-muted)] truncate">{userEmail}</p>
               </div>
             )}
             <button
               onClick={(e) => { e.preventDefault(); logout(); }}
-              className="rounded p-1 hover:bg-red-500/10 text-[var(--t-font-color-tertiary)] hover:text-red-400 transition-colors"
+              className="rounded-md p-1.5 hover:bg-red-500/10 text-[var(--sidebar-muted)] hover:text-red-400 transition-colors"
               title="Sign out"
             >
-              <LogOut size={13} />
+              <LogOut size={15} />
             </button>
           </div>
         </div>

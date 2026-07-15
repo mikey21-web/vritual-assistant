@@ -138,7 +138,9 @@ async def execute_run(settings: Settings, req: AgentRunRequest) -> str:
                 ))
 
     except Exception as e:
-        logger.error("run_failed", error=str(e), leadId=req.leadId)
+        logger.error("run_failed", error=str(e), error_type=type(e).__name__, leadId=req.leadId)
+        import traceback
+        logger.warning("run_failed_traceback", tb=traceback.format_exc())
         await mark_done(req.triggerId, success=False)
     finally:
         await client.close()

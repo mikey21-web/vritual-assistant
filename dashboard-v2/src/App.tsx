@@ -257,16 +257,16 @@ export default function App() {
     <BrandingProvider>
     <AppProvider>
     <SocketProvider>
-      <div className="flex h-screen text-[var(--foreground)]">
+      <div className="flex h-screen bg-[var(--background)] text-[var(--foreground)]">
         <Sidebar
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
           mobileOpen={mobileNavOpen}
           onMobileClose={() => setMobileNavOpen(false)}
         />
-        <div className={`flex flex-1 flex-col transition-all duration-200 ${sidebarCollapsed ? "lg:ml-14" : "lg:ml-56"}`}>
+        <div className={`flex flex-1 flex-col transition-all duration-200 ${sidebarCollapsed ? "lg:ml-16" : "lg:ml-64"}`}>
           <Topbar onMenuToggle={() => setMobileNavOpen(!mobileNavOpen)} dark={dark} onThemeToggle={() => setDark(!dark)} />
-          <main className="flex-1 overflow-auto bg-[var(--t-background-secondary)]">
+          <main className="flex-1 overflow-auto p-4 lg:p-6 relative">
             <MikeyConnectedBanner />
             <ErrorBoundary>
               <Suspense fallback={<PageFallback />}>
@@ -275,7 +275,7 @@ export default function App() {
                     <PageComponent />
                   </FeatureGuard>
                 ) : (
-                  <div className="flex h-full items-center justify-center text-[var(--t-font-color-tertiary)]">Page not found</div>
+                  <div className="flex h-full items-center justify-center text-[var(--muted-foreground)]">Page not found</div>
                 )}
               </Suspense>
             </ErrorBoundary>
