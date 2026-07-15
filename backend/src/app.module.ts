@@ -72,6 +72,7 @@ import { PortalIntegrationsModule } from './portal-integrations/portal-integrati
 import { BookingsModule } from './bookings/bookings.module';
 import { PropertiesModule } from './properties/properties.module';
 import { ShipmentsModule } from './shipments/shipments.module';
+import { AICampaignsController } from './ai-campaigns/ai-campaigns.controller';
 
 @Module({
   imports: [
@@ -157,6 +158,7 @@ import { ShipmentsModule } from './shipments/shipments.module';
     CallTrackingModule,
     PortalIntegrationsModule,
   ],
+  controllers: [AICampaignsController],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
