@@ -261,6 +261,75 @@ def build_supervisor(
             "steps": steps,
         }
 
+    async def extract_facts_into_memory(state: SharedMikeyState, config: RunnableConfig) -> None:
+        messages = state.get("messages", [])
+        lead_id = state.get("lead_id")
+        if not memory or not lead_id or not messages:
+            return
+
+        human_msgs = [m for m in messages if isinstance(m, HumanMessage) and m.content]
+        ai_msgs = [m for m in messages if isinstance(m, AIMessage) and m.content and not (hasattr(m, "tool_calls") and m.tool_calls)]
+        if not human_msgs and not ai_msgs:
+            return
+
+        last_human = human_msgs[-1].content if human_msgs else ""
+        last_ai = ai_msgs[-1].content if ai_msgs else ""
+
+        facts_to_store = []
+
+        if last_human:
+            budget_keywords = ["budget", "rs", "rupees", "lakh", "cost", "spend", "price", "afford"]
+            timeline_keywords = ["when", "date", "month", "week", "urgent", "asap", "deadline"]
+            preference_keywords = ["want", "need", "like", "prefer", "looking for", "require", "interested in"]
+
+            text_lower = last_human.lower()
+            for kw in budget_keywords:
+                if kw in text_lower:
+                    idx = text_lower.find(kw)
+                    snippet = last_human[max(0, idx-30):idx+80].strip()
+                    facts_to_store.append(("budget_mention", snippet, 0.4))
+                    break
+
+            for kw in timeline_keywords:
+                if kw in text_lower:
+                    idx = text_lower.find(kw)
+                    snippet = last_human[max(0, idx-30):idx+80].strip()
+                    facts_to_store.append(("timeline_mention", snippet, 0.4))
+                    break
+
+            for kw in preference_keywords:
+                if kw in text_lower:
+                    idx = text_lower.find(kw)
+                    snippet = last_human[max(0, idx-30):idx+120].strip()
+                    facts_to_store.append(("preference", snippet, 0.3))
+                    break
+
+        for fact_key, fact_value, confidence in facts_to_store:
+            try:
+                await memory.store(MemoryEntry(
+                    type="SEMANTIC",
+                    key=f"{fact_key}:{lead_id}:{utc_now_iso()}",
+                    value=fact_value,
+                    confidence=confidence,
+                    source="supervisor",
+                    lead_id=lead_id,
+                ))
+            except Exception:
+                pass
+
+        summary = f"## Agent Conversation\n- Lead: {lead_id}\n"
+        if last_human:
+            summary += f"- Lead said: {str(last_human)[:300]}\n"
+        if last_ai:
+            summary += f"- Agent said: {str(last_ai)[:300]}\n"
+        await memory.store(MemoryEntry(
+            type="EPISODIC",
+            key=f"conversation:{lead_id}:{utc_now_iso()}",
+            value=summary,
+            source="supervisor",
+            lead_id=lead_id,
+        ))
+
     async def persist_node(state: SharedMikeyState, config: RunnableConfig) -> dict:
         if state.get("trigger") == "copilot_chat":
             return state
@@ -303,19 +372,7 @@ def build_supervisor(
         except Exception:
             pass
 
-        if memory and messages:
-            ai_msgs = [m for m in messages if isinstance(m, AIMessage) and m.content]
-            if ai_msgs:
-                summary = f"## Agent Conversation\n- Lead: {state['lead_id']}\n"
-                for m in ai_msgs[-3:]:
-                    summary += f"- {str(m.content)[:200]}\n"
-                await memory.store(MemoryEntry(
-                    type="EPISODIC",
-                    key=f"conversation:{state['lead_id']}:{utc_now_iso()}",
-                    value=summary,
-                    source="supervisor",
-                    lead_id=state["lead_id"],
-                ))
+        await extract_facts_into_memory(state, config)
 
         return state
 

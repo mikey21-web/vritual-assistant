@@ -6,6 +6,8 @@ import { StaffAwarenessService } from './staff-awareness.service';
 import { MetaCycleService } from './meta-cycle.service';
 import { NicheScannerService } from './niche-scanner.service';
 import { NicheActionService } from './niche-action.service';
+import { ReflexionService } from './reflexion.service';
+import { FederatedService } from './federated.service';
 
 interface SchedulerFinding {
   type: 'stale_hot_leads' | 'stale_new_leads' | 'conversion_anomaly' | 'overdue_tasks' | 'lead_source_shift' | 'unassigned_hot_leads' | 'staff_performance_update';
@@ -30,12 +32,32 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
     private metaCycle: MetaCycleService,
     private nicheScanner: NicheScannerService,
     private nicheAction: NicheActionService,
+    private reflexion: ReflexionService,
+    private federated: FederatedService,
   ) {}
 
   onApplicationBootstrap(): void {
     this.logger.log('Mikey Scheduler starting — scanning every 5 minutes');
     this.scan();
     this.interval = setInterval(() => this.scan(), 5 * 60 * 1000);
+    this.runDailyJobs();
+  }
+
+  private async runDailyJobs(): Promise<void> {
+    const msUntilMidnight = () => {
+      const now = new Date();
+      const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 15, 0);
+      return midnight.getTime() - now.getTime();
+    };
+    setTimeout(async () => {
+      this.logger.log('Running daily peak Mikey jobs');
+      await this.runReflexionOnRecentOutcomes();
+      await this.pushFederatedAggregates();
+      setInterval(async () => {
+        await this.runReflexionOnRecentOutcomes();
+        await this.pushFederatedAggregates();
+      }, 24 * 60 * 60 * 1000);
+    }, msUntilMidnight());
   }
 
   private async scan(): Promise<void> {
@@ -234,6 +256,75 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
       count: Math.abs(Math.round(drop)),
       metadata: { todayRate, weekRate, drop },
     }];
+  }
+
+  // ── P4: Reflexion on recent outcomes ──────────────────────────────────
+  private async runReflexionOnRecentOutcomes(): Promise<void> {
+    try {
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      const [converted, lost] = await Promise.all([
+        this.prisma.lead.findMany({
+          where: { status: 'CONVERTED', updatedAt: { gte: oneHourAgo } },
+          select: { id: true, tenantId: true },
+          take: 10,
+        }),
+        this.prisma.lead.findMany({
+          where: { status: 'LOST', updatedAt: { gte: oneHourAgo } },
+          select: { id: true, tenantId: true },
+          take: 10,
+        }),
+      ]);
+
+      for (const lead of converted) {
+        try {
+          await this.reflexion.reflectOnOutcome(lead.tenantId, 'lead_converted', lead.id);
+          this.logger.log(`Reflexion: lead_converted ${lead.id}`);
+        } catch (err: any) {
+          this.logger.warn(`Reflexion failed for lead_converted ${lead.id}: ${err.message}`);
+        }
+      }
+      for (const lead of lost) {
+        try {
+          await this.reflexion.reflectOnOutcome(lead.tenantId, 'lead_lost', lead.id);
+          this.logger.log(`Reflexion: lead_lost ${lead.id}`);
+        } catch (err: any) {
+          this.logger.warn(`Reflexion failed for lead_lost ${lead.id}: ${err.message}`);
+        }
+      }
+
+      if (converted.length > 0 || lost.length > 0) {
+        await this.events.emit({
+          type: 'mikey.reflexion_completed',
+          source: 'mikey-scheduler',
+          payload: { converted: converted.length, lost: lost.length },
+        });
+      }
+    } catch (err: any) {
+      this.logger.error(`Reflexion scan failed: ${err.message}`);
+    }
+  }
+
+  // ── P5: Federated push ────────────────────────────────────────────────
+  private async pushFederatedAggregates(): Promise<void> {
+    try {
+      const tenants = await this.prisma.tenant.findMany({
+        where: { active: true },
+        select: { id: true },
+      });
+      let pushed = 0;
+      for (const t of tenants) {
+        const ok = await this.federated.pushToAggregator(t.id);
+        if (ok) pushed++;
+      }
+      this.logger.log(`Federated: pushed aggregates for ${pushed}/${tenants.length} active tenants`);
+      await this.events.emit({
+        type: 'mikey.federated_push_completed',
+        source: 'mikey-scheduler',
+        payload: { pushed, total: tenants.length },
+      });
+    } catch (err: any) {
+      this.logger.error(`Federated push failed: ${err.message}`);
+    }
   }
 
   private async checkLeadSourceShift(): Promise<SchedulerFinding[]> {

@@ -17,8 +17,9 @@ from app.idempotency import already_processed, mark_processing, mark_done
 
 logger = structlog.get_logger()
 
-USE_SUPERVISOR = os.environ.get("MIKEY_USE_SUPERVISOR", "false").lower() == "true"
-USE_CHECKPOINTING = os.environ.get("MIKEY_USE_CHECKPOINTING", "false").lower() == "true"
+USE_SUPERVISOR = os.environ.get("MIKEY_USE_SUPERVISOR", "true").lower() == "true"
+USE_CHECKPOINTING = os.environ.get("MIKEY_USE_CHECKPOINTING", "true").lower() == "true"
+DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/virtual-assistant")
 
 
 async def execute_run(settings: Settings, req: AgentRunRequest) -> str:
@@ -44,13 +45,16 @@ async def execute_run(settings: Settings, req: AgentRunRequest) -> str:
         if USE_SUPERVISOR:
             checkpointer = None
             if USE_CHECKPOINTING:
-                from langgraph.checkpoint.postgres import PostgresSaver
-                from psycopg import Connection
-
-                db_url = os.environ.get("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/virtual-assistant")
-                conn = Connection.connect(db_url)
-                checkpointer = PostgresSaver(conn)
-                await checkpointer.setup()
+                try:
+                    from langgraph.checkpoint.postgres import PostgresSaver
+                    from psycopg import Connection
+                    conn = Connection.connect(DATABASE_URL)
+                    checkpointer = PostgresSaver(conn)
+                    await checkpointer.setup()
+                    logger.info("checkpointer_enabled", db_url=DATABASE_URL.split("@")[-1] if "@" in DATABASE_URL else "local")
+                except Exception as e:
+                    logger.warning("checkpointer_failed_fallback_to_none", error=str(e))
+                    checkpointer = None
 
             graph = build_supervisor(
                 settings=settings,
