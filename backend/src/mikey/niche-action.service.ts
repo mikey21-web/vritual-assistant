@@ -22,7 +22,7 @@ export class NicheActionService {
               data: {
                 leadId,
                 title: finding.metadata?.taskTitle || 'Follow up',
-                priority: finding.severity === 'critical' ? 1 : 3,
+                priority: finding.severity === 'critical' ? '1' : '3',
                 status: 'pending',
               },
             });

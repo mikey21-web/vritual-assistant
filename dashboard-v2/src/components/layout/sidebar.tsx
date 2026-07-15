@@ -256,23 +256,20 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { co
     <>
       {mobileOpen && <div className="fixed inset-0 z-40 bg-black/30 lg:hidden" onClick={onMobileClose} />}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex h-full w-64 flex-col border-r border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] transition-transform duration-200 lg:transition-[width] ${
+        className={`fixed inset-y-0 left-0 z-50 flex h-full w-60 flex-col border-r border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] transition-transform duration-200 lg:transition-[width] ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
-        } lg:translate-x-0 ${collapsed ? "lg:w-16" : "lg:w-64"}`}
+        } lg:translate-x-0 ${collapsed ? "lg:w-16" : "lg:w-60"}`}
       >
-        <div className="flex h-14 items-center justify-between border-b border-[var(--sidebar-border)] px-4">
+        <div className="flex h-12 items-center justify-between px-3">
           {!collapsed && (
-            <div className="flex items-center gap-2.5">
-              <span className="text-xl">{getNicheLogo()}</span>
-              <span className="text-sm font-bold text-[var(--sidebar-fg)]">{companyName}</span>
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className="text-lg shrink-0">{getNicheLogo()}</span>
+              <span className="text-sm font-semibold text-[var(--sidebar-fg)] truncate">{companyName}</span>
             </div>
           )}
-          <button onClick={onToggle} className="rounded-md p-1.5 hover:bg-[var(--sidebar-hover)] text-[var(--sidebar-muted)] transition-colors">
-            {collapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
-          </button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto p-3 space-y-1">
+        <nav className="flex-1 overflow-y-auto px-2 py-1 space-y-0.5">
           {getNavGroups().map((group) => {
             const collapsible = group.items.length > 1;
             const isOpen = !collapsible || openGroups.has(group.label) || collapsed;
@@ -282,13 +279,13 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { co
                   collapsible ? (
                     <button
                       onClick={() => toggleGroup(group.label)}
-                      className="w-full flex items-center justify-between px-2.5 py-1.5 text-[10px] font-semibold text-[var(--sidebar-muted)] uppercase tracking-wider hover:text-[var(--sidebar-fg)] transition-colors"
+                      className="w-full flex items-center justify-between px-3 py-1 text-xs font-medium text-[var(--sidebar-muted)] hover:text-[var(--sidebar-fg)] transition-colors"
                     >
                       <span>{group.label}</span>
                       <ChevronDown size={12} className={`transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
                     </button>
                   ) : (
-                    <p className="px-2.5 text-[10px] font-semibold text-[var(--sidebar-muted)] uppercase tracking-wider mb-1">
+                    <p className="px-3 text-xs font-medium text-[var(--sidebar-muted)] mb-1">
                       {group.label}
                     </p>
                   )
@@ -305,14 +302,13 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { co
                         key={item.path}
                         href={`#${item.path}`}
                         onClick={onMobileClose}
-                        className={`flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm transition-all font-medium relative ${
+                        className={`flex items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-colors ${
                           isActive
-                            ? "bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-fg)]"
-                            : "text-[var(--sidebar-muted)] hover:bg-[var(--sidebar-hover)] hover:text-[var(--sidebar-fg)]"
+                            ? "bg-white/10 text-white font-medium"
+                            : "text-[var(--sidebar-muted)] hover:bg-white/5 hover:text-[var(--sidebar-fg)]"
                         }`}
                       >
-                        {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-[3px] rounded-full bg-[var(--sidebar-active-fg)]" />}
-                        <item.icon size={17} strokeWidth={2} />
+                        <item.icon size={16} strokeWidth={1.5} />
                         {!collapsed && <span>{item.label}</span>}
                       </a>
                     );
@@ -323,23 +319,22 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { co
           })}
         </nav>
 
-        <div className="border-t border-[var(--sidebar-border)] p-3">
-          <div className="flex items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-[var(--sidebar-hover)] transition-colors cursor-pointer">
-            <div className="h-7 w-7 rounded-full bg-[var(--sidebar-active-fg)] flex items-center justify-center text-xs font-semibold text-[#08130f] shrink-0">
+        <div className="border-t border-[var(--sidebar-border)] px-2 py-2">
+          <div className="flex items-center gap-2.5 rounded-md px-2 py-1.5 hover:bg-white/5 transition-colors cursor-pointer">
+            <div className="h-6 w-6 rounded-full bg-white/20 flex items-center justify-center text-[10px] font-semibold text-white shrink-0">
               {profile?.name?.[0] || 'U'}
             </div>
             {!collapsed && (
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-[var(--sidebar-fg)] truncate">{userName}</p>
-                <p className="text-xs text-[var(--sidebar-muted)] truncate">{userEmail}</p>
+                <p className="text-xs font-medium text-[var(--sidebar-fg)] truncate">{userName}</p>
               </div>
             )}
             <button
               onClick={(e) => { e.preventDefault(); logout(); }}
-              className="rounded-md p-1.5 hover:bg-red-500/10 text-[var(--sidebar-muted)] hover:text-red-400 transition-colors"
+              className="rounded p-1 hover:bg-red-500/10 text-[var(--sidebar-muted)] hover:text-red-400 transition-colors"
               title="Sign out"
             >
-              <LogOut size={15} />
+              <LogOut size={13} />
             </button>
           </div>
         </div>
