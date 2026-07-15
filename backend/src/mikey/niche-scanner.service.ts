@@ -1,8 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { EventsService } from '../events/events.service';
 
-interface NicheFinding {
+export interface NicheFinding {
   type: string;
   severity: 'info' | 'warning' | 'critical';
   title: string;
@@ -15,24 +14,19 @@ interface NicheFinding {
 export class NicheScannerService {
   private readonly logger = new Logger(NicheScannerService.name);
 
-  constructor(
-    private prisma: PrismaService,
-    private events: EventsService,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
   async scanAll(): Promise<NicheFinding[]> {
     const settings = await this.prisma.businessSettings.findFirst({}) as any;
     const industry = settings?.industry || '';
-    const labels = settings?.labels || {};
-    const leadLabel = labels.lead || 'lead';
 
     const scanners: Record<string, () => Promise<NicheFinding[]>> = {
-      events: () => this.scanEvents(settings, leadLabel),
-      healthcare: () => this.scanHealthcare(settings, leadLabel),
-      hospitality: () => this.scanHospitality(settings, leadLabel),
-      logistics: () => this.scanLogistics(settings, leadLabel),
-      real_estate: () => this.scanRealEstate(settings, leadLabel),
-      marketing_agency: () => this.scanAgency(settings, leadLabel),
+      events: () => this.scanEvents(),
+      healthcare: () => this.scanHealthcare(),
+      hospitality: () => this.scanHospitality(),
+      logistics: () => this.scanLogistics(),
+      real_estate: () => this.scanRealEstate(),
+      marketing_agency: () => this.scanAgency(),
     };
 
     const scanner = scanners[industry];
@@ -40,7 +34,7 @@ export class NicheScannerService {
     return scanner();
   }
 
-  private async scanEvents(settings: any, label: string): Promise<NicheFinding[]> {
+  private async scanEvents(): Promise<NicheFinding[]> {
     const findings: NicheFinding[] = [];
     const now = new Date();
     const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -48,45 +42,47 @@ export class NicheScannerService {
     const upcoming = await this.prisma.lead.findMany({
       where: {
         status: { notIn: ['CONVERTED', 'LOST', 'SPAM'] },
-        customFields: { path: '$.event_date', not: null },
-        customFields: { path: '$.event_date', lte: weekFromNow.toISOString() },
+        createdAt: { gte: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) },
       },
-      take: 10,
+      include: { contact: true },
+      take: 15,
     });
 
-    if (upcoming.length > 0) {
-      const missingServices = upcoming.filter(l => {
-        const cf = (l as any).customFields || {};
-        return !cf.services_needed || cf.services_needed.length === 0;
+    if (upcoming.length >= 3) {
+      const names = upcoming.slice(0, 3).map(l => l.contact?.name || 'Unknown');
+      findings.push({
+        type: 'events_active_leads',
+        severity: 'info',
+        title: `${upcoming.length} active leads in the pipeline`,
+        description: `${names.join(', ')}${upcoming.length > 3 ? ` and ${upcoming.length - 3} more` : ''}. Review and move them through the pipeline.`,
+        count: upcoming.length,
+        metadata: { leadIds: upcoming.map(l => l.id) },
       });
-      if (missingServices.length > 0) {
-        findings.push({
-          type: 'events_missing_services',
-          severity: 'warning',
-          title: `Events missing service selections`,
-          description: `${missingServices.length} upcoming event(s) haven't specified services (catering, decor, etc). Review before the event date approaches.`,
-          count: missingServices.length,
-          metadata: { leadIds: missingServices.map(l => l.id) },
-        });
-      }
+    }
 
-      if (upcoming.length >= 3) {
-        const names = upcoming.slice(0, 3).map(l => (l as any).contact?.name || 'Unknown');
-        findings.push({
-          type: 'events_upcoming_week',
-          severity: 'info',
-          title: `${upcoming.length} events in the next 7 days`,
-          description: `${names.join(', ')}${upcoming.length > 3 ? ` and ${upcoming.length - 3} more` : ''} have events coming up. Prep checklists and confirm details.`,
-          count: upcoming.length,
-          metadata: { leadIds: upcoming.map(l => l.id) },
-        });
-      }
+    const staleAppointments = await this.prisma.lead.findMany({
+      where: {
+        status: 'APPOINTMENT_BOOKED',
+        updatedAt: { lt: new Date(now.getTime() - 48 * 60 * 60 * 1000) },
+      },
+      include: { contact: true },
+      take: 10,
+    });
+    if (staleAppointments.length > 0) {
+      findings.push({
+        type: 'events_stale_bookings',
+        severity: 'warning',
+        title: `${staleAppointments.length} booking(s) stuck`,
+        description: `${staleAppointments.slice(0, 3).map(l => l.contact?.name || 'Unknown').join(', ')}${staleAppointments.length > 3 ? ` and ${staleAppointments.length - 3} more` : ''} have booked but no update in 48h. Follow up.`,
+        count: staleAppointments.length,
+        metadata: { leadIds: staleAppointments.map(l => l.id) },
+      });
     }
 
     return findings;
   }
 
-  private async scanHealthcare(settings: any, label: string): Promise<NicheFinding[]> {
+  private async scanHealthcare(): Promise<NicheFinding[]> {
     const findings: NicheFinding[] = [];
     const now = new Date();
     const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
@@ -94,7 +90,7 @@ export class NicheScannerService {
     const tomorrowAppts = await this.prisma.lead.findMany({
       where: {
         status: 'APPOINTMENT_BOOKED',
-        customFields: { path: '$.preferred_date', lte: tomorrow.toISOString(), gte: now.toISOString() },
+        updatedAt: { gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) },
       },
       include: { contact: true },
       take: 10,
@@ -102,27 +98,24 @@ export class NicheScannerService {
 
     if (tomorrowAppts.length > 0) {
       findings.push({
-        type: 'healthcare_reminders_needed',
+        type: 'healthcare_reminders',
         severity: 'info',
-        title: `${tomorrowAppts.length} appointment(s) tomorrow — send reminders`,
-        description: `${tomorrowAppts.slice(0, 3).map(l => l.contact?.name || 'Unknown').join(', ')}${tomorrowAppts.length > 3 ? ` and ${tomorrowAppts.length - 3} more` : ''} have appointments tomorrow. Automated 24h reminder recommended.`,
+        title: `${tomorrowAppts.length} appointment(s) to manage`,
+        description: `${tomorrowAppts.slice(0, 3).map(l => l.contact?.name || 'Unknown').join(', ')}${tomorrowAppts.length > 3 ? ` and ${tomorrowAppts.length - 3} more` : ''} have upcoming appointments. 24h reminders recommended.`,
         count: tomorrowAppts.length,
         metadata: { leadIds: tomorrowAppts.map(l => l.id) },
       });
     }
 
     const noShows = await this.prisma.lead.count({
-      where: {
-        status: 'LOST',
-        updatedAt: { gte: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) },
-      },
+      where: { status: 'LOST', updatedAt: { gte: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) } },
     });
     if (noShows >= 5) {
       findings.push({
         type: 'healthcare_noshow_rate',
         severity: noShows > 15 ? 'critical' : 'warning',
         title: `No-show rate: ${noShows} lost in 30 days`,
-        description: `${noShows} patients marked LOST in last 30 days. Consider dual reminders (24h + 1h before) to reduce no-shows.`,
+        description: `${noShows} patients marked LOST in last 30 days. Dual reminders (24h + 1h) can reduce this.`,
         count: noShows,
         metadata: {},
       });
@@ -131,68 +124,57 @@ export class NicheScannerService {
     return findings;
   }
 
-  private async scanHospitality(settings: any, label: string): Promise<NicheFinding[]> {
+  private async scanHospitality(): Promise<NicheFinding[]> {
     const findings: NicheFinding[] = [];
     const now = new Date();
-    const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
     const upcomingStays = await this.prisma.lead.findMany({
       where: {
         status: 'APPOINTMENT_BOOKED',
-        customFields: { path: '$.check_in_date', lte: weekFromNow.toISOString() },
+        updatedAt: { gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) },
       },
       include: { contact: true },
       take: 15,
     });
 
     if (upcomingStays.length > 0) {
-      const withSpecialRequests = upcomingStays.filter(l => {
-        const cf = (l as any).customFields || {};
-        return cf.special_requests && cf.special_requests.trim().length > 0;
+      findings.push({
+        type: 'hospitality_upcoming_stays',
+        severity: 'info',
+        title: `${upcomingStays.length} upcoming booking(s)`,
+        description: `${upcomingStays.slice(0, 3).map(l => l.contact?.name || 'Unknown').join(', ')}${upcomingStays.length > 3 ? ` and ${upcomingStays.length - 3} more` : ''}. Prep rooms and confirm details.`,
+        count: upcomingStays.length,
+        metadata: { leadIds: upcomingStays.map(l => l.id) },
       });
-      if (withSpecialRequests.length > 0) {
-        findings.push({
-          type: 'hospitality_special_requests',
-          severity: 'info',
-          title: `${withSpecialRequests.length} guest(s) with special requests`,
-          description: `${withSpecialRequests.slice(0, 3).map(l => l.contact?.name || 'Unknown').join(', ')}${withSpecialRequests.length > 3 ? ` and ${withSpecialRequests.length - 3} more` : ''} have special requests. Brief your front desk.`,
-          count: withSpecialRequests.length,
-          metadata: { leadIds: withSpecialRequests.map(l => l.id) },
-        });
-      }
     }
 
-    const recentStays = await this.prisma.lead.findMany({
+    const recentCheckins = await this.prisma.lead.findMany({
       where: { status: 'ENGAGED', updatedAt: { gte: new Date(now.getTime() - 48 * 60 * 60 * 1000) } },
       take: 5,
     });
-    if (recentStays.length > 0) {
-      const checkedInToday = recentStays.filter(l => {
-        const cf = (l as any).customFields || {};
-        const ci = cf.check_in_date || '';
-        return ci.startsWith(now.toISOString().slice(0, 10));
+    if (recentCheckins.length > 0) {
+      findings.push({
+        type: 'hospitality_checked_in',
+        severity: 'info',
+        title: `${recentCheckins.length} guest(s) currently checked in`,
+        description: `${recentCheckins.length} guest(s) are checked in. Ensure front desk is briefed on any preferences.`,
+        count: recentCheckins.length,
+        metadata: { leadIds: recentCheckins.map(l => l.id) },
       });
-      if (checkedInToday.length > 0) {
-        findings.push({
-          type: 'hospitality_checkins_today',
-          severity: 'info',
-          title: `${checkedInToday.length} check-in(s) today`,
-          description: `${checkedInToday.length} guest(s) checking in today. Ensure rooms are prepped.`,
-          count: checkedInToday.length,
-          metadata: { leadIds: checkedInToday.map(l => l.id) },
-        });
-      }
     }
 
     return findings;
   }
 
-  private async scanLogistics(settings: any, label: string): Promise<NicheFinding[]> {
+  private async scanLogistics(): Promise<NicheFinding[]> {
     const findings: NicheFinding[] = [];
     const now = new Date();
 
     const inTransit = await this.prisma.lead.findMany({
-      where: { status: 'ENGAGED', updatedAt: { gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) } },
+      where: {
+        status: 'ENGAGED',
+        updatedAt: { gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) },
+      },
       include: { contact: true },
       take: 10,
     });
@@ -206,24 +188,26 @@ export class NicheScannerService {
         findings.push({
           type: 'logistics_stale_transit',
           severity: 'warning',
-          title: `${staleInTransit.length} shipment(s) in transit with no update in 48h`,
-          description: `${staleInTransit.slice(0, 3).map(l => l.contact?.name || 'Unknown').join(', ')}${staleInTransit.length > 3 ? ` and ${staleInTransit.length - 3} more` : ''}. Check status or notify customers of ETA.`,
+          title: `${staleInTransit.length} shipment(s) stale in transit`,
+          description: `${staleInTransit.slice(0, 3).map(l => l.contact?.name || 'Unknown').join(', ')}${staleInTransit.length > 3 ? ` and ${staleInTransit.length - 3} more` : ''} haven't updated in 48h. Notify customers.`,
           count: staleInTransit.length,
           metadata: { leadIds: staleInTransit.map(l => l.id) },
         });
       }
     }
 
-    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const pendingQuotes = await this.prisma.lead.count({
-      where: { status: 'CONTACTED', updatedAt: { gte: weekAgo } },
+      where: {
+        status: 'CONTACTED',
+        updatedAt: { gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) },
+      },
     });
     if (pendingQuotes >= 3) {
       findings.push({
         type: 'logistics_pending_quotes',
         severity: pendingQuotes > 8 ? 'critical' : 'warning',
-        title: `${pendingQuotes} quote(s) pending response`,
-        description: `${pendingQuotes} shippers requested quotes this week but haven't booked yet. Consider a follow-up message.`,
+        title: `${pendingQuotes} quote(s) awaiting response`,
+        description: `${pendingQuotes} shippers received quotes this week but haven't booked. Follow up.`,
         count: pendingQuotes,
         metadata: {},
       });
@@ -232,35 +216,35 @@ export class NicheScannerService {
     return findings;
   }
 
-  private async scanRealEstate(settings: any, label: string): Promise<NicheFinding[]> {
+  private async scanRealEstate(): Promise<NicheFinding[]> {
     const findings: NicheFinding[] = [];
     const now = new Date();
 
     const freshBuyers = await this.prisma.lead.findMany({
-      where: { status: 'NEW', createdAt: { gte: new Date(now.getTime() - 48 * 60 * 60 * 1000) } },
+      where: {
+        status: 'NEW',
+        createdAt: { gte: new Date(now.getTime() - 48 * 60 * 60 * 1000) },
+      },
       include: { contact: true },
       take: 10,
     });
 
     if (freshBuyers.length > 0) {
-      const urgentBuyers = freshBuyers.filter(l => {
-        const cf = (l as any).customFields || {};
-        return cf.move_in_timeline === 'Immediate';
+      findings.push({
+        type: 'realestate_fresh_buyers',
+        severity: 'info',
+        title: `${freshBuyers.length} new buyer(s) in 48h`,
+        description: `${freshBuyers.slice(0, 3).map(l => l.contact?.name || 'Unknown').join(', ')}${freshBuyers.length > 3 ? ` and ${freshBuyers.length - 3} more` : ''}. Assign agents and contact ASAP.`,
+        count: freshBuyers.length,
+        metadata: { leadIds: freshBuyers.map(l => l.id) },
       });
-      if (urgentBuyers.length > 0) {
-        findings.push({
-          type: 'realestate_urgent_buyers',
-          severity: 'critical',
-          title: `${urgentBuyers.length} immediate buyer(s) — prioritize`,
-          description: `${urgentBuyers.slice(0, 3).map(l => l.contact?.name || 'Unknown').join(', ')}${urgentBuyers.length > 3 ? ` and ${urgentBuyers.length - 3} more` : ''} want immediate move-in. Assign and contact within the hour.`,
-          count: urgentBuyers.length,
-          metadata: { leadIds: urgentBuyers.map(l => l.id) },
-        });
-      }
     }
 
     const noFollowUp = await this.prisma.lead.findMany({
-      where: { status: 'QUALIFIED', updatedAt: { lt: new Date(now.getTime() - 72 * 60 * 60 * 1000) } },
+      where: {
+        status: 'QUALIFIED',
+        updatedAt: { lt: new Date(now.getTime() - 72 * 60 * 60 * 1000) },
+      },
       include: { contact: true },
       take: 10,
     });
@@ -269,7 +253,7 @@ export class NicheScannerService {
         type: 'realestate_no_site_visit',
         severity: 'warning',
         title: `Qualified buyers — no site visit yet`,
-        description: `${noFollowUp.length} qualified buyer(s) not contacted for site visit in 72h. ${noFollowUp.slice(0, 2).map(l => l.contact?.name || 'Unknown').join(', ')}${noFollowUp.length > 2 ? ` and ${noFollowUp.length - 2} more` : ''}. Invite them this weekend.`,
+        description: `${noFollowUp.slice(0, 2).map(l => l.contact?.name || 'Unknown').join(', ')}${noFollowUp.length > 2 ? ` and ${noFollowUp.length - 2} more` : ''} haven't been offered a site visit in 72h.`,
         count: noFollowUp.length,
         metadata: { leadIds: noFollowUp.map(l => l.id) },
       });
@@ -278,7 +262,7 @@ export class NicheScannerService {
     return findings;
   }
 
-  private async scanAgency(settings: any, label: string): Promise<NicheFinding[]> {
+  private async scanAgency(): Promise<NicheFinding[]> {
     const findings: NicheFinding[] = [];
     const now = new Date();
 
@@ -295,24 +279,26 @@ export class NicheScannerService {
         type: 'agency_stalled_deals',
         severity: 'warning',
         title: `${stalledNegotiations.length} deal(s) stuck in negotiation`,
-        description: `${stalledNegotiations.slice(0, 3).map(l => l.contact?.name || 'Unknown').join(', ')}${stalledNegotiations.length > 3 ? ` and ${stalledNegotiations.length - 3} more` : ''} haven't moved in 72h. Follow up or send revised proposal.`,
+        description: `${stalledNegotiations.slice(0, 3).map(l => l.contact?.name || 'Unknown').join(', ')}${stalledNegotiations.length > 3 ? ` and ${stalledNegotiations.length - 3} more` : ''} haven't moved in 72h.`,
         count: stalledNegotiations.length,
         metadata: { leadIds: stalledNegotiations.map(l => l.id) },
       });
     }
 
-    const proposalsSent = await this.prisma.lead.findMany({
-      where: { status: 'PROPOSAL_SENT', updatedAt: { lt: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000) } },
-      take: 10,
+    const staleProposals = await this.prisma.lead.count({
+      where: {
+        status: 'PROPOSAL_SENT',
+        updatedAt: { lt: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000) },
+      },
     });
-    if (proposalsSent.length > 0) {
+    if (staleProposals > 0) {
       findings.push({
         type: 'agency_stale_proposals',
         severity: 'warning',
-        title: `${proposalsSent.length} proposal(s) sent — no response in 5 days`,
-        description: `${proposalsSent.length} prospect(s) received proposals over 5 days ago without response. A gentle follow-up could help.`,
-        count: proposalsSent.length,
-        metadata: { leadIds: proposalsSent.map(l => l.id) },
+        title: `${staleProposals} proposal(s) sent, no response in 5 days`,
+        description: `${staleProposals} prospect(s) haven't responded to proposals. A follow-up could help close them.`,
+        count: staleProposals,
+        metadata: {},
       });
     }
 

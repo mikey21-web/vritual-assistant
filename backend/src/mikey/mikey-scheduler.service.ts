@@ -55,7 +55,9 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
 
       if (new Date().getMinutes() % 15 === 0) {
         const nicheFindings = await this.nicheScanner.scanAll();
-        findings.push(...nicheFindings);
+        for (const nf of nicheFindings) {
+          findings.push(nf as any);
+        }
       }
 
       const temporalInsights = await this.temporal.scan();
