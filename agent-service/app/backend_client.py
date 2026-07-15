@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Coroutine
 import httpx
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception
 from app.config import Settings
 
 
@@ -12,6 +12,14 @@ class BackendError(Exception):
         self.message = message
         self.endpoint = endpoint
         super().__init__(f"Backend {endpoint}: [{status}] {message}")
+
+
+def _is_retryable(exc: BaseException) -> bool:
+    if isinstance(exc, (httpx.TimeoutException, httpx.ConnectError)):
+        return True
+    if isinstance(exc, BackendError) and (exc.status == 409 or exc.status >= 500):
+        return True
+    return False
 
 
 class BackendClient:
@@ -34,7 +42,7 @@ class BackendClient:
         @retry(
             stop=stop_after_attempt(3),
             wait=wait_exponential(multiplier=0.5, min=0.5, max=5),
-            retry=retry_if_exception_type((httpx.TimeoutException, httpx.ConnectError)),
+            retry=retry_if_exception(_is_retryable),
             reraise=True,
         )
         async def _do_get():
@@ -45,7 +53,7 @@ class BackendClient:
         @retry(
             stop=stop_after_attempt(3),
             wait=wait_exponential(multiplier=0.5, min=0.5, max=5),
-            retry=retry_if_exception_type((httpx.TimeoutException, httpx.ConnectError)),
+            retry=retry_if_exception(_is_retryable),
             reraise=True,
         )
         async def _do_post():
@@ -56,7 +64,7 @@ class BackendClient:
         @retry(
             stop=stop_after_attempt(3),
             wait=wait_exponential(multiplier=0.5, min=0.5, max=5),
-            retry=retry_if_exception_type((httpx.TimeoutException, httpx.ConnectError)),
+            retry=retry_if_exception(_is_retryable),
             reraise=True,
         )
         async def _do_patch():

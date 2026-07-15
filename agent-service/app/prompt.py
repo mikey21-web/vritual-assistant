@@ -6,6 +6,15 @@ def build_system_prompt(niche: dict, lead_context: dict) -> str:
     field_list = "\n".join(f"  - {f['label']} ({f['key']}){' [required]' if f.get('required') else ''}"
                            for f in fields)
 
+    contact = (lead_context or {}).get("contact") or {}
+    baseline_fields = []
+    if not contact.get("email"):
+        baseline_fields.append("  - Email address (email) [required] — always get this at some natural point in the conversation, we need it to follow up and send confirmations")
+    if not contact.get("name") or contact.get("name") in ("Telegram User", "WhatsApp User"):
+        baseline_fields.append("  - Their name (name) [required] — confirm how they'd like to be addressed if it wasn't already given")
+    if baseline_fields:
+        field_list = "\n".join(baseline_fields) + ("\n" + field_list if field_list else "")
+
     signals = niche.get("scoring_signals", [])
     signals_text = "\n".join(f"  - {s}" for s in signals) if signals else "  - Score based on engagement and intent signals"
 

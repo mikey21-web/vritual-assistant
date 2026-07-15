@@ -95,6 +95,11 @@ async def _load_context(state: AgentState, config) -> AgentState:
     state["steps"] = 0
     state["actions_taken"] = []
     state["terminate"] = False
+
+    ctx = config["configurable"].get("ctx")
+    if ctx:
+        ctx.features = nich.get("features", {})
+
     return state
 
 

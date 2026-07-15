@@ -96,28 +96,36 @@ export class LeadsService {
   }
 
   async score(id: string, userId?: string) {
-    const lead = await this.prisma.lead.findUnique({ where: { id }, include: { contact: true } });
-    if (!lead) throw new NotFoundException('Lead not found');
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      const lead = await this.prisma.lead.findUnique({ where: { id }, include: { contact: true } });
+      if (!lead) throw new NotFoundException('Lead not found');
 
-    return this.prisma.$transaction(async (tx) => {
-      const rules = await tx.scoringRule.findMany({ where: { active: true } });
-      let totalScore = lead.score || 0;
-      for (const rule of rules) {
-        const fieldValue = getNested(lead, rule.field);
-        if (evaluateCondition(fieldValue, rule.operator, rule.value)) totalScore += rule.points;
+      try {
+        return await this.prisma.$transaction(async (tx) => {
+          const rules = await tx.scoringRule.findMany({ where: { active: true } });
+          let totalScore = lead.score || 0;
+          for (const rule of rules) {
+            const fieldValue = getNested(lead, rule.field) ?? getNested(lead.metadata, rule.field);
+            if (evaluateCondition(fieldValue, rule.operator, rule.value)) totalScore += rule.points;
+          }
+
+          const oldScore = lead.score;
+          totalScore = Math.max(-100, Math.min(100, totalScore));
+          const segment = this.determineSegment(totalScore);
+
+          if (totalScore !== oldScore) {
+            await tx.scoreLog.create({ data: { leadId: id, oldScore, newScore: totalScore, reason: 'Automatic scoring run' } });
+            await this.auditLogs.log('score_changed', 'Lead', id, userId, { oldScore, newScore: totalScore });
+          }
+          await this.events.emit({ type: 'lead.scored', leadId: id, entityType: 'lead', entityId: id, payload: { oldScore, newScore: totalScore, segment }, createdById: userId });
+          return tx.lead.update({ where: { id, version: lead.version }, data: { score: totalScore, segment, version: { increment: 1 } } });
+        }, { isolationLevel: 'Serializable' });
+      } catch (err) {
+        const retryable = err instanceof Prisma.PrismaClientKnownRequestError && (err.code === 'P2034' || err.code === 'P2025');
+        if (!retryable || attempt === 3) throw err;
       }
-
-      const oldScore = lead.score;
-      totalScore = Math.max(-100, Math.min(100, totalScore));
-      const segment = this.determineSegment(totalScore);
-
-      if (totalScore !== oldScore) {
-        await tx.scoreLog.create({ data: { leadId: id, oldScore, newScore: totalScore, reason: 'Automatic scoring run' } });
-        await this.auditLogs.log('score_changed', 'Lead', id, userId, { oldScore, newScore: totalScore });
-      }
-      await this.events.emit({ type: 'lead.scored', leadId: id, entityType: 'lead', entityId: id, payload: { oldScore, newScore: totalScore, segment }, createdById: userId });
-      return tx.lead.update({ where: { id, version: lead.version }, data: { score: totalScore, segment, version: { increment: 1 } } });
-    }, { isolationLevel: 'Serializable' });
+    }
+    throw new ConflictException('Lead was modified by another request. Please refresh and retry.');
   }
 
   async assign(id: string, agentId?: string, userId?: string) {

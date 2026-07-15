@@ -8,6 +8,8 @@ branding:
   logo_url: "https://example.com/eventpro-logo.png"
   primary_color: "#0E9D6E"
   labels: { lead: "Client", leads: "Clients", contact: "Contact", conversion: "Booking" }
+features:
+  booking: true
 agent:
   model: claude-haiku-4-5
   tone_examples:

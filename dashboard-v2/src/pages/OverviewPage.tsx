@@ -5,9 +5,17 @@ import { setPendingFilter } from '../lib/pendingSearch';
 import { isInsightDismissed, dismissInsight } from '../lib/dismissedInsights';
 import { startExplainFlow } from '../lib/explainMode';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../lib/useAuth';
 import { Users, Target, TrendingUp, BarChart3, Activity, ArrowUpRight, Zap, AlertTriangle, AlertCircle, CheckCircle, X, Play, DollarSign } from 'lucide-react';
 
 const currencyFormatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+
+function greeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
+}
 
 function InsightIcon({ type }: { type: string }) {
   if (type === 'error') return <AlertCircle size={14} className="text-[var(--destructive)] shrink-0" />;
@@ -17,6 +25,7 @@ function InsightIcon({ type }: { type: string }) {
 
 export default function OverviewPage() {
   const { niche, isSuperAdmin } = useApp();
+  const { user } = useAuth();
   const [stats, setStats] = useState<any>(null);
   const [health, setHealth] = useState<any>(null);
   const [failures, setFailures] = useState(0);
@@ -61,14 +70,15 @@ export default function OverviewPage() {
   );
 
   const leadLabel = niche?.labels?.lead || 'Lead';
+  const firstName = (user?.name || user?.email || '').split(/[\s@]/)[0];
 
   const cards = [
-    { label: `Total ${leadLabel}s`, value: stats.total, icon: Users, change: '+12%' },
-    { label: 'Hot Leads', value: stats.hot, icon: Target, change: '+5%' },
-    { label: 'Converted', value: stats.converted, icon: TrendingUp, change: '+8%' },
-    { label: 'Conversion Rate', value: `${stats.conversionRate}%`, icon: BarChart3, change: '+2.3%' },
+    { label: `Total ${leadLabel}s`, value: stats.total, icon: Users, change: '+12%', accent: 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10' },
+    { label: 'Hot Leads', value: stats.hot, icon: Target, change: '+5%', accent: 'text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-500/10' },
+    { label: 'Converted', value: stats.converted, icon: TrendingUp, change: '+8%', accent: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10' },
+    { label: 'Conversion Rate', value: `${stats.conversionRate}%`, icon: BarChart3, change: '+2.3%', accent: 'text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-500/10' },
     ...(forecast ? [{
-      label: 'Weighted Forecast', value: currencyFormatter.format(forecast.totalWeightedForecast), icon: DollarSign, change: null as any,
+      label: 'Weighted Forecast', value: currencyFormatter.format(forecast.totalWeightedForecast), icon: DollarSign, change: null as any, accent: 'text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-500/10',
     }] : []),
   ];
 
@@ -77,22 +87,23 @@ export default function OverviewPage() {
       <div className="animate-fade-up">
         <div className="flex items-center gap-2 mb-1">
           <span className="h-1.5 w-1.5 rounded-full bg-[var(--primary)]" />
-          <span className="text-[11px] font-semibold text-[var(--muted-foreground)] uppercase tracking-[0.15em]">Dashboard</span>
+          <span className="text-[11px] font-semibold text-[var(--muted-foreground)] uppercase tracking-[0.15em]">{niche?.display_name || 'Dashboard'}</span>
         </div>
-        <h1 className="text-2xl font-bold text-[var(--foreground)]">{niche?.display_name || 'Dashboard'} Overview</h1>
+        <h1 className="text-2xl font-bold text-[var(--foreground)]">
+          {firstName ? `${greeting()}, ${firstName}` : `${niche?.display_name || 'Dashboard'} Overview`}
+        </h1>
         <p className="text-sm text-[var(--muted-foreground)] mt-1">
           {niche ? `${niche.industry} · ${niche.conversion_goals?.join(', ') || 'No goals configured'}` : "Here's what's happening today."}
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 border border-[var(--border)] rounded-xl overflow-hidden divide-y sm:divide-y-0 sm:divide-x divide-[var(--border)]">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {cards.map((c, i) => (
           <div key={c.label}
-            className={`bg-[var(--card)] p-5 transition-all duration-200 cursor-default animate-fade-up delay-${Math.min(i + 1, 8)}`}>
+            className={`rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-[var(--shadow-sm)] transition-all duration-200 cursor-default animate-fade-up delay-${Math.min(i + 1, 8)}`}>
             <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-1.5 text-xs font-medium text-[var(--muted-foreground)]">
-                <c.icon size={13} />
-                {c.label}
+              <div className={`flex items-center justify-center h-7 w-7 rounded-lg ${c.accent}`}>
+                <c.icon size={14} />
               </div>
               {c.change && (
                 <span className="flex items-center gap-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
@@ -102,6 +113,7 @@ export default function OverviewPage() {
               )}
             </div>
             <div className="text-2xl font-bold text-[var(--foreground)] tracking-tight">{c.value}</div>
+            <div className="text-xs font-medium text-[var(--muted-foreground)] mt-1">{c.label}</div>
           </div>
         ))}
       </div>
