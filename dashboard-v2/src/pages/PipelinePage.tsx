@@ -15,13 +15,13 @@ interface Lead {
   assignedAgent?: { id: string; name: string };
 }
 
-function LeadCard({ lead }: { lead: Lead }) {
+function LeadCard({ lead, dragHandleProps }: { lead: Lead; dragHandleProps?: any }) {
   const daysInStage = Math.floor((Date.now() - new Date(lead.updatedAt).getTime()) / 86400000);
   const initials = lead.contact?.name?.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() || "?";
   const segmentColors: Record<string, string> = { HOT: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400", WARM: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400", COLD: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400", UNQUALIFIED: "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400" };
 
   return (
-    <div className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-3 shadow-sm cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow">
+    <div className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-3 shadow-sm cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow" {...dragHandleProps}>
       <div className="flex items-start justify-between gap-2 mb-2">
         <span className="text-sm font-semibold text-[var(--foreground)] leading-tight line-clamp-2 min-w-0">
           {lead.contact?.name || "Unknown"}
@@ -46,6 +46,15 @@ function LeadCard({ lead }: { lead: Lead }) {
   );
 }
 
+function DraggableLead({ lead }: { lead: Lead }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: lead.id, data: { type: "lead", lead } });
+  return (
+    <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}>
+      <LeadCard lead={lead} dragHandleProps={{ ...attributes, ...listeners }} />
+    </div>
+  );
+}
+
 function StageColumn({ stage, leads }: { stage: Stage; leads: Lead[] }) {
   const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ id: stage.id, data: { type: "stage", stage } });
 
@@ -61,7 +70,7 @@ function StageColumn({ stage, leads }: { stage: Stage; leads: Lead[] }) {
       <div className="flex-1 overflow-y-auto p-2 space-y-2 min-h-0">
         <SortableContext items={leads.map(l => l.id)} strategy={verticalListSortingStrategy}>
           {leads.map(lead => (
-            <LeadCard key={lead.id} lead={lead} />
+            <DraggableLead key={lead.id} lead={lead} />
           ))}
         </SortableContext>
         {leads.length === 0 && <div className="flex items-center justify-center h-20 text-xs text-[var(--muted-foreground)]">No leads</div>}
