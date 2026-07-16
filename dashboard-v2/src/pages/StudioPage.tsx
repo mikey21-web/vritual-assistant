@@ -302,8 +302,8 @@ function FieldForm({ target, initial, onClose, onSaved }: { target: string; init
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
-      <div className="bg-[var(--card)] rounded-xl border border-[var(--border)] shadow-xl w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-0 sm:p-4" onClick={onClose}>
+      <div className="bg-[var(--card)] rounded-none sm:rounded-xl border border-[var(--border)] shadow-xl w-full max-w-md mx-4 min-h-screen sm:min-h-0 overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
           <h3 className="text-sm font-semibold text-[var(--foreground)]">{initial ? "Edit Field" : "New Custom Field"}</h3>
           <button onClick={onClose} className="p-1 rounded-md text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--accent)] transition-colors cursor-pointer"><X size={16} /></button>

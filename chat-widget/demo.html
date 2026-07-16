@@ -34,10 +34,23 @@
     .feature h3 { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
     .feature p { font-size: 13px; color: #64748b; line-height: 1.5; }
     .feature .icon { font-size: 24px; margin-bottom: 12px; }
+    @media (max-width: 768px) {
+      .features { grid-template-columns: repeat(2, 1fr); }
+      .hero h1 { font-size: 32px; }
+      .hero { padding: 60px 24px; }
+    }
     @media (max-width: 600px) {
       .features { grid-template-columns: 1fr; }
       .hero h1 { font-size: 28px; }
       .hero { padding: 48px 20px; }
+    }
+    @media (max-width: 400px) {
+      .hero h1 { font-size: 24px; }
+      .hero p { font-size: 16px; }
+      .hero { padding: 32px 16px; }
+      .feature { padding: 20px; }
+      .feature h3 { font-size: 14px; }
+      .feature p { font-size: 12px; }
     }
   </style>
 </head>

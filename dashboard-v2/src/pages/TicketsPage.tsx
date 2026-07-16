@@ -152,8 +152,8 @@ function CreateTicketModal({ onClose, onCreated }: { onClose: () => void; onCrea
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
-      <div className="w-full max-w-lg rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-lg" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-0 sm:p-4" onClick={onClose}>
+      <div className="w-full max-w-lg rounded-none sm:rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-lg min-h-screen sm:min-h-0 overflow-y-auto" onClick={e => e.stopPropagation()}>
         <h2 className="text-lg font-bold text-[var(--foreground)] mb-4">New Ticket</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <input value={form.subject} onChange={e => setForm(f => ({ ...f, subject: e.target.value }))} placeholder="Subject" required className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/50" />
@@ -202,8 +202,8 @@ function TicketDetailModal({ ticket, onClose, onUpdated }: { ticket: any; onClos
   const comments = detail.comments || ticket.comments || [];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
-      <div className="w-full max-w-2xl h-[80vh] rounded-xl border border-[var(--border)] bg-[var(--card)] shadow-lg flex flex-col" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-0 sm:p-4" onClick={onClose}>
+      <div className="w-full max-w-2xl h-[80vh] rounded-none sm:rounded-xl border border-[var(--border)] bg-[var(--card)] shadow-lg flex flex-col min-h-screen sm:min-h-0 overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-start justify-between border-b border-[var(--border)] px-6 py-4">
           <div className="flex-1 min-w-0">
             <h2 className="text-lg font-bold text-[var(--foreground)] truncate">{detail.subject}</h2>

@@ -466,11 +466,11 @@ export default function IntegrationsPage() {
       {/* ===== CRM Connect/Configure Modal ===== */}
       {crmModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4"
           onClick={() => setCrmModal(null)}
         >
           <div
-            className="bg-[var(--card)] border border-[var(--border)] rounded-xl w-full max-w-md shadow-2xl animate-fade-in"
+            className="bg-[var(--card)] border border-[var(--border)] rounded-none sm:rounded-xl w-full max-w-md shadow-2xl animate-fade-in min-h-screen sm:min-h-0 overflow-y-auto"
             onClick={e => e.stopPropagation()}
           >
             {/* Header */}

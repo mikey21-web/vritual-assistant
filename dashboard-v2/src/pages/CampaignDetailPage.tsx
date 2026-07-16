@@ -722,14 +722,14 @@ export default function CampaignDetailPage() {
               {/* Delete Confirmation Modal */}
               {showDeleteModal && (
                 <div
-                  className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+                  className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-0 sm:p-4"
                   onClick={() => setShowDeleteModal(false)}
                   role="presentation"
                 >
                   <div
                     role="dialog"
                     aria-modal="true"
-                    className="w-full max-w-md rounded-xl border border-[var(--border)] bg-[var(--card)] shadow-lg"
+                    className="w-full max-w-md rounded-none sm:rounded-xl border border-[var(--border)] bg-[var(--card)] shadow-lg min-h-screen sm:min-h-0 overflow-y-auto"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="p-6">

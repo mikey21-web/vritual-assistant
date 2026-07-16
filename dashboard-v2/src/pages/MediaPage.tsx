@@ -109,7 +109,7 @@ export default function MediaPage() {
       </div>
 
       {preview && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={() => setPreview(null)}>
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-0 sm:p-4" onClick={() => setPreview(null)}>
           <div className="relative max-w-4xl max-h-[90vh] w-full h-full flex items-center justify-center" onClick={e => e.stopPropagation()}>
             <img src={preview} alt="Preview" className="max-w-full max-h-full object-contain rounded-lg" />
             <button

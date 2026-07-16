@@ -95,10 +95,44 @@
 .leadflow-input-bar button:hover { opacity: 0.9; }
 .leadflow-input-bar button:disabled { opacity: 0.5; cursor: not-allowed; }
 .leadflow-input-bar button svg { width: 18px; height: 18px; }
-@media (max-width: 480px) {
+/* Tablet styles (640px - 1024px) */
+@media (min-width: 640px) and (max-width: 1024px) {
   .leadflow-widget {
-    width: calc(100vw - 32px); right: 16px; bottom: 84px;
-    max-height: calc(100vh - 120px); height: auto;
+    width: 380px;
+    max-height: 520px;
+    height: 520px;
+  }
+}
+
+/* Mobile styles (< 640px) */
+@media (max-width: 639px) {
+  .leadflow-btn {
+    bottom: 16px;
+    right: 16px;
+    width: 52px;
+    height: 52px;
+  }
+  .leadflow-btn svg {
+    width: 24px;
+    height: 24px;
+  }
+  .leadflow-widget {
+    width: calc(100% - 16px);
+    max-width: 100%;
+    right: 8px;
+    bottom: 76px;
+    max-height: calc(100vh - 96px);
+    height: auto;
+    border-radius: 12px;
+  }
+  .leadflow-messages {
+    padding: 12px;
+  }
+  .leadflow-input-bar {
+    padding: 10px 12px;
+  }
+  .leadflow-input-bar input {
+    font-size: 16px;
   }
 }
 `;

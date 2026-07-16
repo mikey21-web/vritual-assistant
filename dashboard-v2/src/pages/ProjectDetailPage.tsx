@@ -253,8 +253,8 @@ export default function ProjectDetailPage() {
 
       {/* Tower form */}
       {showTowerForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowTowerForm(false)}>
-          <div className="bg-[var(--card)] rounded-xl shadow-2xl w-full max-w-sm p-6 space-y-4" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4" onClick={() => setShowTowerForm(false)}>
+          <div className="bg-[var(--card)] rounded-none sm:rounded-xl shadow-2xl w-full max-w-sm p-6 space-y-4 min-h-screen sm:min-h-0 overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold">Add Tower</h2>
               <button onClick={() => setShowTowerForm(false)}><X className="h-5 w-5" /></button>
@@ -271,8 +271,8 @@ export default function ProjectDetailPage() {
 
       {/* Unit form */}
       {showUnitForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowUnitForm(false)}>
-          <div className="bg-[var(--card)] rounded-xl shadow-2xl w-full max-w-md p-6 space-y-3" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4" onClick={() => setShowUnitForm(false)}>
+          <div className="bg-[var(--card)] rounded-none sm:rounded-xl shadow-2xl w-full max-w-md p-6 space-y-3 min-h-screen sm:min-h-0 overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold">Add Unit</h2>
               <button onClick={() => setShowUnitForm(false)}><X className="h-5 w-5" /></button>
@@ -300,8 +300,8 @@ export default function ProjectDetailPage() {
 
       {/* Bulk unit import */}
       {showBulkForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={closeBulkForm}>
-          <div className="bg-[var(--card)] rounded-xl shadow-2xl w-full max-w-lg p-6 space-y-4" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4" onClick={closeBulkForm}>
+          <div className="bg-[var(--card)] rounded-none sm:rounded-xl shadow-2xl w-full max-w-lg p-6 space-y-4 min-h-screen sm:min-h-0 overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold">Bulk Import Units (CSV)</h2>
               <button onClick={closeBulkForm}><X className="h-5 w-5" /></button>
@@ -343,8 +343,8 @@ export default function ProjectDetailPage() {
 
       {/* Unit status editor */}
       {editingUnit && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setEditingUnit(null)}>
-          <div className="bg-[var(--card)] rounded-xl shadow-2xl w-full max-w-sm p-6 space-y-3" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4" onClick={() => setEditingUnit(null)}>
+          <div className="bg-[var(--card)] rounded-none sm:rounded-xl shadow-2xl w-full max-w-sm p-6 space-y-3 min-h-screen sm:min-h-0 overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold">Unit {editingUnit.unitNumber}</h2>
               <button onClick={() => setEditingUnit(null)}><X className="h-5 w-5" /></button>

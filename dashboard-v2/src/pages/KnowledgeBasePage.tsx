@@ -79,8 +79,8 @@ export default function KnowledgeBasePage() {
 
 function ArticleViewModal({ article, onClose }: { article: any; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
-      <div className="w-full max-w-2xl max-h-[80vh] overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-lg" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-0 sm:p-4" onClick={onClose}>
+      <div className="w-full max-w-2xl max-h-[80vh] overflow-y-auto rounded-none sm:rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-lg min-h-screen sm:min-h-0" onClick={e => e.stopPropagation()}>
         <div className="flex items-start justify-between mb-4">
           <div>
             <h2 className="text-xl font-bold text-[var(--foreground)]">{article.title}</h2>
@@ -128,8 +128,8 @@ function ArticleEditorModal({ article, onClose, onSaved }: { article: any | null
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
-      <div className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-lg" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-0 sm:p-4" onClick={onClose}>
+      <div className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-none sm:rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-lg min-h-screen sm:min-h-0" onClick={e => e.stopPropagation()}>
         <h2 className="text-lg font-bold text-[var(--foreground)] mb-4">{article ? "Edit Article" : "New Article"}</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Title" required className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/50" />

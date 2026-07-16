@@ -269,8 +269,8 @@ function PairDeviceModal({ onClose }: { onClose: () => void }) {
   }, [pairing]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
-      <div className="w-full max-w-md rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-lg" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-0 sm:p-4" onClick={onClose}>
+      <div className="w-full max-w-md rounded-none sm:rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-lg min-h-screen sm:min-h-0 overflow-y-auto" onClick={e => e.stopPropagation()}>
         <h2 className="text-lg font-bold text-[var(--foreground)] mb-1">Pair a device</h2>
         <p className="text-sm text-[var(--muted-foreground)] mb-4">Generate a code, then enter it in the mobile app to start syncing calls.</p>
 

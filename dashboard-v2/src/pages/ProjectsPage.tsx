@@ -97,8 +97,8 @@ export default function ProjectsPage() {
       )}
 
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowForm(false)}>
-          <div className="bg-[var(--card)] rounded-xl shadow-2xl w-full max-w-lg p-6 space-y-4" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4" onClick={() => setShowForm(false)}>
+          <div className="bg-[var(--card)] rounded-none sm:rounded-xl shadow-2xl w-full max-w-lg p-6 space-y-4 min-h-screen sm:min-h-0 overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold">Add Project</h2>
               <button onClick={() => setShowForm(false)}><X className="h-5 w-5" /></button>

@@ -316,8 +316,8 @@ export default function WebhookPage() {
 
       {/* ---- Delete Confirmation ---- */}
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={() => setDeleteTarget(null)}>
-          <div className="w-full max-w-sm rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-lg" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-0 sm:p-4" onClick={() => setDeleteTarget(null)}>
+          <div className="w-full max-w-sm rounded-none sm:rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-lg min-h-screen sm:min-h-0 overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-bold text-[var(--foreground)] mb-2">Delete Webhook</h3>
             <p className="text-sm text-[var(--muted-foreground)] mb-4">
               Are you sure you want to delete <strong className="text-[var(--foreground)]">{deleteTarget.name}</strong>? This action cannot be undone.
@@ -404,8 +404,8 @@ function CustomWebhookModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
-      <div className="w-full max-w-lg rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-lg" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-0 sm:p-4" onClick={onClose}>
+      <div className="w-full max-w-lg rounded-none sm:rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-lg min-h-screen sm:min-h-0 overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold text-[var(--foreground)]">
             {webhook ? 'Edit Webhook' : 'Add Webhook'}

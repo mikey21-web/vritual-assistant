@@ -168,6 +168,7 @@ export default function PropertiesPage() {
       </div>
 
       <div className="rounded-lg border border-[var(--border)] overflow-hidden">
+        <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="border-b border-[var(--border)] bg-[var(--muted)]/30">
@@ -220,6 +221,7 @@ export default function PropertiesPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       {total > 20 && (
@@ -231,8 +233,8 @@ export default function PropertiesPage() {
       )}
 
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowForm(false)}>
-          <div className="bg-[var(--card)] rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 space-y-4" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4" onClick={() => setShowForm(false)}>
+          <div className="bg-[var(--card)] rounded-none sm:rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 space-y-4 min-h-screen sm:min-h-0" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold">{editing ? "Edit Property" : "Add Property"}</h2>
               <button onClick={() => setShowForm(false)}><X className="h-5 w-5" /></button>

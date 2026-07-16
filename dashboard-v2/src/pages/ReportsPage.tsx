@@ -210,8 +210,8 @@ export default function ReportsPage() {
 
       {/* Save Modal */}
       {showSave && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={() => setShowSave(false)}>
-          <div className="bg-[var(--card)] rounded-xl border border-[var(--border)] shadow-xl w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-0 sm:p-4" onClick={() => setShowSave(false)}>
+          <div className="bg-[var(--card)] rounded-none sm:rounded-xl border border-[var(--border)] shadow-xl w-full max-w-sm mx-4 min-h-screen sm:min-h-0 overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
               <h3 className="text-sm font-semibold text-[var(--foreground)]">Save Report</h3>
               <button onClick={() => setShowSave(false)} className="p-1 rounded-md text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--accent)] transition-colors cursor-pointer"><X size={16} /></button>
@@ -237,8 +237,8 @@ export default function ReportsPage() {
 
       {/* Saved Reports Modal */}
       {showSaved && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={() => setShowSaved(false)}>
-          <div className="bg-[var(--card)] rounded-xl border border-[var(--border)] shadow-xl w-full max-w-lg mx-4 max-h-[70vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-0 sm:p-4" onClick={() => setShowSaved(false)}>
+          <div className="bg-[var(--card)] rounded-none sm:rounded-xl border border-[var(--border)] shadow-xl w-full max-w-lg mx-4 max-h-[70vh] flex flex-col min-h-screen sm:min-h-0 overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
               <h3 className="text-sm font-semibold text-[var(--foreground)]">Saved Reports</h3>
               <button onClick={() => setShowSaved(false)} className="p-1 rounded-md text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--accent)] transition-colors cursor-pointer"><X size={16} /></button>
