@@ -223,8 +223,8 @@ export async function initNicheConfig(): Promise<void> {
       if (industry && industryToNiche[industry]) {
         currentConfig = { ...nicheMap[industryToNiche[industry]] };
       }
+      if (settings?.businessName) currentConfig.businessName = settings.businessName;
     }
-    if (settings?.businessName) currentConfig.businessName = settings.businessName;
     configListeners.forEach(fn => fn());
   } catch {
   }
