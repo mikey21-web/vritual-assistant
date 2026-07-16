@@ -269,6 +269,30 @@ def build_tools(ctx: ToolContext) -> list:
         except BackendError as e:
             return _err(str(e))
 
+    @tool
+    async def search_units(project_id: str | None = None, unit_type: str | None = None, budget_max: float = 0, min_area: float = 0):
+        """Search available units across builder projects (Project -> Tower -> Unit inventory, distinct from standalone Property listings). Filter by project, unit type (e.g. '2BHK'), max budget, or min area. Returns unit number, tower, floor, price, and status."""
+        if not (ctx.features and ctx.features.get("projects")):
+            return _err("project/unit inventory is not enabled for this niche")
+        try:
+            query: dict = {"status": "AVAILABLE"}
+            if project_id: query["projectId"] = project_id
+            if unit_type: query["unitType"] = unit_type
+            if budget_max > 0: query["maxPrice"] = budget_max
+            if min_area > 0: query["minArea"] = min_area
+            results = await ctx.client.search_units(query)
+            if not results:
+                return _ok("no available units found matching your criteria")
+            summary = "\n".join(
+                f"- Unit {u.get('unitNumber', '?')} ({u.get('project', {}).get('name', '')}"
+                f"{', ' + u['tower']['name'] if u.get('tower') else ''}) | "
+                f"{u.get('unitType', '')} | ₹{u.get('price', 'N/A')} | {u.get('areaSqft', '?')} sqft"
+                for u in results[:5]
+            )
+            return _ok(f"found {len(results)} available units:\n{summary}")
+        except BackendError as e:
+            return _err(str(e))
+
     return [
         send_message,
         extract_fields,
@@ -286,6 +310,7 @@ def build_tools(ctx: ToolContext) -> list:
         mark_lost,
         escalate_to_human,
         search_properties,
+        search_units,
         get_quote,
         create_shipment,
         update_shipment_status,

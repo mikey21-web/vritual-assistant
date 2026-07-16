@@ -6,6 +6,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { EmailAdapter } from '../shared/adapters/email.adapter';
 import { MfaService } from './mfa.service';
+import { PosthogService } from '../posthog/posthog.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { tenantConnect } from '../shared/tenant-helper';
@@ -20,6 +21,7 @@ export class AuthService {
     private auditLogs: AuditLogsService,
     private emailAdapter: EmailAdapter,
     private mfa: MfaService,
+    private posthog: PosthogService,
   ) {}
 
   async register(dto: RegisterDto, req?: any) {
@@ -63,6 +65,8 @@ export class AuthService {
     }
 
     await this.auditLogs.log('user_registered', 'User', user.id, user.id);
+    this.posthog.identify(user.id, { email: user.email, name: user.name, role: user.role });
+    this.posthog.capture('user_signed_up', user.id, { role: user.role });
     return this.generateTokens(user);
   }
 
@@ -100,6 +104,9 @@ export class AuthService {
     }
 
     await this.auditLogs.log('user_login', 'User', user.id, user.id);
+
+    this.posthog.identify(user.id, { email: user.email, name: user.name, role: user.role, tenantId: user.tenantId });
+    this.posthog.capture('user_logged_in', user.id, { role: user.role });
 
     // If MFA is enabled, issue a short-lived challenge token instead
     if (user.mfaEnabled) {

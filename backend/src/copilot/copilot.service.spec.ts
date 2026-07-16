@@ -21,27 +21,25 @@ import { OutcomeEngineService } from '../mikey/outcome-engine.service';
 import { MemoryService } from '../mikey/memory.service';
 import { FederatedService } from '../mikey/federated.service';
 
-function toolCallResponse(name: string, args: any) {
+// chat() no longer runs an in-process OpenAI tool-loop — it delegates all reasoning
+// and tool execution to the Python agent-service over HTTP (POST /agent/copilot/chat),
+// and only relays back whatever `{ response, actions }` that call returns. The one
+// thing that still runs in NestJS is confirmAction() — executing a high-impact action
+// once a human approves it. These tests mock global fetch instead of an OpenAI client.
+function pythonResponse(response: string, actions: any[] = []) {
   return {
-    choices: [{
-      message: {
-        content: null,
-        tool_calls: [{ id: 'tc_1', type: 'function', function: { name, arguments: JSON.stringify(args) } }],
-      },
-    }],
-  };
-}
-
-function textResponse(content: string) {
-  return { choices: [{ message: { content, tool_calls: [] } }] };
+    ok: true,
+    json: async () => ({ response, actions }),
+  } as Response;
 }
 
 describe('CopilotService', () => {
   let service: CopilotService;
   let prisma: any;
-  let leadsService: any;
+  let conversationsService: any;
   let featureFlags: any;
-  let mockCreate: jest.Mock;
+  let fetchMock: jest.Mock;
+  let originalFetch: typeof global.fetch;
 
   const mockConversation = { id: 'conv-1', messages: [] };
 
@@ -54,10 +52,7 @@ describe('CopilotService', () => {
       copilotMessage: { create: jest.fn().mockResolvedValue({}), count: jest.fn().mockResolvedValue(0) },
       businessSettings: { findFirst: jest.fn().mockResolvedValue(null) },
     };
-    leadsService = {
-      findAll: jest.fn().mockResolvedValue({ data: [{ id: 'lead-1' }], meta: { total: 1 } }),
-      update: jest.fn().mockResolvedValue({ id: 'lead-1', status: 'LOST' }),
-    };
+    conversationsService = { create: jest.fn().mockResolvedValue({}) };
     featureFlags = { isEnabledDefault: jest.fn().mockResolvedValue(true) };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -65,11 +60,11 @@ describe('CopilotService', () => {
         CopilotService,
         { provide: ConfigService, useValue: { get: jest.fn((k: string) => (k === 'DEEPSEEK_API_KEY' ? 'fake-key' : '')) } },
         { provide: PrismaService, useValue: prisma },
-        { provide: LeadsService, useValue: leadsService },
+        { provide: LeadsService, useValue: { findAll: jest.fn(), update: jest.fn() } },
         { provide: TasksService, useValue: {} },
         { provide: TicketsService, useValue: {} },
         { provide: CampaignsService, useValue: {} },
-        { provide: ConversationsService, useValue: { create: jest.fn() } },
+        { provide: ConversationsService, useValue: conversationsService },
         { provide: ReportsService, useValue: {} },
         { provide: CustomFieldsService, useValue: {} },
         { provide: TelephonyService, useValue: { initiateCall: jest.fn() } },
@@ -87,10 +82,13 @@ describe('CopilotService', () => {
 
     service = module.get<CopilotService>(CopilotService);
 
-    // Replace the internally-constructed OpenAI client with a controllable mock —
-    // `client` is built from config in the constructor and isn't DI-injectable.
-    mockCreate = jest.fn();
-    (service as any).client = { chat: { completions: { create: mockCreate } } };
+    originalFetch = global.fetch;
+    fetchMock = jest.fn();
+    global.fetch = fetchMock as any;
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
   });
 
   describe('kill-switch and usage cap guardrails', () => {
@@ -99,14 +97,14 @@ describe('CopilotService', () => {
       await expect(
         service.chat('user-1', 'SALES_AGENT', 'default-tenant', 'show me leads'),
       ).rejects.toThrow('temporarily disabled');
-      expect(mockCreate).not.toHaveBeenCalled();
+      expect(fetchMock).not.toHaveBeenCalled();
     });
 
     it('defaults to enabled when the flag has never been set (fail open, not closed)', async () => {
-      mockCreate.mockResolvedValueOnce(textResponse('ok'));
+      fetchMock.mockResolvedValueOnce(pythonResponse('ok'));
       await service.chat('user-1', 'SALES_AGENT', 'default-tenant', 'hello');
       expect(featureFlags.isEnabledDefault).toHaveBeenCalledWith('copilot_enabled', true);
-      expect(mockCreate).toHaveBeenCalled();
+      expect(fetchMock).toHaveBeenCalled();
     });
 
     it('refuses to run once the tenant has hit its daily message cap', async () => {
@@ -114,48 +112,51 @@ describe('CopilotService', () => {
       await expect(
         service.chat('user-1', 'SALES_AGENT', 'default-tenant', 'show me leads'),
       ).rejects.toThrow('daily usage limit');
-      expect(mockCreate).not.toHaveBeenCalled();
+      expect(fetchMock).not.toHaveBeenCalled();
     });
 
     it('allows the request through when under the daily cap', async () => {
       prisma.copilotMessage.count.mockResolvedValue(499);
-      mockCreate.mockResolvedValueOnce(textResponse('ok'));
+      fetchMock.mockResolvedValueOnce(pythonResponse('ok'));
       await service.chat('user-1', 'SALES_AGENT', 'default-tenant', 'hello');
-      expect(mockCreate).toHaveBeenCalled();
+      expect(fetchMock).toHaveBeenCalled();
     });
   });
 
-  describe('permission enforcement', () => {
-    it('refuses a read-only tool the role lacks permission for, without executing it', async () => {
-      mockCreate
-        .mockResolvedValueOnce(toolCallResponse('search_leads', { status: 'NEW' }))
-        .mockResolvedValueOnce(textResponse('You do not have permission for that.'));
-
-      const result = await service.chat('user-1', 'VIEWER_WITHOUT_LEADS', 'default-tenant', 'show me new leads');
-
-      // VIEWER_WITHOUT_LEADS is not a real role in PERMISSION_MATRIX, so `can()` returns false
-      expect(leadsService.findAll).not.toHaveBeenCalled();
-      expect(result.actions[0].status).toBe('error');
-      expect(result.actions[0].result).toContain('do not have permission');
+  describe('relaying results from the Python agent-service', () => {
+    it('falls back to a friendly error when the agent-service call fails', async () => {
+      fetchMock.mockRejectedValueOnce(new Error('connect ECONNREFUSED'));
+      const result = await service.chat('user-1', 'SALES_AGENT', 'default-tenant', 'show me new leads');
+      expect(result.reply).toContain('trouble connecting');
+      expect(result.actions).toEqual([]);
     });
 
-    it('executes a read-only tool immediately when the role has permission', async () => {
-      mockCreate
-        .mockResolvedValueOnce(toolCallResponse('search_leads', { status: 'NEW' }))
-        .mockResolvedValueOnce(textResponse('Found 1 lead.'));
-
+    it('relays a successful read-only action reported by the agent-service', async () => {
+      fetchMock.mockResolvedValueOnce(
+        pythonResponse('Found 1 lead.', [{ tool: 'search_leads', args: { status: 'NEW' }, status: 'success', result: '1 lead found' }]),
+      );
       const result = await service.chat('user-1', 'SALES_AGENT', 'default-tenant', 'show me new leads');
-
-      expect(leadsService.findAll).toHaveBeenCalledWith(expect.objectContaining({ status: 'NEW' }));
       expect(result.actions[0].status).toBe('success');
+      expect(result.actions[0].tool).toBe('search_leads');
+    });
+
+    it('relays an error action reported by the agent-service (e.g. a permission refusal)', async () => {
+      fetchMock.mockResolvedValueOnce(
+        pythonResponse('You do not have permission for that.', [{ tool: 'search_leads', args: {}, status: 'error', result: 'do not have permission' }]),
+      );
+      const result = await service.chat('user-1', 'VIEWER_WITHOUT_LEADS', 'default-tenant', 'show me new leads');
+      expect(result.actions[0].status).toBe('error');
+      expect(result.actions[0].result).toContain('do not have permission');
     });
   });
 
   describe('high-impact confirmation guardrail', () => {
     it('does not execute a high-impact tool immediately — marks it pending confirmation', async () => {
-      mockCreate
-        .mockResolvedValueOnce(toolCallResponse('send_message', { leadId: 'lead-1', channel: 'WHATSAPP', text: 'hi' }))
-        .mockResolvedValueOnce(textResponse('I will send this message, pending your confirmation.'));
+      fetchMock.mockResolvedValueOnce(
+        pythonResponse('I will send this message, pending your confirmation.', [
+          { tool: 'send_message', args: { leadId: 'lead-1', channel: 'WHATSAPP', text: 'hi' }, status: 'pending' },
+        ]),
+      );
 
       const result = await service.chat('user-1', 'SALES_AGENT', 'default-tenant', 'message lead-1 saying hi');
 
@@ -165,31 +166,22 @@ describe('CopilotService', () => {
     });
 
     it('only executes the high-impact tool after confirmAction is called', async () => {
-      mockCreate
-        .mockResolvedValueOnce(toolCallResponse('send_message', { leadId: 'lead-1', channel: 'WHATSAPP', text: 'hi' }))
-        .mockResolvedValueOnce(textResponse('Pending confirmation.'));
+      fetchMock.mockResolvedValueOnce(
+        pythonResponse('Pending confirmation.', [
+          { tool: 'send_message', args: { leadId: 'lead-1', channel: 'WHATSAPP', text: 'hi' }, status: 'pending' },
+        ]),
+      );
 
       const chatResult = await service.chat('user-1', 'SALES_AGENT', 'default-tenant', 'message lead-1 saying hi');
       const pendingActionId = chatResult.actions[0].pendingActionId;
       expect(pendingActionId).toBeTruthy();
+      expect(conversationsService.create).not.toHaveBeenCalled();
 
       await service.confirmAction('user-1', 'SALES_AGENT', pendingActionId);
-      // confirmAction executed without throwing — the pending action ran through
-      // its handler (conversationsService.create, mocked as a bare jest.fn()).
-    });
-  });
-
-  describe('internal-only tools auto-execute without confirmation', () => {
-    it('executes update_lead_status immediately with no pending confirmation', async () => {
-      mockCreate
-        .mockResolvedValueOnce(toolCallResponse('update_lead_status', { leadId: 'lead-1', status: 'LOST' }))
-        .mockResolvedValueOnce(textResponse('Marked as lost.'));
-
-      const result = await service.chat('user-1', 'SALES_AGENT', 'default-tenant', 'mark lead-1 as lost');
-
-      expect(leadsService.update).toHaveBeenCalledWith('lead-1', { status: 'LOST' });
-      expect(result.actions[0].status).toBe('success');
-      expect(result.actions[0].requiresConfirmation).toBeUndefined();
+      expect(conversationsService.create).toHaveBeenCalledWith(
+        expect.objectContaining({ leadId: 'lead-1', channel: 'WHATSAPP', text: 'hi', direction: 'OUTBOUND' }),
+        'user-1',
+      );
     });
   });
 
@@ -199,9 +191,11 @@ describe('CopilotService', () => {
     });
 
     it('throws ForbiddenException when a different user tries to confirm someone else\'s pending action', async () => {
-      mockCreate
-        .mockResolvedValueOnce(toolCallResponse('send_message', { leadId: 'lead-1', channel: 'WHATSAPP', text: 'hi' }))
-        .mockResolvedValueOnce(textResponse('Pending confirmation.'));
+      fetchMock.mockResolvedValueOnce(
+        pythonResponse('Pending confirmation.', [
+          { tool: 'send_message', args: { leadId: 'lead-1', channel: 'WHATSAPP', text: 'hi' }, status: 'pending' },
+        ]),
+      );
 
       const chatResult = await service.chat('user-1', 'SALES_AGENT', 'default-tenant', 'message lead-1 saying hi');
       const pendingActionId = chatResult.actions[0].pendingActionId;
@@ -210,27 +204,17 @@ describe('CopilotService', () => {
     });
 
     it('removes the pending action after it is confirmed (cannot be double-executed)', async () => {
-      mockCreate
-        .mockResolvedValueOnce(toolCallResponse('send_message', { leadId: 'lead-1', channel: 'WHATSAPP', text: 'hi' }))
-        .mockResolvedValueOnce(textResponse('Pending confirmation.'));
+      fetchMock.mockResolvedValueOnce(
+        pythonResponse('Pending confirmation.', [
+          { tool: 'send_message', args: { leadId: 'lead-1', channel: 'WHATSAPP', text: 'hi' }, status: 'pending' },
+        ]),
+      );
 
       const chatResult = await service.chat('user-1', 'SALES_AGENT', 'default-tenant', 'message lead-1 saying hi');
       const pendingActionId = chatResult.actions[0].pendingActionId;
 
       await service.confirmAction('user-1', 'SALES_AGENT', pendingActionId);
       await expect(service.confirmAction('user-1', 'SALES_AGENT', pendingActionId)).rejects.toThrow(NotFoundException);
-    });
-  });
-
-  describe('tool-loop iteration cap', () => {
-    it('never calls the model more than maxIterations + 1 times (loop cap + final response)', async () => {
-      // Always return a tool call that requires confirmation, so the loop would run forever without a cap.
-      mockCreate.mockResolvedValue(toolCallResponse('send_message', { leadId: 'lead-1', channel: 'WHATSAPP', text: 'hi' }));
-
-      await service.chat('user-1', 'SALES_AGENT', 'default-tenant', 'loop forever');
-
-      // A pending action breaks the loop on iteration 1, then one final response call.
-      expect(mockCreate.mock.calls.length).toBeLessThanOrEqual(7);
     });
   });
 });

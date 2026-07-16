@@ -65,6 +65,10 @@ model Tenant {
   bookings      Booking[]
   properties    Property[]
   shipments     Shipment[]
+  paymentSchedules PaymentSchedule[]
+  channelPartners  ChannelPartner[]
+  projects         Project[]
+  units            Unit[]
 
   @@index([slug])
   @@map("tenants")
@@ -342,6 +346,7 @@ enum CustomFieldTarget {
   CONTACT
   LEAD
   TICKET
+  TEAM_MEMBER
 }
 
 // === REFRESH TOKENS ===
@@ -424,6 +429,7 @@ model User {
   salaryRecords    SalaryRecord[]
   timesheetEntries TimesheetEntry[]
   modulePermissions ModulePermission[] @relation("ModulePermissionUser")
+  customFieldValues CustomFieldValue[] @relation("CustomFieldValueUser")
   department       String?
   salaryType       String?
   monthlySalary    Float?
@@ -567,6 +573,11 @@ model Lead {
   events            Event[]
   bookings          Booking[]
   shipments         Shipment[]
+  paymentSchedules  PaymentSchedule[]
+  bookedUnits       Unit[]
+
+  channelPartnerId String?
+  channelPartner   ChannelPartner? @relation(fields: [channelPartnerId], references: [id])
 
   @@index([status])
   @@index([segment])
@@ -576,6 +587,7 @@ model Lead {
   @@index([assignedAgentId])
   @@index([contactId])
   @@index([createdAt])
+  @@index([channelPartnerId])
   @@map("leads")
 }
 
@@ -1005,6 +1017,123 @@ model PropertyImage {
   @@map("property_images")
 }
 
+enum ProjectStatus {
+  PLANNING
+  UNDER_CONSTRUCTION
+  READY_TO_MOVE
+  COMPLETED
+
+  @@map("project_status")
+}
+
+enum UnitStatus {
+  AVAILABLE
+  BLOCKED
+  BOOKED
+  SOLD
+  ON_HOLD
+
+  @@map("unit_status")
+}
+
+/// A builder's development — sold as units inside towers/floors, not flat
+/// listings. Separate from Property (broker/resale flat listings) because a
+/// builder's inventory has structure (tower → floor → unit) that a broker's
+/// standalone listings never need.
+model Project {
+  id             String        @id @default(uuid())
+  tenantId       String        @map("tenant_id")
+  tenant         Tenant        @relation(fields: [tenantId], references: [id])
+  deletedAt      DateTime?
+  name           String
+  description    String?
+  location       String?
+  address        String?
+  reraId         String?
+  status         ProjectStatus @default(UNDER_CONSTRUCTION)
+  possessionDate DateTime?
+  amenities      String[]      @default([])
+  images         Json          @default("[]")
+  metadata       Json          @default("{}")
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  towers Tower[]
+  units  Unit[]
+
+  @@index([tenantId])
+  @@index([status])
+  @@map("projects")
+}
+
+model Tower {
+  id           String   @id @default(uuid())
+  projectId    String
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name         String
+  totalFloors  Int?
+  createdAt    DateTime @default(now())
+
+  units Unit[]
+
+  @@index([projectId])
+  @@map("towers")
+}
+
+/// A single sellable unit inside a project (optionally inside a tower). The
+/// availability grid and inventory velocity are both derived from this table's
+/// status + statusHistory — no spreadsheet needed.
+model Unit {
+  id         String     @id @default(uuid())
+  tenantId   String     @map("tenant_id")
+  tenant     Tenant     @relation(fields: [tenantId], references: [id])
+  projectId  String
+  project    Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  towerId    String?
+  tower      Tower?     @relation(fields: [towerId], references: [id], onDelete: SetNull)
+  unitNumber String
+  floor      Int?
+  unitType   String?
+  areaSqft   Float?
+  price      Float?
+  currency   String     @default("INR")
+  status     UnitStatus @default(AVAILABLE)
+  facing     String?
+  leadId     String?
+  lead       Lead?      @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  bookedAt   DateTime?
+  soldAt     DateTime?
+  metadata   Json       @default("{}")
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  statusHistory UnitStatusHistory[]
+  bookings      Booking[]
+
+  @@unique([projectId, unitNumber])
+  @@index([tenantId])
+  @@index([projectId])
+  @@index([towerId])
+  @@index([status])
+  @@index([leadId])
+  @@map("units")
+}
+
+/// Every status transition a unit goes through, timestamped — this is what
+/// makes "units sold this month" a real query instead of a manual count.
+model UnitStatusHistory {
+  id         String      @id @default(uuid())
+  unitId     String
+  unit       Unit        @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  fromStatus UnitStatus?
+  toStatus   UnitStatus
+  changedAt  DateTime    @default(now())
+
+  @@index([unitId])
+  @@index([changedAt])
+  @@map("unit_status_history")
+}
+
 enum BookingStatus {
   PENDING
   CONFIRMED
@@ -1020,6 +1149,7 @@ model Booking {
   tenantId      String
   leadId        String
   propertyId    String?       @map("property_id")
+  unitId        String?
   title         String
   description   String?
   startTime     DateTime
@@ -1037,11 +1167,86 @@ model Booking {
   lead     Lead      @relation(fields: [leadId], references: [id])
   tenant   Tenant    @relation(fields: [tenantId], references: [id])
   property Property? @relation(fields: [propertyId], references: [id])
+  unit     Unit?     @relation(fields: [unitId], references: [id])
+  paymentSchedules PaymentSchedule[]
 
   @@index([tenantId])
   @@index([leadId])
   @@index([startTime])
   @@map("bookings")
+}
+
+enum PaymentScheduleStatus {
+  PENDING
+  PAID
+  OVERDUE
+  WAIVED
+
+  @@map("payment_schedule_status")
+}
+
+/// A scheduled collection milestone/installment for a lead (optionally tied to a
+/// booking) — e.g. real-estate booking amount, agreement, registration, possession.
+/// Automated reminders are queued as ScheduledActions on create and cancelled on payment.
+model PaymentSchedule {
+  id        String                @id @default(uuid())
+  tenantId  String                @map("tenant_id")
+  tenant    Tenant                @relation(fields: [tenantId], references: [id])
+  leadId    String
+  lead      Lead                  @relation(fields: [leadId], references: [id])
+  bookingId String?
+  booking   Booking?              @relation(fields: [bookingId], references: [id])
+  label     String
+  amount    Float
+  currency  String                @default("INR")
+  dueDate   DateTime?
+  status    PaymentScheduleStatus @default(PENDING)
+  paidAt    DateTime?
+  notes     String?
+  metadata  Json                  @default("{}")
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
+
+  @@index([tenantId])
+  @@index([leadId])
+  @@index([bookingId])
+  @@index([status])
+  @@index([dueDate])
+  @@map("payment_schedules")
+}
+
+enum ChannelPartnerStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+
+  @@map("channel_partner_status")
+}
+
+/// A broker / channel partner who sources leads for the business. In Indian real
+/// estate 60-80% of bookings come through channel partners, so this tracks
+/// onboarding, allocated leads, and commission terms in one place.
+model ChannelPartner {
+  id             String               @id @default(uuid())
+  tenantId       String               @map("tenant_id")
+  tenant         Tenant               @relation(fields: [tenantId], references: [id])
+  name           String
+  company        String?
+  phone          String?
+  email          String?
+  reraId         String?
+  commissionRate Float?               // percent
+  status         ChannelPartnerStatus @default(ACTIVE)
+  notes          String?
+  metadata       Json                 @default("{}")
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  leads Lead[]
+
+  @@index([tenantId])
+  @@index([status])
+  @@map("channel_partners")
 }
 
 // === SHIPMENT / CONSIGNMENT (Logistics) ===
@@ -1320,6 +1525,8 @@ model CustomFieldValue {
   lead           Lead?                 @relation(fields: [leadId], references: [id])
   ticketId       String?
   ticket         Ticket?               @relation(fields: [ticketId], references: [id])
+  userId         String?
+  user           User?                 @relation("CustomFieldValueUser", fields: [userId], references: [id])
   createdAt      DateTime              @default(now())
   updatedAt      DateTime              @updatedAt
 
@@ -1327,9 +1534,11 @@ model CustomFieldValue {
   @@index([contactId])
   @@index([leadId])
   @@index([ticketId])
+  @@index([userId])
   @@unique([definitionId, contactId])
   @@unique([definitionId, leadId])
   @@unique([definitionId, ticketId])
+  @@unique([definitionId, userId])
   @@map("custom_field_values")
 }
 

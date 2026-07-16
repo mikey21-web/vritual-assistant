@@ -1,0 +1,107 @@
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+
+@Injectable()
+export class ChannelPartnersService {
+  constructor(private prisma: PrismaService) {}
+
+  create(data: {
+    tenantId: string;
+    name: string;
+    company?: string;
+    phone?: string;
+    email?: string;
+    reraId?: string;
+    commissionRate?: number;
+    notes?: string;
+  }) {
+    return this.prisma.channelPartner.create({ data });
+  }
+
+  async findAll(query: { status?: string; search?: string; page?: number; limit?: number }) {
+    const { status, search, page = 1, limit = 50 } = query;
+    const where: any = {};
+    if (status) where.status = status;
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { company: { contains: search, mode: 'insensitive' } },
+        { phone: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+    const [data, total] = await Promise.all([
+      this.prisma.channelPartner.findMany({
+        where,
+        skip: (+page - 1) * +limit,
+        take: +limit,
+        orderBy: { createdAt: 'desc' },
+        include: { _count: { select: { leads: true } } },
+      }),
+      this.prisma.channelPartner.count({ where }),
+    ]);
+    return { data, meta: { total, page: +page, limit: +limit } };
+  }
+
+  async findOne(id: string) {
+    const partner = await this.prisma.channelPartner.findUnique({
+      where: { id },
+      include: { _count: { select: { leads: true } } },
+    });
+    if (!partner) throw new NotFoundException('Channel partner not found');
+    return partner;
+  }
+
+  async update(id: string, data: any) {
+    await this.findOne(id);
+    return this.prisma.channelPartner.update({ where: { id }, data });
+  }
+
+  async remove(id: string) {
+    await this.findOne(id);
+    // Detach leads first so we don't orphan a FK; the lead stays, just unlinked.
+    await this.prisma.lead.updateMany({ where: { channelPartnerId: id }, data: { channelPartnerId: null } });
+    return this.prisma.channelPartner.delete({ where: { id } });
+  }
+
+  /** Allocate a lead to a partner (or clear it with partnerId = null). */
+  async allocateLead(leadId: string, partnerId: string | null) {
+    const lead = await this.prisma.lead.findUnique({ where: { id: leadId }, select: { id: true } });
+    if (!lead) throw new NotFoundException('Lead not found');
+    if (partnerId) {
+      const partner = await this.prisma.channelPartner.findUnique({ where: { id: partnerId }, select: { id: true } });
+      if (!partner) throw new BadRequestException('Channel partner not found');
+    }
+    return this.prisma.lead.update({ where: { id: leadId }, data: { channelPartnerId: partnerId } });
+  }
+
+  /**
+   * Per-partner performance: leads sourced, converted, conversion rate, and
+   * estimated commission owed on converted deal value.
+   */
+  async performance(id: string) {
+    const partner = await this.findOne(id);
+
+    const leads = await this.prisma.lead.findMany({
+      where: { channelPartnerId: id },
+      select: { status: true, dealValue: true },
+    });
+
+    const total = leads.length;
+    const converted = leads.filter(l => l.status === 'CONVERTED');
+    const convertedCount = converted.length;
+    const convertedValue = converted.reduce((sum, l) => sum + (l.dealValue || 0), 0);
+    const rate = partner.commissionRate || 0;
+    const commissionOwed = (convertedValue * rate) / 100;
+
+    return {
+      partnerId: id,
+      name: partner.name,
+      totalLeads: total,
+      convertedLeads: convertedCount,
+      conversionRate: total > 0 ? convertedCount / total : 0,
+      convertedValue,
+      commissionRate: rate,
+      commissionOwed,
+    };
+  }
+}

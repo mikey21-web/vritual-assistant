@@ -21,7 +21,7 @@ interface FieldValue {
 }
 
 interface Props {
-  target: 'LEAD' | 'CONTACT' | 'TICKET';
+  target: 'LEAD' | 'CONTACT' | 'TICKET' | 'TEAM_MEMBER';
   targetId: string;
 }
 

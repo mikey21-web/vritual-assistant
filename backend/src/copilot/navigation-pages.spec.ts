@@ -20,36 +20,26 @@ import { OutcomeEngineService } from '../mikey/outcome-engine.service';
 import { MemoryService } from '../mikey/memory.service';
 import { FederatedService } from '../mikey/federated.service';
 
-jest.mock('openai', () => {
-  const mockCreate = jest.fn();
-  return {
-    default: jest.fn().mockImplementation(() => ({ chat: { completions: { create: mockCreate } } })),
-    OpenAI: jest.fn().mockImplementation(() => ({ chat: { completions: { create: mockCreate } } })),
-  };
-});
-
 /**
  * Tests that the navigate_ui tool now accepts ALL page names (not just the old 7).
  * The fix changed page from an enum to a free-form string with examples.
+ *
+ * chat() delegates reasoning/tool execution to the Python agent-service over HTTP
+ * (POST /agent/copilot/chat) and relays back `{ response, actions }` — these tests
+ * mock global fetch to return that shape instead of mocking an OpenAI client.
  */
 describe('CopilotService — navigate_ui accepts all pages', () => {
   let service: CopilotService;
-  let mockCreate: jest.Mock;
+  let fetchMock: jest.Mock;
+  let originalFetch: typeof global.fetch;
 
   const mockPrisma = () => ({
     copilotMessage: { create: jest.fn().mockResolvedValue({}), count: jest.fn().mockResolvedValue(0) },
     copilotConversation: { findUnique: jest.fn().mockResolvedValue(null), create: jest.fn().mockResolvedValue({ id: 'c1', messages: [] }) },
     businessSettings: { findFirst: jest.fn().mockResolvedValue({}) },
-    knowledgeArticle: { findMany: jest.fn().mockResolvedValue([]) },
-    featureFlags: { findUnique: jest.fn().mockResolvedValue(null) },
-    $disconnect: jest.fn(),
   });
 
   beforeAll(async () => {
-    const OpenAI = require('openai');
-    const client = new OpenAI.OpenAI();
-    mockCreate = client.chat.completions.create;
-
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CopilotService,
@@ -77,24 +67,24 @@ describe('CopilotService — navigate_ui accepts all pages', () => {
     service = module.get<CopilotService>(CopilotService);
   });
 
-  beforeEach(() => mockCreate.mockReset());
+  beforeEach(() => {
+    originalFetch = global.fetch;
+    fetchMock = jest.fn();
+    global.fetch = fetchMock as any;
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
 
   function mockNavigate(page: string, summary: string) {
-    mockCreate
-      .mockResolvedValueOnce({
-        choices: [{
-          message: {
-            content: null,
-            tool_calls: [{
-              id: 'call-1', type: 'function',
-              function: { name: 'navigate_ui', arguments: JSON.stringify({ page, summary }) },
-            }],
-          },
-        }],
-      })
-      .mockResolvedValueOnce({
-        choices: [{ message: { content: `Navigated to ${page}.` } }],
-      });
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        response: `Navigated to ${page}.`,
+        actions: [{ tool: 'navigate_ui', args: { page, summary }, status: 'success' }],
+      }),
+    } as Response);
   }
 
   it('navigates to qr-codes page', async () => {

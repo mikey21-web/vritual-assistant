@@ -69,7 +69,11 @@ import { MarketMonitorModule } from './market-monitor/market-monitor.module';
 import { MikeyModule } from './mikey/mikey.module';
 import { CallTrackingModule } from './call-tracking/call-tracking.module';
 import { PortalIntegrationsModule } from './portal-integrations/portal-integrations.module';
+import { PosthogModule } from './posthog/posthog.module';
 import { BookingsModule } from './bookings/bookings.module';
+import { PaymentSchedulesModule } from './payment-schedules/payment-schedules.module';
+import { ChannelPartnersModule } from './channel-partners/channel-partners.module';
+import { ProjectsModule } from './projects/projects.module';
 import { PropertiesModule } from './properties/properties.module';
 import { ShipmentsModule } from './shipments/shipments.module';
 import { AICampaignsController } from './ai-campaigns/ai-campaigns.controller';
@@ -157,6 +161,10 @@ import { AICampaignsController } from './ai-campaigns/ai-campaigns.controller';
     MikeyModule,
     CallTrackingModule,
     PortalIntegrationsModule,
+    PaymentSchedulesModule,
+    ChannelPartnersModule,
+    ProjectsModule,
+    PosthogModule,
   ],
   controllers: [AICampaignsController],
   providers: [

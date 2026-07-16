@@ -122,11 +122,19 @@ export class ConversationsService {
       });
       const within24h = lastInbound ? (Date.now() - new Date(lastInbound.createdAt).getTime() < 86400000) : false;
 
+      // A message can carry a photo/brochure/floor-plan alongside its text — e.g.
+      // Mikey sending matching unit photos during a WhatsApp conversation. Passed
+      // through as ordinary message metadata so no schema/DTO change was needed.
+      const meta = (msg.metadata || {}) as { mediaUrl?: string; mediaType?: string; caption?: string };
+
       const config = {
         phoneNumberId: this.config.get<string>('WHATSAPP_PHONE_NUMBER_ID') || '',
         accessToken: this.config.get<string>('WHATSAPP_ACCESS_TOKEN') || '',
         within24h,
         templateId: !within24h ? this.config.get<string>('WHATSAPP_DEFAULT_TEMPLATE') : undefined,
+        mediaUrl: meta.mediaUrl,
+        mediaType: meta.mediaType,
+        caption: meta.caption,
       };
       const result = await this.whatsAppAdapter.sendMessage(to, text, config);
       if (result.success) {

@@ -12,7 +12,7 @@ export default defineConfig(() => {
         '@xenova/transformers': path.resolve(__dirname, 'node_modules/@huggingface/transformers'),
       },
     },
-    worker: { format: 'es' },
+    worker: { format: 'es' as const },
     build: {
       rollupOptions: {
         output: {

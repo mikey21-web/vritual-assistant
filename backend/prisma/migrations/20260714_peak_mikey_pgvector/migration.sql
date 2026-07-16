@@ -15,11 +15,5 @@ CREATE TABLE "federated_opt_ins" (
 );
 CREATE UNIQUE INDEX "federated_opt_ins_tenant_id_key" ON "federated_opt_ins"("tenant_id");
 
--- Create pgvector index on embedding column if pgvector extension loaded
-DO $$
-BEGIN
-    IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'vector') THEN
-        CREATE INDEX IF NOT EXISTS mikey_memory_embedding_idx ON mikey_memory USING ivfflat (embedding vector_cosine_ops);
-    END IF;
-END
-$$;
+-- Note: ivfflat index skipped — column is DOUBLE PRECISION[], not vector type
+-- A proper vector column migration should be done separately if pgvector is needed

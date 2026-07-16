@@ -86,6 +86,63 @@ export class AnalyticsService {
     }));
   }
 
+  /**
+   * The owner's "run the team" home screen: per-agent performance, leads at
+   * risk of going cold, and today's site-visit volume — the "am I in control"
+   * moment, in one call instead of the owner having to piece it together.
+   */
+  async teamCommand() {
+    const now = new Date();
+    const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+
+    const [agents, staleHotLeads, unassignedHotLeads, overdueTasksCount, todayVisitsCount] = await Promise.all([
+      this.prisma.user.findMany({
+        where: { role: 'SALES_AGENT', active: true },
+        include: { assignedLeads: { where: { status: { notIn: ['CONVERTED', 'LOST', 'SPAM'] } } } },
+      }),
+      this.prisma.lead.findMany({
+        where: { segment: 'HOT', status: { notIn: ['CONVERTED', 'LOST', 'SPAM'] }, updatedAt: { lt: twoHoursAgo }, assignedAgentId: { not: null } },
+        include: { contact: { select: { name: true } }, assignedAgent: { select: { name: true } } },
+        take: 10,
+      }),
+      this.prisma.lead.findMany({
+        where: { segment: 'HOT', assignedAgentId: null, status: { notIn: ['CONVERTED', 'LOST', 'SPAM'] } },
+        include: { contact: { select: { name: true } } },
+        take: 10,
+      }),
+      this.prisma.task.count({ where: { dueAt: { lt: now }, status: { not: 'completed' } } }),
+      this.prisma.booking.count({ where: { startTime: { gte: todayStart, lt: todayEnd }, status: { in: ['PENDING', 'CONFIRMED'] } } }),
+    ]);
+
+    const totalLeadsAllTime = await this.prisma.lead.count();
+    const convertedAllTime = await this.prisma.lead.count({ where: { status: 'CONVERTED' } });
+
+    const agentPerformance = await Promise.all(agents.map(async (a) => {
+      const total = a.assignedLeads.length;
+      const [convertedCount, hotCount] = await Promise.all([
+        this.prisma.lead.count({ where: { assignedAgentId: a.id, status: 'CONVERTED' } }),
+        this.prisma.lead.count({ where: { assignedAgentId: a.id, segment: 'HOT', status: { notIn: ['CONVERTED', 'LOST', 'SPAM'] } } }),
+      ]);
+      return {
+        id: a.id, name: a.name, activeLeads: total, hotLeads: hotCount,
+        converted: convertedCount,
+        conversionRate: total > 0 ? Math.round((convertedCount / total) * 100) : 0,
+      };
+    }));
+
+    return {
+      agentPerformance: agentPerformance.sort((a, b) => b.conversionRate - a.conversionRate),
+      staleHotLeads: staleHotLeads.map(l => ({ id: l.id, name: l.contact?.name || 'Unknown', agent: l.assignedAgent?.name || 'Unassigned', hoursSinceUpdate: Math.round((now.getTime() - l.updatedAt.getTime()) / (1000 * 60 * 60)) })),
+      unassignedHotLeads: unassignedHotLeads.map(l => ({ id: l.id, name: l.contact?.name || 'Unknown' })),
+      overdueTasksCount,
+      todayVisitsCount,
+      overallConversionRate: totalLeadsAllTime > 0 ? Math.round((convertedAllTime / totalLeadsAllTime) * 100) : 0,
+    };
+  }
+
   async dataHealth() {
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000);
     const threeDaysAgo = new Date(Date.now() - 3 * 24 * 3600 * 1000);

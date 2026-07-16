@@ -9,6 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { EmailAdapter } from '../shared/adapters/email.adapter';
+import { PosthogService } from '../posthog/posthog.service';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -16,6 +17,7 @@ describe('AuthService', () => {
   let jwtService: any;
   const auditLogs = { log: jest.fn().mockResolvedValue({}) };
   const emailAdapter = { send: jest.fn().mockResolvedValue({ success: true }) };
+  const posthog = { identify: jest.fn(), capture: jest.fn() };
 
   const mockUser = {
     id: 'user-1',
@@ -60,6 +62,7 @@ describe('AuthService', () => {
         { provide: JwtService, useValue: jwtService },
         { provide: AuditLogsService, useValue: auditLogs },
         { provide: EmailAdapter, useValue: emailAdapter },
+        { provide: PosthogService, useValue: posthog },
         { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('test') } },
       ],
     }).compile();

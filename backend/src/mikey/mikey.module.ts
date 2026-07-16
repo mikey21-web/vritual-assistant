@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { BookingsModule } from '../bookings/bookings.module';
 import { MikeySchedulerService } from './mikey-scheduler.service';
 import { OutcomeEngineService } from './outcome-engine.service';
 import { MikeyService } from './mikey.service';
@@ -18,6 +19,7 @@ import { NicheActionService } from './niche-action.service';
 import { MikeyController } from './mikey.controller';
 
 @Module({
+  imports: [BookingsModule],
   controllers: [MikeyController, MemoryController, ReflexionController, FederatedController, AggregatorController],
   providers: [
     MikeySchedulerService,

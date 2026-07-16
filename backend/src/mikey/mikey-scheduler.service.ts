@@ -8,6 +8,7 @@ import { NicheScannerService } from './niche-scanner.service';
 import { NicheActionService } from './niche-action.service';
 import { ReflexionService } from './reflexion.service';
 import { FederatedService } from './federated.service';
+import { BookingLifecycleService } from '../bookings/booking-lifecycle.service';
 
 interface SchedulerFinding {
   type: 'stale_hot_leads' | 'stale_new_leads' | 'conversion_anomaly' | 'overdue_tasks' | 'lead_source_shift' | 'unassigned_hot_leads' | 'staff_performance_update';
@@ -34,6 +35,7 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
     private nicheAction: NicheActionService,
     private reflexion: ReflexionService,
     private federated: FederatedService,
+    private bookingLifecycle: BookingLifecycleService,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -76,6 +78,20 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
         this.checkLeadSourceShift(),
       ]);
       findings.push(...conversionAnomaly, ...sourceShift);
+
+      // Detect site-visit / appointment no-shows and queue reschedule nudges.
+      try {
+        await this.bookingLifecycle.scanNoShows();
+      } catch (err: any) {
+        this.logger.error(`No-show scan failed: ${err.message}`);
+      }
+
+      // Flag overdue payment milestones and queue collection nudges.
+      try {
+        await this.bookingLifecycle.scanOverduePayments();
+      } catch (err: any) {
+        this.logger.error(`Overdue-payment scan failed: ${err.message}`);
+      }
 
       if (new Date().getMinutes() % 15 === 0) {
         const nicheFindings = await this.nicheScanner.scanAll();

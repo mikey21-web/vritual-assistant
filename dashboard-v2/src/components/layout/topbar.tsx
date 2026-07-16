@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Sun, Moon, Bell, Menu, Search, X, GraduationCap } from "lucide-react";
+import { Bell, Menu, Search, X, GraduationCap } from "lucide-react";
 import { fetchLeads, fetchContacts, fetchNotifications, fetchUnreadNotificationCount, markNotificationRead, markAllNotificationsRead, type AppNotification } from "../../lib/data";
 import { setPendingSearch } from "../../lib/pendingSearch";
 import { startExplainFlow } from "../../lib/explainMode";
@@ -297,7 +297,7 @@ function NotificationsBell() {
   );
 }
 
-export function Topbar({ onMenuToggle, dark, onThemeToggle }: { onMenuToggle: () => void; dark: boolean; onThemeToggle: () => void }) {
+export function Topbar({ onMenuToggle }: { onMenuToggle: () => void }) {
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b border-[var(--border)] bg-[var(--background)] px-4 lg:px-6">
       <button onClick={onMenuToggle} className="rounded-md p-2 text-[var(--muted-foreground)] hover:bg-[var(--accent)] hover:text-[var(--foreground)] transition-colors">
@@ -309,10 +309,6 @@ export function Topbar({ onMenuToggle, dark, onThemeToggle }: { onMenuToggle: ()
       <GlobalSearch />
       <GuidedToursMenu />
       <NotificationsBell />
-
-      <button onClick={onThemeToggle} className="rounded-md p-2 text-[var(--muted-foreground)] hover:bg-[var(--accent)] hover:text-[var(--foreground)] transition-colors" title="Toggle theme">
-        {dark ? <Sun size={15} /> : <Moon size={15} />}
-      </button>
     </header>
   );
 }

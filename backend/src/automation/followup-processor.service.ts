@@ -8,7 +8,7 @@ import { WhatsAppCloudAdapter, TelegramBotAdapter, MessagingAdapter } from '../s
 import { EmailAdapter } from '../shared/adapters/email.adapter';
 import { ConversationsService } from '../conversations/conversations.service';
 
-const FOLLOWUP_KINDS = ['followup', 're_engage', 'send_retry'] as const;
+const FOLLOWUP_KINDS = ['followup', 're_engage', 'send_retry', 'site_visit_reminder', 'post_visit_followup', 'payment_reminder'] as const;
 type FollowupKind = (typeof FOLLOWUP_KINDS)[number];
 
 @Injectable()
@@ -119,6 +119,12 @@ export class FollowupProcessorService extends WorkerHost implements OnApplicatio
         return this.handleReEngage(lead, payload);
       case 'send_retry':
         return this.handleSendRetry(lead, payload);
+      case 'site_visit_reminder':
+      case 'post_visit_followup':
+      case 'payment_reminder':
+        // Booking/payment lifecycle messages arrive with fully-rendered text in the
+        // payload; just dispatch it on the requested channel.
+        return this.handleBookingMessage(lead, payload);
       default:
         this.logger.warn(`Unknown followup kind: ${kind}`);
         return false;
@@ -171,6 +177,23 @@ export class FollowupProcessorService extends WorkerHost implements OnApplicatio
     const success = await this.dispatchMessage(lead, channel, text, payload);
     if (success) {
       this.logger.log(`Re-engagement sent to lead ${lead.id} via ${channel}`);
+    }
+    return success;
+  }
+
+  // ── booking lifecycle (site-visit reminders / post-visit follow-ups) ──
+
+  private async handleBookingMessage(lead: any, payload: any): Promise<boolean> {
+    if (!lead.contact) return false;
+    const text = payload.text;
+    if (!text) {
+      this.logger.warn(`Booking lifecycle message for lead ${lead.id} has no text payload`);
+      return false;
+    }
+    const channel = this.resolvePreferredChannel(lead, payload);
+    const success = await this.dispatchMessage(lead, channel, text, payload);
+    if (success) {
+      this.logger.log(`Booking lifecycle message sent to lead ${lead.id} via ${channel}`);
     }
     return success;
   }

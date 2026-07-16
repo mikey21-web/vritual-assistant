@@ -32,6 +32,8 @@ const featureMap: Record<string, string> = {
   "/analytics": "analytics", "/reports": "reports", "/studio": "studio",
   "/settings": "settings", "/import": "import", "/ads": "adIntegrations",
   "/website-crawler": "websiteCrawler", "/public-profile": "publicProfile",   "/properties": "properties", "/shipments": "shipments",
+  "/channel-partners": "channelPartners", "/payment-schedules": "paymentSchedules",
+  "/projects": "projects",
 };
 
 const labelMap: Record<string, "contact" | "conversion"> = {
@@ -96,7 +98,10 @@ const rawNavGroups = [
   {
     label: "Listings",
     items: [
+      { label: "Projects", icon: Package, path: "/projects" },
       { label: "Properties", icon: Building2, path: "/properties" },
+      { label: "Channel Partners", icon: Truck, path: "/channel-partners" },
+      { label: "Payments & Collections", icon: ClipboardList, path: "/payment-schedules" },
     ],
   },
   {
@@ -304,7 +309,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { co
                         key={item.path}
                         href={`#${item.path}`}
                         onClick={onMobileClose}
-                        className={`flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm transition-all font-medium relative ${
+                        className={`flex items-center gap-3 rounded-md px-2.5 py-2 text-sm transition-colors font-medium relative ${
                           isActive
                             ? "bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-fg)]"
                             : "text-[var(--sidebar-muted)] hover:bg-[var(--sidebar-hover)] hover:text-[var(--sidebar-fg)]"

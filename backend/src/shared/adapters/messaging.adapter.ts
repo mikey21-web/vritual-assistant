@@ -56,9 +56,10 @@ export class WhatsAppCloudAdapter implements MessagingAdapter {
           body.template.components = templateComponents;
         }
       } else if (mediaUrl && mediaType) {
+        const caption = config?.caption || (mediaType !== 'audio' ? text : undefined);
         body = {
           messaging_product: 'whatsapp', to, type: mediaType,
-          [mediaType]: { link: mediaUrl },
+          [mediaType]: caption ? { link: mediaUrl, caption } : { link: mediaUrl },
         };
       } else if (interactiveType === 'button' && interactiveBody && interactiveButtons) {
         body = {

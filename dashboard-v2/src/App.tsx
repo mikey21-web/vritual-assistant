@@ -2,6 +2,7 @@ import { useState, useEffect, lazy, Suspense, useCallback } from "react";
 import { Toaster } from "react-hot-toast";
 import { HashRouter, Routes, Route } from "react-router-dom";
 import { useAuth } from "./lib/useAuth";
+import { capture, identify, reset as posthogReset } from "./lib/posthog";
 import { AppProvider } from "./context/AppContext";
 import { BrandingProvider } from "./lib/useBranding";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -87,6 +88,10 @@ const PageComponents: Record<string, React.LazyExoticComponent<React.ComponentTy
   PublicProfile: lazy(() => import("./pages/PublicProfilePage")),
   Properties: lazy(() => import("./pages/PropertiesPage")),
   Shipments: lazy(() => import("./pages/ShipmentsPage")),
+  ChannelPartners: lazy(() => import("./pages/ChannelPartnersPage")),
+  PaymentSchedules: lazy(() => import("./pages/PaymentSchedulesPage")),
+  Projects: lazy(() => import("./pages/ProjectsPage")),
+  ProjectDetail: lazy(() => import("./pages/ProjectDetailPage")),
 };
 
 function PageFallback() {
@@ -106,6 +111,7 @@ function PageFallback() {
 
 function getPageKey(path: string): string {
   if (/^\/events\/[^/]+$/.test(path)) return "EventDetail";
+  if (/^\/projects\/[^/]+$/.test(path)) return "ProjectDetail";
   if (path.startsWith("/create-event")) return "CreateEvent";
   const map: Record<string, string> = {
     "/": "Overview", "/leads": "Leads", "/pipeline": "Pipeline", "/contacts": "Contacts",
@@ -132,6 +138,9 @@ function getPageKey(path: string): string {
     "/public-profile": "PublicProfile",
     "/properties": "Properties",
     "/shipments": "Shipments",
+    "/channel-partners": "ChannelPartners",
+    "/payment-schedules": "PaymentSchedules",
+    "/projects": "Projects",
   };
   return map[path] || "Overview";
 }
@@ -193,7 +202,6 @@ export default function App() {
   const [page, setPage] = useState("Overview");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [dark, setDark] = useState(() => localStorage.getItem("theme") === "dark");
   const [publicRoute, setPublicRoute] = useState(() => window.location.hash.replace("#", "") || "/");
 
   useEffect(() => {
@@ -201,8 +209,10 @@ export default function App() {
     fetchProfile();
     const onHash = () => {
       const hash = window.location.hash.replace("#", "") || "/";
+      const pageKey = getPageKey(hash);
       setPublicRoute(hash);
-      setPage(getPageKey(hash));
+      setPage(pageKey);
+      capture('$pageview', { $current_url: window.location.href, page: pageKey });
     };
     onHash();
     window.addEventListener("hashchange", onHash);
@@ -210,9 +220,15 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    document.documentElement.classList.toggle("dark", dark);
-    localStorage.setItem("theme", dark ? "dark" : "light");
-  }, [dark]);
+    if (user) {
+      identify(user.id, {
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        tenantId: user.tenantId,
+      });
+    }
+  }, [user]);
 
   useEffect(() => {
     applyNicheTheme();
@@ -265,7 +281,7 @@ export default function App() {
           onMobileClose={() => setMobileNavOpen(false)}
         />
         <div className={`flex flex-1 flex-col transition-all duration-200 ${sidebarCollapsed ? "lg:ml-16" : "lg:ml-64"}`}>
-          <Topbar onMenuToggle={() => setMobileNavOpen(!mobileNavOpen)} dark={dark} onThemeToggle={() => setDark(!dark)} />
+          <Topbar onMenuToggle={() => setMobileNavOpen(!mobileNavOpen)} />
           <main className="flex-1 overflow-auto p-4 lg:p-6 relative">
             <MikeyConnectedBanner />
             <ErrorBoundary>

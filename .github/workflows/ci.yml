@@ -102,8 +102,8 @@ jobs:
       AGENT_INBOUND_KEY: ci-test-inbound-key
       ANTHROPIC_API_KEY: ci-test-anthropic-key
       INTEGRATIONS_ENC_KEY: ci1234567890test1234567890abcdef
-      SEED_OWNER_EMAIL: admin@example.com
-      SEED_OWNER_PASSWORD: password123
+SEED_OWNER_EMAIL: udayakirantumma@gmail.com
+SEED_OWNER_PASSWORD: 8074228036
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

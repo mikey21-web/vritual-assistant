@@ -9,6 +9,8 @@ import { api } from '../lib/api';
 import toast from 'react-hot-toast';
 import type { Lead } from '../lib/types';
 import CustomFieldsSection from '../components/CustomFieldsSection';
+import LeadPaymentMilestones from '../components/LeadPaymentMilestones';
+import PreVisitBrief from '../components/PreVisitBrief';
 
 const statusStyles: Record<string, string> = {
   NEW: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
@@ -38,6 +40,7 @@ export default function LeadsPage() {
   const [segmentFilter, setSegmentFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [briefLeadId, setBriefLeadId] = useState<string | null>(null);
   const [timeline, setTimeline] = useState<any[]>([]);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [zoom, setZoom] = useState<string | null>(null);
@@ -264,6 +267,12 @@ export default function LeadsPage() {
                       {expandedId === l.id && (
                         <tr key={`${l.id}-exp`}>
                           <td colSpan={7} className="px-4 py-4 bg-[var(--muted)] border-b border-[var(--border)]">
+                            <div className="flex justify-end mb-2">
+                              <button onClick={(e) => { e.stopPropagation(); setBriefLeadId(l.id); }}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--primary)] text-[var(--primary-foreground)] hover:opacity-90 transition-opacity">
+                                <Sparkles size={12} /> Pre-Visit Brief
+                              </button>
+                            </div>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                               <div>
                                 <h4 className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider mb-3">Lead Details</h4>
@@ -316,13 +325,16 @@ export default function LeadsPage() {
                                   ))}
                                 </div>
                               </div>
-                              <div>
-                                <h4 className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider mb-3">Custom Fields</h4>
-                                <CustomFieldsSection target="LEAD" targetId={l.id} />
-                                <a href={`#/create-event?leadId=${l.id}&contactId=${l.contact?.id || ''}`} onClick={e => e.stopPropagation()}
-                                  className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-[var(--primary)] hover:underline">
-                                  <Calendar size={12} /> Create event from this lead
-                                </a>
+                              <div className="space-y-4">
+                                <div>
+                                  <h4 className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider mb-3">Custom Fields</h4>
+                                  <CustomFieldsSection target="LEAD" targetId={l.id} />
+                                  <a href={`#/create-event?leadId=${l.id}&contactId=${l.contact?.id || ''}`} onClick={e => e.stopPropagation()}
+                                    className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-[var(--primary)] hover:underline">
+                                    <Calendar size={12} /> Create event from this lead
+                                  </a>
+                                </div>
+                                <LeadPaymentMilestones leadId={l.id} />
                               </div>
                             </div>
                           </td>
@@ -367,6 +379,10 @@ export default function LeadsPage() {
 
                 {expandedId === l.id && (
                   <div className="mt-3 pt-3 border-t border-[var(--border)]">
+                    <button onClick={(e) => { e.stopPropagation(); setBriefLeadId(l.id); }}
+                      className="mb-3 w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--primary)] text-[var(--primary-foreground)] hover:opacity-90 transition-opacity">
+                      <Sparkles size={12} /> Pre-Visit Brief
+                    </button>
                     <div className="space-y-2.5 text-sm">
                       <div className="flex items-center gap-2 text-[var(--muted-foreground)]">
                         <Phone size={14} className="text-[var(--primary)]" /><span>{l.contact?.phone || '-'}</span>
@@ -393,6 +409,9 @@ export default function LeadsPage() {
                         className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-[var(--primary)] hover:underline">
                         <Calendar size={12} /> Create event from this lead
                       </a>
+                    </div>
+                    <div className="mt-3 pt-3 border-t border-[var(--border)]">
+                      <LeadPaymentMilestones leadId={l.id} />
                     </div>
                     <div className="mt-3 pt-3 border-t border-[var(--border)]">
                       <div className="flex items-center justify-between mb-2">
@@ -425,6 +444,7 @@ export default function LeadsPage() {
           </div>
         </>
       )}
+      {briefLeadId && <PreVisitBrief leadId={briefLeadId} onClose={() => setBriefLeadId(null)} />}
     </div>
   );
 }

@@ -20,29 +20,18 @@ import { OutcomeEngineService } from '../mikey/outcome-engine.service';
 import { MemoryService } from '../mikey/memory.service';
 import { FederatedService } from '../mikey/federated.service';
 
-jest.mock('openai', () => {
-  const mockCreate = jest.fn();
-  return {
-    default: jest.fn().mockImplementation(() => ({
-      chat: {
-        completions: {
-          create: mockCreate,
-        },
-      },
-    })),
-    OpenAI: jest.fn().mockImplementation(() => ({
-      chat: {
-        completions: {
-          create: mockCreate,
-        },
-      },
-    })),
-  };
-});
+// chat() delegates all reasoning/tool execution to the Python agent-service over HTTP
+// (POST /agent/copilot/chat) and just relays back `{ response, actions }`. Voice/nav
+// commands like "show me leads" resolve to a `navigate_ui` action there — these tests
+// mock global fetch to return that shape instead of mocking an OpenAI client directly.
+function pythonResponse(response: string, actions: any[] = []) {
+  return { ok: true, json: async () => ({ response, actions }) } as Response;
+}
 
 describe('CopilotService — voice command navigation', () => {
   let service: CopilotService;
-  let mockOpenAICreate: jest.Mock;
+  let fetchMock: jest.Mock;
+  let originalFetch: typeof global.fetch;
 
   const mockPrisma = () => ({
     copilotMessage: {
@@ -56,16 +45,9 @@ describe('CopilotService — voice command navigation', () => {
     businessSettings: {
       findFirst: jest.fn().mockResolvedValue({ businessName: 'TestBiz', industry: 'events' }),
     },
-    knowledgeArticle: { findMany: jest.fn().mockResolvedValue([]) },
-    featureFlags: { findUnique: jest.fn().mockResolvedValue(null) },
-    $disconnect: jest.fn(),
   });
 
   beforeAll(async () => {
-    const OpenAI = require('openai');
-    const client = new OpenAI.OpenAI();
-    mockOpenAICreate = client.chat.completions.create;
-
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CopilotService,
@@ -94,29 +76,19 @@ describe('CopilotService — voice command navigation', () => {
   });
 
   beforeEach(() => {
-    mockOpenAICreate.mockReset();
+    originalFetch = global.fetch;
+    fetchMock = jest.fn();
+    global.fetch = fetchMock as any;
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
   });
 
   it('handles "show me leads" by calling navigate_ui', async () => {
-    mockOpenAICreate
-      .mockResolvedValueOnce({
-        choices: [{
-          message: {
-            content: null,
-            tool_calls: [{
-              id: 'call-1',
-              type: 'function',
-              function: {
-                name: 'navigate_ui',
-                arguments: JSON.stringify({ page: 'leads', filters: { status: 'HOT' }, summary: 'Here are your leads' }),
-              },
-            }],
-          },
-        }],
-      })
-      .mockResolvedValueOnce({
-        choices: [{ message: { content: 'Navigated to leads page with hot leads filter.' } }],
-      });
+    fetchMock.mockResolvedValueOnce(pythonResponse('Here are your leads', [
+      { tool: 'navigate_ui', args: { page: 'leads', filters: { status: 'HOT' }, summary: 'Here are your leads' }, status: 'success' },
+    ]));
 
     const result = await service.chat('user-1', 'ADMIN', 'tenant-1', 'show me leads');
     expect(result.actions).toBeDefined();
@@ -128,25 +100,9 @@ describe('CopilotService — voice command navigation', () => {
   });
 
   it('handles "show me hot leads" with status filter', async () => {
-    mockOpenAICreate
-      .mockResolvedValueOnce({
-        choices: [{
-          message: {
-            content: null,
-            tool_calls: [{
-              id: 'call-1',
-              type: 'function',
-              function: {
-                name: 'navigate_ui',
-                arguments: JSON.stringify({ page: 'leads', filters: { status: 'HOT' }, summary: 'Displaying hot leads' }),
-              },
-            }],
-          },
-        }],
-      })
-      .mockResolvedValueOnce({
-        choices: [{ message: { content: 'Showing hot leads.' } }],
-      });
+    fetchMock.mockResolvedValueOnce(pythonResponse('Showing hot leads.', [
+      { tool: 'navigate_ui', args: { page: 'leads', filters: { status: 'HOT' }, summary: 'Displaying hot leads' }, status: 'success' },
+    ]));
 
     const result = await service.chat('user-1', 'ADMIN', 'tenant-1', 'show me hot leads');
     expect(result.actions).toBeDefined();
@@ -156,25 +112,9 @@ describe('CopilotService — voice command navigation', () => {
   });
 
   it('handles "navigate to tickets" command', async () => {
-    mockOpenAICreate
-      .mockResolvedValueOnce({
-        choices: [{
-          message: {
-            content: null,
-            tool_calls: [{
-              id: 'call-2',
-              type: 'function',
-              function: {
-                name: 'navigate_ui',
-                arguments: JSON.stringify({ page: 'tickets', filters: { status: 'OPEN' }, summary: 'Showing open tickets' }),
-              },
-            }],
-          },
-        }],
-      })
-      .mockResolvedValueOnce({
-        choices: [{ message: { content: 'Navigated to tickets.' } }],
-      });
+    fetchMock.mockResolvedValueOnce(pythonResponse('Navigated to tickets.', [
+      { tool: 'navigate_ui', args: { page: 'tickets', filters: { status: 'OPEN' }, summary: 'Showing open tickets' }, status: 'success' },
+    ]));
 
     const result = await service.chat('user-1', 'ADMIN', 'tenant-1', 'navigate to tickets');
     const navAction = result.actions!.find((a: any) => a.tool === 'navigate_ui');
@@ -183,15 +123,7 @@ describe('CopilotService — voice command navigation', () => {
   });
 
   it('returns text reply for non-navigation queries', async () => {
-    mockOpenAICreate
-      .mockResolvedValueOnce({
-        choices: [{
-          message: {
-            content: 'Your business has 12 hot leads and 3 open tickets.',
-            tool_calls: null,
-          },
-        }],
-      });
+    fetchMock.mockResolvedValueOnce(pythonResponse('Your business has 12 hot leads and 3 open tickets.'));
 
     const result = await service.chat('user-1', 'ADMIN', 'tenant-1', 'what is my conversion rate');
     expect(result.reply).toBeDefined();

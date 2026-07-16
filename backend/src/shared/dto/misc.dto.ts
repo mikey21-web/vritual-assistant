@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsObject, IsIn } from 'class-validator';
+import { IsString, IsOptional, IsObject, IsIn, IsNumber, IsInt, IsArray, IsDateString } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateCrmMappingDto {
@@ -24,6 +24,14 @@ export class CreateUserDto {
   @ApiProperty() @IsString() email: string;
   @ApiPropertyOptional() @IsOptional() @IsString() password?: string;
   @ApiPropertyOptional() @IsOptional() @IsIn(['OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT', 'SUPPORT_AGENT', 'VIEWER']) role?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() phone?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() department?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() salaryType?: string;
+  @ApiPropertyOptional() @IsOptional() @IsNumber() monthlySalary?: number;
+  @ApiPropertyOptional() @IsOptional() @IsDateString() joinedDate?: string;
+  @ApiPropertyOptional() @IsOptional() @IsArray() @IsString({ each: true }) skills?: string[];
+  @ApiPropertyOptional() @IsOptional() @IsInt() annualLeaveQuota?: number;
+  @ApiPropertyOptional() @IsOptional() @IsString() teamStatus?: string;
 }
 
 export class UpdateUserDto {
@@ -31,6 +39,13 @@ export class UpdateUserDto {
   @ApiPropertyOptional() @IsOptional() @IsString() email?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() password?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() phone?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() department?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() salaryType?: string;
+  @ApiPropertyOptional() @IsOptional() @IsNumber() monthlySalary?: number;
+  @ApiPropertyOptional() @IsOptional() @IsDateString() joinedDate?: string;
+  @ApiPropertyOptional() @IsOptional() @IsArray() @IsString({ each: true }) skills?: string[];
+  @ApiPropertyOptional() @IsOptional() @IsInt() annualLeaveQuota?: number;
+  @ApiPropertyOptional() @IsOptional() @IsString() teamStatus?: string;
 }
 
 export class CreateContactDto {

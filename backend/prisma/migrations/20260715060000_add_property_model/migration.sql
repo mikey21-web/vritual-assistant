@@ -48,8 +48,19 @@ CREATE TABLE "property_images" (
     CONSTRAINT "property_images_pkey" PRIMARY KEY ("id")
 );
 
--- AlterTable
-ALTER TABLE "bookings" ADD COLUMN "property_id" TEXT;
+-- AlterTable (safely create bookings table first if missing)
+CREATE TABLE IF NOT EXISTS "bookings" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL DEFAULT '',
+    "leadId" TEXT NOT NULL DEFAULT '',
+    "title" TEXT NOT NULL DEFAULT '',
+    "startTime" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "status" TEXT NOT NULL DEFAULT 'PENDING',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "bookings_pkey" PRIMARY KEY ("id")
+);
+ALTER TABLE "bookings" ADD COLUMN IF NOT EXISTS "property_id" TEXT;
 
 -- CreateIndex
 CREATE INDEX "properties_tenant_id_idx" ON "properties"("tenant_id");

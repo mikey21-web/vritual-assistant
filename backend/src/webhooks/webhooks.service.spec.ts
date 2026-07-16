@@ -73,7 +73,14 @@ describe('WebhooksService', () => {
 
   it('should handle WhatsApp webhook', async () => {
     const result: any = await service.handleWhatsApp('whatsapp', {
-      messageId: 'msg-1', from: '+1234567890', text: 'Hello', contactName: 'John',
+      entry: [{
+        changes: [{
+          value: {
+            messages: [{ id: 'msg-1', from: '+1234567890', text: { body: 'Hello' }, timestamp: '1234567890' }],
+            contacts: [{ profile: { name: 'John' } }],
+          },
+        }],
+      }],
     });
     expect(result.data.lead.id).toBe('lead-1');
   });

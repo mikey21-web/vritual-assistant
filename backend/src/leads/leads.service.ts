@@ -52,6 +52,139 @@ export class LeadsService {
     return l;
   }
 
+  /**
+   * Pre-visit brief — everything an agent needs on one screen before walking
+   * into a site visit, so they never pitch blind: who the buyer is, what they
+   * told us, what they've pushed back on, and which live units actually match.
+   */
+  async getBrief(id: string) {
+    const lead = await this.prisma.lead.findUnique({
+      where: { id },
+      include: {
+        contact: true,
+        assignedAgent: { select: { id: true, name: true, email: true } },
+        customFields: { include: { definition: true } },
+        internalNotes: { orderBy: { createdAt: 'desc' }, take: 10, include: { user: { select: { name: true } } } },
+        conversations: { orderBy: { createdAt: 'desc' }, take: 20 },
+        bookings: { orderBy: { startTime: 'asc' }, include: { property: true } },
+      },
+    });
+    if (!lead) throw new NotFoundException('Lead not found');
+
+    const fields: Record<string, string> = {};
+    for (const cf of lead.customFields) {
+      fields[cf.definition.key] = cf.value ?? '';
+    }
+
+    const now = new Date();
+    const upcomingBooking = lead.bookings
+      .filter(b => b.startTime >= now && ['PENDING', 'CONFIRMED'].includes(b.status))
+      .sort((a, b) => a.startTime.getTime() - b.startTime.getTime())[0] || null;
+
+    const pastBookings = lead.bookings.filter(b => b.startTime < now || !['PENDING', 'CONFIRMED'].includes(b.status));
+
+    // Matching live inventory, using whatever preference fields this lead has captured
+    // (property_type / budget_range / bedrooms / location are the real-estate niche's
+    // custom-field keys — this degrades gracefully to no matches for other niches).
+    const budgetNum = this.parseBudget(fields['budget_range'] || lead.budget || '');
+    const propertyWhere: Prisma.PropertyWhereInput = { deletedAt: null, status: 'AVAILABLE' };
+    if (fields['bedrooms']) propertyWhere.bedrooms = parseInt(fields['bedrooms'], 10) || undefined;
+    if (fields['location']) propertyWhere.location = { contains: fields['location'], mode: 'insensitive' };
+    if (fields['property_type']) propertyWhere.propertyType = fields['property_type'].toUpperCase() as any;
+    if (budgetNum) propertyWhere.price = { lte: budgetNum * 1.15, gte: budgetNum * 0.7 };
+
+    const matchingProperties = await this.prisma.property.findMany({
+      where: propertyWhere,
+      take: 5,
+      orderBy: { featured: 'desc' },
+      include: { images: { where: { isPrimary: true }, take: 1 } },
+    });
+
+    // Objections: heuristic scan of inbound messages for common pushback language,
+    // so the agent isn't caught off guard by something the buyer already raised.
+    const objectionKeywords = ['expensive', 'too high', 'budget', 'think about it', 'not sure', 'compare', 'other option', 'later', 'busy', 'no time'];
+    const objections = lead.conversations
+      .filter(c => c.direction === 'INBOUND' && c.text)
+      .filter(c => objectionKeywords.some(k => c.text!.toLowerCase().includes(k)))
+      .slice(0, 5)
+      .map(c => ({ text: c.text, at: c.createdAt }));
+
+    const recentMessages = lead.conversations.slice(0, 8).map(c => ({
+      direction: c.direction, text: c.text, at: c.createdAt,
+    }));
+
+    return {
+      lead: {
+        id: lead.id, status: lead.status, segment: lead.segment, score: lead.score,
+        source: lead.source, interest: lead.interest, budget: lead.budget, dealValue: lead.dealValue,
+        createdAt: lead.createdAt,
+      },
+      buyer: {
+        name: lead.contact?.name || 'Unknown',
+        phone: lead.contact?.phone || null,
+        email: lead.contact?.email || null,
+      },
+      assignedAgent: lead.assignedAgent,
+      preferences: fields,
+      upcomingBooking,
+      pastBookingsCount: pastBookings.length,
+      matchingProperties,
+      objections,
+      recentMessages,
+      notes: lead.internalNotes.map(n => ({ content: n.content, by: n.user?.name || 'Unknown', at: n.createdAt })),
+    };
+  }
+
+  /**
+   * The agent's "my day" home screen: their hot leads, today's site visits
+   * (with a link straight to the pre-visit brief), and their overdue follow-ups.
+   * Scoped to a single agent so nobody has to dig through the whole team's queue.
+   */
+  async getAgentWorklist(agentId: string) {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+
+    const [hotLeads, todayVisits, overdueTasks] = await Promise.all([
+      this.prisma.lead.findMany({
+        where: { assignedAgentId: agentId, segment: 'HOT', status: { notIn: ['CONVERTED', 'LOST', 'SPAM'] } },
+        include: { contact: { select: { name: true, phone: true } } },
+        orderBy: { score: 'desc' },
+        take: 10,
+      }),
+      this.prisma.booking.findMany({
+        where: {
+          lead: { assignedAgentId: agentId },
+          startTime: { gte: todayStart, lt: todayEnd },
+          status: { in: ['PENDING', 'CONFIRMED'] },
+        },
+        include: { lead: { include: { contact: { select: { name: true, phone: true } } } }, property: { select: { title: true } } },
+        orderBy: { startTime: 'asc' },
+      }),
+      this.prisma.task.findMany({
+        where: { assigneeId: agentId, dueAt: { lt: now }, status: { not: 'completed' } },
+        include: { lead: { include: { contact: { select: { name: true } } } } },
+        orderBy: { dueAt: 'asc' },
+        take: 15,
+      }),
+    ]);
+
+    return { hotLeads, todayVisits, overdueTasks };
+  }
+
+  private parseBudget(raw: string): number | null {
+    if (!raw) return null;
+    // Handles "5000000", "50L", "5 Cr", "50-80L" (takes the lower bound) etc.
+    const match = raw.replace(/,/g, '').match(/([\d.]+)\s*(cr|crore|l|lakh)?/i);
+    if (!match) return null;
+    let num = parseFloat(match[1]);
+    if (isNaN(num)) return null;
+    const unit = (match[2] || '').toLowerCase();
+    if (unit.startsWith('cr')) num *= 10000000;
+    else if (unit.startsWith('l')) num *= 100000;
+    return num;
+  }
+
   async create(data: any, userId?: string) {
     const lead = await this.prisma.$transaction(async (tx) => {
       const created = await tx.lead.create({ data });

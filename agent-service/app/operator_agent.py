@@ -211,6 +211,61 @@ def build_operator_tools(client: BackendClient, tenant_id: str) -> list:
         return f"pending confirmation: outcome '{goal}' with metric {metric}"
 
     @tool
+    async def create_payment_schedule(lead_id: str, label: str, amount: float, due_date: str | None = None, booking_id: str | None = None):
+        """Create a payment milestone for a lead (e.g. Booking Amount, Registration, Possession). due_date should be an ISO date (YYYY-MM-DD). Automated reminders are scheduled 3 days before and on the due date. Internal-only, executes immediately."""
+        try:
+            body = {"leadId": lead_id, "label": label, "amount": amount}
+            if due_date: body["dueDate"] = due_date
+            if booking_id: body["bookingId"] = booking_id
+            result = await client._post("/payment-schedules", body)
+            return f"Payment milestone created: {result.get('id', '')} — {label} ({amount})"
+        except Exception as e:
+            return f"error: {e}"
+
+    @tool
+    async def list_payment_schedules(lead_id: str | None = None, status: str | None = None):
+        """List payment milestones, optionally filtered by lead or status (PENDING, PAID, OVERDUE, WAIVED)."""
+        try:
+            params = {}
+            if lead_id: params["leadId"] = lead_id
+            if status: params["status"] = status
+            result = await client._get("/payment-schedules?" + "&".join(f"{k}={v}" for k, v in params.items()))
+            return str(result)[:1000]
+        except Exception as e:
+            return f"error: {e}"
+
+    @tool
+    async def allocate_lead_to_partner(lead_id: str, partner_id: str | None = None):
+        """Allocate (or unallocate, if partner_id is omitted) a lead to a channel partner / broker. Internal-only, executes immediately."""
+        try:
+            body = {"leadId": lead_id, "partnerId": partner_id}
+            result = await client._post("/channel-partners/allocate", body)
+            return f"Lead {lead_id} allocated to partner {partner_id or '(none)'}"
+        except Exception as e:
+            return f"error: {e}"
+
+    @tool
+    async def search_channel_partners(search: str | None = None, status: str | None = None):
+        """Search channel partners / brokers by name, company, or phone."""
+        try:
+            params = {}
+            if search: params["search"] = search
+            if status: params["status"] = status
+            result = await client._get("/channel-partners?" + "&".join(f"{k}={v}" for k, v in params.items()))
+            return str(result)[:1000]
+        except Exception as e:
+            return f"error: {e}"
+
+    @tool
+    async def get_partner_performance(partner_id: str):
+        """Get a channel partner's performance: leads sourced, converted, conversion rate, and commission owed."""
+        try:
+            result = await client._get(f"/channel-partners/{partner_id}/performance")
+            return str(result)[:1000]
+        except Exception as e:
+            return f"error: {e}"
+
+    @tool
     async def run_autonomous_action(action: str, lead_id: str | None = None, args: dict | None = None):
         """Run an autonomous action on a lead (e.g. enrichment, scoring)."""
         try:
@@ -229,4 +284,6 @@ def build_operator_tools(client: BackendClient, tenant_id: str) -> list:
         get_analytics_overview, run_report, initiate_call, send_email,
         bulk_send_message, analyze_lead_source, search_knowledge,
         navigate_ui, explain_flow, define_outcome, run_autonomous_action,
+        create_payment_schedule, list_payment_schedules,
+        allocate_lead_to_partner, search_channel_partners, get_partner_performance,
     ]

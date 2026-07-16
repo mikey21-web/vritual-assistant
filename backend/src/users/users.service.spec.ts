@@ -78,6 +78,13 @@ describe('UsersService', () => {
           active: true,
           createdAt: true,
           updatedAt: true,
+          department: true,
+          salaryType: true,
+          monthlySalary: true,
+          joinedDate: true,
+          skills: true,
+          annualLeaveQuota: true,
+          teamStatus: true,
         },
       });
     });
@@ -266,6 +273,13 @@ describe('UsersService', () => {
             active: true,
             createdAt: true,
             updatedAt: true,
+            department: true,
+            salaryType: true,
+            monthlySalary: true,
+            joinedDate: true,
+            skills: true,
+            annualLeaveQuota: true,
+            teamStatus: true,
           },
         }),
       );

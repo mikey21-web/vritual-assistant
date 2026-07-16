@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { TimelineService } from '../timeline/timeline.service';
 import { AgentClientService } from './agent-client.service';
+import { KhojClientService } from '../khoj-client/khoj-client.service';
 
 describe('AgentService', () => {
   let service: AgentService;
@@ -75,6 +76,7 @@ describe('AgentService', () => {
         { provide: EventsService, useValue: events },
         { provide: TimelineService, useValue: timeline },
         { provide: AgentClientService, useValue: agentClient },
+        { provide: KhojClientService, useValue: { saveMemory: jest.fn().mockResolvedValue(undefined) } },
       ],
     }).compile();
 

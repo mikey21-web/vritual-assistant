@@ -46,7 +46,10 @@ export class CustomFieldsService {
   }
 
   async getValues(target: string, targetId: string) {
-    const where = target === 'contact' ? { contactId: targetId } : target === 'ticket' ? { ticketId: targetId } : { leadId: targetId };
+    const where = target === 'contact' ? { contactId: targetId }
+      : target === 'ticket' ? { ticketId: targetId }
+      : target === 'team_member' ? { userId: targetId }
+      : { leadId: targetId };
     return this.prisma.customFieldValue.findMany({ where, include: { definition: true } });
   }
 
@@ -61,6 +64,9 @@ export class CustomFieldsService {
       } else if (target === 'ticket') {
         whereKey = { definitionId_ticketId: { definitionId: v.definitionId, ticketId: targetId } };
         createData.ticketId = targetId;
+      } else if (target === 'team_member') {
+        whereKey = { definitionId_userId: { definitionId: v.definitionId, userId: targetId } };
+        createData.userId = targetId;
       } else {
         whereKey = { definitionId_leadId: { definitionId: v.definitionId, leadId: targetId } };
         createData.leadId = targetId;

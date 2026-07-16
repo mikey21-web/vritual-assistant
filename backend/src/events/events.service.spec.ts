@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { EventsService } from './events.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
 
 describe('EventsService', () => {
   let service: EventsService;
@@ -40,6 +41,7 @@ describe('EventsService', () => {
       providers: [
         EventsService,
         { provide: PrismaService, useValue: prisma },
+        { provide: RealtimeGateway, useValue: { emit: jest.fn(), emitToTenant: jest.fn(), emitToUser: jest.fn(), emitToRoom: jest.fn() } },
       ],
     }).compile();
 

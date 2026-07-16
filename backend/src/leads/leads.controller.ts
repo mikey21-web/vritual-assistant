@@ -28,6 +28,16 @@ export class LeadsController {
   @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT', 'SUPPORT_AGENT', 'VIEWER')
   findOne(@Param('id') id: string) { return this.service.findOne(id); }
 
+  @Get(':id/brief')
+  @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT')
+  @ApiOperation({ summary: 'Pre-visit brief — buyer profile, preferences, matching units, objections, notes' })
+  getBrief(@Param('id') id: string) { return this.service.getBrief(id); }
+
+  @Get('worklist/mine')
+  @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT')
+  @ApiOperation({ summary: "The current agent's day: hot leads, today's visits, overdue follow-ups" })
+  getMyWorklist(@Req() req) { return this.service.getAgentWorklist(req.user.sub); }
+
   @Patch(':id')
   @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT')
   update(@Param('id') id: string, @Body() d: UpdateLeadDto, @Req() req) { return this.service.update(id, d, req.user.sub); }

@@ -2,12 +2,17 @@ import { Injectable, NotFoundException, BadRequestException, Logger } from '@nes
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { BookingStatus } from '@prisma/client';
+import { BookingLifecycleService } from './booking-lifecycle.service';
 
 @Injectable()
 export class BookingsService {
   private readonly logger = new Logger(BookingsService.name);
 
-  constructor(private prisma: PrismaService, private config: ConfigService) {}
+  constructor(
+    private prisma: PrismaService,
+    private config: ConfigService,
+    private lifecycle: BookingLifecycleService,
+  ) {}
 
   async checkAvailability(startTime: Date, endTime?: Date, durationMinutes?: number) {
     const end = endTime || new Date(startTime.getTime() + (durationMinutes || 60) * 60000);
@@ -53,7 +58,7 @@ export class BookingsService {
       throw new BadRequestException('Time slot is not available');
     }
 
-    return this.prisma.booking.create({
+    const booking = await this.prisma.booking.create({
       data: {
         tenantId,
         leadId: data.leadId,
@@ -66,6 +71,16 @@ export class BookingsService {
         propertyId: data.propertyId,
       },
     });
+
+    // Queue the 24h + 2h reminders. Best-effort — a scheduling hiccup must never
+    // block the booking itself from being created.
+    try {
+      await this.lifecycle.scheduleSiteVisitReminders(booking);
+    } catch (e: any) {
+      this.logger.warn(`Failed to schedule reminders for booking ${booking.id}: ${e.message}`);
+    }
+
+    return booking;
   }
 
   async findAll(query: { leadId?: string; status?: string; page?: number; limit?: number }) {
@@ -101,7 +116,28 @@ export class BookingsService {
     const booking = await this.prisma.booking.findUnique({ where: { id } });
     if (!booking) throw new NotFoundException('Booking not found');
 
-    return this.prisma.booking.update({ where: { id }, data });
+    const updated = await this.prisma.booking.update({ where: { id }, data });
+
+    try {
+      const statusChanged = data.status && data.status !== booking.status;
+      const startChanged = data.startTime && new Date(data.startTime).getTime() !== booking.startTime.getTime();
+
+      if (statusChanged && updated.status === BookingStatus.COMPLETED) {
+        // Visit happened — stop reminders, start the post-visit nurture cadence.
+        await this.lifecycle.cancelBookingActions(id, ['sv_reminder']);
+        await this.lifecycle.schedulePostVisitFollowups(updated);
+      } else if (statusChanged && updated.status === BookingStatus.CANCELLED) {
+        await this.lifecycle.cancelBookingActions(id);
+      } else if (startChanged && [BookingStatus.PENDING, BookingStatus.CONFIRMED].includes(updated.status as any)) {
+        // Rescheduled — drop the old reminders and re-arm against the new time.
+        await this.lifecycle.cancelBookingActions(id, ['sv_reminder']);
+        await this.lifecycle.scheduleSiteVisitReminders(updated);
+      }
+    } catch (e: any) {
+      this.logger.warn(`Booking ${id} lifecycle update hook failed: ${e.message}`);
+    }
+
+    return updated;
   }
 
   async findByTenant(tenantId: string, query: { status?: string; page?: number; limit?: number }) {

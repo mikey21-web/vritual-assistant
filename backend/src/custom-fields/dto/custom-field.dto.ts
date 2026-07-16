@@ -3,8 +3,8 @@ import { IsString, IsBoolean, IsOptional, IsIn, IsNumber, IsArray } from 'class-
 export class CreateCustomFieldDto {
   @IsString() name: string;
   @IsString() key: string;
-  @IsIn(['TEXT', 'NUMBER', 'DATE', 'BOOLEAN', 'DROPDOWN']) type: string;
-  @IsIn(['CONTACT', 'LEAD']) target: string;
+  @IsIn(['TEXT', 'NUMBER', 'DATE', 'BOOLEAN', 'DROPDOWN', 'MULTI_SELECT']) type: string;
+  @IsIn(['CONTACT', 'LEAD', 'TICKET', 'TEAM_MEMBER']) target: string;
   @IsArray() @IsOptional() options?: unknown[];
   @IsBoolean() @IsOptional() required?: boolean;
   @IsBoolean() @IsOptional() active?: boolean;

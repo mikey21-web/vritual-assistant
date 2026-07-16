@@ -7,6 +7,8 @@ import { startExplainFlow } from '../lib/explainMode';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../lib/useAuth';
 import { Users, Target, TrendingUp, BarChart3, Activity, ArrowUpRight, Zap, AlertTriangle, AlertCircle, CheckCircle, X, Play, DollarSign } from 'lucide-react';
+import AgentWorklist from '../components/AgentWorklist';
+import OwnerCommandView from '../components/OwnerCommandView';
 
 const currencyFormatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 
@@ -96,6 +98,9 @@ export default function OverviewPage() {
           {niche ? `${niche.industry} · ${niche.conversion_goals?.join(', ') || 'No goals configured'}` : "Here's what's happening today."}
         </p>
       </div>
+
+      {user?.role === 'SALES_AGENT' && <AgentWorklist />}
+      {['OWNER', 'ADMIN', 'MANAGER'].includes(user?.role || '') && <OwnerCommandView />}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {cards.map((c, i) => (

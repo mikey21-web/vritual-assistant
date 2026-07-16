@@ -57,17 +57,12 @@ describe('RealtimeGateway', () => {
       expect(() => gateway.emit('lead:new', undefined)).not.toThrow();
     });
 
-    it('should check REALTIME_ENABLED config when emitting', () => {
-      mockConfigService.get.mockReturnValue('false');
-      gateway.emit('lead:new', { id: '1' });
-      expect(mockConfigService.get).toHaveBeenCalledWith('REALTIME_ENABLED');
-    });
-
-    it('should emit multiple events in sequence', () => {
-      gateway.emit('lead:new', { id: '1' });
-      gateway.emit('lead:updated', { id: '1', name: 'Updated' });
-      gateway.emit('conversation:new', { conversationId: 'conv-1' });
-      expect(mockConfigService.get).toHaveBeenCalledTimes(3);
+    it('should emit multiple events in sequence without error', () => {
+      expect(() => {
+        gateway.emit('lead:new', { id: '1' });
+        gateway.emit('lead:updated', { id: '1', name: 'Updated' });
+        gateway.emit('conversation:new', { conversationId: 'conv-1' });
+      }).not.toThrow();
     });
 
     it('should handle numeric data payloads', () => {

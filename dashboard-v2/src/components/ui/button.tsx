@@ -1,18 +1,18 @@
 import * as React from "react";
 
 const variantStyles = {
-  default: "bg-[var(--primary)] text-[var(--primary-foreground)] hover:opacity-90 shadow-sm active:scale-[0.97] transition-all",
-  destructive: "bg-[var(--destructive)] text-[var(--destructive-foreground)] hover:opacity-90 shadow-sm active:scale-[0.97] transition-all",
-  outline: "border border-[var(--border)] bg-[var(--card)] hover:bg-[var(--accent)] hover:text-[var(--accent-foreground)] active:scale-[0.97] transition-all",
-  secondary: "bg-[var(--secondary)] text-[var(--secondary-foreground)] hover:opacity-80 active:scale-[0.97] transition-all",
-  ghost: "hover:bg-[var(--accent)] hover:text-[var(--accent-foreground)] active:scale-[0.97] transition-all",
+  default: "bg-[var(--primary)] text-[var(--primary-foreground)] hover:opacity-85 shadow-sm transition-colors",
+  destructive: "bg-[var(--destructive)] text-[var(--destructive-foreground)] hover:opacity-85 shadow-sm transition-colors",
+  outline: "border border-[var(--border)] bg-[var(--card)] hover:bg-[var(--accent)] hover:text-[var(--accent-foreground)] transition-colors",
+  secondary: "bg-[var(--secondary)] text-[var(--secondary-foreground)] hover:opacity-80 transition-colors",
+  ghost: "hover:bg-[var(--accent)] hover:text-[var(--accent-foreground)] transition-colors",
   link: "text-[var(--primary)] underline-offset-4 hover:underline",
 };
 
 const sizeStyles = {
   default: "h-9 px-4 py-2",
   sm: "h-8 rounded-md px-3 text-xs",
-  lg: "h-10 rounded-lg px-8",
+  lg: "h-10 rounded-md px-8",
   icon: "h-9 w-9",
 };
 
@@ -28,7 +28,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         ref={ref}
         disabled={disabled || loading}
-        className={`group inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all focus-visible:outline-2 focus-visible:outline-[var(--ring)] disabled:pointer-events-none disabled:opacity-50 ${variantStyles[variant]} ${sizeStyles[size]} ${className}`}
+        className={`group inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-[var(--ring)] disabled:pointer-events-none disabled:opacity-50 ${variantStyles[variant]} ${sizeStyles[size]} ${className}`}
         {...props}
       >
         {loading && (

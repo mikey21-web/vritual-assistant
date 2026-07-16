@@ -12,6 +12,13 @@ const SAFE_USER_SELECT = {
   active: true,
   createdAt: true,
   updatedAt: true,
+  department: true,
+  salaryType: true,
+  monthlySalary: true,
+  joinedDate: true,
+  skills: true,
+  annualLeaveQuota: true,
+  teamStatus: true,
 };
 
 @Injectable()
@@ -28,7 +35,7 @@ export class UsersService {
     return u;
   }
 
-  async create(data: { name: string; email: string; password?: string; role?: string; active?: boolean }, req?: any) {
+  async create(data: { name: string; email: string; password?: string; role?: string; active?: boolean; phone?: string; department?: string; salaryType?: string; monthlySalary?: number; joinedDate?: string; skills?: string[]; annualLeaveQuota?: number; teamStatus?: string }, req?: any) {
     if (!data.password) throw new BadRequestException('Password is required');
     const password = await bcrypt.hash(data.password, 12);
     const { role, active, ...safeData } = data;
@@ -44,7 +51,7 @@ export class UsersService {
     });
   }
 
-  async update(id: string, data: { name?: string; email?: string; password?: string }) {
+  async update(id: string, data: { name?: string; email?: string; password?: string; phone?: string; department?: string; salaryType?: string; monthlySalary?: number; joinedDate?: string; skills?: string[]; annualLeaveQuota?: number; teamStatus?: string }) {
     await this.findOne(id);
     const { password, ...rest } = data;
     const updateData: any = { ...rest };

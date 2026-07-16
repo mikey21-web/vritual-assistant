@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../lib/api';
-import { UserPlus, Trash2, Shield } from 'lucide-react';
+import { UserPlus, Trash2, Shield, IdCard } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { fetchPermissionPresets, fetchUserPermissions, setUserPermission, applyPermissionPreset } from '../lib/data';
 import { Drawer } from '../components/ui/drawer';
 import { Input } from '../components/ui/input';
 import { Select } from '../components/ui/select';
 import { Button } from '../components/ui/button';
+import CustomFieldsSection from '../components/CustomFieldsSection';
+import { getTeamConfig, getPermissionModuleLabel } from '../lib/niche-config';
 
 const PERMISSION_MODULES = ['DASHBOARD', 'EVENTS', 'CRM', 'VENDORS', 'TEAM', 'TIMESHEET', 'ACCOUNTING', 'INVENTORY', 'PROCUREMENT'];
 const PERMISSION_LEVELS = ['NO_ACCESS', 'VIEW_ONLY', 'EDIT', 'FULL_ACCESS'];
@@ -47,7 +49,7 @@ function PermissionsPanel({ userId, onClose }: { userId: string; onClose: () => 
       <div className="space-y-2">
         {PERMISSION_MODULES.map(m => (
           <div key={m} className="flex items-center justify-between">
-            <span className="text-sm text-[var(--foreground)]">{m.replace('_', ' ')}</span>
+            <span className="text-sm text-[var(--foreground)]">{getPermissionModuleLabel(m)}</span>
             <select value={perms[m] || 'NO_ACCESS'} onChange={e => setLevel(m, e.target.value)}
               className="h-8 rounded-lg border border-[var(--border)] bg-[var(--background)] px-2 text-xs text-[var(--foreground)]">
               {PERMISSION_LEVELS.map(l => <option key={l} value={l}>{l.replace('_', ' ')}</option>)}
@@ -59,11 +61,77 @@ function PermissionsPanel({ userId, onClose }: { userId: string; onClose: () => 
   );
 }
 
+function TeamDetailsPanel({ user, onClose, onSaved }: { user: any; onClose: () => void; onSaved: () => void }) {
+  const team = getTeamConfig();
+  const [fields, setFields] = useState({
+    department: user.department || '',
+    salaryType: user.salaryType || 'Monthly',
+    monthlySalary: user.monthlySalary ?? '',
+    skills: (user.skills || []).join(', '),
+    annualLeaveQuota: user.annualLeaveQuota ?? 12,
+  });
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await api(`/users/${user.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          department: fields.department,
+          salaryType: fields.salaryType,
+          monthlySalary: fields.monthlySalary === '' ? undefined : Number(fields.monthlySalary),
+          skills: fields.skills.split(',').map(s => s.trim()).filter(Boolean),
+          annualLeaveQuota: fields.annualLeaveQuota === '' ? undefined : Number(fields.annualLeaveQuota),
+        }),
+      });
+      toast.success('Details saved');
+      onSaved();
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to save');
+    }
+    setSaving(false);
+  };
+
+  return (
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 mt-2 space-y-4">
+      <div className="flex items-center justify-between">
+        <h4 className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Team member details</h4>
+        <button onClick={onClose} className="text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)]">Close</button>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Input label="Role / Department" placeholder={team.deptPlaceholder} value={fields.department}
+          onChange={e => setFields({ ...fields, department: e.target.value })} />
+        <Select label="Salary type" value={fields.salaryType} onChange={e => setFields({ ...fields, salaryType: e.target.value })}>
+          <option value="Monthly">Monthly</option>
+          <option value="Commission">Commission</option>
+          <option value="Monthly + Commission">Monthly + Commission</option>
+        </Select>
+        <Input label="Monthly salary (₹)" type="number" value={fields.monthlySalary}
+          onChange={e => setFields({ ...fields, monthlySalary: e.target.value })} />
+        <Input label="Annual leave quota (days)" type="number" value={fields.annualLeaveQuota}
+          onChange={e => setFields({ ...fields, annualLeaveQuota: e.target.value })} />
+        <div className="sm:col-span-2">
+          <Input label="Skills (comma-separated)" placeholder={team.skillsPlaceholder} value={fields.skills}
+            onChange={e => setFields({ ...fields, skills: e.target.value })} />
+        </div>
+      </div>
+      <Button onClick={save} disabled={saving}>{saving ? 'Saving...' : 'Save details'}</Button>
+
+      <div className="border-t border-[var(--border)] pt-4">
+        <CustomFieldsSection target="TEAM_MEMBER" targetId={user.id} />
+      </div>
+    </div>
+  );
+}
+
 export default function TeamPage() {
+  const team = getTeamConfig();
   const [users, setUsers] = useState<any[]>([]);
   const [showInvite, setShowInvite] = useState(false);
-  const [form, setForm] = useState({ email: '', name: '', role: 'SALES_AGENT' });
+  const [form, setForm] = useState({ email: '', name: '', role: 'SALES_AGENT', phone: '', department: '' });
   const [permUserId, setPermUserId] = useState<string | null>(null);
+  const [detailsUserId, setDetailsUserId] = useState<string | null>(null);
 
   const refresh = () => api('/users').then((r: any) => setUsers(Array.isArray(r) ? r : r.data || [])).catch(() => {});
   useEffect(() => { refresh(); }, []);
@@ -73,7 +141,7 @@ export default function TeamPage() {
     try {
       await api('/users', { method: 'POST', body: JSON.stringify(form) });
       setShowInvite(false);
-      setForm({ email: '', name: '', role: 'SALES_AGENT' });
+      setForm({ email: '', name: '', role: 'SALES_AGENT', phone: '', department: '' });
       refresh();
       toast.success('Team member invited');
     } catch (e: any) { toast.error(e.message); }
@@ -84,7 +152,7 @@ export default function TeamPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-[var(--foreground)]">Team</h1>
-          <p className="text-sm text-[var(--muted-foreground)] mt-1">{users.length} members</p>
+          <p className="text-sm text-[var(--muted-foreground)] mt-1">{team.pageSubtitle} · {users.length} members</p>
         </div>
         <Button onClick={() => setShowInvite(true)} className="w-full sm:w-auto">
           <UserPlus size={16} /> Invite Member
@@ -117,12 +185,23 @@ export default function TeamPage() {
             onChange={e => setForm({ ...form, email: e.target.value })}
             required
           />
+          <Input
+            label="Phone"
+            value={form.phone}
+            onChange={e => setForm({ ...form, phone: e.target.value })}
+          />
+          <Input
+            label="Role / Department"
+            placeholder={team.deptPlaceholder}
+            value={form.department}
+            onChange={e => setForm({ ...form, department: e.target.value })}
+          />
           <Select
-            label="Role"
+            label="Access level"
             value={form.role}
             onChange={e => setForm({ ...form, role: e.target.value })}
           >
-            {['SALES_AGENT', 'TEAM_LEAD', 'ADMIN', 'SUPER_ADMIN'].map(r => (
+            {['SALES_AGENT', 'SUPPORT_AGENT', 'MANAGER', 'ADMIN', 'VIEWER'].map(r => (
               <option key={r} value={r}>{r.replace('_', ' ')}</option>
             ))}
           </Select>
@@ -158,27 +237,34 @@ export default function TeamPage() {
                     <td className="px-4 py-3 text-sm text-[var(--muted-foreground)]">{u.email}</td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
-                        u.role === 'SUPER_ADMIN'
+                        u.role === 'OWNER'
                           ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
                           : u.role === 'ADMIN'
                             ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
                             : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'
                       }`}>
-                        {u.role?.replace('_', ' ') || 'N/A'}
+                        {u.department || u.role?.replace('_', ' ') || 'N/A'}
                       </span>
                     </td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${
-                        (u.status || 'active') === 'active'
+                        (u.teamStatus || 'active') === 'active'
                           ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
                           : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
                       }`}>
                         <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                        {u.status || 'active'}
+                        {u.teamStatus || 'active'}
                       </span>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => setDetailsUserId(detailsUserId === u.id ? null : u.id)}
+                          className="p-1.5 rounded-md hover:bg-[var(--accent)] text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors"
+                          title="Team member details"
+                        >
+                          <IdCard size={14} />
+                        </button>
                         <button
                           onClick={() => setPermUserId(permUserId === u.id ? null : u.id)}
                           className="p-1.5 rounded-md hover:bg-[var(--accent)] text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors"
@@ -202,6 +288,12 @@ export default function TeamPage() {
         </div>
       </div>
       {permUserId && <PermissionsPanel userId={permUserId} onClose={() => setPermUserId(null)} />}
+      {detailsUserId && (() => {
+        const u = users.find(u => u.id === detailsUserId);
+        return u ? (
+          <TeamDetailsPanel user={u} onClose={() => setDetailsUserId(null)} onSaved={refresh} />
+        ) : null;
+      })()}
 
       <div className="block sm:hidden space-y-3">
         {users.length === 0 ? (
@@ -230,22 +322,28 @@ export default function TeamPage() {
               </div>
               <div className="flex items-center gap-2 mt-3">
                 <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
-                  u.role === 'SUPER_ADMIN'
+                  u.role === 'OWNER'
                     ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
                     : u.role === 'ADMIN'
                       ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
                       : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'
                 }`}>
-                  {u.role?.replace('_', ' ') || 'N/A'}
+                  {u.department || u.role?.replace('_', ' ') || 'N/A'}
                 </span>
                 <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${
-                  (u.status || 'active') === 'active'
+                  (u.teamStatus || 'active') === 'active'
                     ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
                     : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
                 }`}>
                   <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                  {u.status || 'active'}
+                  {u.teamStatus || 'active'}
                 </span>
+                <button
+                  onClick={() => setDetailsUserId(detailsUserId === u.id ? null : u.id)}
+                  className="p-1.5 rounded-md hover:bg-[var(--accent)] text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors"
+                >
+                  <IdCard size={14} />
+                </button>
               </div>
             </div>
           ))

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { setToken, clearToken, getToken, api, setRefreshToken } from './api';
+import { reset as posthogReset } from './posthog';
 
 export interface AuthUser {
   id: string;
@@ -52,7 +53,7 @@ export function useAuth() {
   }
 
   function logout() {
-    // Attempt server-side logout (token revocation)
+    posthogReset();
     api('/auth/logout', { method: 'POST' }).catch(() => {});
     clearToken();
     sessionStorage.removeItem('user');

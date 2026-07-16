@@ -64,7 +64,7 @@ export default function VoiceCommandUI() {
   const [result, setResult] = useState<string | null>(null);
   const [mode, setMode] = useState<'idle' | 'listening' | 'copilot'>('idle');
   const recognitionRef = useRef<any>(null);
-  const resultTimer = useRef<ReturnType<typeof setTimeout>>();
+  const resultTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
     const Ctor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;

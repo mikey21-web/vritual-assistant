@@ -68,8 +68,8 @@ cd ../dashboard && npm install && npm run dev
 
 ### Default Login
 
-- Email: `owner@example.com`
-- Password: `admin123`
+- Email: `udayakirantumma@gmail.com`
+- Password: `8074228036`
 
 ## API Documentation
 

@@ -235,3 +235,8 @@ class BackendClient:
                 params.append(f"{k}={v}")
         result = await self._retry_get(f"/properties/search?{'&'.join(params)}")
         return result if isinstance(result, list) else result.get("data", [])
+
+    async def search_units(self, query: dict) -> list:
+        params = [f"{k}={v}" for k, v in query.items() if v is not None]
+        result = await self._retry_get(f"/units?{'&'.join(params)}")
+        return result.get("data", []) if isinstance(result, dict) else result
