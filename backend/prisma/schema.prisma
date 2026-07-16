@@ -93,6 +93,8 @@ enum LeadSource {
   MAGICBRICKS
   HOUSING_COM
   TRADEINDIA
+  MANUAL
+  REFERRAL
 }
 
 enum LeadStatus {

@@ -9,6 +9,7 @@ import { NicheActionService } from './niche-action.service';
 import { ReflexionService } from './reflexion.service';
 import { FederatedService } from './federated.service';
 import { BookingLifecycleService } from '../bookings/booking-lifecycle.service';
+import { MorningDigestService } from './morning-digest.service';
 
 interface SchedulerFinding {
   type: 'stale_hot_leads' | 'stale_new_leads' | 'conversion_anomaly' | 'overdue_tasks' | 'lead_source_shift' | 'unassigned_hot_leads' | 'staff_performance_update';
@@ -36,6 +37,7 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
     private reflexion: ReflexionService,
     private federated: FederatedService,
     private bookingLifecycle: BookingLifecycleService,
+    private morningDigest: MorningDigestService,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -43,6 +45,22 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
     this.scan();
     this.interval = setInterval(() => this.scan(), 5 * 60 * 1000);
     this.runDailyJobs();
+    this.scheduleMorningDigest();
+  }
+
+  /** Mikey speaks first: an 8am brief to every owner/admin, unprompted. */
+  private scheduleMorningDigest(): void {
+    const msUntil8am = () => {
+      const now = new Date();
+      const next = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 8, 0, 0);
+      if (next <= now) next.setDate(next.getDate() + 1);
+      return next.getTime() - now.getTime();
+    };
+    const run = () => this.morningDigest.sendDailyDigests().catch(err => this.logger.error(`Morning digest failed: ${err.message}`));
+    setTimeout(() => {
+      run();
+      setInterval(run, 24 * 60 * 60 * 1000);
+    }, msUntil8am());
   }
 
   private async runDailyJobs(): Promise<void> {

@@ -4,7 +4,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { LeadsService } from './leads.service';
-import { CreateLeadDto, UpdateLeadDto, AssignLeadDto, LeadQueryDto } from './dto/lead.dto';
+import { CreateLeadDto, UpdateLeadDto, AssignLeadDto, LeadQueryDto, CreateManualLeadDto } from './dto/lead.dto';
 import { PaginationDto } from '../shared/dto/pagination.dto';
 import { MoveStageDto } from '../advanced-features/dto/advanced-features.dto';
 
@@ -23,6 +23,11 @@ export class LeadsController {
   @Post()
   @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT')
   create(@Body() d: CreateLeadDto, @Req() req) { return this.service.create(d, req.user.sub); }
+
+  @Post('manual')
+  @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT')
+  @ApiOperation({ summary: "Manually add a lead that came from outside Mikey's coverage (walk-in, referral, offline)" })
+  createManual(@Body() d: CreateManualLeadDto, @Req() req) { return this.service.createManual(d, req.user.sub); }
 
   @Get(':id')
   @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT', 'SUPPORT_AGENT', 'VIEWER')

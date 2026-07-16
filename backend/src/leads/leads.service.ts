@@ -5,6 +5,7 @@ import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { AdvancedFeaturesService } from '../advanced-features/advanced-features.service';
 import { EventsService } from '../events/events.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ContactsService } from '../contacts/contacts.service';
 import { getNested, evaluateCondition } from '../shared/scoring.util';
 
 @Injectable()
@@ -15,6 +16,7 @@ export class LeadsService {
     private advanced: AdvancedFeaturesService,
     private events: EventsService,
     private notifications: NotificationsService,
+    private contacts: ContactsService,
   ) {}
 
   async findAll(query: any = {}) {
@@ -208,6 +210,27 @@ export class LeadsService {
     });
     await this.events.emit({ type: 'lead.created', leadId: lead.id, entityType: 'lead', entityId: lead.id, payload: { source: lead.source, status: lead.status }, createdById: userId });
     return lead;
+  }
+
+  /**
+   * Manual lead entry — for leads that came from outside Mikey's coverage
+   * (walk-ins, referrals, an agent's own contact) rather than an inbound
+   * channel Mikey already watches. Finds-or-creates the contact so the same
+   * person doesn't end up duplicated across channels.
+   */
+  async createManual(data: {
+    name: string; phone?: string; email?: string; source?: string;
+    interest?: string; budget?: string; message?: string; assignedAgentId?: string;
+  }, userId?: string) {
+    const contact = await this.contacts.findOrCreate({ name: data.name, phone: data.phone, email: data.email });
+    return this.create({
+      contactId: contact.id,
+      source: data.source || 'MANUAL',
+      interest: data.interest,
+      budget: data.budget,
+      message: data.message,
+      assignedAgentId: data.assignedAgentId,
+    }, userId);
   }
 
   async update(id: string, data: any, userId?: string) {

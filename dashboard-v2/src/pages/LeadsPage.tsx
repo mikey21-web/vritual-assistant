@@ -4,7 +4,7 @@ import { fetchLeads, getLeadTimeline } from '../lib/data';
 import { consumePendingFilter, PENDING_FILTER_APPLIED_EVENT } from '../lib/pendingSearch';
 import { startExplainFlow } from '../lib/explainMode';
 import { useApp } from '../context/AppContext';
-import { Search, RefreshCw, Phone, Mail, Calendar, Users, Play, Sparkles, X } from 'lucide-react';
+import { Search, RefreshCw, Phone, Mail, Calendar, Users, Play, Sparkles, X, Plus } from 'lucide-react';
 import { api } from '../lib/api';
 import toast from 'react-hot-toast';
 import type { Lead } from '../lib/types';
@@ -45,6 +45,9 @@ export default function LeadsPage() {
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [zoom, setZoom] = useState<string | null>(null);
   const [voiceSummary, setVoiceSummary] = useState<string | null>(null);
+  const [showAddLead, setShowAddLead] = useState(false);
+  const [addLeadForm, setAddLeadForm] = useState({ name: '', phone: '', email: '', source: 'MANUAL', interest: '', budget: '', message: '' });
+  const [addingLead, setAddingLead] = useState(false);
   const highlightRef = useRef<HTMLTableRowElement | null>(null);
 
   const refresh = async (page = 1) => {
@@ -56,6 +59,34 @@ export default function LeadsPage() {
       setMeta(r.meta);
     } catch (e: any) { /* ignore */ }
     setLoading(false);
+  };
+
+  const submitAddLead = async () => {
+    if (!addLeadForm.name.trim()) return toast.error('Name is required');
+    if (!addLeadForm.phone.trim() && !addLeadForm.email.trim()) return toast.error('Phone or email is required');
+    setAddingLead(true);
+    try {
+      await api('/leads/manual', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: addLeadForm.name.trim(),
+          phone: addLeadForm.phone.trim() || undefined,
+          email: addLeadForm.email.trim() || undefined,
+          source: addLeadForm.source,
+          interest: addLeadForm.interest.trim() || undefined,
+          budget: addLeadForm.budget.trim() || undefined,
+          message: addLeadForm.message.trim() || undefined,
+        }),
+      });
+      toast.success('Lead added');
+      setShowAddLead(false);
+      setAddLeadForm({ name: '', phone: '', email: '', source: 'MANUAL', interest: '', budget: '', message: '' });
+      refresh();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to add lead');
+    } finally {
+      setAddingLead(false);
+    }
   };
 
   const applyPendingFilter = () => {
@@ -135,6 +166,12 @@ export default function LeadsPage() {
           <h1 className="text-xl font-bold text-[var(--foreground)]">{niche?.labels?.leads || 'Leads'}</h1>
           <p className="text-sm text-[var(--muted-foreground)] mt-0.5">{meta.total} total leads</p>
         </div>
+        <button
+          onClick={() => setShowAddLead(true)}
+          className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90 transition-opacity"
+        >
+          <Plus size={15} /> Add Lead
+        </button>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
@@ -445,6 +482,70 @@ export default function LeadsPage() {
         </>
       )}
       {briefLeadId && <PreVisitBrief leadId={briefLeadId} onClose={() => setBriefLeadId(null)} />}
+
+      {showAddLead && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowAddLead(false)}>
+          <div className="bg-[var(--card)] rounded-xl shadow-2xl w-full max-w-md p-6 space-y-3" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-[var(--foreground)]">Add Lead</h2>
+                <p className="text-xs text-[var(--muted-foreground)] mt-0.5">For leads that came from outside Mikey — a walk-in, a referral, a call you took yourself.</p>
+              </div>
+              <button onClick={() => setShowAddLead(false)}><X className="h-5 w-5" /></button>
+            </div>
+            <input
+              value={addLeadForm.name} onChange={e => setAddLeadForm(f => ({ ...f, name: e.target.value }))}
+              placeholder="Full name" autoFocus
+              className="w-full h-10 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <input
+                value={addLeadForm.phone} onChange={e => setAddLeadForm(f => ({ ...f, phone: e.target.value }))}
+                placeholder="Phone"
+                className="h-10 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
+              />
+              <input
+                value={addLeadForm.email} onChange={e => setAddLeadForm(f => ({ ...f, email: e.target.value }))}
+                placeholder="Email"
+                className="h-10 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
+              />
+            </div>
+            <select
+              value={addLeadForm.source} onChange={e => setAddLeadForm(f => ({ ...f, source: e.target.value }))}
+              className="w-full h-10 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
+            >
+              <option value="MANUAL">Manual entry</option>
+              <option value="REFERRAL">Referral</option>
+            </select>
+            <div className="grid grid-cols-2 gap-3">
+              <input
+                value={addLeadForm.interest} onChange={e => setAddLeadForm(f => ({ ...f, interest: e.target.value }))}
+                placeholder="Interest (e.g. 3BHK)"
+                className="h-10 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
+              />
+              <input
+                value={addLeadForm.budget} onChange={e => setAddLeadForm(f => ({ ...f, budget: e.target.value }))}
+                placeholder="Budget"
+                className="h-10 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
+              />
+            </div>
+            <textarea
+              value={addLeadForm.message} onChange={e => setAddLeadForm(f => ({ ...f, message: e.target.value }))}
+              placeholder="Notes (optional)" rows={2}
+              className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20 resize-none"
+            />
+            <div className="flex justify-end gap-2 pt-1">
+              <button onClick={() => setShowAddLead(false)} className="h-9 px-4 rounded-lg border border-[var(--border)] text-sm text-[var(--foreground)] hover:bg-[var(--accent)]">Cancel</button>
+              <button
+                onClick={submitAddLead} disabled={addingLead}
+                className="h-9 px-5 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90 disabled:opacity-50"
+              >
+                {addingLead ? 'Adding...' : 'Add Lead'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

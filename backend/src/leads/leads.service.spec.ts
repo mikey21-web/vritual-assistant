@@ -6,6 +6,7 @@ import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { AdvancedFeaturesService } from '../advanced-features/advanced-features.service';
 import { EventsService } from '../events/events.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ContactsService } from '../contacts/contacts.service';
 
 describe('LeadsService', () => {
   let service: LeadsService;
@@ -14,6 +15,7 @@ describe('LeadsService', () => {
   const advanced = { checkBlocklist: jest.fn().mockResolvedValue(false) };
   const events = { emit: jest.fn().mockResolvedValue({}) };
   const notifications = { create: jest.fn().mockResolvedValue(undefined) };
+  const contacts = { findOrCreate: jest.fn().mockResolvedValue({ id: 'contact-1' }) };
 
   const mockLead = {
     id: 'lead-1',
@@ -51,6 +53,7 @@ describe('LeadsService', () => {
         { provide: AdvancedFeaturesService, useValue: advanced },
         { provide: EventsService, useValue: events },
         { provide: NotificationsService, useValue: notifications },
+        { provide: ContactsService, useValue: contacts },
       ],
     }).compile();
 

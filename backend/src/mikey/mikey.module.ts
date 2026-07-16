@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { BookingsModule } from '../bookings/bookings.module';
+import { AnalyticsModule } from '../analytics/analytics.module';
 import { MikeySchedulerService } from './mikey-scheduler.service';
+import { MorningDigestService } from './morning-digest.service';
 import { OutcomeEngineService } from './outcome-engine.service';
 import { MikeyService } from './mikey.service';
 import { TemporalStrategyService } from './temporal-strategy.service';
@@ -19,10 +21,11 @@ import { NicheActionService } from './niche-action.service';
 import { MikeyController } from './mikey.controller';
 
 @Module({
-  imports: [BookingsModule],
+  imports: [BookingsModule, AnalyticsModule],
   controllers: [MikeyController, MemoryController, ReflexionController, FederatedController, AggregatorController],
   providers: [
     MikeySchedulerService,
+    MorningDigestService,
     OutcomeEngineService,
     MikeyService,
     TemporalStrategyService,

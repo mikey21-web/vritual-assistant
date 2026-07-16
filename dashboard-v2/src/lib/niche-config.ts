@@ -213,18 +213,20 @@ export function onConfigChange(fn: () => void): () => void {
 }
 
 export async function initNicheConfig(): Promise<void> {
+  const subdomainNiche = detectNicheFromHost();
   try {
     const res = await fetch("/api/business-settings");
     if (!res.ok) throw new Error("Failed to fetch settings");
     const settings = await res.json();
-    const industry = settings?.industry?.toLowerCase().trim();
-    if (industry && industryToNiche[industry]) {
-      currentConfig = { ...nicheMap[industryToNiche[industry]] };
-      if (settings?.businessName) currentConfig.businessName = settings.businessName;
-      configListeners.forEach(fn => fn());
+    if (!subdomainNiche) {
+      const industry = settings?.industry?.toLowerCase().trim();
+      if (industry && industryToNiche[industry]) {
+        currentConfig = { ...nicheMap[industryToNiche[industry]] };
+      }
     }
+    if (settings?.businessName) currentConfig.businessName = settings.businessName;
+    configListeners.forEach(fn => fn());
   } catch {
-    // fallback to env var
   }
 }
 

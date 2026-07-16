@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Mic, MicOff, Sparkles } from 'lucide-react';
 import { setPendingFilter } from '../lib/pendingSearch';
-import { api } from '../lib/api';
+import { api, apiUpload } from '../lib/api';
 
 const PAGE_MAP: Record<string, string> = {
   leads: '/leads', contacts: '/contacts', tickets: '/tickets',
@@ -60,15 +60,21 @@ function matchCommand(text: string): { page: string; filter?: string } | null {
 
 export default function VoiceCommandUI() {
   const [supported, setSupported] = useState(false);
+  const [whisperMode, setWhisperMode] = useState(false);
   const [listening, setListening] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [mode, setMode] = useState<'idle' | 'listening' | 'copilot'>('idle');
   const recognitionRef = useRef<any>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
   const resultTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
+    const hasWhisperPath = !!(navigator.mediaDevices?.getUserMedia && (window as any).MediaRecorder);
     const Ctor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    setSupported(!!Ctor);
+    setWhisperMode(hasWhisperPath);
+    setSupported(hasWhisperPath || !!Ctor);
   }, []);
 
   useEffect(() => {
@@ -77,9 +83,51 @@ export default function VoiceCommandUI() {
     return () => clearTimeout(resultTimer.current);
   }, [result]);
 
-  const startListening = useCallback(() => {
+  // Shared downstream handling for a transcript, whichever engine produced it.
+  const handleTranscript = useCallback((text: string) => {
+    setMode('copilot');
+
+    const cmd = matchCommand(text);
+    if (cmd) {
+      const filters: Record<string, string> = {};
+      const filterMap: Record<string, string> = {
+        hot: 'HOT', warm: 'WARM', cold: 'COLD', new: 'NEW',
+        open: 'OPEN', converted: 'CONVERTED', lost: 'LOST',
+        urgent: 'URGENT', high: 'HIGH',
+      };
+      if (cmd.filter && filterMap[cmd.filter]) {
+        filters.segment = filterMap[cmd.filter];
+      }
+      setPendingFilter(cmd.page, { filters: Object.keys(filters).length ? filters : undefined });
+      window.location.hash = PAGE_MAP[cmd.page];
+      setResult(`Showing ${cmd.page}${cmd.filter ? ' (' + cmd.filter + ')' : ''}`);
+      setMode('idle');
+      setListening(false);
+      return;
+    }
+
+    // Fallback to copilot — it can chain multi-step actions like "pull my hot
+    // leads and book a site visit for this customer", not just navigate.
+    api('/copilot/chat', {
+      method: 'POST',
+      body: JSON.stringify({ message: text }),
+    }).then((res: any) => {
+      const nav = (res.actions || []).find((a: any) => a.tool === 'navigate_ui' && a.status !== 'error');
+      if (nav) {
+        setPendingFilter(nav.args.page, { filters: nav.args.filters, highlightId: nav.args.highlightId, zoom: nav.args.zoom, summary: nav.args.summary });
+        window.location.hash = PAGE_MAP[nav.args.page] || '/' + nav.args.page;
+        setResult(nav.args.summary || `Navigated to ${nav.args.page}`);
+      } else {
+        setResult(res.reply || 'Done');
+      }
+    }).catch(() => {
+      setResult("I didn't understand that. Try 'show me leads' or 'go to qr'.");
+    }).finally(() => { setMode('idle'); setListening(false); });
+  }, []);
+
+  const startBrowserRecognition = useCallback(() => {
     const Ctor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!Ctor) { setResult('Speech recognition not supported'); return; }
+    if (!Ctor) { setResult('Voice input not supported in this browser'); return; }
 
     const r = new Ctor();
     r.continuous = false;
@@ -87,54 +135,69 @@ export default function VoiceCommandUI() {
     r.lang = 'en-US';
 
     r.onstart = () => { setListening(true); setMode('listening'); };
-
-    r.onresult = (e: any) => {
-      const text = e.results[e.results.length - 1][0].transcript;
-      setMode('copilot');
-
-      const cmd = matchCommand(text);
-      if (cmd) {
-        const filters: Record<string, string> = {};
-        const filterMap: Record<string, string> = {
-          hot: 'HOT', warm: 'WARM', cold: 'COLD', new: 'NEW',
-          open: 'OPEN', converted: 'CONVERTED', lost: 'LOST',
-          urgent: 'URGENT', high: 'HIGH',
-        };
-        if (cmd.filter && filterMap[cmd.filter]) {
-          filters.segment = filterMap[cmd.filter];
-        }
-        setPendingFilter(cmd.page, { filters: Object.keys(filters).length ? filters : undefined });
-        window.location.hash = PAGE_MAP[cmd.page];
-        setResult(`Showing ${cmd.page}${cmd.filter ? ' (' + cmd.filter + ')' : ''}`);
-        return;
-      }
-
-      // Fallback to copilot
-      api('/copilot/chat', {
-        method: 'POST',
-        body: JSON.stringify({ message: text }),
-      }).then((res: any) => {
-        const nav = (res.actions || []).find((a: any) => a.tool === 'navigate_ui' && a.status !== 'error');
-        if (nav) {
-          setPendingFilter(nav.args.page, { filters: nav.args.filters, highlightId: nav.args.highlightId, zoom: nav.args.zoom, summary: nav.args.summary });
-          window.location.hash = PAGE_MAP[nav.args.page] || '/' + nav.args.page;
-          setResult(nav.args.summary || `Navigated to ${nav.args.page}`);
-        } else {
-          setResult(res.reply || 'Done');
-        }
-      }).catch(() => {
-        setResult("I didn't understand that. Try 'show me leads' or 'go to qr'.");
-      });
-    };
-
+    r.onresult = (e: any) => handleTranscript(e.results[e.results.length - 1][0].transcript);
     r.onerror = () => { setResult('Microphone error. Check permissions.'); };
     r.onend = () => { setListening(false); setMode('idle'); };
 
     recognitionRef.current = r;
     try { r.start(); } catch { setResult('Failed to start microphone.'); }
-  }, []);
+  }, [handleTranscript]);
+
+  // Press-to-talk + Whisper: a clean start/stop recording is transcribed
+  // server-side, which catches full sentences the browser's live recognizer
+  // routinely cuts off or mishears.
+  const startWhisperRecording = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      chunksRef.current = [];
+      const recorder = new MediaRecorder(stream);
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      recorder.onstop = async () => {
+        streamRef.current?.getTracks().forEach(t => t.stop());
+        streamRef.current = null;
+        setMode('copilot');
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' });
+        const formData = new FormData();
+        formData.append('audio', blob, 'command.webm');
+        try {
+          const { text } = await apiUpload('/copilot/voice-transcribe', formData);
+          if (text?.trim()) {
+            handleTranscript(text.trim());
+          } else {
+            setResult("Didn't catch that — try again.");
+            setListening(false);
+            setMode('idle');
+          }
+        } catch {
+          setResult('Transcription failed. Check your connection.');
+          setListening(false);
+          setMode('idle');
+        }
+      };
+      recorderRef.current = recorder;
+      recorder.start();
+      setListening(true);
+      setMode('listening');
+    } catch {
+      setResult('Microphone permission denied.');
+    }
+  }, [handleTranscript]);
+
+  const startListening = useCallback(() => {
+    if (whisperMode) startWhisperRecording();
+    else startBrowserRecognition();
+  }, [whisperMode, startWhisperRecording, startBrowserRecognition]);
 
   const stopListening = useCallback(() => {
+    // Whisper path: leave listening/mode alone here — recorder.onstop owns
+    // the transition once transcription finishes, so the "Thinking..." bar
+    // stays visible instead of flashing back to idle mid-request.
+    if (recorderRef.current && recorderRef.current.state !== 'inactive') {
+      recorderRef.current.stop();
+      recorderRef.current = null;
+      return;
+    }
     try { recognitionRef.current?.stop(); } catch {}
     recognitionRef.current = null;
     setListening(false);
