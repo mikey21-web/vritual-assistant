@@ -26,6 +26,15 @@ export async function fetchCampaigns() { return api('/campaigns') as Promise<{ d
 export async function createCampaign(data: any) { return api('/campaigns', { method: 'POST', body: JSON.stringify(data) }); }
 export async function toggleCampaign(id: string, active: boolean) { return api(`/campaigns/${id}/${active ? 'pause' : 'activate'}`, { method: 'POST' }); }
 export async function duplicateCampaign(id: string) { return api(`/campaigns/${id}/duplicate`, { method: 'POST' }); }
+export async function fetchCampaign(id: string) { return api(`/campaigns/${id}`) as Promise<any>; }
+export async function updateCampaign(id: string, data: any) { return api(`/campaigns/${id}`, { method: 'PATCH', body: JSON.stringify(data) }); }
+export async function startCampaign(id: string) { return api(`/campaigns/${id}/start`, { method: 'POST' }); }
+export async function pauseCampaign(id: string) { return api(`/campaigns/${id}/pause`, { method: 'POST' }); }
+export async function completeCampaign(id: string) { return api(`/campaigns/${id}/complete`, { method: 'POST' }); }
+export async function archiveCampaign(id: string) { return api(`/campaigns/${id}/archive`, { method: 'POST' }); }
+export async function deleteCampaign(id: string) { return api(`/campaigns/${id}`, { method: 'DELETE' }); }
+export async function fetchCampaignPerformance(id: string) { return api(`/campaigns/${id}/performance`) as Promise<any>; }
+export async function fetchCampaignTimeline(id: string) { return api(`/campaigns/${id}/timeline`) as Promise<any[]>; }
 
 export async function fetchTasks() { return api('/tasks') as Promise<any>; }
 export async function createTask(data: any) { return api('/tasks', { method: 'POST', body: JSON.stringify(data) }) as Promise<Task>; }

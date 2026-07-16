@@ -612,20 +612,53 @@ model Campaign {
   tenantId          String  @map("tenant_id")
   tenant            Tenant    @relation(fields: [tenantId], references: [id])
   name              String
+  description       String?
   sourceType        LeadSource
+  campaignType      String   @default("multi-channel")
+
+  // Offer & destination
   offer             String?
   landingUrl        String?
   conversionGoal    String?
   crmDestination    String?
   bookingDestination String?
+
+  // Status & schedule
   active            Boolean   @default(true)
+  status            String    @default("draft") // draft, active, paused, completed, archived
   startDate         DateTime?
   endDate           DateTime?
+  priority          Int       @default(0)
+
+  // Budget: { total: number, daily: number, spent: number, currency: string }
+  budget            Json      @default("{}")
+
+  // Targeting: { propertyTypes: string[], budgetRanges: string[], locations: string[], buyerType: string, minScore: number }
+  targeting         Json      @default("{}")
+
+  // Channels: [{ type: string, config: {}, active: boolean }]
+  channels          Json      @default("[]")
+
+  // Creatives: [{ name, type, headline, body, cta, imageUrl, thumbnailUrl, variant, performance: { impressions, clicks, conversions } }]
+  creatives         Json      @default("[]")
+
+  // UTM
   utmSource         String?
   utmMedium         String?
   utmCampaign       String?
   utmTerm           String?
   utmContent        String?
+
+  // Metrics (computed/updated by performance endpoint)
+  totalBudget       Float?    @default(0)
+  dailyBudget       Float?    @default(0)
+  totalSpend        Float?    @default(0)
+  costPerLead       Float?
+  roi               Float?
+  totalLeads        Int       @default(0)
+  totalConversions  Int       @default(0)
+
+  tags              String[]  @default([])
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
@@ -642,10 +675,25 @@ model Campaign {
   leads           Lead[]
   mediaFiles      MediaFile[]        @relation("CampaignMedia")
   conversations   ConversationMessage[]
+  timeline        CampaignTimelineEntry[]
 
   @@index([active])
   @@index([sourceType])
+  @@index([status])
   @@map("campaigns")
+}
+
+model CampaignTimelineEntry {
+  id        String   @id @default(uuid())
+  campaignId String
+  campaign  Campaign @relation(fields: [campaignId], references: [id])
+  event     String   // created, activated, paused, completed, budget_changed, creative_added, etc.
+  detail    String?
+  metadata  Json     @default("{}")
+  userId    String?
+  createdAt DateTime @default(now())
+
+  @@map("campaign_timeline")
 }
 
 model LeadForm {

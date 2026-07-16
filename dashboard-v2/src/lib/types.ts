@@ -48,13 +48,34 @@ export interface Contact {
 export interface Campaign {
   id: string;
   name: string;
+  description?: string;
   sourceType: string;
+  campaignType?: string;
   offer?: string;
   active: boolean;
+  status?: 'draft' | 'active' | 'paused' | 'completed' | 'archived';
+  priority?: 'low' | 'medium' | 'high';
+  channels?: string[];
+  totalBudget?: number;
+  dailyBudget?: number;
+  currency?: string;
+  spent?: number;
+  leadCount?: number;
+  conversionRate?: number;
+  propertyTypes?: string[];
+  locations?: string[];
+  buyerType?: string;
   startDate?: string;
   endDate?: string;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
+  utmTerm?: string;
+  utmContent?: string;
+  creatives?: any[];
   _count?: { leads: number };
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface Task {
