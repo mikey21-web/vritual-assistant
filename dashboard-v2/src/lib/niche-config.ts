@@ -186,7 +186,7 @@ function detectNicheFromHost(): string | null {
 }
 
 const hostNiche = detectNicheFromHost();
-const envNiche = import.meta.env.VITE_NICHE_NAME || hostNiche || "agency";
+const envNiche = hostNiche || import.meta.env.VITE_NICHE_NAME || "agency";
 let currentConfig: NicheConfig = nicheMap[envNiche] || agency;
 
 const industryToNiche: Record<string, string> = {
