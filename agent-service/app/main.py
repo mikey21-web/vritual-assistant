@@ -140,6 +140,7 @@ async def agent_copilot_chat(body: dict, x_agent_key: str = Header(None)):
 
     from app.supervisor_graph import build_supervisor
     from app.backend_client import BackendClient
+    from app.memory_client import MemoryClient
 
     tenant_id = body.get("tenantId", "default")
     message = body.get("message", "")
@@ -164,12 +165,17 @@ async def agent_copilot_chat(body: dict, x_agent_key: str = Header(None)):
     messages_lc.append(HumanMessage(content=message))
 
     client = BackendClient(settings)
+    # Without a real MemoryClient, the copilot/voice path never sees active
+    # procedural rules (things Mikey has learned from reflexion) — this was
+    # the one channel where memory never fired, even though the same rules
+    # already flow into lead_voice conversations via runner.py.
+    memory = MemoryClient(settings, tenant_id)
     try:
         graph = build_supervisor(
             settings=settings,
             client=client,
             tenant_id=tenant_id,
-            memory=None,
+            memory=memory,
         )
 
         from app.schemas import SharedMikeyState
@@ -181,6 +187,7 @@ async def agent_copilot_chat(body: dict, x_agent_key: str = Header(None)):
             "trigger": "copilot_chat",
             "channel": "DASHBOARD",
             "messages": messages_lc,
+            "incoming_text": message,
             "copilot_context": {
                 "business_name": business_settings.get("businessName", ""),
                 "industry": business_settings.get("industry", ""),
@@ -234,6 +241,7 @@ async def agent_copilot_chat(body: dict, x_agent_key: str = Header(None)):
         return {"response": "I'm having trouble connecting to the AI service. Please try again.", "actions": []}
     finally:
         await client.close()
+        await memory.close()
 
 
 @app.post("/agent/test")

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
-import { Bot, Activity, CheckCircle, Calendar, Send, RefreshCw, Brain, Users, Clock, AlertTriangle, TrendingUp, Target, Shield, Bell } from 'lucide-react';
+import { Bot, Activity, CheckCircle, Calendar, Send, RefreshCw, Brain, Users, Clock, AlertTriangle, TrendingUp, Target, Shield, Bell, Undo2, ThumbsUp, ThumbsDown } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function MikeyPage() {
@@ -10,20 +10,26 @@ export default function MikeyPage() {
   const [staff, setStaff] = useState<any[]>([]);
   const [actions, setActions] = useState<any[]>([]);
   const [activity, setActivity] = useState<any[]>([]);
+  const [pendingRules, setPendingRules] = useState<any[]>([]);
+  const [activeRules, setActiveRules] = useState<any[]>([]);
+  const [autonomousActions, setAutonomousActions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'outcomes' | 'insights' | 'staff' | 'activity'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'outcomes' | 'insights' | 'staff' | 'activity' | 'autonomy'>('overview');
   const [goalInput, setGoalInput] = useState('');
 
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [s, o, i, st, a, act] = await Promise.all([
+      const [s, o, i, st, a, act, pr, ar, aa] = await Promise.all([
         api('/mikey/status').catch(() => null),
         api('/mikey/outcomes').catch(() => []),
         api('/mikey/temporal-insights').catch(() => []),
         api('/mikey/staff').catch(() => []),
         api('/mikey/actions').catch(() => []),
         api('/mikey/activity').catch(() => []),
+        api('/mikey/memory/rules/pending?tenantId=default-tenant').catch(() => []),
+        api('/mikey/memory/rules/active?tenantId=default-tenant').catch(() => []),
+        api('/mikey/autonomous-actions').catch(() => []),
       ]);
       setStatus(s);
       setOutcomes(Array.isArray(o) ? o : o?.data || []);
@@ -31,6 +37,9 @@ export default function MikeyPage() {
       setStaff(Array.isArray(st) ? st : []);
       setActions(Array.isArray(a) ? a : []);
       setActivity(Array.isArray(act) ? act : []);
+      setPendingRules(Array.isArray(pr) ? pr : []);
+      setActiveRules(Array.isArray(ar) ? ar : []);
+      setAutonomousActions(Array.isArray(aa) ? aa : []);
     } catch (e: any) {
       toast.error('Failed to load Mikey data');
     } finally {
@@ -39,6 +48,30 @@ export default function MikeyPage() {
   };
 
   useEffect(() => { fetchAll(); }, []);
+
+  const approveRule = async (id: string) => {
+    try {
+      await api(`/mikey/memory/rules/approve/${id}`, { method: 'POST', body: JSON.stringify({ approvedById: 'dashboard' }) });
+      toast.success('Rule approved — Mikey will start applying it');
+      fetchAll();
+    } catch (e: any) { toast.error(e.message || 'Failed to approve rule'); }
+  };
+
+  const rejectRule = async (id: string) => {
+    try {
+      await api(`/mikey/memory/rules/retire/${id}`, { method: 'POST' });
+      toast.success('Rule rejected');
+      fetchAll();
+    } catch (e: any) { toast.error(e.message || 'Failed to reject rule'); }
+  };
+
+  const undoAction = async (id: string) => {
+    try {
+      await api(`/mikey/autonomous-actions/${id}/undo`, { method: 'POST' });
+      toast.success('Undone');
+      fetchAll();
+    } catch (e: any) { toast.error(e.message || 'Could not undo this action'); }
+  };
 
   const handleDefineOutcome = async () => {
     if (!goalInput.trim()) return;
@@ -127,14 +160,18 @@ export default function MikeyPage() {
       </div>
 
       <div className="flex gap-2 border-b border-[var(--border)] pb-2">
-        {(['overview', 'activity', 'outcomes', 'insights', 'staff'] as const).map(tab => (
+        {(['overview', 'activity', 'autonomy', 'outcomes', 'insights', 'staff'] as const).map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors capitalize ${activeTab === tab ? 'bg-[var(--primary)] text-white' : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'}`}>
             {tab === 'overview' && <Activity className="w-4 h-4 inline mr-1.5" />}
             {tab === 'activity' && <Bell className="w-4 h-4 inline mr-1.5" />}
+            {tab === 'autonomy' && <Brain className="w-4 h-4 inline mr-1.5" />}
             {tab === 'outcomes' && <Target className="w-4 h-4 inline mr-1.5" />}
             {tab === 'insights' && <TrendingUp className="w-4 h-4 inline mr-1.5" />}
             {tab === 'staff' && <Users className="w-4 h-4 inline mr-1.5" />}
             {tab}
+            {tab === 'autonomy' && pendingRules.length > 0 && (
+              <span className="ml-1.5 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold">{pendingRules.length}</span>
+            )}
           </button>
         ))}
       </div>
@@ -264,6 +301,98 @@ export default function MikeyPage() {
               </span>
             </div>
           ))}
+        </div>
+      )}
+
+      {activeTab === 'autonomy' && (
+        <div className="space-y-6">
+          <div>
+            <h2 className="text-lg font-semibold mb-1 flex items-center gap-2">
+              <Brain className="w-5 h-5 text-[var(--primary)]" />
+              Learned Rules Awaiting Review
+            </h2>
+            <p className="text-sm text-[var(--muted-foreground)] mb-3">
+              Mikey proposes these after reflecting on won/lost outcomes. Nothing here changes behavior until you approve it.
+            </p>
+            {pendingRules.length === 0 ? (
+              <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-6 text-center text-sm text-[var(--muted-foreground)]">
+                Nothing waiting on you right now.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {pendingRules.map((r: any) => (
+                  <div key={r.id} className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium">{r.rule}</p>
+                        {r.rationale && <p className="text-xs text-[var(--muted-foreground)] mt-1">{r.rationale}</p>}
+                        {r.category && <span className="inline-block mt-2 text-xs px-2 py-0.5 rounded-full bg-[var(--muted)] text-[var(--muted-foreground)]">{r.category}</span>}
+                      </div>
+                      <div className="flex gap-2 shrink-0">
+                        <button onClick={() => approveRule(r.id)} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-green-500/10 text-green-600 text-xs font-medium hover:bg-green-500/20 transition-colors">
+                          <ThumbsUp className="w-3.5 h-3.5" /> Approve
+                        </button>
+                        <button onClick={() => rejectRule(r.id)} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-600 text-xs font-medium hover:bg-red-500/20 transition-colors">
+                          <ThumbsDown className="w-3.5 h-3.5" /> Reject
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {activeRules.length > 0 && (
+            <div>
+              <h2 className="text-lg font-semibold mb-3">Active Rules</h2>
+              <div className="space-y-1.5">
+                {activeRules.map((r: any) => (
+                  <div key={r.id} className="flex items-center justify-between p-3 rounded-lg bg-[var(--card)] border border-[var(--border)] text-sm">
+                    <span className="min-w-0 truncate">{r.rule}</span>
+                    <span className="shrink-0 text-xs text-[var(--muted-foreground)] ml-3">applied {r.applyCount}x</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div>
+            <h2 className="text-lg font-semibold mb-1 flex items-center gap-2">
+              <Shield className="w-5 h-5 text-[var(--primary)]" />
+              What Mikey Did On Its Own
+            </h2>
+            <p className="text-sm text-[var(--muted-foreground)] mb-3">
+              Every action Mikey took without being asked, in the last 24 hours. Reversible actions can be undone.
+            </p>
+            {autonomousActions.length === 0 ? (
+              <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-6 text-center text-sm text-[var(--muted-foreground)]">
+                Nothing autonomous happened in the last 24 hours.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {autonomousActions.map((a: any) => (
+                  <div key={a.id} className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">
+                        <span className="font-mono text-xs text-[var(--primary)]">{a.tool}</span>
+                        {a.result && <span className="text-[var(--muted-foreground)]"> — {a.result}</span>}
+                      </p>
+                      <p className="text-xs text-[var(--muted-foreground)] mt-0.5">
+                        {a.findingType.replace(/_/g, ' ')} · {new Date(a.createdAt).toLocaleString()}
+                        {a.undone && <span className="ml-2 text-amber-600">undone</span>}
+                      </p>
+                    </div>
+                    {a.undoable && !a.undone && (
+                      <button onClick={() => undoAction(a.id)} className="shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-[var(--border)] text-xs font-medium hover:bg-[var(--accent)] transition-colors">
+                        <Undo2 className="w-3.5 h-3.5" /> Undo
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 

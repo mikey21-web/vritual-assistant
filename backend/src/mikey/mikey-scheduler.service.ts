@@ -10,15 +10,8 @@ import { ReflexionService } from './reflexion.service';
 import { FederatedService } from './federated.service';
 import { BookingLifecycleService } from '../bookings/booking-lifecycle.service';
 import { MorningDigestService } from './morning-digest.service';
-
-interface SchedulerFinding {
-  type: 'stale_hot_leads' | 'stale_new_leads' | 'conversion_anomaly' | 'overdue_tasks' | 'lead_source_shift' | 'unassigned_hot_leads' | 'staff_performance_update';
-  severity: 'info' | 'warning' | 'critical';
-  title: string;
-  description: string;
-  count: number;
-  metadata: any;
-}
+import { SalienceEngineService } from './salience-engine.service';
+import type { SchedulerFinding } from './mikey-scheduler.types';
 
 @Injectable()
 export class MikeySchedulerService implements OnApplicationBootstrap {
@@ -38,6 +31,7 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
     private federated: FederatedService,
     private bookingLifecycle: BookingLifecycleService,
     private morningDigest: MorningDigestService,
+    private salienceEngine: SalienceEngineService,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -90,6 +84,18 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
         this.checkUnassignedHotLeads(),
       ]);
       findings.push(...staleHot, ...staleNew, ...overdue, ...unassigned);
+
+      // Triage core: hand the two findings with an unambiguous, safe remedy
+      // straight to the salience engine so Mikey acts on them without being
+      // asked, instead of just logging that they exist.
+      for (const finding of [...staleHot, ...unassigned]) {
+        try {
+          const outcome = await this.salienceEngine.route(finding);
+          if (outcome.acted) this.logger.log(`Salience engine acted: ${outcome.summary}`);
+        } catch (err: any) {
+          this.logger.error(`Salience engine failed for ${finding.type}: ${err.message}`);
+        }
+      }
 
       const [conversionAnomaly, sourceShift] = await Promise.all([
         this.checkConversionAnomaly(),

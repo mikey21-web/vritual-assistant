@@ -2923,3 +2923,27 @@ model MikeyReflexionLog {
   @@index([tenantId, outcomeType])
   @@map("mikey_reflexion_logs")
 }
+
+/// A record of every action Mikey took on its own, without being asked —
+/// the audit trail + undo primitive that makes autonomy safe to expand.
+/// findingType links back to the MikeySchedulerService detection that
+/// triggered it (e.g. "stale_hot_leads", "unassigned_hot_leads").
+model MikeyAutonomousAction {
+  id           String    @id @default(uuid())
+  tenantId     String    @map("tenant_id")
+  findingType  String
+  tool         String
+  leadId       String?
+  args         Json      @default("{}")
+  result       String?
+  undoable     Boolean   @default(false)
+  undoData     Json?     // prior-state snapshot needed to reverse the action
+  undone       Boolean   @default(false)
+  undoneAt     DateTime?
+  undoneById   String?
+  createdAt    DateTime  @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, undone])
+  @@map("mikey_autonomous_actions")
+}

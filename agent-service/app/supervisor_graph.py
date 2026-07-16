@@ -44,11 +44,25 @@ def build_supervisor(
 
     async def load_context_node(state: SharedMikeyState, config: RunnableConfig) -> dict:
         if state.get("trigger") == "copilot_chat":
+            # This branch used to hardcode procedural_rules to [], so the
+            # copilot/voice path never benefited from anything Mikey learned
+            # via reflexion, even once a real MemoryClient was passed in.
+            incoming_context = state.get("incoming_text", "")
+            copilot_rules: list[dict] = []
+            if memory:
+                try:
+                    copilot_rules = (
+                        await memory.get_relevant_rules(incoming_context, max_rules=5)
+                        if incoming_context
+                        else await memory.get_active_rules()
+                    )
+                except Exception:
+                    pass
             return {
                 "lead_context": {},
                 "messages": state.get("messages", []),
                 "memory_context": state.get("copilot_context", {}).get("memory_context", ""),
-                "procedural_rules": [],
+                "procedural_rules": copilot_rules,
                 "niche_benchmarks": [],
                 "conversation": [],
                 "next_agent": "operator_voice",

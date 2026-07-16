@@ -1,7 +1,20 @@
-import { Controller, Post, Get, Param, Query, Body, Logger } from '@nestjs/common';
+import { Controller, Post, Get, Param, Query, Body, Logger, UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
 import { MemoryService } from './memory.service';
 
+/**
+ * Guarded at the class level: the agent-service reaches every route here via
+ * the x-service-key path (JwtAuthGuard treats it as an OWNER-level internal
+ * caller), and dashboard users need OWNER/ADMIN to review or approve what
+ * Mikey has learned. This controller used to have no auth at all, which
+ * meant anyone could read stored memories or approve/retire procedural
+ * rules that shape Mikey's future behavior.
+ */
 @Controller('mikey/memory')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('OWNER', 'ADMIN')
 export class MemoryController {
   private readonly logger = new Logger(MemoryController.name);
 

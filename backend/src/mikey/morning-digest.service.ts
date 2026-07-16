@@ -4,6 +4,10 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AnalyticsService } from '../analytics/analytics.service';
 import { WhatsAppCloudAdapter } from '../shared/adapters/messaging.adapter';
 import { EmailAdapter } from '../shared/adapters/email.adapter';
+import { AutonomousActionService } from './autonomous-action.service';
+import { MemoryService } from './memory.service';
+
+const DEFAULT_TENANT_ID = 'default-tenant';
 
 /**
  * Mikey speaking first, not waiting to be asked: every owner/admin gets a text
@@ -22,6 +26,8 @@ export class MorningDigestService {
     private whatsAppAdapter: WhatsAppCloudAdapter,
     private emailAdapter: EmailAdapter,
     private config: ConfigService,
+    private autonomousActions: AutonomousActionService,
+    private memory: MemoryService,
   ) {}
 
   async sendDailyDigests(): Promise<void> {
@@ -30,8 +36,12 @@ export class MorningDigestService {
     });
     if (owners.length === 0) return;
 
-    const summary = await this.analytics.teamCommand();
-    const text = this.buildDigestText(summary);
+    const [summary, overnightActions, pendingRules] = await Promise.all([
+      this.analytics.teamCommand(),
+      this.autonomousActions.findRecent(DEFAULT_TENANT_ID, 24),
+      this.memory.getPendingRules(DEFAULT_TENANT_ID),
+    ]);
+    const text = this.buildDigestText(summary, overnightActions, pendingRules.length);
 
     for (const owner of owners) {
       await this.sendToOwner(owner, text);
@@ -39,7 +49,11 @@ export class MorningDigestService {
     this.logger.log(`Morning digest sent to ${owners.length} owner/admin(s)`);
   }
 
-  private buildDigestText(s: Awaited<ReturnType<AnalyticsService['teamCommand']>>): string {
+  private buildDigestText(
+    s: Awaited<ReturnType<AnalyticsService['teamCommand']>>,
+    overnightActions: Array<{ tool: string; findingType: string }>,
+    pendingRuleCount: number,
+  ): string {
     const lines = [
       "Good morning. Here's your brief while you were away:",
       '',
@@ -55,6 +69,20 @@ export class MorningDigestService {
         : 'No overdue tasks.',
       `Overall conversion rate: ${s.overallConversionRate}%.`,
     ];
+
+    if (overnightActions.length > 0) {
+      const assigned = overnightActions.filter(a => a.tool === 'assign_lead_to_agent').length;
+      const nudged = overnightActions.filter(a => a.tool === 'send_message').length;
+      const parts: string[] = [];
+      if (assigned > 0) parts.push(`reassigned ${assigned} unassigned hot lead(s)`);
+      if (nudged > 0) parts.push(`sent ${nudged} re-engagement follow-up(s)`);
+      lines.push('', `While you were away, I ${parts.join(' and ')} on my own.`);
+    }
+
+    if (pendingRuleCount > 0) {
+      lines.push('', `${pendingRuleCount} thing(s) I've learned are waiting for your approval before I start applying them.`);
+    }
+
     return lines.join('\n');
   }
 
