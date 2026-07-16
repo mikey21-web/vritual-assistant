@@ -5,14 +5,24 @@ import { api } from "../lib/api";
 /** The owner's "run the team" home screen: agent performance + leads at risk. */
 export default function OwnerCommandView() {
   const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
-    api('/analytics/team-command').then(setData).catch(() => {});
+    api('/analytics/team-command')
+      .then(res => { setData(res); setLoading(false); })
+      .catch(() => { setError(true); setLoading(false); });
   }, []);
 
-  if (!data) return (
+  if (loading) return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       {[1, 2].map(i => <div key={i} className="h-64 rounded-xl bg-[var(--card)] border border-[var(--border)] animate-pulse" />)}
+    </div>
+  );
+
+  if (error || !data) return (
+    <div className="rounded-xl bg-[var(--card)] border border-[var(--border)] p-5 text-sm text-[var(--muted-foreground)]">
+      Couldn't load team performance right now. Try refreshing the page.
     </div>
   );
 

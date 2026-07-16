@@ -6,15 +6,25 @@ import PreVisitBrief from "./PreVisitBrief";
 /** The agent's "my day" home screen: hot leads, today's visits, overdue follow-ups. */
 export default function AgentWorklist() {
   const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [briefLeadId, setBriefLeadId] = useState<string | null>(null);
 
   useEffect(() => {
-    api('/leads/worklist/mine').then(setData).catch(() => {});
+    api('/leads/worklist/mine')
+      .then(res => { setData(res); setLoading(false); })
+      .catch(() => { setError(true); setLoading(false); });
   }, []);
 
-  if (!data) return (
+  if (loading) return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       {[1, 2, 3].map(i => <div key={i} className="h-48 rounded-xl bg-[var(--card)] border border-[var(--border)] animate-pulse" />)}
+    </div>
+  );
+
+  if (error || !data) return (
+    <div className="rounded-xl bg-[var(--card)] border border-[var(--border)] p-5 text-sm text-[var(--muted-foreground)]">
+      Couldn't load your worklist right now. Try refreshing the page.
     </div>
   );
 

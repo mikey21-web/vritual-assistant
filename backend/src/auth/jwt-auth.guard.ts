@@ -39,13 +39,17 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       if (!timingSafeEqual(serviceKey, configuredKey)) throw new UnauthorizedException('Invalid service key');
 
       // Agent service is internal (Docker network), trusted via shared secret.
-      // No path restriction needed.  The AGENT_SERVICE_JWT is a strong secret.
+      // No path restriction needed. The AGENT_SERVICE_JWT is a strong secret.
+      // Mikey acts on behalf of the whole business (analytics, cross-team
+      // queries, etc.), not a single sales agent, so it needs OWNER-level
+      // access — capping it at SALES_AGENT blocked legitimate operator tools
+      // like get_analytics_overview with a 403.
 
       // In single-tenant mode, the tenant is implicit. Set user context for the agent.
       request.user = {
         sub: 'agent-service',
         email: 'agent@service.internal',
-        role: 'SALES_AGENT',
+        role: 'OWNER',
       };
       return true;
     }

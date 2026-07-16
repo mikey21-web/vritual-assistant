@@ -243,14 +243,29 @@ def build_supervisor(
                 if should_terminate:
                     break
 
+                # Map each dispatched call's id -> (name, args) so the ToolMessages
+                # coming back (which only carry tool_call_id + content) can be
+                # reported with their real tool name instead of a generic
+                # placeholder — callers like navigate_ui matching in the
+                # dashboard depend on the actual tool name surviving here.
+                call_by_id = {
+                    (tc.get("id") if isinstance(tc, dict) else tc.id): (
+                        tc.get("name", "") if isinstance(tc, dict) else tc.name,
+                        tc.get("args", {}) if isinstance(tc, dict) else tc.args,
+                    )
+                    for tc in response.tool_calls
+                }
                 tool_results = await agent_tools_node.ainvoke({"messages": messages})
                 for msg in tool_results.get("messages", []):
                     messages.append(msg)
+                    call_id = getattr(msg, "tool_call_id", "")
+                    name, args = call_by_id.get(call_id, ("operator_tool", {}))
                     actions_taken.append({
-                        "id": getattr(msg, "tool_call_id", str(uuid.uuid4())),
-                        "tool": "operator_tool",
-                        "args": {},
+                        "id": call_id or str(uuid.uuid4()),
+                        "tool": name,
+                        "args": args,
                         "status": "success" if not str(getattr(msg, "content", "")).startswith("error:") else "error",
+                        "result": str(getattr(msg, "content", "")),
                     })
             else:
                 break

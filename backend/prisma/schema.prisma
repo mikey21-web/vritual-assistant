@@ -565,6 +565,7 @@ model Lead {
   ownershipHistory LeadOwnershipHistory[]
   internalNotes  InternalNote[]
   revenueRecords RevenueRecord[]
+  submissions    FormSubmission[]
   systemEvents   SystemEvent[]
   timelineItems  TimelineItem[]
   failureRecords FailureRecord[]
@@ -654,6 +655,18 @@ model LeadForm {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Multi-step config: array of { id, title, description }
+  steps Json @default("[]")
+
+  // Embed config: { type: 'inline'|'popup'|'slide', theme: {...} }
+  embedConfig Json @default("{}")
+
+  // Post-submission: { redirectUrl, confirmationMessage, sendConfirmationEmail, emailTemplateId }
+  submissionConfig Json @default("{}")
+
+  // Form type hint for template selection
+  formType String @default("custom")
+
   fields      LeadFormField[]
   submissions FormSubmission[]
   campaigns   Campaign[]
@@ -668,11 +681,22 @@ model LeadFormField {
   type        String
   required    Boolean @default(false)
   placeholder String?
+  description String?
   validation  Json    @default("{}")
   options     Json    @default("[]")
   displayOrder Int   @default(0)
-  formId      String
-  form        LeadForm @relation(fields: [formId], references: [id])
+
+  // Multi-step: which step this field belongs to
+  stepId String @default("")
+
+  // Conditional logic: { action: 'show'|'hide'|'require', conditions: [{ fieldKey, operator: 'eq'|'neq'|'gt'|'lt'|'in'|'contains', value }] }
+  conditionalLogic Json @default("{}")
+
+  // Layout: width (full/half/third), icon
+  width String @default("full")
+
+  formId String
+  form   LeadForm @relation(fields: [formId], references: [id])
 
   @@map("lead_form_fields")
 }
@@ -683,6 +707,18 @@ model FormSubmission {
   formId    String
   form      LeadForm @relation(fields: [formId], references: [id])
   leadId    String?
+  lead      Lead?    @relation(fields: [leadId], references: [id])
+
+  // Source tracking
+  source    String @default("direct")
+  pageUrl   String?
+  utm       Json   @default("{}")
+
+  // Completion tracking
+  completed Boolean @default(true)
+  startedAt DateTime?
+  completedAt DateTime?
+
   createdAt DateTime @default(now())
 
   @@map("form_submissions")

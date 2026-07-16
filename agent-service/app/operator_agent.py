@@ -8,7 +8,7 @@ def build_operator_tools(client: BackendClient, tenant_id: str) -> list:
     @tool
     async def search_leads(status: str | None = None, segment: str | None = None,
                            search: str | None = None, limit: int = 20):
-        """Search leads by status, segment, or text search."""
+        """Search leads by status (e.g. NEW, QUALIFIED), segment (HOT, WARM, COLD), or text search. Returns each lead's id, name, status, segment, and score so you can act on a specific one afterward (e.g. get_lead_detail, update_lead_status)."""
         params = {}
         if status: params["status"] = status
         if segment: params["segment"] = segment
@@ -16,7 +16,14 @@ def build_operator_tools(client: BackendClient, tenant_id: str) -> list:
         if limit: params["limit"] = limit
         try:
             result = await client._get("/leads?" + "&".join(f"{k}={v}" for k, v in params.items()))
-            return f"Found {len(result if isinstance(result, list) else result.get('data', []))} leads"
+            leads = result if isinstance(result, list) else result.get("data", [])
+            if not leads:
+                return "Found 0 leads"
+            summary = "; ".join(
+                f"{l['id']}: {l.get('contact', {}).get('name', 'Unknown')} ({l.get('status', '?')}/{l.get('segment', '?')}, score {l.get('score', '?')})"
+                for l in leads[:20]
+            )
+            return f"Found {len(leads)} lead(s): {summary}"
         except Exception as e:
             return f"error: {e}"
 

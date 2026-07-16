@@ -19,6 +19,13 @@ describe('FormsService', () => {
     description: 'Main contact form',
     active: true,
     tenantId: 'default-tenant',
+    steps: [
+      { id: 'step-1', title: 'Personal Info', description: 'Your details' },
+      { id: 'step-2', title: 'Preferences', description: 'Tell us more' },
+    ],
+    embedConfig: { type: 'inline', theme: {} },
+    submissionConfig: { redirectUrl: '/thank-you', confirmationMessage: 'Thanks!' },
+    formType: 'custom',
     createdAt: new Date('2025-01-01T00:00:00Z'),
     updatedAt: new Date('2025-01-01T00:00:00Z'),
     fields: [
@@ -26,23 +33,52 @@ describe('FormsService', () => {
         id: 'field-1',
         formId: 'form-1',
         label: 'Full Name',
-        fieldType: 'text',
+        fieldKey: 'name',
+        type: 'text',
         required: true,
         displayOrder: 1,
+        stepId: 'step-1',
+        description: 'Enter your full legal name',
+        width: 'full',
+        conditionalLogic: {},
         options: null,
         placeholder: 'Enter your name',
         defaultValue: null,
+        validation: {},
       },
       {
         id: 'field-2',
         formId: 'form-1',
         label: 'Email',
-        fieldType: 'email',
+        fieldKey: 'email',
+        type: 'email',
         required: true,
         displayOrder: 2,
+        stepId: 'step-1',
+        description: null,
+        width: 'full',
+        conditionalLogic: {},
         options: null,
         placeholder: 'Enter your email',
         defaultValue: null,
+        validation: {},
+      },
+      {
+        id: 'field-3',
+        formId: 'form-1',
+        label: 'Interest',
+        fieldKey: 'interest',
+        type: 'select',
+        required: false,
+        displayOrder: 3,
+        stepId: 'step-2',
+        description: null,
+        width: 'half',
+        conditionalLogic: {},
+        options: ['Product A', 'Product B'],
+        placeholder: null,
+        defaultValue: null,
+        validation: {},
       },
     ],
   };
@@ -64,12 +100,17 @@ describe('FormsService', () => {
   };
 
   const mockField = {
-    id: 'field-3',
+    id: 'field-4',
     formId: 'form-1',
     label: 'Phone',
-    fieldType: 'tel',
+    fieldKey: 'phone',
+    type: 'tel',
     required: false,
-    displayOrder: 3,
+    displayOrder: 4,
+    stepId: 'step-1',
+    width: 'full',
+    conditionalLogic: {},
+    description: null,
   };
 
   const mockSubmission = {
@@ -77,7 +118,35 @@ describe('FormsService', () => {
     formId: 'form-1',
     leadId: 'lead-1',
     payload: { name: 'John', email: 'john@example.com' },
+    source: 'direct',
+    pageUrl: null,
+    utm: {},
+    completed: true,
+    startedAt: null,
+    completedAt: null,
     createdAt: new Date('2025-01-01T00:00:00Z'),
+    lead: {
+      id: 'lead-1',
+      contact: { ...mockContact },
+    },
+  };
+
+  const mockPartialSubmission = {
+    id: 'sub-2',
+    formId: 'form-1',
+    leadId: 'lead-1',
+    payload: { name: 'Partial' },
+    source: 'embed',
+    pageUrl: 'https://example.com/form',
+    utm: { source: 'google', medium: 'cpc' },
+    completed: false,
+    startedAt: new Date('2025-01-02T10:00:00Z'),
+    completedAt: null,
+    createdAt: new Date('2025-01-02T10:05:00Z'),
+    lead: {
+      id: 'lead-1',
+      contact: { ...mockContact },
+    },
   };
 
   beforeEach(async () => {
@@ -95,6 +164,11 @@ describe('FormsService', () => {
       },
       formSubmission: {
         create: jest.fn().mockResolvedValue(mockSubmission),
+        findMany: jest.fn().mockResolvedValue([mockSubmission]),
+        count: jest.fn().mockResolvedValue(1),
+        groupBy: jest.fn().mockResolvedValue([
+          { source: 'direct', _count: { source: 1 } },
+        ]),
       },
       qrCode: {
         findUnique: jest.fn().mockResolvedValue(null),
@@ -131,7 +205,7 @@ describe('FormsService', () => {
   it('should find all forms with fields ordered by displayOrder', async () => {
     const forms = await service.findAll();
     expect(forms).toHaveLength(1);
-    expect(forms[0].fields).toHaveLength(2);
+    expect(forms[0].fields).toHaveLength(3);
     expect(prisma.leadForm.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         include: { fields: { orderBy: { displayOrder: 'asc' } } },
@@ -159,10 +233,26 @@ describe('FormsService', () => {
     await expect(service.findOne('nonexistent')).rejects.toThrow(NotFoundException);
   });
 
+  // ── findOnePublic ───────────────────────────────
+
+  it('should return form config for public embed (no auth)', async () => {
+    const form = await service.findOnePublic('form-1');
+    expect(form.id).toBe('form-1');
+    expect(form.name).toBe('Contact Us');
+    expect(form.fields).toHaveLength(3);
+    expect(form.steps).toBeDefined();
+    expect(form.embedConfig).toBeDefined();
+  });
+
+  it('should throw NotFoundException when public form not found', async () => {
+    prisma.leadForm.findUnique.mockResolvedValue(null);
+    await expect(service.findOnePublic('nonexistent')).rejects.toThrow(NotFoundException);
+  });
+
   // ── create ──────────────────────────────────────
 
   it('should create a form and log audit', async () => {
-    const form = await service.create({ name: 'Contact Us', active: true }, 'user-1');
+    const form = await service.create({ name: 'Contact Us', active: true, formType: 'custom' }, 'user-1');
     expect(form.name).toBe('Contact Us');
     expect(auditLogs.log).toHaveBeenCalledWith('form_created', 'LeadForm', form.id, 'user-1');
   });
@@ -198,8 +288,9 @@ describe('FormsService', () => {
   it('should add a field to a form', async () => {
     const field = await service.addField('form-1', {
       label: 'Phone',
-      fieldType: 'tel',
-      displayOrder: 3,
+      fieldKey: 'phone',
+      type: 'tel',
+      displayOrder: 4,
     });
     expect(field.label).toBe('Phone');
     expect(field.formId).toBe('form-1');
@@ -210,13 +301,18 @@ describe('FormsService', () => {
     );
   });
 
-  it('should add a field with all optional properties', async () => {
+  it('should add a field with all optional properties including multi-step fields', async () => {
     await service.addField('form-1', {
       label: 'Company',
-      fieldType: 'text',
+      fieldKey: 'company',
+      type: 'text',
       required: true,
       placeholder: 'Your company',
-      displayOrder: 4,
+      description: 'Company name',
+      displayOrder: 5,
+      stepId: 'step-1',
+      width: 'half',
+      conditionalLogic: { action: 'show', conditions: [] },
       options: ['Tech', 'Finance'],
     });
     expect(prisma.leadFormField.create).toHaveBeenCalledWith(
@@ -225,6 +321,10 @@ describe('FormsService', () => {
           label: 'Company',
           required: true,
           placeholder: 'Your company',
+          description: 'Company name',
+          stepId: 'step-1',
+          width: 'half',
+          conditionalLogic: { action: 'show', conditions: [] },
           formId: 'form-1',
         }),
       }),
@@ -235,10 +335,10 @@ describe('FormsService', () => {
 
   it('should update a field', async () => {
     prisma.leadFormField.update.mockResolvedValue({ ...mockField, label: 'Phone Number' });
-    const field = await service.updateField('form-1', 'field-3', { label: 'Phone Number' });
+    const field = await service.updateField('form-1', 'field-4', { label: 'Phone Number' });
     expect(prisma.leadFormField.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: 'field-3' },
+        where: { id: 'field-4' },
         data: { label: 'Phone Number' },
       }),
     );
@@ -247,9 +347,9 @@ describe('FormsService', () => {
   // ── deleteField ─────────────────────────────────
 
   it('should delete a field', async () => {
-    await service.deleteField('form-1', 'field-3');
+    await service.deleteField('form-1', 'field-4');
     expect(prisma.leadFormField.delete).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: 'field-3' } }),
+      expect.objectContaining({ where: { id: 'field-4' } }),
     );
   });
 
@@ -286,7 +386,13 @@ describe('FormsService', () => {
 
     expect(prisma.formSubmission.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: { formId: 'form-1', payload, leadId: 'lead-1' },
+        data: expect.objectContaining({
+          formId: 'form-1',
+          payload,
+          leadId: 'lead-1',
+          source: 'direct',
+          completed: false,
+        }),
       }),
     );
 
@@ -337,6 +443,63 @@ describe('FormsService', () => {
     );
   });
 
+  // ── Submit — submission metadata ─────────────────
+
+  it('should store submission metadata (source, pageUrl, utm) and strip prefixed keys from payload', async () => {
+    const payload = {
+      name: 'John',
+      email: 'john@test.com',
+      _source: 'embed',
+      _pageUrl: 'https://example.com/landing',
+      _utm: { source: 'google', medium: 'cpc' },
+      _startedAt: '2025-01-01T10:00:00Z',
+      _completedAt: '2025-01-01T10:05:00Z',
+    };
+
+    await service.submit('form-1', payload, {});
+
+    // Clean payload should NOT include prefixed meta keys
+    const createdCall = prisma.formSubmission.create.mock.calls[0][0];
+    expect(createdCall.data.payload).toEqual({
+      name: 'John',
+      email: 'john@test.com',
+    });
+    expect(createdCall.data.payload._source).toBeUndefined();
+    expect(createdCall.data.payload._utm).toBeUndefined();
+
+    // Submission metadata fields
+    expect(createdCall.data.source).toBe('embed');
+    expect(createdCall.data.pageUrl).toBe('https://example.com/landing');
+    expect(createdCall.data.utm).toEqual({ source: 'google', medium: 'cpc' });
+    expect(createdCall.data.completed).toBe(true);
+    expect(createdCall.data.startedAt).toEqual(new Date('2025-01-01T10:00:00Z'));
+    expect(createdCall.data.completedAt).toEqual(new Date('2025-01-01T10:05:00Z'));
+  });
+
+  it('should handle partial submissions with completed=false when _completedAt is absent', async () => {
+    const payload = {
+      name: 'Partial',
+      email: 'partial@test.com',
+      _source: 'embed',
+      _pageUrl: 'https://example.com/form',
+      _startedAt: '2025-01-02T10:00:00Z',
+    };
+
+    await service.submit('form-1', payload, {});
+
+    const createdCall = prisma.formSubmission.create.mock.calls[0][0];
+    expect(createdCall.data.completed).toBe(false);
+    expect(createdCall.data.completedAt).toBeNull();
+    expect(createdCall.data.startedAt).toEqual(new Date('2025-01-02T10:00:00Z'));
+    expect(createdCall.data.source).toBe('embed');
+  });
+
+  it('should default source to "direct" when _source is not provided', async () => {
+    await service.submit('form-1', { name: 'Test', email: 'test@test.com' }, {});
+    const createdCall = prisma.formSubmission.create.mock.calls[0][0];
+    expect(createdCall.data.source).toBe('direct');
+  });
+
   // ── QR attribution ──────────────────────────────
 
   it('should attribute the lead to QR_CODE when a valid qrCodeId is submitted', async () => {
@@ -350,5 +513,165 @@ describe('FormsService', () => {
     prisma.qrCode.findUnique.mockResolvedValue(null);
     await service.submit('form-1', { name: 'Test', email: 'test@test.com', qrCodeId: 'bogus' }, {});
     expect(leadsService.create).toHaveBeenCalledWith(expect.objectContaining({ source: 'FORM' }));
+  });
+
+  // ── findSubmissions ─────────────────────────────
+
+  it('should return paginated submissions with lead and contact info', async () => {
+    prisma.formSubmission.findMany.mockResolvedValue([mockSubmission, mockPartialSubmission]);
+    prisma.formSubmission.count.mockResolvedValue(2);
+
+    const result = await service.findSubmissions('form-1', { page: 1, limit: 20 });
+
+    expect(result.data).toHaveLength(2);
+    expect(result.meta.total).toBe(2);
+    expect(result.meta.page).toBe(1);
+    expect(result.meta.limit).toBe(20);
+    expect(prisma.formSubmission.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { formId: 'form-1' },
+        skip: 0,
+        take: 20,
+        include: { lead: { include: { contact: true } } },
+      }),
+    );
+  });
+
+  it('should respect page and limit parameters', async () => {
+    prisma.formSubmission.findMany.mockResolvedValue([mockSubmission]);
+    prisma.formSubmission.count.mockResolvedValue(5);
+
+    await service.findSubmissions('form-1', { page: 2, limit: 10 });
+
+    expect(prisma.formSubmission.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ skip: 10, take: 10 }),
+    );
+  });
+
+  it('should filter by source', async () => {
+    prisma.formSubmission.findMany.mockResolvedValue([mockPartialSubmission]);
+    prisma.formSubmission.count.mockResolvedValue(1);
+
+    await service.findSubmissions('form-1', { source: 'embed' });
+
+    expect(prisma.formSubmission.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ formId: 'form-1', source: 'embed' }),
+      }),
+    );
+  });
+
+  it('should filter by completion status', async () => {
+    await service.findSubmissions('form-1', { completed: 'true' });
+
+    expect(prisma.formSubmission.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ formId: 'form-1', completed: true }),
+      }),
+    );
+  });
+
+  it('should filter by date range', async () => {
+    await service.findSubmissions('form-1', {
+      dateFrom: '2025-01-01T00:00:00Z',
+      dateTo: '2025-01-31T23:59:59Z',
+    });
+
+    expect(prisma.formSubmission.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          formId: 'form-1',
+          createdAt: {
+            gte: new Date('2025-01-01T00:00:00Z'),
+            lte: new Date('2025-01-31T23:59:59Z'),
+          },
+        }),
+      }),
+    );
+  });
+
+  it('should throw NotFoundException when form does not exist for findSubmissions', async () => {
+    prisma.leadForm.findUnique.mockResolvedValue(null);
+    await expect(service.findSubmissions('nonexistent', {}))
+      .rejects.toThrow(NotFoundException);
+  });
+
+  // ── getAnalytics ────────────────────────────────
+
+  it('should return analytics with total submissions and completion rate', async () => {
+    prisma.formSubmission.count
+      .mockResolvedValueOnce(10)  // totalSubmissions
+      .mockResolvedValueOnce(7);  // completedCount
+    prisma.formSubmission.groupBy.mockResolvedValue([
+      { source: 'direct', _count: { source: 5 } },
+      { source: 'embed', _count: { source: 3 } },
+      { source: 'api', _count: { source: 2 } },
+    ]);
+    prisma.formSubmission.findMany
+      .mockResolvedValueOnce([])   // field drop-off: empty payloads list
+      .mockResolvedValueOnce([     // trends: recent submissions
+        { createdAt: new Date('2025-07-15T10:00:00Z'), completed: true },
+        { createdAt: new Date('2025-07-15T11:00:00Z'), completed: false },
+        { createdAt: new Date('2025-07-16T09:00:00Z'), completed: true },
+      ]);
+
+    const analytics = await service.getAnalytics('form-1');
+
+    expect(analytics.totalSubmissions).toBe(10);
+    expect(analytics.completionRate).toBe(70);
+    expect(analytics.sourceBreakdown).toEqual([
+      { source: 'direct', count: 5 },
+      { source: 'embed', count: 3 },
+      { source: 'api', count: 2 },
+    ]);
+  });
+
+  it('should return 0 completion rate when there are no submissions', async () => {
+    prisma.formSubmission.count
+      .mockResolvedValueOnce(0)   // totalSubmissions
+      .mockResolvedValueOnce(0);  // completedCount
+    prisma.formSubmission.groupBy.mockResolvedValue([]);
+    prisma.formSubmission.findMany
+      .mockResolvedValueOnce([])  // field drop-off
+      .mockResolvedValueOnce([]); // trends
+
+    const analytics = await service.getAnalytics('form-1');
+
+    expect(analytics.totalSubmissions).toBe(0);
+    expect(analytics.completionRate).toBe(0);
+    expect(analytics.sourceBreakdown).toEqual([]);
+    expect(analytics.trends).toEqual([]);
+  });
+
+  it('should compute field drop-off for multi-step forms', async () => {
+    prisma.formSubmission.count
+      .mockResolvedValueOnce(3)   // totalSubmissions
+      .mockResolvedValueOnce(2);  // completedCount
+    prisma.formSubmission.groupBy.mockResolvedValue([
+      { source: 'direct', _count: { source: 3 } },
+    ]);
+    // Payloads for field drop-off analysis
+    prisma.formSubmission.findMany
+      .mockResolvedValueOnce([
+        { payload: { name: 'A', email: 'a@test.com', interest: 'Product A' } },
+        { payload: { name: 'B', email: 'b@test.com' } },
+        { payload: { name: 'C', email: 'c@test.com', interest: 'Product B' } },
+      ])
+      .mockResolvedValueOnce([    // trends (last 30 days)
+        { createdAt: new Date(), completed: true },
+      ]);
+
+    const analytics = await service.getAnalytics('form-1');
+
+    // step-1 has field keys 'name', 'email' → all 3 submissions have at least one
+    expect(analytics.fieldDropOff['step-1']).toBe(3);
+    // step-2 has field key 'interest' → 2 submissions have it
+    expect(analytics.fieldDropOff['step-2']).toBe(2);
+  });
+
+  it('should throw NotFoundException when form does not exist for getAnalytics', async () => {
+    prisma.leadForm.findUnique.mockResolvedValue(null);
+    await expect(service.getAnalytics('nonexistent'))
+      .rejects.toThrow(NotFoundException);
   });
 });
