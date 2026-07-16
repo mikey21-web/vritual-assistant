@@ -212,21 +212,30 @@ export class ProjectsService {
     page?: number;
     limit?: number;
   }) {
-    const { tenantId, projectId, towerId, status, unitType, minPrice, maxPrice, minArea, maxArea, page = 1, limit = 50 } = query;
+    const { tenantId, projectId, towerId, status, unitType, page = 1, limit = 50 } = query;
+    // Query params arrive as strings over HTTP; this method also gets called
+    // in-process with real numbers (e.g. from the agent tools), so coerce
+    // rather than trust the type — a raw string reaching Prisma's numeric
+    // filter throws PrismaClientValidationError, which prod masks as a bare
+    // "Validation failed" with no indication of what actually broke.
+    const minPrice = query.minPrice !== undefined ? Number(query.minPrice) : undefined;
+    const maxPrice = query.maxPrice !== undefined ? Number(query.maxPrice) : undefined;
+    const minArea = query.minArea !== undefined ? Number(query.minArea) : undefined;
+    const maxArea = query.maxArea !== undefined ? Number(query.maxArea) : undefined;
     const where: Prisma.UnitWhereInput = { tenantId };
     if (projectId) where.projectId = projectId;
     if (towerId) where.towerId = towerId;
     if (status) where.status = status as any;
     if (unitType) where.unitType = unitType;
-    if (minPrice !== undefined || maxPrice !== undefined) {
+    if ((minPrice !== undefined && !isNaN(minPrice)) || (maxPrice !== undefined && !isNaN(maxPrice))) {
       where.price = {};
-      if (minPrice !== undefined) where.price.gte = minPrice;
-      if (maxPrice !== undefined) where.price.lte = maxPrice;
+      if (minPrice !== undefined && !isNaN(minPrice)) where.price.gte = minPrice;
+      if (maxPrice !== undefined && !isNaN(maxPrice)) where.price.lte = maxPrice;
     }
-    if (minArea !== undefined || maxArea !== undefined) {
+    if ((minArea !== undefined && !isNaN(minArea)) || (maxArea !== undefined && !isNaN(maxArea))) {
       where.areaSqft = {};
-      if (minArea !== undefined) where.areaSqft.gte = minArea;
-      if (maxArea !== undefined) where.areaSqft.lte = maxArea;
+      if (minArea !== undefined && !isNaN(minArea)) where.areaSqft.gte = minArea;
+      if (maxArea !== undefined && !isNaN(maxArea)) where.areaSqft.lte = maxArea;
     }
 
     const [data, total] = await Promise.all([

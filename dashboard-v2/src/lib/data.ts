@@ -87,9 +87,19 @@ export async function createTemplate(data: any) { return api('/message-templates
 export async function previewTemplate(id: string, vars: Record<string, string>) { return api(`/message-templates/${id}/preview`, { method: 'POST', body: JSON.stringify(vars) }); }
 
 export async function fetchForms() { return api('/forms') as Promise<any[]>; }
+export async function fetchForm(id: string) { return api(`/forms/${id}`) as Promise<any>; }
+export async function fetchFormPublic(id: string) { return api(`/forms/${id}/public`) as Promise<any>; }
 export async function createForm(data: any) { return api('/forms', { method: 'POST', body: JSON.stringify(data) }); }
+export async function updateForm(id: string, data: any) { return api(`/forms/${id}`, { method: 'PATCH', body: JSON.stringify(data) }); }
 export async function addFormField(formId: string, data: any) { return api(`/forms/${formId}/fields`, { method: 'POST', body: JSON.stringify(data) }); }
+export async function updateFormField(formId: string, fieldId: string, data: any) { return api(`/forms/${formId}/fields/${fieldId}`, { method: 'PATCH', body: JSON.stringify(data) }); }
 export async function deleteFormField(formId: string, fieldId: string) { return api(`/forms/${formId}/fields/${fieldId}`, { method: 'DELETE' }); }
+export async function submitForm(formId: string, data: any) { return api(`/forms/${formId}/submit`, { method: 'POST', body: JSON.stringify(data) }); }
+export async function fetchSubmissions(formId: string, params?: Record<string, string>) {
+  const q = params ? '?' + new URLSearchParams(params).toString() : '';
+  return api(`/forms/${formId}/submissions${q}`) as Promise<{ data: any[]; meta: any }>;
+}
+export async function fetchFormAnalytics(formId: string) { return api(`/forms/${formId}/analytics`) as Promise<any>; }
 
 export async function fetchQRCodes() { return api('/qr-codes') as Promise<any[]>; }
 export async function createQRCode(data: any) { return api('/qr-codes', { method: 'POST', body: JSON.stringify(data) }); }

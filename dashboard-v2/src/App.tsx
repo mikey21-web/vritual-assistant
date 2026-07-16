@@ -26,6 +26,7 @@ import LeadsPage from "./pages/LeadsPage";
 import ContactsPage from "./pages/ContactsPage";
 import CampaignsPage from "./pages/CampaignsPage";
 import FormsPage from "./pages/FormsPage";
+import FormSubmissionsPage from "./pages/FormSubmissionsPage";
 import QRCodesPage from "./pages/QRCodesPage";
 import MessagesPage from "./pages/MessagesPage";
 import SyncLogPage from "./pages/SyncLogPage";
@@ -112,6 +113,7 @@ function PageFallback() {
 function getPageKey(path: string): string {
   if (/^\/events\/[^/]+$/.test(path)) return "EventDetail";
   if (/^\/projects\/[^/]+$/.test(path)) return "ProjectDetail";
+  if (/^\/forms\/[^/]+\/submissions$/.test(path)) return "FormSubmissions";
   if (path.startsWith("/create-event")) return "CreateEvent";
   const map: Record<string, string> = {
     "/": "Overview", "/leads": "Leads", "/pipeline": "Pipeline", "/contacts": "Contacts",
@@ -147,7 +149,8 @@ function getPageKey(path: string): string {
 
 const pageRoutes: Record<string, React.ComponentType<any>> = {
   Overview: OverviewPage, Leads: LeadsPage, Contacts: ContactsPage,
-  Campaigns: CampaignsPage, Forms: FormsPage, QRCodes: QRCodesPage, Messages: MessagesPage,
+  Campaigns: CampaignsPage, Forms: FormsPage, FormSubmissions: FormSubmissionsPage,
+  QRCodes: QRCodesPage, Messages: MessagesPage,
   SyncLogs: SyncLogPage,
 };
 
@@ -250,6 +253,16 @@ export default function App() {
   if (publicRoute.startsWith('/org/')) {
     const slug = publicRoute.slice('/org/'.length);
     return <PublicOrgPage slug={slug} />;
+  }
+
+  // Public form renderer — embeddable multi-step form
+  if (publicRoute.startsWith('/form/')) {
+    const FormRendererPage = lazy(() => import('./pages/FormRendererPage'));
+    return (
+      <Suspense fallback={<PageFallback />}>
+        <FormRendererPage />
+      </Suspense>
+    );
   }
 
   if (!isLoggedIn) {

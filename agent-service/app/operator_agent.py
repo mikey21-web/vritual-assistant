@@ -7,12 +7,13 @@ from app.backend_client import BackendClient
 def build_operator_tools(client: BackendClient, tenant_id: str) -> list:
     @tool
     async def search_leads(status: str | None = None, segment: str | None = None,
-                           search: str | None = None, limit: int = 20):
-        """Search leads by status (e.g. NEW, QUALIFIED), segment (HOT, WARM, COLD), or text search. Returns each lead's id, name, status, segment, and score so you can act on a specific one afterward (e.g. get_lead_detail, update_lead_status)."""
+                           search: str | None = None, assigned_agent_id: str | None = None, limit: int = 20):
+        """Search leads by status (e.g. NEW, QUALIFIED), segment (HOT, WARM, COLD), assigned agent id, or text search. Returns each lead's id, name, status, segment, and score so you can act on a specific one afterward (e.g. get_lead_detail, update_lead_status, assign_lead_to_agent, book_site_visit)."""
         params = {}
         if status: params["status"] = status
         if segment: params["segment"] = segment
         if search: params["search"] = search
+        if assigned_agent_id: params["assignedAgentId"] = assigned_agent_id
         if limit: params["limit"] = limit
         try:
             result = await client._get("/leads?" + "&".join(f"{k}={v}" for k, v in params.items()))
@@ -284,6 +285,98 @@ def build_operator_tools(client: BackendClient, tenant_id: str) -> list:
         except Exception as e:
             return f"error: {e}"
 
+    @tool
+    async def assign_lead_to_agent(lead_id: str, agent_id: str | None = None):
+        """Assign a lead to a sales agent (by user id), or unassign if agent_id is omitted. Internal-only, executes immediately."""
+        try:
+            body = {"agentId": agent_id} if agent_id else {}
+            result = await client._post(f"/leads/{lead_id}/assign", body)
+            return f"Lead {lead_id} assigned to {agent_id or '(unassigned)'}"
+        except Exception as e:
+            return f"error: {e}"
+
+    @tool
+    async def book_site_visit(lead_id: str, title: str, start_time: str, end_time: str | None = None,
+                              property_id: str | None = None, description: str | None = None):
+        """Book a site visit / appointment for a lead. start_time and end_time are ISO datetimes. Use search_properties first to get a property_id if the visit is for a specific listing. Internal-only, executes immediately."""
+        try:
+            body: dict = {"leadId": lead_id, "title": title, "startTime": start_time}
+            if end_time: body["endTime"] = end_time
+            if property_id: body["propertyId"] = property_id
+            if description: body["description"] = description
+            result = await client._post(f"/leads/{lead_id}/bookings", body)
+            return f"Visit booked: {result.get('id', '')} — {title} at {start_time}"
+        except Exception as e:
+            return f"error: {e}"
+
+    @tool
+    async def update_booking(booking_id: str, start_time: str | None = None, status: str | None = None, notes: str | None = None):
+        """Reschedule (new start_time), cancel/confirm/complete (status: PENDING, CONFIRMED, CANCELLED, COMPLETED), or add notes to an existing booking/site visit. Internal-only, executes immediately."""
+        try:
+            body: dict = {}
+            if start_time: body["startTime"] = start_time
+            if status: body["status"] = status
+            if notes: body["notes"] = notes
+            result = await client._patch(f"/bookings/{booking_id}", body)
+            return f"Booking {booking_id} updated"
+        except Exception as e:
+            return f"error: {e}"
+
+    @tool
+    async def search_properties(location: str | None = None, budget_max: float = 0, bedrooms: int = 0, property_type: str | None = None):
+        """Search available broker/resale property listings by location, max budget, bedrooms, or type. Returns id, title, price, location so you can reference a property_id in book_site_visit."""
+        try:
+            query: dict = {}
+            if location: query["location"] = location
+            if budget_max > 0: query["maxPrice"] = budget_max
+            if bedrooms > 0: query["bedrooms"] = bedrooms
+            if property_type: query["propertyType"] = property_type.upper()
+            results = await client.search_properties(tenant_id, query)
+            if not results:
+                return "No properties found matching those criteria"
+            summary = "; ".join(f"{p['id']}: {p.get('title', '')} (₹{p.get('price', '?')}, {p.get('location', '')})" for p in results[:10])
+            return f"Found {len(results)} propert(y/ies): {summary}"
+        except Exception as e:
+            return f"error: {e}"
+
+    @tool
+    async def search_units(project_id: str | None = None, unit_type: str | None = None, budget_max: float = 0, min_area: float = 0):
+        """Search available builder-project units (Project -> Tower -> Unit inventory) by project, unit type (e.g. 2BHK), max budget, or min area. Returns id, unit number, project/tower, price."""
+        try:
+            query: dict = {"status": "AVAILABLE"}
+            if project_id: query["projectId"] = project_id
+            if unit_type: query["unitType"] = unit_type
+            if budget_max > 0: query["maxPrice"] = budget_max
+            if min_area > 0: query["minArea"] = min_area
+            results = await client.search_units(query)
+            if not results:
+                return "No available units found matching those criteria"
+            summary = "; ".join(
+                f"{u['id']}: Unit {u.get('unitNumber', '?')} ({u.get('project', {}).get('name', '')}) — ₹{u.get('price', '?')}"
+                for u in results[:10]
+            )
+            return f"Found {len(results)} unit(s): {summary}"
+        except Exception as e:
+            return f"error: {e}"
+
+    @tool
+    async def get_lead_brief(lead_id: str):
+        """Get the pre-visit brief for a lead: buyer profile, preferences, upcoming booking, matching properties/units, objections raised, and internal notes. Use before a site visit or when asked to prep on a specific lead."""
+        try:
+            result = await client._get(f"/leads/{lead_id}/brief")
+            return str(result)[:1500]
+        except Exception as e:
+            return f"error: {e}"
+
+    @tool
+    async def get_team_command():
+        """Get the owner's team command view: agent performance, stale/unassigned hot leads, overdue tasks, today's visits, overall conversion rate. Use for 'how's the team doing' or 'what needs my attention' type questions."""
+        try:
+            result = await client._get("/analytics/team-command")
+            return str(result)[:1500]
+        except Exception as e:
+            return f"error: {e}"
+
     return [
         search_leads, search_contacts, get_lead_detail, update_lead_status,
         create_task, create_ticket, update_ticket, send_message, draft_message,
@@ -293,4 +386,6 @@ def build_operator_tools(client: BackendClient, tenant_id: str) -> list:
         navigate_ui, explain_flow, define_outcome, run_autonomous_action,
         create_payment_schedule, list_payment_schedules,
         allocate_lead_to_partner, search_channel_partners, get_partner_performance,
+        assign_lead_to_agent, book_site_visit, update_booking,
+        search_properties, search_units, get_lead_brief, get_team_command,
     ]
