@@ -270,6 +270,67 @@ def build_tools(ctx: ToolContext) -> list:
             return _err(str(e))
 
     @tool
+    async def send_property_photos(property_ids: list[str]):
+        """Send photos of one or more properties to the lead over WhatsApp, each with a caption (title, price, location). Use after search_properties finds good matches and the lead seems interested. Sends at most 2 photos per property and 3 properties per call to avoid spamming."""
+        if not (ctx.features and ctx.features.get("properties")):
+            return _err("properties feature is not enabled for this niche")
+        sent = 0
+        errors = []
+        for prop_id in property_ids[:3]:
+            try:
+                prop = await ctx.client.get_property(prop_id)
+                images = (prop.get("images") or [])[:2]
+                caption = f"{prop.get('title', 'Property')} | ₹{prop.get('price', 'N/A')} | {prop.get('location', '')}"
+                if not images:
+                    await ctx.client.send_message(ctx.lead_id, ctx.channel, caption)
+                    sent += 1
+                    continue
+                for img in images:
+                    await ctx.client.send_message(
+                        ctx.lead_id, ctx.channel, caption,
+                        media_url=img.get("url"), media_type="image", caption=caption,
+                    )
+                    sent += 1
+            except BackendError as e:
+                errors.append(f"{prop_id}: {e}")
+        if sent == 0:
+            return _err(f"no photos sent; errors: {'; '.join(errors) or 'unknown'}")
+        return _ok(f"sent {sent} photo(s) across {len(property_ids[:3])} propert(y/ies)" + (f" (errors: {'; '.join(errors)})" if errors else ""))
+
+    @tool
+    async def send_unit_photos(unit_ids: list[str]):
+        """Send photos/floor-plans/brochures for one or more units to the lead over WhatsApp, each with a caption (unit number, type, price, floor). Use after search_units finds good matches. Falls back to the project's brochure images since individual units don't have their own photos. Sends at most 2 images per unit and 3 units per call to avoid spamming."""
+        if not (ctx.features and ctx.features.get("projects")):
+            return _err("project/unit inventory is not enabled for this niche")
+        sent = 0
+        errors = []
+        for unit_id in unit_ids[:3]:
+            try:
+                unit = await ctx.client.get_unit(unit_id)
+                project = unit.get("project") or {}
+                images = (project.get("images") or [])[:2]
+                caption = (
+                    f"Unit {unit.get('unitNumber', '?')} ({project.get('name', '')}) | "
+                    f"{unit.get('unitType', '')} | ₹{unit.get('price', 'N/A')} | Floor {unit.get('floor', '?')}"
+                )
+                if not images:
+                    await ctx.client.send_message(ctx.lead_id, ctx.channel, caption)
+                    sent += 1
+                    continue
+                for img in images:
+                    img_url = img.get("url") if isinstance(img, dict) else img
+                    await ctx.client.send_message(
+                        ctx.lead_id, ctx.channel, caption,
+                        media_url=img_url, media_type="image", caption=caption,
+                    )
+                    sent += 1
+            except BackendError as e:
+                errors.append(f"{unit_id}: {e}")
+        if sent == 0:
+            return _err(f"no photos sent; errors: {'; '.join(errors) or 'unknown'}")
+        return _ok(f"sent {sent} photo(s) across {len(unit_ids[:3])} unit(s)" + (f" (errors: {'; '.join(errors)})" if errors else ""))
+
+    @tool
     async def search_units(project_id: str | None = None, unit_type: str | None = None, budget_max: float = 0, min_area: float = 0):
         """Search available units across builder projects (Project -> Tower -> Unit inventory, distinct from standalone Property listings). Filter by project, unit type (e.g. '2BHK'), max budget, or min area. Returns unit number, tower, floor, price, and status."""
         if not (ctx.features and ctx.features.get("projects")):

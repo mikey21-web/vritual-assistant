@@ -116,7 +116,16 @@ class BackendClient:
     async def get_niche_config(self, client_key: str = "default") -> dict:
         return await self._retry_get(f"/niche-templates/client/current?clientKey={client_key}")
 
-    async def send_message(self, lead_id: str, channel: str, text: str, template_id: str | None = None) -> dict:
+    async def send_message(
+        self,
+        lead_id: str,
+        channel: str,
+        text: str,
+        template_id: str | None = None,
+        media_url: str | None = None,
+        media_type: str | None = None,
+        caption: str | None = None,
+    ) -> dict:
         body = {
             "leadId": lead_id,
             "channel": channel,
@@ -125,6 +134,8 @@ class BackendClient:
         }
         if template_id:
             body["messageTemplateId"] = template_id
+        if media_url and media_type:
+            body["metadata"] = {"mediaUrl": media_url, "mediaType": media_type, "caption": caption or text}
         return await self._retry_post("/conversations/messages", body)
 
     async def update_custom_fields(self, lead_id: str, fields: dict) -> dict:
@@ -235,6 +246,12 @@ class BackendClient:
                 params.append(f"{k}={v}")
         result = await self._retry_get(f"/properties/search?{'&'.join(params)}")
         return result if isinstance(result, list) else result.get("data", [])
+
+    async def get_property(self, property_id: str) -> dict:
+        return await self._retry_get(f"/properties/{property_id}")
+
+    async def get_unit(self, unit_id: str) -> dict:
+        return await self._retry_get(f"/units/{unit_id}")
 
     async def search_units(self, query: dict) -> list:
         params = [f"{k}={v}" for k, v in query.items() if v is not None]
