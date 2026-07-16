@@ -131,6 +131,74 @@ export class ProjectsService {
     return unit;
   }
 
+  /**
+   * Bulk-create units for a project (from a parsed CSV) — dropping a 200-unit
+   * tower in one at a time is what actually blocks builders from onboarding.
+   * Rows resolve/create towers by name, skip duplicate unit numbers instead of
+   * failing the whole batch, and log status history exactly like a single create.
+   */
+  async bulkImportUnits(projectId: string, rows: Array<{
+    towerName?: string;
+    unitNumber: string;
+    floor?: number;
+    unitType?: string;
+    areaSqft?: number;
+    price?: number;
+    currency?: string;
+    facing?: string;
+  }>) {
+    const project = await this.prisma.project.findUnique({ where: { id: projectId } });
+    if (!project) throw new NotFoundException('Project not found');
+
+    const existingTowers = await this.prisma.tower.findMany({ where: { projectId } });
+    const towerByName = new Map(existingTowers.map(t => [t.name.toLowerCase(), t]));
+
+    const existingUnits = await this.prisma.unit.findMany({ where: { projectId }, select: { unitNumber: true } });
+    const existingUnitNumbers = new Set(existingUnits.map(u => u.unitNumber));
+
+    let created = 0;
+    const skipped: Array<{ unitNumber: string; reason: string }> = [];
+
+    for (const row of rows) {
+      if (!row.unitNumber) { skipped.push({ unitNumber: '(blank)', reason: 'missing unitNumber' }); continue; }
+      if (existingUnitNumbers.has(row.unitNumber)) { skipped.push({ unitNumber: row.unitNumber, reason: 'duplicate unit number' }); continue; }
+
+      let towerId: string | undefined;
+      if (row.towerName) {
+        const key = row.towerName.toLowerCase();
+        let tower = towerByName.get(key);
+        if (!tower) {
+          tower = await this.prisma.tower.create({ data: { name: row.towerName, projectId } });
+          towerByName.set(key, tower);
+        }
+        towerId = tower.id;
+      }
+
+      const unit = await this.prisma.unit.create({
+        data: {
+          projectId,
+          tenantId: project.tenantId,
+          towerId,
+          unitNumber: row.unitNumber,
+          floor: row.floor,
+          unitType: row.unitType,
+          areaSqft: row.areaSqft,
+          price: row.price,
+          currency: row.currency || 'INR',
+          facing: row.facing,
+          status: 'AVAILABLE',
+        },
+      });
+      await this.prisma.unitStatusHistory.create({
+        data: { unitId: unit.id, fromStatus: null, toStatus: 'AVAILABLE' },
+      });
+      existingUnitNumbers.add(row.unitNumber);
+      created++;
+    }
+
+    return { created, skippedCount: skipped.length, skipped };
+  }
+
   async findUnits(query: {
     tenantId: string;
     projectId?: string;

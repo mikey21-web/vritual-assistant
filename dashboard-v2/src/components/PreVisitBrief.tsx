@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Phone, Mail, AlertTriangle, Home, MessageSquare, StickyNote, X, IndianRupee } from "lucide-react";
+import { Phone, Mail, AlertTriangle, Home, Building2, MessageSquare, StickyNote, X, IndianRupee } from "lucide-react";
 import { api } from "../lib/api";
 
 interface Props {
@@ -124,6 +124,32 @@ export default function PreVisitBrief({ leadId, onClose }: Props) {
                       </div>
                       <div className="text-sm font-mono font-semibold text-[var(--foreground)] inline-flex items-center gap-0.5">
                         <IndianRupee size={11} />{p.price ? formatMoney(p.price).replace('₹', '') : '-'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Matching project units (builder inventory) */}
+            {brief.matchingUnits?.length > 0 && (
+              <div>
+                <h4 className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <Building2 size={13} /> Matching units to show
+                </h4>
+                <div className="space-y-2">
+                  {brief.matchingUnits.map((u: any) => (
+                    <div key={u.id} className="flex items-center gap-3 rounded-lg border border-[var(--border)] p-2.5">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-[var(--foreground)] truncate">
+                          {u.project?.name} — Unit {u.unitNumber}{u.tower ? ` (${u.tower.name})` : ''}
+                        </div>
+                        <div className="text-xs text-[var(--muted-foreground)]">
+                          {u.unitType || ''} {u.floor ? `· Floor ${u.floor}` : ''} {u.areaSqft ? `· ${u.areaSqft} sqft` : ''}
+                        </div>
+                      </div>
+                      <div className="text-sm font-mono font-semibold text-[var(--foreground)] inline-flex items-center gap-0.5">
+                        <IndianRupee size={11} />{u.price ? formatMoney(u.price).replace('₹', '') : '-'}
                       </div>
                     </div>
                   ))}

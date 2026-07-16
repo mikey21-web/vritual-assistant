@@ -100,6 +100,20 @@ export class LeadsService {
       include: { images: { where: { isPrimary: true }, take: 1 } },
     });
 
+    // Builders sell Units, not flat Properties, so a pure-builder tenant would
+    // otherwise get an empty brief. Same preference fields, different model.
+    const unitWhere: Prisma.UnitWhereInput = { status: 'AVAILABLE' };
+    if (fields['property_type']) unitWhere.unitType = { contains: fields['property_type'], mode: 'insensitive' };
+    if (fields['location']) unitWhere.project = { location: { contains: fields['location'], mode: 'insensitive' } };
+    if (budgetNum) unitWhere.price = { lte: budgetNum * 1.15, gte: budgetNum * 0.7 };
+
+    const matchingUnits = await this.prisma.unit.findMany({
+      where: unitWhere,
+      take: 5,
+      orderBy: { price: 'asc' },
+      include: { project: { select: { name: true, location: true, images: true } }, tower: { select: { name: true } } },
+    });
+
     // Objections: heuristic scan of inbound messages for common pushback language,
     // so the agent isn't caught off guard by something the buyer already raised.
     const objectionKeywords = ['expensive', 'too high', 'budget', 'think about it', 'not sure', 'compare', 'other option', 'later', 'busy', 'no time'];
@@ -129,6 +143,7 @@ export class LeadsService {
       upcomingBooking,
       pastBookingsCount: pastBookings.length,
       matchingProperties,
+      matchingUnits,
       objections,
       recentMessages,
       notes: lead.internalNotes.map(n => ({ content: n.content, by: n.user?.name || 'Unknown', at: n.createdAt })),

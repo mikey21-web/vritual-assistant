@@ -4,7 +4,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { ProjectsService } from './projects.service';
-import { CreateProjectDto, UpdateProjectDto, CreateTowerDto, CreateUnitDto, UpdateUnitDto } from './dto/project.dto';
+import { CreateProjectDto, UpdateProjectDto, CreateTowerDto, CreateUnitDto, UpdateUnitDto, BulkImportUnitsDto } from './dto/project.dto';
 
 @ApiTags('Projects')
 @Controller()
@@ -49,6 +49,11 @@ export class ProjectsController {
   @Post('projects/:id/units') @Roles('OWNER', 'ADMIN', 'MANAGER')
   createUnit(@Param('id') projectId: string, @Body() dto: CreateUnitDto, @Req() req: any) {
     return this.service.createUnit(projectId, { ...dto, tenantId: req.user?.tenantId });
+  }
+
+  @Post('projects/:id/units/bulk-import') @Roles('OWNER', 'ADMIN', 'MANAGER')
+  bulkImportUnits(@Param('id') projectId: string, @Body() dto: BulkImportUnitsDto) {
+    return this.service.bulkImportUnits(projectId, dto.units);
   }
 
   @Get('units') @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT', 'VIEWER')

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, X, MapPin, TrendingUp, Building2, ArrowLeft } from "lucide-react";
+import { Plus, X, MapPin, TrendingUp, Building2, ArrowLeft, Upload } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { api } from "../lib/api";
@@ -20,6 +20,25 @@ const statusColors: Record<string, string> = {
 
 const statusOptions = Object.keys(statusColors);
 
+const BULK_UNIT_FIELDS = ["unitNumber", "towerName", "floor", "unitType", "areaSqft", "price", "currency", "facing"] as const;
+const NUMERIC_UNIT_FIELDS = new Set(["floor", "areaSqft", "price"]);
+
+/** Minimal CSV parser: no embedded-comma/quote support needed for a unit import sheet. */
+function parseUnitCsv(text: string): Array<Record<string, any>> {
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  if (lines.length < 2) return [];
+  const header = lines[0].split(",").map(h => h.trim());
+  return lines.slice(1).map(line => {
+    const cells = line.split(",").map(c => c.trim());
+    const row: Record<string, any> = {};
+    header.forEach((key, i) => {
+      if (!BULK_UNIT_FIELDS.includes(key as any) || cells[i] === undefined || cells[i] === "") return;
+      row[key] = NUMERIC_UNIT_FIELDS.has(key) ? Number(cells[i]) : cells[i];
+    });
+    return row;
+  }).filter(r => r.unitNumber);
+}
+
 export default function ProjectDetailPage() {
   const projectId = getProjectId();
   const [project, setProject] = useState<any>(null);
@@ -30,6 +49,11 @@ export default function ProjectDetailPage() {
   const [showUnitForm, setShowUnitForm] = useState(false);
   const [unitForm, setUnitForm] = useState<any>({ towerId: "", unitNumber: "", floor: "", unitType: "", areaSqft: "", price: "" });
   const [editingUnit, setEditingUnit] = useState<any>(null);
+  const [showBulkForm, setShowBulkForm] = useState(false);
+  const [bulkRows, setBulkRows] = useState<Array<Record<string, any>>>([]);
+  const [bulkFileName, setBulkFileName] = useState("");
+  const [bulkResult, setBulkResult] = useState<{ created: number; skippedCount: number; skipped: Array<{ unitNumber: string; reason: string }> } | null>(null);
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -81,6 +105,37 @@ export default function ProjectDetailPage() {
     } catch { toast.error("Failed to add unit — check the unit number isn't already used in this project"); }
   };
 
+  const handleBulkFile = async (file: File) => {
+    setBulkFileName(file.name);
+    setBulkResult(null);
+    const text = await file.text();
+    const rows = parseUnitCsv(text);
+    if (rows.length === 0) toast.error("No valid rows found — check the header row has 'unitNumber'");
+    setBulkRows(rows);
+  };
+
+  const runBulkImport = async () => {
+    setBulkLoading(true);
+    try {
+      const res = await api(`/projects/${projectId}/units/bulk-import`, {
+        method: "POST",
+        body: JSON.stringify({ units: bulkRows }),
+        headers: { "Content-Type": "application/json" },
+      });
+      setBulkResult(res);
+      toast.success(`Imported ${res.created} unit(s)${res.skippedCount ? `, skipped ${res.skippedCount}` : ""}`);
+      refresh();
+    } catch { toast.error("Bulk import failed"); }
+    finally { setBulkLoading(false); }
+  };
+
+  const closeBulkForm = () => {
+    setShowBulkForm(false);
+    setBulkRows([]);
+    setBulkFileName("");
+    setBulkResult(null);
+  };
+
   const updateUnitStatus = async (unitId: string, status: string) => {
     try {
       await api(`/units/${unitId}`, { method: "PATCH", body: JSON.stringify({ status }), headers: { "Content-Type": "application/json" } });
@@ -114,6 +169,7 @@ export default function ProjectDetailPage() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setShowTowerForm(true)}><Plus className="h-4 w-4 mr-1" /> Tower</Button>
+          <Button variant="outline" onClick={() => setShowBulkForm(true)}><Upload className="h-4 w-4 mr-1" /> Bulk Import</Button>
           <Button onClick={() => setShowUnitForm(true)}><Plus className="h-4 w-4 mr-1" /> Unit</Button>
         </div>
       </div>
@@ -237,6 +293,49 @@ export default function ProjectDetailPage() {
             <div className="flex justify-end gap-2 pt-1">
               <Button variant="outline" onClick={() => setShowUnitForm(false)}>Cancel</Button>
               <Button onClick={addUnit} disabled={!unitForm.unitNumber}>Add</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk unit import */}
+      {showBulkForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={closeBulkForm}>
+          <div className="bg-[var(--card)] rounded-xl shadow-2xl w-full max-w-lg p-6 space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold">Bulk Import Units (CSV)</h2>
+              <button onClick={closeBulkForm}><X className="h-5 w-5" /></button>
+            </div>
+            <p className="text-xs text-[var(--muted-foreground)]">
+              CSV header row: <code className="text-[11px]">unitNumber,towerName,floor,unitType,areaSqft,price,currency,facing</code>.
+              Only <code className="text-[11px]">unitNumber</code> is required; towers referenced by name are created automatically. Duplicate unit numbers are skipped.
+            </p>
+            <input
+              type="file" accept=".csv,text/csv"
+              onChange={e => e.target.files?.[0] && handleBulkFile(e.target.files[0])}
+              className="w-full text-sm text-[var(--foreground)] file:mr-3 file:rounded-lg file:border-0 file:bg-[var(--primary)] file:text-[var(--primary-foreground)] file:px-3 file:py-1.5 file:text-xs file:font-medium"
+            />
+            {bulkFileName && !bulkResult && (
+              <div className="text-sm text-[var(--foreground)]">{bulkFileName}: {bulkRows.length} row(s) ready to import</div>
+            )}
+            {bulkResult && (
+              <div className="rounded-lg border border-[var(--border)] p-3 text-sm space-y-1">
+                <div className="text-green-600 dark:text-green-400 font-medium">{bulkResult.created} unit(s) created</div>
+                {bulkResult.skippedCount > 0 && (
+                  <div className="text-amber-600 dark:text-amber-400">
+                    {bulkResult.skippedCount} skipped
+                    <div className="mt-1 max-h-24 overflow-y-auto text-xs text-[var(--muted-foreground)]">
+                      {bulkResult.skipped.map((s, i) => <div key={i}>{s.unitNumber}: {s.reason}</div>)}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="outline" onClick={closeBulkForm}>Close</Button>
+              <Button onClick={runBulkImport} disabled={bulkRows.length === 0 || bulkLoading}>
+                {bulkLoading ? "Importing..." : `Import ${bulkRows.length || ""} Unit(s)`}
+              </Button>
             </div>
           </div>
         </div>

@@ -1,4 +1,5 @@
-import { IsString, IsOptional, IsIn, IsArray, IsNumber, IsInt, IsDateString } from 'class-validator';
+import { IsString, IsOptional, IsIn, IsArray, IsNumber, IsInt, IsDateString, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateProjectDto {
@@ -37,6 +38,25 @@ export class CreateUnitDto {
   @ApiPropertyOptional() @IsOptional() @IsNumber() price?: number;
   @ApiPropertyOptional() @IsOptional() @IsString() currency?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() facing?: string;
+}
+
+export class BulkUnitRowDto {
+  @ApiPropertyOptional() @IsOptional() @IsString() towerName?: string;
+  @ApiProperty() @IsString() unitNumber: string;
+  @ApiPropertyOptional() @IsOptional() @IsInt() floor?: number;
+  @ApiPropertyOptional() @IsOptional() @IsString() unitType?: string;
+  @ApiPropertyOptional() @IsOptional() @IsNumber() areaSqft?: number;
+  @ApiPropertyOptional() @IsOptional() @IsNumber() price?: number;
+  @ApiPropertyOptional() @IsOptional() @IsString() currency?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() facing?: string;
+}
+
+export class BulkImportUnitsDto {
+  @ApiProperty({ type: [BulkUnitRowDto] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => BulkUnitRowDto)
+  units: BulkUnitRowDto[];
 }
 
 export class UpdateUnitDto {

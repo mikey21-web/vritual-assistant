@@ -372,6 +372,8 @@ def build_tools(ctx: ToolContext) -> list:
         escalate_to_human,
         search_properties,
         search_units,
+        send_property_photos,
+        send_unit_photos,
         get_quote,
         create_shipment,
         update_shipment_status,
