@@ -1,27 +1,61 @@
 import { useState, useEffect, useRef } from 'react';
 import { api } from '../lib/api';
-import { Sparkles, Send, Check, Edit3, X, Clock, Target, MessageSquare, DollarSign, TrendingUp, Users, BarChart3, ChevronDown, ChevronUp, Play, Save } from 'lucide-react';
+import { Sparkles, Send, Check, Edit3, X, Clock, Target, MessageSquare, DollarSign, TrendingUp, Users, BarChart3, ChevronDown, ChevronUp, Play, Save, Image, Loader2, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
-import type { AICampaignDraft } from '../lib/types';
+
+interface AICampaignDraft {
+  id: string;
+  name: string;
+  description: string;
+  campaignType: string;
+  targeting: any;
+  channels: any[];
+  message?: string;
+  schedule?: { start: string; end: string };
+  totalBudget: number;
+  offer?: string;
+  landingUrl?: string;
+  conversionGoal?: string;
+  predictedROI?: string;
+  imagePrompt?: string;
+  imageUrl?: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  creatives?: any[];
+}
 
 export default function AICampaignManager() {
   const [prompt, setPrompt] = useState('');
   const [generating, setGenerating] = useState(false);
+  const [generatingImage, setGeneratingImage] = useState(false);
   const [drafts, setDrafts] = useState<AICampaignDraft[]>([]);
+  const [savedDrafts, setSavedDrafts] = useState<AICampaignDraft[]>([]);
   const [currentDraft, setCurrentDraft] = useState<AICampaignDraft | null>(null);
   const [showEditor, setShowEditor] = useState(false);
   const [editableMessage, setEditableMessage] = useState('');
   const [editableName, setEditableName] = useState('');
-  const [history, setHistory] = useState<AICampaignDraft[]>([]);
+  const [editableOffer, setEditableOffer] = useState('');
+  const [editableBudget, setEditableBudget] = useState(0);
+  const [editableLandingUrl, setEditableLandingUrl] = useState('');
+  const [editableConversionGoal, setEditableConversionGoal] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [launching, setLaunching] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [activeTab, setActiveTab] = useState<'generate' | 'drafts'>('generate');
+  const [imageResult, setImageResult] = useState<{ image?: string; prompt?: string } | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  const refresh = () => {
-    api('/ai/campaigns').then((r: any) => {
-      const list = r.data || r || [];
-      setDrafts(list.filter((d: AICampaignDraft) => d.status === 'draft'));
-      setHistory(list.filter((d: AICampaignDraft) => d.status === 'launched'));
-    }).catch(() => {});
+  const refresh = async () => {
+    try {
+      const res = await api('/ai/campaigns');
+      const list = Array.isArray(res) ? res : [];
+      if (currentDraft) {
+        const updated = list.find((d: any) => d.id === currentDraft.id);
+        if (updated) setCurrentDraft(updated);
+      }
+      setSavedDrafts(list);
+    } catch { }
   };
 
   useEffect(() => { refresh(); }, []);
@@ -29,61 +63,129 @@ export default function AICampaignManager() {
   const generate = async () => {
     if (!prompt.trim()) return;
     setGenerating(true);
+    setImageResult(null);
     try {
-      const result = await api('/ai/campaigns/generate', { method: 'POST', body: JSON.stringify({ prompt: prompt.trim() }) });
-      const draft = result as AICampaignDraft;
+      const draft = await api('/ai/campaigns/generate', { method: 'POST', body: JSON.stringify({ prompt: prompt.trim() }) }) as AICampaignDraft;
       setCurrentDraft(draft);
-      setEditableMessage(draft.preview.message);
-      setEditableName(draft.preview.name);
+      setEditableMessage(draft.message || '');
+      setEditableName(draft.name || '');
+      setEditableOffer(draft.offer || '');
+      setEditableBudget(draft.totalBudget || 0);
+      setEditableLandingUrl(draft.landingUrl || '');
+      setEditableConversionGoal(draft.conversionGoal || '');
       setShowEditor(true);
       setPrompt('');
     } catch (e: any) {
-      toast.error(e.message);
+      toast.error(e.message || 'Failed to generate campaign');
     }
     setGenerating(false);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); generate(); }
+  const generateImage = async () => {
+    if (!currentDraft?.imagePrompt) return;
+    setGeneratingImage(true);
+    setImageResult(null);
+    try {
+      const result = await api('/ai/campaigns/generate-image', { method: 'POST', body: JSON.stringify({ prompt: currentDraft.imagePrompt }) });
+      setImageResult(result);
+      if (result.image) {
+        toast.success('Image generated!');
+      } else {
+        toast(result.message || 'Could not generate image', { icon: '⚠️' });
+      }
+    } catch (e: any) {
+      toast.error(e.message || 'Image generation failed');
+    }
+    setGeneratingImage(false);
+  };
+
+  const saveDraft = async () => {
+    if (!currentDraft) return;
+    setSaving(true);
+    try {
+      const payload = {
+        ...currentDraft,
+        name: editableName,
+        message: editableMessage,
+        offer: editableOffer,
+        totalBudget: editableBudget,
+        landingUrl: editableLandingUrl,
+        conversionGoal: editableConversionGoal,
+        creatives: imageResult?.image ? [{ type: 'image', imageUrl: imageResult.image }] : (currentDraft.creatives || []),
+        tags: ['ai-generated'],
+      };
+      if (currentDraft.id?.startsWith('camp_')) {
+        const saved = await api('/ai/campaigns', { method: 'POST', body: JSON.stringify(payload) });
+        setCurrentDraft(saved);
+        toast.success('Draft saved!');
+      } else {
+        const saved = await api(`/ai/campaigns/${currentDraft.id}`, { method: 'PATCH', body: JSON.stringify(payload) });
+        setCurrentDraft(saved);
+        toast.success('Draft updated!');
+      }
+      refresh();
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to save');
+    }
+    setSaving(false);
   };
 
   const launchCampaign = async () => {
     if (!currentDraft) return;
+    setLaunching(true);
     try {
-      const payload = { ...currentDraft, preview: { ...currentDraft.preview, message: editableMessage, name: editableName }, status: 'launched' };
-      await api('/campaigns', { method: 'POST', body: JSON.stringify(payload) });
-      toast.success('Campaign launched successfully!');
+      if (!currentDraft.id?.startsWith('camp_')) {
+        await saveDraft();
+      }
+      const draftId = currentDraft.id?.startsWith('camp_') ? null : currentDraft.id;
+      if (!draftId) {
+        await saveDraft();
+        await launchCampaign();
+        return;
+      }
+      await api(`/ai/campaigns/${draftId}/launch`, { method: 'POST' });
+      toast.success('Campaign launched!');
       setShowEditor(false);
       setCurrentDraft(null);
       refresh();
     } catch (e: any) {
-      toast.error(e.message);
+      toast.error(e.message || 'Failed to launch');
     }
+    setLaunching(false);
   };
 
-  const saveDraft = () => {
-    if (!currentDraft) return;
-    setCurrentDraft({ ...currentDraft, preview: { ...currentDraft.preview, message: editableMessage, name: editableName } });
-    toast.success('Draft saved');
-    setShowEditor(false);
-    refresh();
+  const editDraft = (draft: AICampaignDraft) => {
+    setCurrentDraft(draft);
+    setEditableMessage(draft.description || '');
+    setEditableName(draft.name || '');
+    setEditableOffer(draft.offer || '');
+    setEditableBudget(draft.totalBudget || 0);
+    setEditableLandingUrl(draft.landingUrl || '');
+    setEditableConversionGoal(draft.conversionGoal || '');
+    setImageResult(null);
+    setShowEditor(true);
+    setActiveTab('generate');
   };
 
   const regenerate = () => {
     if (currentDraft) {
-      setPrompt(currentDraft.prompt);
+      setPrompt(currentDraft.description || currentDraft.name || '');
       setShowEditor(false);
       setCurrentDraft(null);
-      setTimeout(() => generate(), 100);
+      setImageResult(null);
+      setTimeout(() => inputRef.current?.focus(), 100);
     }
   };
 
-  const examplePrompts = [
-    'Diwali campaign for hot leads in Bangalore',
-    'Follow-up for leads who opened but didn\'t reply',
-    'WhatsApp broadcast for new property listing in Whitefield',
-    'Re-engage cold leads who haven\'t replied in 30 days',
-  ];
+  const campaignTypes: Record<string, string> = {
+    whatsapp_broadcast: 'WhatsApp Broadcast',
+    festive_offer: 'Festive Offer',
+    new_launch: 'New Launch',
+    site_visit_invite: 'Site Visit Invite',
+    referral: 'Referral Program',
+    re_engagement: 'Re-engagement',
+    payment_reminder: 'Payment Reminder',
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -95,261 +197,234 @@ export default function AICampaignManager() {
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
           <div>
             <h1 className="text-xl font-bold text-[var(--foreground)]">AI Campaign Manager</h1>
-            <p className="text-sm text-[var(--muted-foreground)] mt-0.5">Describe your campaign in plain English. AI generates everything</p>
+            <p className="text-sm text-[var(--muted-foreground)] mt-0.5">Generate real estate marketing campaigns with AI images</p>
           </div>
-          {history.length > 0 && (
-            <button
-              onClick={() => setShowHistory(!showHistory)}
-              className="flex items-center gap-1.5 text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors"
-            >
-              <BarChart3 size={14} />
-              History ({history.length})
-              {showHistory ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-[var(--shadow-sm)]">
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="flex-1 relative">
-            <textarea
-              ref={inputRef}
-              value={prompt}
-              onChange={e => setPrompt(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Describe your campaign... e.g. 'Diwali offer for hot leads in Bangalore with 25% discount'"
-              className="w-full min-h-[60px] max-h-[120px] rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20 resize-none"
-              rows={2}
-            />
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              {examplePrompts.slice(0, 3).map(ep => (
-                <button
-                  key={ep}
-                  onClick={() => setPrompt(ep)}
-                  className="px-2 py-1 rounded-md bg-[var(--muted)] border border-[var(--border)] text-[10px] text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:border-[var(--primary)]/30 transition-colors"
-                >
-                  {ep.length > 35 ? ep.slice(0, 35) + '...' : ep}
-                </button>
-              ))}
-            </div>
-          </div>
-          <button
-            onClick={generate}
-            disabled={generating || !prompt.trim()}
-            className="self-start h-9 px-5 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm flex items-center gap-2 shrink-0"
-          >
-            {generating ? (
-              <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            ) : (
-              <Sparkles size={15} />
-            )}
-            {generating ? 'Thinking...' : 'Generate'}
-          </button>
-        </div>
-      </div>
-
-      {showEditor && currentDraft && (
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden shadow-[var(--shadow-sm)] animate-scale-in">
-          <div className="border-b border-[var(--border)] px-5 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Sparkles size={15} className="text-amber-500" />
-              <span className="text-sm font-semibold text-[var(--foreground)]">Campaign Preview</span>
-              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">AI Generated</span>
-            </div>
-            <button onClick={() => { setShowEditor(false); setCurrentDraft(null); }} className="p-1 rounded-md hover:bg-[var(--accent)] text-[var(--muted-foreground)] transition-colors">
-              <X size={15} />
-            </button>
-          </div>
-
-          <div className="p-5 space-y-5">
-            <div className="flex items-center gap-3">
-              <div className="flex-1">
-                <label className="text-[10px] font-semibold text-[var(--muted-foreground)] uppercase tracking-wider mb-1 block">Campaign Name</label>
-                <input
-                  value={editableName}
-                  onChange={e => setEditableName(e.target.value)}
-                  className="w-full h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
-                />
-              </div>
-              <div className="text-right shrink-0">
-                <label className="text-[10px] font-semibold text-[var(--muted-foreground)] uppercase tracking-wider mb-1 block">Predicted ROI</label>
-                <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{currentDraft.preview.predictedROI}</span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="rounded-lg bg-[var(--muted)] border border-[var(--border)] p-3">
-                <div className="flex items-center gap-1.5 text-[10px] text-[var(--muted-foreground)] mb-1">
-                  <Target size={12} /> Target
-                </div>
-                <div className="text-sm font-semibold text-[var(--foreground)]">{currentDraft.preview.segment.estimatedLeads} leads</div>
-                <div className="text-[10px] text-[var(--muted-foreground)] mt-0.5">
-                  {currentDraft.preview.segment.filters.map(f => `${f.field} ${f.operator} ${f.value}`).join(', ')}
-                </div>
-              </div>
-              <div className="rounded-lg bg-[var(--muted)] border border-[var(--border)] p-3">
-                <div className="flex items-center gap-1.5 text-[10px] text-[var(--muted-foreground)] mb-1">
-                  <MessageSquare size={12} /> Channels
-                </div>
-                <div className="text-sm font-semibold text-[var(--foreground)]">{currentDraft.preview.channels.join(' + ')}</div>
-              </div>
-              <div className="rounded-lg bg-[var(--muted)] border border-[var(--border)] p-3">
-                <div className="flex items-center gap-1.5 text-[10px] text-[var(--muted-foreground)] mb-1">
-                  <DollarSign size={12} /> Budget
-                </div>
-                <div className="text-sm font-semibold text-[var(--foreground)]">₹{currentDraft.preview.budget.toLocaleString()}</div>
-              </div>
-              <div className="rounded-lg bg-[var(--muted)] border border-[var(--border)] p-3">
-                <div className="flex items-center gap-1.5 text-[10px] text-[var(--muted-foreground)] mb-1">
-                  <Clock size={12} /> Duration
-                </div>
-                <div className="text-sm font-semibold text-[var(--foreground)]">
-                  {Math.ceil((new Date(currentDraft.preview.schedule.end).getTime() - new Date(currentDraft.preview.schedule.start).getTime()) / 86400000)} days
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-[10px] font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Message</label>
-                <div className="flex items-center gap-1.5 text-[10px] text-[var(--muted-foreground)]">
-                  <Edit3 size={10} /> Editable
-                </div>
-              </div>
-              <textarea
-                value={editableMessage}
-                onChange={e => setEditableMessage(e.target.value)}
-                className="w-full min-h-[160px] rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm text-[var(--foreground)] font-mono focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20 resize-y"
-                rows={8}
-              />
-            </div>
-
-            <div className="flex items-center justify-between pt-2 border-t border-[var(--border)]">
-              <button
-                onClick={regenerate}
-                className="h-9 px-4 rounded-lg border border-[var(--border)] text-sm text-[var(--foreground)] hover:bg-[var(--accent)] transition-colors"
-              >
-                Regenerate
+          <div className="flex items-center gap-2">
+            {savedDrafts.length > 0 && (
+              <button onClick={() => { setActiveTab(activeTab === 'drafts' ? 'generate' : 'drafts'); setShowEditor(false); }}
+                className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-colors ${activeTab === 'drafts' ? 'bg-[var(--primary)] text-white' : 'border border-[var(--border)] text-[var(--muted-foreground)] hover:text-[var(--foreground)]'}`}>
+                <BarChart3 size={14} />
+                Saved ({savedDrafts.length})
               </button>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={saveDraft}
-                  className="h-9 px-4 rounded-lg border border-[var(--border)] text-sm text-[var(--foreground)] hover:bg-[var(--accent)] transition-colors flex items-center gap-1.5"
-                >
-                  <Save size={14} /> Save Draft
-                </button>
-                <button
-                  onClick={launchCampaign}
-                  className="h-9 px-5 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90 transition-all shadow-sm flex items-center gap-1.5"
-                >
-                  <Play size={14} /> Launch Campaign
-                </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {activeTab === 'generate' && (
+        <>
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-[var(--shadow-sm)]">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex-1 relative">
+                <textarea
+                  ref={inputRef}
+                  value={prompt}
+                  onChange={e => setPrompt(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); generate(); } }}
+                  placeholder="Describe your campaign... e.g. 'Diwali offer for hot leads in Bangalore with 25% discount on 2BHK apartments'"
+                  className="w-full min-h-[60px] max-h-[120px] rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20 resize-none"
+                  rows={2}
+                />
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {[
+                    'New launch 2BHK in Whitefield WhatsApp broadcast',
+                    'Diwali festive offer for hot leads Bangalore',
+                    'Re-engage cold leads who haven\'t replied in 30 days',
+                    'Site visit invite for qualified leads this weekend',
+                  ].map(ep => (
+                    <button key={ep} onClick={() => setPrompt(ep)}
+                      className="px-2 py-1 rounded-md bg-[var(--muted)] border border-[var(--border)] text-[10px] text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:border-[var(--primary)]/30 transition-colors">
+                      {ep.length > 40 ? ep.slice(0, 40) + '...' : ep}
+                    </button>
+                  ))}
+                </div>
               </div>
+              <button onClick={generate} disabled={generating || !prompt.trim()}
+                className="self-start h-9 px-5 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm flex items-center gap-2 shrink-0">
+                {generating ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
+                {generating ? 'Generating...' : 'Generate'}
+              </button>
             </div>
           </div>
-        </div>
-      )}
 
-      {drafts.length > 0 && !showEditor && (
-        <div>
-          <h2 className="text-sm font-semibold text-[var(--foreground)] mb-3 flex items-center gap-1.5">
-            <Save size={14} className="text-[var(--muted-foreground)]" />
-            Saved Drafts ({drafts.length})
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {drafts.map(draft => (
-              <div
-                key={draft.id}
-                onClick={() => {
-                  setCurrentDraft(draft);
-                  setEditableMessage(draft.preview.message);
-                  setEditableName(draft.preview.name);
-                  setShowEditor(true);
-                }}
-                className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-4 hover:shadow-[var(--shadow-md)] hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <h3 className="text-sm font-semibold text-[var(--foreground)]">{draft.preview.name}</h3>
-                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 shrink-0">Draft</span>
-                </div>
-                <p className="text-xs text-[var(--muted-foreground)] line-clamp-2 mb-3">{draft.preview.message.slice(0, 120)}...</p>
-                <div className="flex items-center gap-3 text-[10px] text-[var(--muted-foreground)]">
-                  <span className="flex items-center gap-1"><Target size={11} /> {draft.preview.segment.estimatedLeads}</span>
-                  <span className="flex items-center gap-1"><MessageSquare size={11} /> {draft.preview.channels.join('/')}</span>
-                  <span className="flex items-center gap-1"><TrendingUp size={11} /> {draft.preview.predictedROI}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {history.length > 0 && showHistory && (
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden animate-fade-in">
-          <div className="border-b border-[var(--border)] px-5 py-3">
-            <h3 className="text-sm font-semibold text-[var(--foreground)]">Launched Campaigns ({history.length})</h3>
-          </div>
-          <div className="hidden sm:block overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[var(--border)] bg-[var(--muted)]">
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Campaign</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Channels</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Leads</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Budget</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">ROI</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {history.map(h => (
-                  <tr key={h.id} className="border-b border-[var(--border)] hover:bg-[var(--muted)]/50 transition-colors">
-                    <td className="px-4 py-3 font-medium text-[var(--foreground)]">{h.preview.name}</td>
-                    <td className="px-4 py-3 text-xs text-[var(--muted-foreground)]">{h.preview.channels.join(' + ')}</td>
-                    <td className="px-4 py-3 text-sm font-semibold text-[var(--foreground)]">{h.preview.segment.estimatedLeads}</td>
-                    <td className="px-4 py-3 text-sm text-[var(--foreground)]">₹{h.preview.budget.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-sm font-semibold text-emerald-600">{h.preview.predictedROI}</td>
-                    <td className="px-4 py-3">
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-                        <Check size={10} /> Launched
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="block sm:hidden divide-y divide-[var(--border)]">
-            {history.map(h => (
-              <div key={h.id} className="p-4 space-y-2">
-                <div className="flex items-start justify-between">
-                  <span className="text-sm font-semibold text-[var(--foreground)]">{h.preview.name}</span>
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 shrink-0">
-                    <Check size={10} /> Launched
+          {showEditor && currentDraft && (
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden shadow-[var(--shadow-sm)] animate-scale-in">
+              <div className="border-b border-[var(--border)] px-5 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Sparkles size={15} className="text-amber-500" />
+                  <span className="text-sm font-semibold text-[var(--foreground)]">Campaign</span>
+                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                    {campaignTypes[currentDraft.campaignType] || currentDraft.campaignType || 'Draft'}
                   </span>
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="text-[var(--muted-foreground)]">
-                    <span className="block font-medium text-[var(--foreground)]">Channels</span>
-                    {h.preview.channels.join(' + ')}
+                <button onClick={() => { setShowEditor(false); setCurrentDraft(null); setImageResult(null); }}
+                  className="p-1 rounded-md hover:bg-[var(--accent)] text-[var(--muted-foreground)] transition-colors">
+                  <X size={15} />
+                </button>
+              </div>
+
+              <div className="p-5 space-y-5">
+                <div className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <label className="text-[10px] font-semibold text-[var(--muted-foreground)] uppercase tracking-wider mb-1 block">Campaign Name</label>
+                    <input value={editableName} onChange={e => setEditableName(e.target.value)}
+                      className="w-full h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20" />
                   </div>
-                  <div className="text-[var(--muted-foreground)]">
-                    <span className="block font-medium text-[var(--foreground)]">Leads</span>
-                    {h.preview.segment.estimatedLeads}
+                  <div className="text-right shrink-0">
+                    <label className="text-[10px] font-semibold text-[var(--muted-foreground)] uppercase tracking-wider mb-1 block">Predicted ROI</label>
+                    <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{currentDraft.predictedROI || '—'}</span>
                   </div>
-                  <div className="text-[var(--muted-foreground)]">
-                    <span className="block font-medium text-[var(--foreground)]">Budget</span>
-                    ₹{h.preview.budget.toLocaleString()}
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="rounded-lg bg-[var(--muted)] border border-[var(--border)] p-3">
+                    <div className="flex items-center gap-1.5 text-[10px] text-[var(--muted-foreground)] mb-1"><Target size={12} /> Target</div>
+                    <div className="text-sm font-semibold text-[var(--foreground)]">
+                      {currentDraft.targeting?.segments?.join(', ') || 'All'}
+                    </div>
+                    <div className="text-[10px] text-[var(--muted-foreground)] mt-0.5">
+                      {currentDraft.targeting?.locations?.slice(0, 2).join(', ') || ''}
+                    </div>
                   </div>
-                  <div className="text-[var(--muted-foreground)]">
-                    <span className="block font-medium text-[var(--foreground)]">ROI</span>
-                    <span className="text-emerald-600 font-semibold">{h.preview.predictedROI}</span>
+                  <div className="rounded-lg bg-[var(--muted)] border border-[var(--border)] p-3">
+                    <div className="flex items-center gap-1.5 text-[10px] text-[var(--muted-foreground)] mb-1"><MessageSquare size={12} /> Channels</div>
+                    <div className="text-sm font-semibold text-[var(--foreground)]">
+                      {currentDraft.channels?.map((c: any) => c.type).join(' + ') || 'WHATSAPP'}
+                    </div>
+                  </div>
+                  <div className="rounded-lg bg-[var(--muted)] border border-[var(--border)] p-3">
+                    <div className="flex items-center gap-1.5 text-[10px] text-[var(--muted-foreground)] mb-1"><DollarSign size={12} /> Budget</div>
+                    <input value={editableBudget} onChange={e => setEditableBudget(Number(e.target.value))}
+                      className="w-full text-sm font-semibold text-[var(--foreground)] bg-transparent border-b border-[var(--border)] focus:outline-none"
+                      type="number" min={0} step={100} />
+                  </div>
+                  <div className="rounded-lg bg-[var(--muted)] border border-[var(--border)] p-3">
+                    <div className="flex items-center gap-1.5 text-[10px] text-[var(--muted-foreground)] mb-1"><Clock size={12} /> Goal</div>
+                    <select value={editableConversionGoal} onChange={e => setEditableConversionGoal(e.target.value)}
+                      className="w-full text-sm font-semibold text-[var(--foreground)] bg-transparent border-b border-[var(--border)] focus:outline-none">
+                      <option value="">Select goal</option>
+                      <option value="site_visit">Site Visit</option>
+                      <option value="booking">Booking</option>
+                      <option value="brochure_download">Brochure Download</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-semibold text-[var(--muted-foreground)] uppercase tracking-wider mb-1 block">Offer</label>
+                    <input value={editableOffer} onChange={e => setEditableOffer(e.target.value)}
+                      className="w-full h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-[var(--muted-foreground)] uppercase tracking-wider mb-1 block">Landing URL</label>
+                    <input value={editableLandingUrl} onChange={e => setEditableLandingUrl(e.target.value)}
+                      className="w-full h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20" />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-[10px] font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Message</label>
+                    <div className="flex items-center gap-1.5 text-[10px] text-[var(--muted-foreground)]"><Edit3 size={10} /> Editable</div>
+                  </div>
+                  <textarea value={editableMessage} onChange={e => setEditableMessage(e.target.value)}
+                    className="w-full min-h-[120px] rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm text-[var(--foreground)] font-mono focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20 resize-y"
+                    rows={5} />
+                </div>
+
+                {currentDraft.imagePrompt && (
+                  <div className="rounded-lg border border-[var(--border)] bg-[var(--muted)] p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-[10px] font-semibold text-[var(--muted-foreground)] uppercase tracking-wider flex items-center gap-1">
+                        <Image size={12} /> Campaign Image
+                      </label>
+                      <button onClick={generateImage} disabled={generatingImage}
+                        className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-[var(--primary)] text-white text-xs font-medium hover:opacity-90 disabled:opacity-40 transition-all">
+                        {generatingImage ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+                        {generatingImage ? 'Generating...' : 'Generate Image'}
+                      </button>
+                    </div>
+                    {imageResult?.image ? (
+                      <div className="rounded-lg overflow-hidden border border-[var(--border)]">
+                        <img src={imageResult.image} alt="Campaign creative" className="w-full max-h-64 object-cover" />
+                      </div>
+                    ) : imageResult?.prompt ? (
+                      <div className="text-xs text-[var(--muted-foreground)]">
+                        <p className="font-medium mb-1">Image prompt:</p>
+                        <p className="italic">{imageResult.prompt}</p>
+                        {!imageResult.image && imageResult.message && (
+                          <p className="mt-2 text-amber-600">{imageResult.message}</p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-xs text-[var(--muted-foreground)] italic">
+                        Click "Generate Image" to create an AI-powered campaign creative
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between pt-2 border-t border-[var(--border)]">
+                  <button onClick={regenerate}
+                    className="h-9 px-4 rounded-lg border border-[var(--border)] text-sm text-[var(--foreground)] hover:bg-[var(--accent)] transition-colors flex items-center gap-1.5">
+                    <RefreshCw size={14} /> New Prompt
+                  </button>
+                  <div className="flex items-center gap-2">
+                    <button onClick={saveDraft} disabled={saving}
+                      className="h-9 px-4 rounded-lg border border-[var(--border)] text-sm text-[var(--foreground)] hover:bg-[var(--accent)] transition-colors flex items-center gap-1.5 disabled:opacity-40">
+                      {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                      {saving ? 'Saving...' : 'Save Draft'}
+                    </button>
+                    <button onClick={launchCampaign} disabled={launching}
+                      className="h-9 px-5 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90 transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-40">
+                      {launching ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
+                      {launching ? 'Launching...' : 'Launch Campaign'}
+                    </button>
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {activeTab === 'drafts' && (
+        <div className="space-y-3">
+          <p className="text-sm text-[var(--muted-foreground)]">Your saved AI campaigns. Click to edit or launch.</p>
+          {savedDrafts.length === 0 ? (
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-8 text-center">
+              <Save size={32} className="text-[var(--muted-foreground)] mx-auto mb-3 opacity-30" />
+              <p className="text-[var(--muted-foreground)]">No saved drafts yet.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {savedDrafts.map(draft => (
+                <div key={draft.id} onClick={() => editDraft(draft)}
+                  className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-4 hover:shadow-[var(--shadow-md)] hover:-translate-y-0.5 transition-all duration-200 cursor-pointer">
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className="text-sm font-semibold text-[var(--foreground)]">{draft.name}</h3>
+                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full shrink-0 ${
+                      draft.status === 'active' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                      draft.status === 'draft' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                      'bg-gray-100 text-gray-600'
+                    }`}>{draft.status}</span>
+                  </div>
+                  <p className="text-xs text-[var(--muted-foreground)] line-clamp-2 mb-3">{draft.description?.slice(0, 120)}</p>
+                  <div className="flex items-center gap-3 text-[10px] text-[var(--muted-foreground)]">
+                    <span className="flex items-center gap-1"><Target size={11} /> {draft.targeting?.segments?.join(', ') || 'All'}</span>
+                    <span className="flex items-center gap-1"><MessageSquare size={11} /> {draft.channels?.map((c: any) => c.type).join('/') || '—'}</span>
+                    <span className="flex items-center gap-1"><DollarSign size={11} /> ₹{draft.totalBudget?.toLocaleString() || '0'}</span>
+                  </div>
+                  {draft.creatives?.[0]?.imageUrl && (
+                    <div className="mt-2 rounded-md overflow-hidden h-20">
+                      <img src={draft.creatives[0].imageUrl} alt="" className="w-full h-full object-cover" />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

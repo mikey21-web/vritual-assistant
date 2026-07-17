@@ -96,6 +96,7 @@ enum LeadSource {
   TRADEINDIA
   MANUAL
   REFERRAL
+  AI
 }
 
 enum LeadStatus {
@@ -2815,6 +2816,31 @@ model ModulePermission {
   @@unique([userId, module])
   @@index([tenantId])
   @@map("module_permissions")
+}
+
+/// A pending invitation to join the workspace. Unlike the old admin-sets-
+/// the-password flow (POST /users), the invitee sets their own password via
+/// a tokenized link, and their module permissions are captured here at
+/// invite time so they're applied the moment the account is actually created.
+model TeamInvite {
+  id            String    @id @default(uuid())
+  tenantId      String    @map("tenant_id")
+  name          String
+  email         String
+  role          String    @default("SALES_AGENT")
+  department    String?
+  moduleGrants  Json      @default("{}")
+  token         String    @unique
+  status        String    @default("PENDING") // PENDING | ACCEPTED | REVOKED | EXPIRED
+  invitedById   String?
+  expiresAt     DateTime
+  acceptedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([tenantId, status])
+  @@index([email])
+  @@map("team_invites")
 }
 
 // === PUBLIC BUSINESS PROFILE (microsite) ===
