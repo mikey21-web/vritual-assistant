@@ -551,7 +551,10 @@ export default function FormsPage() {
 
     setApplyingTemplate(true);
     try {
-      await addFormFields(formData.id, template.fields, template.steps);
+      await Promise.all([
+        addFormFields(formData.id, template.fields, template.steps),
+        updateForm(formData.id, { formType: templateType }),
+      ]);
       const updated = await fetchForm(formData.id);
       setFormData(updated);
       const sorted = [...(updated.steps || [])].sort((a: FormStep, b: FormStep) => a.order - b.order);
@@ -578,7 +581,6 @@ export default function FormsPage() {
       setPendingTemplate(newType);
       setShowTemplateConfirm(true);
     } else {
-      setPendingTemplate(newType);
       doApplyTemplate(newType);
     }
   }, [formData, handleSettingsChange]);
