@@ -56,6 +56,23 @@ export class FormsService {
     return this.prisma.leadFormField.create({ data: { ...data, formId } });
   }
 
+  async addFieldsBulk(formId: string, fields: any[], steps?: any[]) {
+    await this.findOne(formId);
+    const result = await this.prisma.$transaction(async (tx) => {
+      await tx.leadFormField.deleteMany({ where: { formId } });
+      const created: any[] = [];
+      for (const f of fields) {
+        const field = await tx.leadFormField.create({ data: { ...f, formId } });
+        created.push(field);
+      }
+      if (steps) {
+        await tx.leadForm.update({ where: { id: formId }, data: { steps } });
+      }
+      return created;
+    });
+    return result;
+  }
+
   async updateField(formId: string, fieldId: string, data: any) {
     return this.prisma.leadFormField.update({ where: { id: fieldId }, data });
   }

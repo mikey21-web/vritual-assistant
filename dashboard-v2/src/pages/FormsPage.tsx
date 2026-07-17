@@ -5,6 +5,7 @@ import {
   createForm,
   updateForm,
   addFormField,
+  addFormFields,
   updateFormField,
   deleteFormField,
 } from '../lib/data';
@@ -20,6 +21,8 @@ import {
   X,
   Check,
   BarChart3,
+  Sparkles,
+  AlertTriangle,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { FieldTypeIcon, FIELD_TYPE_OPTIONS, getFieldTypeLabel } from '../components/forms/FieldTypeIcon';
@@ -40,6 +43,142 @@ const FORM_TYPES = [
   { value: 'broker-registration', label: 'Broker Registration' },
   { value: 'referral', label: 'Referral' },
 ];
+
+interface TemplateField {
+  label: string;
+  fieldKey: string;
+  type: string;
+  required: boolean;
+  width: 'full' | 'half' | 'third';
+  placeholder?: string;
+  options?: string[];
+  stepId?: string;
+}
+
+interface TemplateDef {
+  steps: { id: string; title: string; description: string; order: number }[];
+  fields: TemplateField[];
+}
+
+const FORM_TEMPLATES: Record<string, TemplateDef> = {
+  'buyer-inquiry': {
+    steps: [
+      { id: 'step_contact', title: 'Contact Info', description: 'How can we reach you?', order: 0 },
+      { id: 'step_preferences', title: 'Preferences', description: 'Tell us what you are looking for', order: 1 },
+      { id: 'step_details', title: 'Additional Details', description: 'Any other information', order: 2 },
+    ],
+    fields: [
+      { label: 'Full Name', fieldKey: 'full_name', type: 'text', required: true, width: 'full', stepId: 'step_contact' },
+      { label: 'Email', fieldKey: 'email', type: 'email', required: true, width: 'half', stepId: 'step_contact' },
+      { label: 'Phone', fieldKey: 'phone', type: 'phone', required: true, width: 'half', stepId: 'step_contact' },
+      { label: 'Property Type', fieldKey: 'property_type', type: 'select', required: true, width: 'full', stepId: 'step_preferences', options: ['Apartment', 'Villa', 'Plot', 'Commercial', 'Penthouse'] },
+      { label: 'Budget Range', fieldKey: 'budget', type: 'select', required: true, width: 'half', stepId: 'step_preferences', options: ['Below ₹30L', '₹30L - ₹50L', '₹50L - ₹80L', '₹80L - ₹1.2Cr', '₹1.2Cr - ₹2Cr', 'Above ₹2Cr'] },
+      { label: 'BHK Preference', fieldKey: 'bhk', type: 'select', required: true, width: 'half', stepId: 'step_preferences', options: ['1 BHK', '2 BHK', '3 BHK', '3+ BHK'] },
+      { label: 'Preferred Location', fieldKey: 'location', type: 'text', required: true, width: 'full', stepId: 'step_preferences', placeholder: 'e.g. Whitefield, Bangalore' },
+      { label: 'Timeline', fieldKey: 'timeline', type: 'select', required: false, width: 'half', stepId: 'step_preferences', options: ['Immediate', 'Within 1 month', 'Within 3 months', 'Within 6 months', 'Just exploring'] },
+      { label: 'Additional Message', fieldKey: 'message', type: 'textarea', required: false, width: 'full', stepId: 'step_details', placeholder: 'Any specific requirements...' },
+    ],
+  },
+  'seller-intake': {
+    steps: [
+      { id: 'step_contact', title: 'Your Details', description: 'How can we reach you?', order: 0 },
+      { id: 'step_property', title: 'Property Details', description: 'Tell us about your property', order: 1 },
+      { id: 'step_pricing', title: 'Pricing & Timeline', description: 'Your expectations', order: 2 },
+    ],
+    fields: [
+      { label: 'Full Name', fieldKey: 'full_name', type: 'text', required: true, width: 'full', stepId: 'step_contact' },
+      { label: 'Email', fieldKey: 'email', type: 'email', required: true, width: 'half', stepId: 'step_contact' },
+      { label: 'Phone', fieldKey: 'phone', type: 'phone', required: true, width: 'half', stepId: 'step_contact' },
+      { label: 'Property Address', fieldKey: 'property_address', type: 'text', required: true, width: 'full', stepId: 'step_property', placeholder: 'Full property address' },
+      { label: 'Property Type', fieldKey: 'property_type', type: 'select', required: true, width: 'half', stepId: 'step_property', options: ['Apartment', 'Villa', 'Plot', 'Commercial', 'Farmhouse'] },
+      { label: 'Bedrooms', fieldKey: 'bedrooms', type: 'select', required: true, width: 'half', stepId: 'step_property', options: ['1', '2', '3', '4', '5+'] },
+      { label: 'Bathrooms', fieldKey: 'bathrooms', type: 'select', required: true, width: 'half', stepId: 'step_property', options: ['1', '2', '3', '4+'] },
+      { label: 'Built-up Area (sq ft)', fieldKey: 'sq_ft', type: 'number', required: false, width: 'half', stepId: 'step_property', placeholder: 'e.g. 1500' },
+      { label: 'Expected Price', fieldKey: 'expected_price', type: 'select', required: true, width: 'full', stepId: 'step_pricing', options: ['Below ₹20L', '₹20L - ₹50L', '₹50L - ₹1Cr', '₹1Cr - ₹2Cr', '₹2Cr - ₹5Cr', 'Above ₹5Cr'] },
+      { label: 'Possession Timeline', fieldKey: 'possession', type: 'select', required: false, width: 'half', stepId: 'step_pricing', options: ['Ready to move', 'Within 3 months', 'Within 6 months', 'Within 1 year', 'Flexible'] },
+      { label: 'Additional Notes', fieldKey: 'notes', type: 'textarea', required: false, width: 'full', stepId: 'step_pricing', placeholder: 'Any other details about your property...' },
+    ],
+  },
+  'site-visit': {
+    steps: [
+      { id: 'step_contact', title: 'Contact Info', description: 'Your details', order: 0 },
+      { id: 'step_visit', title: 'Visit Details', description: 'Schedule your visit', order: 1 },
+    ],
+    fields: [
+      { label: 'Full Name', fieldKey: 'full_name', type: 'text', required: true, width: 'full', stepId: 'step_contact' },
+      { label: 'Email', fieldKey: 'email', type: 'email', required: true, width: 'half', stepId: 'step_contact' },
+      { label: 'Phone', fieldKey: 'phone', type: 'phone', required: true, width: 'half', stepId: 'step_contact' },
+      { label: 'Preferred Date', fieldKey: 'preferred_date', type: 'date', required: true, width: 'half', stepId: 'step_visit' },
+      { label: 'Preferred Time', fieldKey: 'preferred_time', type: 'select', required: true, width: 'half', stepId: 'step_visit', options: ['Morning (9AM-12PM)', 'Afternoon (12PM-3PM)', 'Evening (3PM-6PM)'] },
+      { label: 'Property Interested In', fieldKey: 'property_interest', type: 'text', required: false, width: 'full', stepId: 'step_visit', placeholder: 'Property name or address' },
+      { label: 'Message', fieldKey: 'message', type: 'textarea', required: false, width: 'full', stepId: 'step_visit', placeholder: 'Anything specific you want to see or ask...' },
+    ],
+  },
+  'open-house': {
+    steps: [
+      { id: 'step_contact', title: 'Your Details', description: 'Who is visiting?', order: 0 },
+      { id: 'step_visit', title: 'Visit Info', description: 'When and how many?', order: 1 },
+    ],
+    fields: [
+      { label: 'Full Name', fieldKey: 'full_name', type: 'text', required: true, width: 'full', stepId: 'step_contact' },
+      { label: 'Email', fieldKey: 'email', type: 'email', required: true, width: 'half', stepId: 'step_contact' },
+      { label: 'Phone', fieldKey: 'phone', type: 'phone', required: true, width: 'half', stepId: 'step_contact' },
+      { label: 'Number of Guests', fieldKey: 'guests', type: 'number', required: true, width: 'half', stepId: 'step_visit', placeholder: 'e.g. 2' },
+      { label: 'Preferred Date', fieldKey: 'preferred_date', type: 'date', required: true, width: 'half', stepId: 'step_visit' },
+      { label: 'Questions or Requests', fieldKey: 'questions', type: 'textarea', required: false, width: 'full', stepId: 'step_visit', placeholder: 'Any specific questions about the property...' },
+    ],
+  },
+  'valuation': {
+    steps: [
+      { id: 'step_contact', title: 'Your Details', description: 'Who is requesting the valuation?', order: 0 },
+      { id: 'step_property', title: 'Property Info', description: 'Tell us about the property', order: 1 },
+    ],
+    fields: [
+      { label: 'Full Name', fieldKey: 'full_name', type: 'text', required: true, width: 'full', stepId: 'step_contact' },
+      { label: 'Email', fieldKey: 'email', type: 'email', required: true, width: 'half', stepId: 'step_contact' },
+      { label: 'Phone', fieldKey: 'phone', type: 'phone', required: true, width: 'half', stepId: 'step_contact' },
+      { label: 'Property Address', fieldKey: 'property_address', type: 'text', required: true, width: 'full', stepId: 'step_property', placeholder: 'Full property address' },
+      { label: 'Property Type', fieldKey: 'property_type', type: 'select', required: true, width: 'half', stepId: 'step_property', options: ['Apartment', 'Villa', 'Plot', 'Commercial', 'Farmhouse'] },
+      { label: 'Built-up Area (sq ft)', fieldKey: 'sq_ft', type: 'number', required: false, width: 'half', stepId: 'step_property', placeholder: 'e.g. 2000' },
+      { label: 'Bedrooms', fieldKey: 'bedrooms', type: 'select', required: true, width: 'half', stepId: 'step_property', options: ['1', '2', '3', '4', '5+'] },
+      { label: 'Bathrooms', fieldKey: 'bathrooms', type: 'select', required: true, width: 'half', stepId: 'step_property', options: ['1', '2', '3', '4+'] },
+      { label: 'Property Condition', fieldKey: 'condition', type: 'select', required: true, width: 'full', stepId: 'step_property', options: ['New / Never Occupied', 'Excellent', 'Good', 'Needs Renovation'] },
+      { label: 'Expected Valuation', fieldKey: 'expected_value', type: 'select', required: true, width: 'full', stepId: 'step_property', options: ['Below ₹20L', '₹20L - ₹50L', '₹50L - ₹1Cr', '₹1Cr - ₹2Cr', '₹2Cr - ₹5Cr', 'Above ₹5Cr'] },
+    ],
+  },
+  'broker-registration': {
+    steps: [
+      { id: 'step_contact', title: 'Personal Info', description: 'Your details', order: 0 },
+      { id: 'step_professional', title: 'Professional Details', description: 'Your brokerage info', order: 1 },
+    ],
+    fields: [
+      { label: 'Full Name', fieldKey: 'full_name', type: 'text', required: true, width: 'full', stepId: 'step_contact' },
+      { label: 'Email', fieldKey: 'email', type: 'email', required: true, width: 'half', stepId: 'step_contact' },
+      { label: 'Phone', fieldKey: 'phone', type: 'phone', required: true, width: 'half', stepId: 'step_contact' },
+      { label: 'Agency / Company Name', fieldKey: 'company', type: 'text', required: false, width: 'full', stepId: 'step_professional', placeholder: 'Your agency or company name' },
+      { label: 'Years of Experience', fieldKey: 'experience', type: 'select', required: true, width: 'half', stepId: 'step_professional', options: ['Less than 1 year', '1-3 years', '3-5 years', '5-10 years', '10+ years'] },
+      { label: 'License / RERA Number', fieldKey: 'license_number', type: 'text', required: false, width: 'half', stepId: 'step_professional', placeholder: 'RERA or license number' },
+      { label: 'Specialties', fieldKey: 'specialties', type: 'multi_select', required: false, width: 'full', stepId: 'step_professional', options: ['Residential Sales', 'Commercial Sales', 'Luxury Properties', 'Property Management', 'Investment Advisory', 'Land & Plots'] },
+      { label: 'How did you hear about us?', fieldKey: 'referral_source', type: 'select', required: false, width: 'full', stepId: 'step_professional', options: ['Google', 'Social Media', 'Referral', 'Event', 'Walk-in', 'Other'] },
+    ],
+  },
+  'referral': {
+    steps: [
+      { id: 'step_your', title: 'Your Details', description: 'Who is referring?', order: 0 },
+      { id: 'step_friend', title: 'Friend\'s Details', description: 'Who are you referring?', order: 1 },
+    ],
+    fields: [
+      { label: 'Your Name', fieldKey: 'your_name', type: 'text', required: true, width: 'full', stepId: 'step_your' },
+      { label: 'Your Email', fieldKey: 'your_email', type: 'email', required: true, width: 'half', stepId: 'step_your' },
+      { label: 'Your Phone', fieldKey: 'your_phone', type: 'phone', required: true, width: 'half', stepId: 'step_your' },
+      { label: 'Friend\'s Name', fieldKey: 'friend_name', type: 'text', required: true, width: 'full', stepId: 'step_friend' },
+      { label: 'Friend\'s Email', fieldKey: 'friend_email', type: 'email', required: false, width: 'half', stepId: 'step_friend' },
+      { label: 'Friend\'s Phone', fieldKey: 'friend_phone', type: 'phone', required: true, width: 'half', stepId: 'step_friend' },
+      { label: 'Relationship', fieldKey: 'relationship', type: 'select', required: false, width: 'full', stepId: 'step_friend', options: ['Family', 'Friend', 'Colleague', 'Neighbor', 'Client', 'Other'] },
+      { label: 'Message', fieldKey: 'message', type: 'textarea', required: false, width: 'full', stepId: 'step_friend', placeholder: 'Any notes about this referral...' },
+    ],
+  },
+};
 
 type Tab = 'fields' | 'preview' | 'embed' | 'settings' | 'submissions';
 
@@ -65,6 +204,11 @@ export default function FormsPage() {
   const [expandedFieldId, setExpandedFieldId] = useState<string | null>(null);
   const [currentStepId, setCurrentStepId] = useState<string | null>(null);
   const [showFieldPicker, setShowFieldPicker] = useState(false);
+
+  // ─── Template application ─────────────────────────────────
+  const [showTemplateConfirm, setShowTemplateConfirm] = useState(false);
+  const [pendingTemplate, setPendingTemplate] = useState<string | null>(null);
+  const [applyingTemplate, setApplyingTemplate] = useState(false);
 
   // ─── Auto-save debounce ───────────────────────────────────
   const autoSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -399,12 +543,45 @@ export default function FormsPage() {
     [debouncedUpdateForm, formData?.settings]
   );
 
-  // Cleanup auto-save on unmount
-  useEffect(() => {
-    return () => {
-      if (autoSaveRef.current) clearTimeout(autoSaveRef.current);
-    };
-  }, []);
+  // ─── Apply template ────────────────────────────────────────
+  const doApplyTemplate = useCallback(async (templateType: string) => {
+    if (!formData?.id) return;
+    const template = FORM_TEMPLATES[templateType];
+    if (!template) return;
+
+    setApplyingTemplate(true);
+    try {
+      await addFormFields(formData.id, template.fields, template.steps);
+      const updated = await fetchForm(formData.id);
+      setFormData(updated);
+      const sorted = [...(updated.steps || [])].sort((a: FormStep, b: FormStep) => a.order - b.order);
+      if (sorted.length > 0) setCurrentStepId(sorted[0].id);
+      setShowTemplateConfirm(false);
+      setPendingTemplate(null);
+      toast.success(`Applied "${FORM_TYPES.find(t => t.value === templateType)?.label}" template`);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to apply template');
+    } finally {
+      setApplyingTemplate(false);
+    }
+  }, [formData?.id]);
+
+  const handleTemplateSelect = useCallback((newType: string) => {
+    if (!formData) return;
+    const template = FORM_TEMPLATES[newType];
+    if (!template || newType === 'custom') {
+      handleSettingsChange('formType', newType);
+      return;
+    }
+    const hasFields = (formData.fields || []).length > 0;
+    if (hasFields) {
+      setPendingTemplate(newType);
+      setShowTemplateConfirm(true);
+    } else {
+      setPendingTemplate(newType);
+      doApplyTemplate(newType);
+    }
+  }, [formData, handleSettingsChange]);
 
   // ─── Render: Loading state ────────────────────────────────
   if (loadingForms) {
@@ -643,17 +820,32 @@ export default function FormsPage() {
             {/* Form Type */}
             <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
               <h4 className="text-sm font-semibold text-[var(--foreground)] mb-3">Form Type</h4>
-              <select
-                value={formData.formType || 'custom'}
-                onChange={(e) => handleSettingsChange('formType', e.target.value)}
-                className="w-full h-10 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
-              >
-                {FORM_TYPES.map((ft) => (
-                  <option key={ft.value} value={ft.value}>
-                    {ft.label}
-                  </option>
-                ))}
-              </select>
+              <div className="flex gap-2">
+                <select
+                  value={formData.formType || 'custom'}
+                  onChange={(e) => handleTemplateSelect(e.target.value)}
+                  className="flex-1 h-10 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
+                >
+                  {FORM_TYPES.map((ft) => (
+                    <option key={ft.value} value={ft.value}>
+                      {ft.label}
+                    </option>
+                  ))}
+                </select>
+                {formData.formType && formData.formType !== 'custom' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPendingTemplate(formData.formType);
+                      setShowTemplateConfirm(true);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90 transition-opacity shrink-0"
+                  >
+                    <Sparkles size={14} />
+                    Apply Fields
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Post-Submission Settings */}
@@ -952,6 +1144,54 @@ export default function FormsPage() {
           ) : null}
         </div>
       </div>
+
+      {/* Template confirmation dialog */}
+      {showTemplateConfirm && pendingTemplate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 animate-fade-in">
+          <div className="bg-[var(--card)] rounded-xl border border-[var(--border)] shadow-[var(--shadow-lg)] p-6 max-w-md w-full mx-4 animate-scale-in">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+                <AlertTriangle size={20} className="text-amber-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-base font-bold text-[var(--foreground)]">Apply Template?</h3>
+                <p className="text-sm text-[var(--muted-foreground)] mt-1">
+                  This will replace all existing fields and steps with the{' '}
+                  <strong>{FORM_TYPES.find(t => t.value === pendingTemplate)?.label}</strong> template fields.
+                  {formData?.fields?.length > 0 && (
+                    <> You have {formData.fields.length} existing field{formData.fields.length !== 1 ? 's' : ''} that will be removed.</>
+                  )}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 mt-6">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowTemplateConfirm(false);
+                  setPendingTemplate(null);
+                }}
+                className="px-4 py-2 rounded-lg border border-[var(--border)] text-sm text-[var(--foreground)] hover:bg-[var(--accent)] transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => doApplyTemplate(pendingTemplate!)}
+                disabled={applyingTemplate}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
+              >
+                {applyingTemplate ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <Sparkles size={14} />
+                )}
+                {applyingTemplate ? 'Applying...' : 'Apply Template'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

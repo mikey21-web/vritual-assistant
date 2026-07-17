@@ -45,6 +45,12 @@ export class FormsController {
   @ApiBearerAuth()
   addField(@Param('id') id: string, @Body() d: CreateFormFieldDto) { return this.service.addField(id, d); }
 
+  @Post(':id/fields/bulk')
+  @UseGuards(JwtAuthGuard, RolesGuard) @Roles('OWNER', 'ADMIN', 'MANAGER')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Bulk create fields (replaces all existing fields)' })
+  addFieldsBulk(@Param('id') id: string, @Body() dto: { fields: CreateFormFieldDto[]; steps?: any[] }) { return this.service.addFieldsBulk(id, dto.fields, dto.steps); }
+
   @Patch(':id/fields/:fieldId')
   @UseGuards(JwtAuthGuard, RolesGuard) @Roles('OWNER', 'ADMIN', 'MANAGER')
   @ApiBearerAuth()

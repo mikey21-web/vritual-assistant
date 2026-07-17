@@ -101,6 +101,7 @@ export async function fetchFormPublic(id: string) { return api(`/forms/${id}/pub
 export async function createForm(data: any) { return api('/forms', { method: 'POST', body: JSON.stringify(data) }); }
 export async function updateForm(id: string, data: any) { return api(`/forms/${id}`, { method: 'PATCH', body: JSON.stringify(data) }); }
 export async function addFormField(formId: string, data: any) { return api(`/forms/${formId}/fields`, { method: 'POST', body: JSON.stringify(data) }); }
+export async function addFormFields(formId: string, fields: any[], steps?: any[]) { return api(`/forms/${formId}/fields/bulk`, { method: 'POST', body: JSON.stringify({ fields, steps }) }); }
 export async function updateFormField(formId: string, fieldId: string, data: any) { return api(`/forms/${formId}/fields/${fieldId}`, { method: 'PATCH', body: JSON.stringify(data) }); }
 export async function deleteFormField(formId: string, fieldId: string) { return api(`/forms/${formId}/fields/${fieldId}`, { method: 'DELETE' }); }
 export async function submitForm(formId: string, data: any) { return api(`/forms/${formId}/submit`, { method: 'POST', body: JSON.stringify(data) }); }
