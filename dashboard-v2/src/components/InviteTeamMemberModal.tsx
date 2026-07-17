@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X, ChevronDown } from "lucide-react";
 import toast from "react-hot-toast";
 import { Button } from "./ui/button";
@@ -52,7 +53,7 @@ export default function InviteTeamMemberModal({ onClose, onInvited }: { onClose:
     }
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
       <div className="w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-xl bg-[var(--card)] shadow-2xl p-6 space-y-5" onClick={e => e.stopPropagation()}>
         <div className="flex items-start justify-between">
@@ -120,6 +121,7 @@ export default function InviteTeamMemberModal({ onClose, onInvited }: { onClose:
           <Button onClick={send} disabled={sending}>{sending ? 'Sending...' : 'Send invite'}</Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
