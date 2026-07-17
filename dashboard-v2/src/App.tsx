@@ -73,6 +73,7 @@ const PageComponents: Record<string, React.LazyExoticComponent<React.ComponentTy
   EventCalendar: lazy(() => import("./pages/CalendarPage")),
   CreateEvent: lazy(() => import("./pages/CreateEventPage")),
   Accounting: lazy(() => import("./pages/AccountingPage")),
+  MyExpenses: lazy(() => import("./pages/MyExpensesPage")),
   Invoices: lazy(() => import("./pages/InvoicesPage")),
   Quotations: lazy(() => import("./pages/QuotationsPage")),
   Contracts: lazy(() => import("./pages/ContractsPage")),
@@ -87,6 +88,7 @@ const PageComponents: Record<string, React.LazyExoticComponent<React.ComponentTy
   Salaries: lazy(() => import("./pages/SalariesPage")),
   Timesheet: lazy(() => import("./pages/TimesheetPage")),
   PublicProfile: lazy(() => import("./pages/PublicProfilePage")),
+  BuilderDesk: lazy(() => import("./pages/BuilderDeskPage")),
   Properties: lazy(() => import("./pages/PropertiesPage")),
   Shipments: lazy(() => import("./pages/ShipmentsPage")),
   ChannelPartners: lazy(() => import("./pages/ChannelPartnersPage")),
@@ -118,7 +120,7 @@ function getPageKey(path: string): string {
   if (/^\/forms\/[^/]+\/submissions$/.test(path)) return "FormSubmissions";
   if (path.startsWith("/create-event")) return "CreateEvent";
   const map: Record<string, string> = {
-    "/": "Overview", "/leads": "Leads", "/pipeline": "Pipeline", "/contacts": "Contacts",
+    "/": "Overview", "/builder-desk": "BuilderDesk", "/leads": "Leads", "/pipeline": "Pipeline", "/contacts": "Contacts",
     "/campaigns": "Campaigns", "/forms": "Forms", "/qr-codes": "QRCodes",
     "/conversations": "Messages", "/messages": "Messages",
     "/templates": "Templates", "/media": "Media",
@@ -135,7 +137,7 @@ function getPageKey(path: string): string {
     "/copilot": "Copilot", "/mikey": "Mikey",    "/studio": "Studio", "/reports": "Reports",
     "/events": "Events", "/calendar": "EventCalendar",
     "/accounting": "Accounting", "/invoices": "Invoices", "/quotations": "Quotations",
-    "/contracts": "Contracts", "/finance-reports": "FinanceReports",
+    "/contracts": "Contracts", "/finance-reports": "FinanceReports", "/my-expenses": "MyExpenses",
     "/partners": "Partners", "/vendor-bookings": "VendorBookings", "/purchase-orders": "PurchaseOrders",
     "/inventory": "InventoryItems", "/stock-movements": "StockMovements", "/locations": "Locations",
     "/leave-log": "LeaveLog", "/salaries": "Salaries", "/timesheet": "Timesheet",

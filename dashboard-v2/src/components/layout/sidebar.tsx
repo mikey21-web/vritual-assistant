@@ -13,7 +13,7 @@ import { useBranding } from "../../lib/useBranding";
 import { isFeatureEnabled, getLabel, getBusinessName, getNicheLogo, onConfigChange } from "../../lib/niche-config";
 
 const featureMap: Record<string, string> = {
-  "/": "overview", "/leads": "leads", "/pipeline": "pipeline", "/contacts": "contacts",
+  "/": "overview", "/builder-desk": "overview", "/leads": "leads", "/pipeline": "pipeline", "/contacts": "contacts",
   "/campaigns": "campaigns", "/forms": "forms", "/qr-codes": "qrCodes",
   "/conversations": "messages", "/templates": "templates", "/media": "media",
   "/scoring": "scoring", "/rules": "routing",
@@ -23,7 +23,7 @@ const featureMap: Record<string, string> = {
   "/events": "events", "/calendar": "events", "/create-event": "events",
   "/event-detail": "events",
   "/accounting": "finance", "/invoices": "finance", "/quotations": "finance",
-  "/contracts": "finance", "/finance-reports": "finance",
+  "/contracts": "finance", "/finance-reports": "finance", "/my-expenses": "finance",
   "/partners": "procurement", "/vendor-bookings": "procurement", "/purchase-orders": "procurement",
   "/inventory": "inventory", "/stock-movements": "inventory", "/locations": "inventory",
   "/team": "teamHr", "/leave-log": "teamHr", "/salaries": "teamHr", "/timesheet": "teamHr",
@@ -44,7 +44,10 @@ const labelMap: Record<string, "contact" | "conversion"> = {
 const rawNavGroups = [
   {
     label: "Overview",
-    items: [{ label: "Dashboard", icon: LayoutDashboard, path: "/" }],
+    items: [
+      { label: "Dashboard", icon: LayoutDashboard, path: "/" },
+      { label: "Builder Desk", icon: Building2, path: "/builder-desk" },
+    ],
   },
   {
     label: "Leads",
@@ -119,11 +122,12 @@ const rawNavGroups = [
   {
     label: "Finance",
     items: [
-      { label: "Accounting", icon: BarChart3, path: "/accounting" },
+      { label: "Financial Overview", icon: BarChart3, path: "/accounting" },
+      { label: "My Expenses", icon: ClipboardList, path: "/my-expenses" },
+      { label: "Quotes & Estimates", icon: FileText, path: "/quotations" },
+      { label: "Sale Agreements", icon: FileText, path: "/contracts" },
       { label: "Invoices", icon: FileText, path: "/invoices" },
-      { label: "Quotations", icon: FileText, path: "/quotations" },
-      { label: "Contracts", icon: FileText, path: "/contracts" },
-      { label: "Reports", icon: BarChart3, path: "/finance-reports" },
+      { label: "Finance Reports", icon: BarChart3, path: "/finance-reports" },
     ],
   },
   {

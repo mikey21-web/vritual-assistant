@@ -19,6 +19,7 @@ describe('AnalyticsService', () => {
           if (where.status === 'LOST') return Promise.resolve(20);
           return Promise.resolve(0);
         }),
+        findMany: jest.fn().mockResolvedValue([]),
         groupBy: jest.fn().mockResolvedValue([
           { source: 'WEBSITE', _count: 80 },
           { source: 'REFERRAL', _count: 50 },
@@ -69,6 +70,27 @@ describe('AnalyticsService', () => {
             assignedLeads: [],
           },
         ]),
+      },
+      booking: {
+        count: jest.fn().mockResolvedValue(3),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      paymentSchedule: {
+        count: jest.fn().mockResolvedValue(2),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      project: {
+        count: jest.fn().mockResolvedValue(4),
+      },
+      unit: {
+        groupBy: jest.fn().mockResolvedValue([
+          { status: 'AVAILABLE', _count: 45, _sum: { price: 450000000 } },
+          { status: 'BOOKED', _count: 10, _sum: { price: 100000000 } },
+        ]),
+      },
+      channelPartner: {
+        count: jest.fn().mockResolvedValue(6),
+        findMany: jest.fn().mockResolvedValue([]),
       },
     };
 
@@ -239,6 +261,75 @@ describe('AnalyticsService', () => {
     prisma.user.findMany.mockResolvedValue([]);
     const result = await service.agents();
     expect(result).toEqual([]);
+  });
+
+  // ── builder command ──────────────────────────────────────────────
+
+  it('should return a builder-focused command payload', async () => {
+    prisma.lead.count = jest.fn().mockImplementation((args?: any) => {
+      const where = args?.where || {};
+      if (where.segment === 'HOT') return Promise.resolve(12);
+      if (where.assignedAgentId === null) return Promise.resolve(5);
+      if (where.createdAt) return Promise.resolve(7);
+      return Promise.resolve(38);
+    });
+    prisma.lead.groupBy.mockResolvedValue([
+      { source: 'MAGICBRICKS', _count: 18 },
+      { source: 'NINETY_NINE_ACRES', _count: 11 },
+    ]);
+    prisma.lead.findMany.mockResolvedValue([
+      {
+        id: 'lead-1',
+        source: 'MAGICBRICKS',
+        status: 'NEW',
+        segment: 'HOT',
+        score: 91,
+        budget: '80L-1Cr',
+        interest: '3BHK',
+        createdAt: new Date('2026-07-17T08:00:00Z'),
+        contact: { name: 'Ravi Kumar', phone: '9999999999', whatsapp: null, location: 'Pune' },
+        assignedAgent: null,
+        channelPartner: { name: 'Prime Realty', company: null },
+      },
+    ]);
+    prisma.booking.findMany.mockResolvedValue([
+      {
+        id: 'booking-1',
+        title: 'Site visit',
+        startTime: new Date('2026-07-18T05:00:00Z'),
+        status: 'CONFIRMED',
+        lead: { contact: { name: 'Ravi Kumar', phone: '9999999999' }, assignedAgent: { name: 'Asha' } },
+        unit: { unitNumber: 'A-1201', tower: { name: 'Tower A' }, project: { name: 'Skyline', location: 'Hinjewadi' } },
+      },
+    ]);
+    prisma.paymentSchedule.findMany.mockResolvedValue([
+      {
+        id: 'pay-1',
+        label: 'Booking amount',
+        amount: 200000,
+        currency: 'INR',
+        dueDate: new Date('2026-07-15T00:00:00Z'),
+        status: 'OVERDUE',
+        lead: { contact: { name: 'Ravi Kumar', phone: '9999999999' } },
+        booking: { unit: { project: { name: 'Skyline' } } },
+      },
+    ]);
+    prisma.channelPartner.findMany.mockResolvedValue([
+      { id: 'cp-1', name: 'Prime Realty', company: null, phone: '8888888888', reraId: 'RERA-1', commissionRate: 2, _count: { leads: 9 } },
+    ]);
+
+    const result = await service.builderCommand();
+
+    expect(result.kpis.activeLeads).toBe(38);
+    expect(result.kpis.hotLeads).toBe(12);
+    expect(result.kpis.unassignedLeads).toBe(5);
+    expect(result.sourceBreakdown[0]).toEqual({ source: 'MAGICBRICKS', leads: 18 });
+    expect(result.inventory.AVAILABLE).toEqual({ count: 45, value: 450000000 });
+    expect(result.recentLeads[0].buyer).toBe('Ravi Kumar');
+    expect(result.upcomingVisits[0].project).toBe('Skyline');
+    expect(result.collectionQueue[0].amount).toBe(200000);
+    expect(result.topPartners[0].leadCount).toBe(9);
+    expect(result.nextActions.length).toBeGreaterThan(0);
   });
 
   // ── End-to-End verification ──────────────────────────────────────

@@ -143,6 +143,174 @@ export class AnalyticsService {
     };
   }
 
+  /**
+   * Real-estate owner console: the one screen a small builder checks to see
+   * whether paid leads are being worked, visits are happening, inventory is
+   * moving, collections are at risk, and partners are producing.
+   */
+  async builderCommand() {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    const activeLeadWhere = { status: { notIn: ['CONVERTED', 'LOST', 'SPAM'] as any[] } };
+    const visitWhere = { startTime: { gte: todayStart, lt: todayEnd }, status: { in: ['PENDING', 'CONFIRMED'] as any[] } };
+    const overduePaymentWhere = {
+      OR: [
+        { status: 'OVERDUE' as any },
+        { status: 'PENDING' as any, dueDate: { lt: now } },
+      ],
+    };
+
+    const [
+      activeLeads,
+      hotLeads,
+      unassignedLeads,
+      newLeadsToday,
+      todayVisits,
+      overduePayments,
+      activeProjects,
+      activePartners,
+      sourceGroups,
+      unitGroups,
+      recentLeads,
+      upcomingVisits,
+      collectionQueue,
+      topPartners,
+    ] = await Promise.all([
+      this.prisma.lead.count({ where: activeLeadWhere }),
+      this.prisma.lead.count({ where: { ...activeLeadWhere, segment: 'HOT' } }),
+      this.prisma.lead.count({ where: { ...activeLeadWhere, assignedAgentId: null } }),
+      this.prisma.lead.count({ where: { createdAt: { gte: todayStart } } }),
+      this.prisma.booking.count({ where: visitWhere }),
+      this.prisma.paymentSchedule.count({ where: overduePaymentWhere }),
+      this.prisma.project.count({ where: { deletedAt: null } }),
+      this.prisma.channelPartner.count({ where: { status: 'ACTIVE' } }),
+      this.prisma.lead.groupBy({
+        by: ['source'],
+        where: { createdAt: { gte: thirtyDaysAgo } },
+        _count: true,
+        orderBy: { _count: { source: 'desc' } },
+      }),
+      this.prisma.unit.groupBy({ by: ['status'], _count: true, _sum: { price: true } }),
+      this.prisma.lead.findMany({
+        where: activeLeadWhere,
+        orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
+        take: 8,
+        include: {
+          contact: { select: { name: true, phone: true, whatsapp: true, location: true } },
+          assignedAgent: { select: { name: true } },
+          channelPartner: { select: { name: true, company: true } },
+        },
+      }),
+      this.prisma.booking.findMany({
+        where: { startTime: { gte: now }, status: { in: ['PENDING', 'CONFIRMED'] } },
+        orderBy: { startTime: 'asc' },
+        take: 6,
+        include: {
+          lead: { include: { contact: { select: { name: true, phone: true } }, assignedAgent: { select: { name: true } } } },
+          unit: { include: { project: { select: { name: true, location: true } }, tower: { select: { name: true } } } },
+        },
+      }),
+      this.prisma.paymentSchedule.findMany({
+        where: overduePaymentWhere,
+        orderBy: { dueDate: 'asc' },
+        take: 6,
+        include: {
+          lead: { include: { contact: { select: { name: true, phone: true } } } },
+          booking: { include: { unit: { include: { project: { select: { name: true } } } } } },
+        },
+      }),
+      this.prisma.channelPartner.findMany({
+        where: { status: 'ACTIVE' },
+        orderBy: { leads: { _count: 'desc' } },
+        take: 5,
+        include: { _count: { select: { leads: true } } },
+      }),
+    ]);
+
+    const inventory = unitGroups.reduce((acc, row) => {
+      acc[row.status] = {
+        count: row._count,
+        value: row._sum.price || 0,
+      };
+      return acc;
+    }, {} as Record<string, { count: number; value: number }>);
+
+    const sourceBreakdown = sourceGroups.map(row => ({
+      source: row.source,
+      leads: row._count,
+    }));
+
+    return {
+      kpis: {
+        activeLeads,
+        hotLeads,
+        unassignedLeads,
+        newLeadsToday,
+        todayVisits,
+        overduePayments,
+        activeProjects,
+        activePartners,
+      },
+      sourceBreakdown,
+      inventory,
+      recentLeads: recentLeads.map(l => ({
+        id: l.id,
+        buyer: l.contact?.name || 'Unknown buyer',
+        phone: l.contact?.whatsapp || l.contact?.phone || null,
+        location: l.contact?.location || null,
+        source: l.source,
+        status: l.status,
+        segment: l.segment,
+        score: l.score,
+        budget: l.budget,
+        interest: l.interest,
+        assignedAgent: l.assignedAgent?.name || 'Unassigned',
+        channelPartner: l.channelPartner?.company || l.channelPartner?.name || null,
+        createdAt: l.createdAt,
+      })),
+      upcomingVisits: upcomingVisits.map(v => ({
+        id: v.id,
+        title: v.title,
+        startTime: v.startTime,
+        status: v.status,
+        buyer: v.lead?.contact?.name || 'Unknown buyer',
+        phone: v.lead?.contact?.phone || null,
+        agent: v.lead?.assignedAgent?.name || 'Unassigned',
+        project: v.unit?.project?.name || null,
+        location: v.unit?.project?.location || null,
+        unit: v.unit ? `${v.unit.tower?.name ? `${v.unit.tower.name}-` : ''}${v.unit.unitNumber}` : null,
+      })),
+      collectionQueue: collectionQueue.map(p => ({
+        id: p.id,
+        buyer: p.lead?.contact?.name || 'Unknown buyer',
+        phone: p.lead?.contact?.phone || null,
+        label: p.label,
+        amount: p.amount,
+        currency: p.currency,
+        dueDate: p.dueDate,
+        status: p.status,
+        project: p.booking?.unit?.project?.name || null,
+      })),
+      topPartners: topPartners.map(p => ({
+        id: p.id,
+        name: p.company || p.name,
+        phone: p.phone,
+        reraId: p.reraId,
+        commissionRate: p.commissionRate,
+        leadCount: p._count.leads,
+      })),
+      nextActions: [
+        unassignedLeads > 0 ? { severity: 'critical', label: `${unassignedLeads} active leads need an owner`, href: '#/leads' } : null,
+        overduePayments > 0 ? { severity: 'warning', label: `${overduePayments} collection milestones are overdue`, href: '#/payment-schedules' } : null,
+        hotLeads > 0 ? { severity: 'info', label: `${hotLeads} hot leads should get WhatsApp/call follow-up today`, href: '#/leads' } : null,
+        todayVisits > 0 ? { severity: 'info', label: `${todayVisits} site visits need pre-visit briefs`, href: '#/booking' } : null,
+      ].filter(Boolean),
+    };
+  }
+
   async dataHealth() {
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000);
     const threeDaysAgo = new Date(Date.now() - 3 * 24 * 3600 * 1000);
