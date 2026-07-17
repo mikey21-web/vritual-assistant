@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
@@ -10,7 +10,7 @@ export class ContactsService {
   constructor(
     private prisma: PrismaService,
     private auditLogs: AuditLogsService,
-    private advanced: AdvancedFeaturesService,
+    @Inject(forwardRef(() => AdvancedFeaturesService)) private advanced: AdvancedFeaturesService,
   ) {}
 
   async findAll(query: any = {}) {

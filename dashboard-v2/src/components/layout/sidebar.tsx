@@ -73,8 +73,7 @@ const rawNavGroups = [
       { label: "Rules", icon: Target, path: "/rules" },
       { label: "AI Campaigns", icon: Sparkles, path: "/ai-campaigns" },
       { label: "AI Agent", icon: Bot, path: "/ai-agent" },
-      { label: "Copilot", icon: MessageCircle, path: "/copilot" },
-      { label: "Mikey", icon: Brain, path: "/mikey" },
+      { label: "Mikey", icon: MessageCircle, path: "/copilot" },
     ],
   },
   {
