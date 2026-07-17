@@ -256,7 +256,7 @@ export interface WebhookEndpoint {
 
 export type NavigationPage = 
   | 'Overview' | 'Leads' | 'Contacts' | 'Campaigns' | 'Forms' | 'QR Codes'
-  | 'Messages' | 'Templates' | 'Media' | 'Nurture' | 'Scoring' | 'Routing'
+  | 'Messages' | 'Templates' | 'Media' | 'Scoring' | 'Routing'
   | 'Tasks' | 'Conversions' | 'Integrations' | 'CRM' | 'Booking' | 'Analytics'
   | 'Team' | 'Audit Logs' | 'Advanced' | 'Settings' | 'Workspace'
   | 'Failures' | 'Health' | 'AICampaigns' | 'AIAgent' | 'Webhooks' | 'SMS';

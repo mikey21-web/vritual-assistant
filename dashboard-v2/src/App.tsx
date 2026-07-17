@@ -36,7 +36,7 @@ const PageComponents: Record<string, React.LazyExoticComponent<React.ComponentTy
   Pipeline: lazy(() => import("./pages/PipelinePage")),
   Templates: lazy(() => import("./pages/TemplatesPage")),
   Media: lazy(() => import("./pages/MediaPage")),
-  Nurture: lazy(() => import("./pages/NurturePage")),
+
   Scoring: lazy(() => import("./pages/ScoringPage")),
   Routing: lazy(() => import("./pages/RoutingPage")),
   Tasks: lazy(() => import("./pages/TasksPage")),
@@ -122,7 +122,7 @@ function getPageKey(path: string): string {
     "/campaigns": "Campaigns", "/forms": "Forms", "/qr-codes": "QRCodes",
     "/conversations": "Messages", "/messages": "Messages",
     "/templates": "Templates", "/media": "Media",
-    "/nurture": "Nurture", "/scoring": "Scoring", "/rules": "Rules",
+    "/scoring": "Scoring", "/rules": "Rules",
     "/tasks": "Tasks", "/conversions": "Conversions",
     "/integrations": "Integrations", "/crm": "CRM", "/booking": "Booking",
     "/analytics": "Analytics", "/team": "Team",

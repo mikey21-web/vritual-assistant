@@ -14,7 +14,7 @@ const PAGE_MAP: Record<string, string> = {
   invoices: '/invoices', quotations: '/quotations', contracts: '/contracts',
   team: '/team', timesheet: '/timesheet', inventory: '/inventory',
   'purchase-orders': '/purchase-orders', 'vendor-bookings': '/vendor-bookings',
-  media: '/media', templates: '/templates', nurture: '/nurture',
+  media: '/media', templates: '/templates',
   scoring: '/scoring', routing: '/routing', webhooks: '/webhooks',
   forms: '/forms', 'sync-logs': '/sync-logs', 'audit-logs': '/audit-logs',
   health: '/health', import: '/import', advanced: '/advanced',

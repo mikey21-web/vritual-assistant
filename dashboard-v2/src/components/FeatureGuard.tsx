@@ -11,7 +11,7 @@ const pageToFeature: Record<string, string> = {
   Messages: "messages",
   Templates: "templates",
   Media: "media",
-  Nurture: "nurture",
+
   Scoring: "scoring",
   Rules: "routing",
   AICampaigns: "aiCampaigns",

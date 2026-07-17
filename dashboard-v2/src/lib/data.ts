@@ -175,11 +175,7 @@ export async function deleteAutomationRule(id: string) { return api(`/rules/${id
 export async function testRuleConditions(conditions: any[], testLead: any) { return api('/rules/test', { method: 'POST', body: JSON.stringify({ conditions, testLead }) }); }
 
 export async function fetchConversions() { return api('/conversions') as Promise<any>; }
-export async function fetchNurtureSequences() { return api('/nurture-sequences') as Promise<any>; }
-export async function createNurtureSequence(data: any) { return api('/nurture-sequences', { method: 'POST', body: JSON.stringify(data) }); }
-export async function addNurtureStep(seqId: string, data: any) { return api(`/nurture-sequences/${seqId}/steps`, { method: 'POST', body: JSON.stringify(data) }); }
-export async function deleteNurtureStep(seqId: string, stepId: string) { return api(`/nurture-sequences/${seqId}/steps/${stepId}`, { method: 'DELETE' }); }
-export async function deleteNurtureSequence(seqId: string) { return api(`/nurture-sequences/${seqId}`, { method: 'DELETE' }); }
+
 
 export async function triggerAgent(leadId: string) { return api('/agent/run-summary', { method: 'POST', body: JSON.stringify({ leadId, action: 'manual_trigger' }) }); }
 

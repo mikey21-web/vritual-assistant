@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   LayoutDashboard, Users, MessageSquare, BarChart3, Settings,
-  Megaphone, FormInput, QrCode, FileText, Route, Target,
+   Megaphone, FormInput, QrCode, FileText, Target,
   ShoppingCart, Link, Calendar, Layers, ChevronLeft, ChevronRight, ChevronDown,
   UserCircle, CheckSquare, Sparkles, Phone,   Bot, MessageCircle, Smartphone, Webhook, Globe, LogOut, Columns3,
   LifeBuoy, BookOpen, Puzzle, Download, Headset, Brain,
@@ -16,7 +16,7 @@ const featureMap: Record<string, string> = {
   "/": "overview", "/leads": "leads", "/pipeline": "pipeline", "/contacts": "contacts",
   "/campaigns": "campaigns", "/forms": "forms", "/qr-codes": "qrCodes",
   "/conversations": "messages", "/templates": "templates", "/media": "media",
-  "/nurture": "nurture", "/scoring": "scoring", "/rules": "routing",
+  "/scoring": "scoring", "/rules": "routing",
   "/ai-campaigns": "aiCampaigns", "/ai-agent": "aiAgent", "/copilot": "copilot",
   "/webhooks": "webhooks", "/sms": "sms", "/widget": "widget", "/calls": "calls", "/sync-logs": "syncLogs",
   "/tasks": "tasks", "/conversions": "conversions",
@@ -68,7 +68,7 @@ const rawNavGroups = [
   {
     label: "Automation",
     items: [
-      { label: "Nurture", icon: Route, path: "/nurture" },
+
       { label: "Scoring", icon: BarChart3, path: "/scoring" },
       { label: "Rules", icon: Target, path: "/rules" },
       { label: "AI Campaigns", icon: Sparkles, path: "/ai-campaigns" },
