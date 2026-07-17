@@ -83,7 +83,7 @@ export default function WebhookPage() {
   const loadCustomWebhooks = async () => {
     setLoadingCustom(true);
     try {
-      const data = await api('/webhooks/custom') as CustomWebhook[];
+      const data = await api('/webhooks/outbound') as CustomWebhook[];
       setCustomWebhooks(Array.isArray(data) ? data : []);
     } catch {
       // fallback handled by mock
@@ -110,7 +110,7 @@ export default function WebhookPage() {
 
   const handleToggleActive = async (wh: CustomWebhook) => {
     try {
-      await api(`/webhooks/custom/${wh.id}`, {
+      await api(`/webhooks/outbound/${wh.id}`, {
         method: 'PATCH',
         body: JSON.stringify({ active: !wh.active }),
       });
@@ -124,7 +124,7 @@ export default function WebhookPage() {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
-      await api(`/webhooks/custom/${deleteTarget.id}`, { method: 'DELETE' });
+      await api(`/webhooks/outbound/${deleteTarget.id}`, { method: 'DELETE' });
       setCustomWebhooks(prev => prev.filter(w => w.id !== deleteTarget.id));
       toast.success('Webhook deleted');
     } catch (e: any) {
@@ -382,14 +382,14 @@ function CustomWebhookModal({
       if (secret.trim()) body.secret = secret.trim();
 
       if (webhook) {
-        const updated = await api(`/webhooks/custom/${webhook.id}`, {
+        const updated = await api(`/webhooks/outbound/${webhook.id}`, {
           method: 'PATCH',
           body: JSON.stringify(body),
         }) as CustomWebhook;
         toast.success('Webhook updated');
         onSaved({ ...webhook, ...updated });
       } else {
-        const created = await api('/webhooks/custom', {
+        const created = await api('/webhooks/outbound', {
           method: 'POST',
           body: JSON.stringify(body),
         }) as CustomWebhook;

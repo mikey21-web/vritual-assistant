@@ -87,8 +87,10 @@ export interface Task {
   dueAt?: string;
   leadId?: string;
   assigneeId?: string;
-  lead?: { contact?: { name?: string } };
+  lead?: { contact?: { name?: string; phone?: string }; dealValue?: number; status?: string; interest?: string };
   assignee?: { id: string; name: string };
+  createdBy?: string;
+  source?: string;
   createdAt: string;
 }
 

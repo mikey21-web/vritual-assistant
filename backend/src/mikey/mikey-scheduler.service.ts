@@ -11,6 +11,7 @@ import { FederatedService } from './federated.service';
 import { BookingLifecycleService } from '../bookings/booking-lifecycle.service';
 import { MorningDigestService } from './morning-digest.service';
 import { SalienceEngineService } from './salience-engine.service';
+import { MikeyService } from './mikey.service';
 import type { SchedulerFinding } from './mikey-scheduler.types';
 
 @Injectable()
@@ -32,6 +33,7 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
     private bookingLifecycle: BookingLifecycleService,
     private morningDigest: MorningDigestService,
     private salienceEngine: SalienceEngineService,
+    private mikey: MikeyService,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -121,6 +123,29 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
         const nicheFindings = await this.nicheScanner.scanAll();
         for (const nf of nicheFindings) {
           findings.push(nf as any);
+        }
+      }
+
+      if (new Date().getMinutes() % 15 === 0) {
+        try {
+          const tenants = await this.prisma.tenant.findMany({ where: { active: true }, select: { id: true } });
+          let taskCount = 0;
+          for (const t of tenants) {
+            taskCount += await this.mikey.generateProactiveTasksForAllLeads(t.id);
+          }
+          if (taskCount > 0) {
+            this.logger.log(`Mikey auto-generated ${taskCount} proactive tasks across ${tenants.length} tenants`);
+            findings.push({
+              type: 'proactive_tasks_generated',
+              severity: 'info',
+              title: `Mikey created ${taskCount} stage-based tasks`,
+              description: `Auto-generated ${taskCount} tasks based on lead stages — team should review and assign.`,
+              count: taskCount,
+              metadata: { tenants: tenants.length },
+            });
+          }
+        } catch (err: any) {
+          this.logger.error(`Proactive task generation failed: ${err.message}`);
         }
       }
 

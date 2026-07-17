@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Delete, Body, HttpCode, Headers, UnauthorizedException, Req, RawBodyRequest, Res, UseGuards, Param, Query, Logger } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Delete, Body, HttpCode, Headers, UnauthorizedException, Req, RawBodyRequest, Res, UseGuards, Param, Query, Logger } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiExcludeEndpoint, ApiBody } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { ConfigService } from '@nestjs/config';
@@ -9,7 +9,7 @@ import { Public } from '../auth/public.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-import { FormWebhookDto, WhatsAppWebhookDto, GenericWebhookDto, TelegramWebhookDto, SocialWebhookDto, VoiceIncomingWebhookDto, VoiceStatusWebhookDto, CreateOutboundWebhookDto } from './dto/webhook.dto';
+import { FormWebhookDto, WhatsAppWebhookDto, GenericWebhookDto, TelegramWebhookDto, SocialWebhookDto, VoiceIncomingWebhookDto, VoiceStatusWebhookDto, CreateOutboundWebhookDto, UpdateOutboundWebhookDto } from './dto/webhook.dto';
 import * as crypto from 'crypto';
 
 @ApiTags('Webhooks')
@@ -240,6 +240,15 @@ export class WebhooksController {
   @ApiOperation({ summary: 'List outbound webhook subscriptions' })
   listOutbound() {
     return this.service.listOutboundWebhooks();
+  }
+
+  @Patch('outbound/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('OWNER', 'ADMIN')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update an outbound webhook subscription (including toggling active)' })
+  updateOutbound(@Param('id') id: string, @Body() d: UpdateOutboundWebhookDto) {
+    return this.service.updateOutboundWebhook(id, d);
   }
 
   @Delete('outbound/:id')

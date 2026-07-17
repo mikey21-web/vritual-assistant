@@ -1030,6 +1030,8 @@ model Task {
   assignee    User?    @relation(fields: [assigneeId], references: [id])
   eventId     String?
   event       Event?   @relation(fields: [eventId], references: [id])
+  createdBy   String   @default("agent")
+  source      String   @default("manual")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

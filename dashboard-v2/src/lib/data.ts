@@ -166,6 +166,8 @@ export async function fetchBookingSettings() { return api('/booking-settings') a
 export async function createBookingSetting(data: any) { return api('/booking-settings', { method: 'POST', body: JSON.stringify(data) }); }
 
 export async function fetchPipelineStages() { return api('/pipeline-stages') as Promise<PipelineStage[]>; }
+export async function fetchPipelineDeals() { return api('/tasks/pipeline-deals') as Promise<{ stages: any[]; deals: Record<string, any[]> }>; }
+export async function fetchLeadTasks(leadId: string) { return api(`/tasks/lead/${leadId}`) as Promise<Task[]>; }
 export async function fetchBlocklist() { return api('/blocklist') as Promise<any[]>; }
 export async function fetchSLARules() { return api('/sla-rules') as Promise<any[]>; }
 export async function fetchRevenue() { return api('/revenue') as Promise<any>; }

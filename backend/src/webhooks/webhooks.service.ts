@@ -616,6 +616,12 @@ export class WebhooksService {
     return this.prisma.outboundWebhook.findMany({ orderBy: { createdAt: 'desc' } });
   }
 
+  async updateOutboundWebhook(id: string, data: { name?: string; url?: string; events?: string[]; secret?: string; active?: boolean }) {
+    const existing = await this.prisma.outboundWebhook.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Webhook not found');
+    return this.prisma.outboundWebhook.update({ where: { id }, data });
+  }
+
   async deleteOutboundWebhook(id: string) {
     await this.prisma.outboundWebhook.delete({ where: { id } });
     return { deleted: true };

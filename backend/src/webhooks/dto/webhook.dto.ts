@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEmail, IsObject, IsArray } from 'class-validator';
+import { IsString, IsOptional, IsEmail, IsObject, IsArray, IsBoolean } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class WebhookPayloadDto {
@@ -84,4 +84,12 @@ export class CreateOutboundWebhookDto {
   @ApiProperty() @IsString() url: string;
   @ApiProperty() @IsArray() events: string[];
   @ApiPropertyOptional() @IsOptional() @IsString() secret?: string;
+}
+
+export class UpdateOutboundWebhookDto {
+  @ApiPropertyOptional() @IsOptional() @IsString() name?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() url?: string;
+  @ApiPropertyOptional() @IsOptional() @IsArray() events?: string[];
+  @ApiPropertyOptional() @IsOptional() @IsString() secret?: string;
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() active?: boolean;
 }
