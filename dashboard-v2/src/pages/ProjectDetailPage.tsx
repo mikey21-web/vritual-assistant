@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
-import { Plus, X, MapPin, TrendingUp, Building2, ArrowLeft, Upload } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Plus, X, MapPin, TrendingUp, Building2, ArrowLeft, Upload, Image as ImageIcon, FileText } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
-import { api } from "../lib/api";
+import { api, apiUpload } from "../lib/api";
 import toast from "react-hot-toast";
 
 function getProjectId(): string {
@@ -54,6 +54,9 @@ export default function ProjectDetailPage() {
   const [bulkFileName, setBulkFileName] = useState("");
   const [bulkResult, setBulkResult] = useState<{ created: number; skippedCount: number; skipped: Array<{ unitNumber: string; reason: string }> } | null>(null);
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const brochureInputRef = useRef<HTMLInputElement>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -69,6 +72,48 @@ export default function ProjectDetailPage() {
   }, [projectId]);
 
   useEffect(() => { if (projectId) refresh(); }, [projectId, refresh]);
+
+  const uploadImages = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setUploadingMedia(true);
+    try {
+      const fd = new FormData();
+      Array.from(files).forEach(f => fd.append("images", f));
+      await apiUpload(`/projects/${projectId}/images`, fd);
+      toast.success("Photos added");
+      refresh();
+    } catch { toast.error("Failed to upload photos"); }
+    finally { setUploadingMedia(false); }
+  };
+
+  const removeImage = async (url: string) => {
+    try {
+      await api(`/projects/${projectId}/images?url=${encodeURIComponent(url)}`, { method: "DELETE" });
+      toast.success("Photo removed");
+      refresh();
+    } catch { toast.error("Failed to remove photo"); }
+  };
+
+  const uploadBrochure = async (file: File | null) => {
+    if (!file) return;
+    setUploadingMedia(true);
+    try {
+      const fd = new FormData();
+      fd.append("brochure", file);
+      await apiUpload(`/projects/${projectId}/brochure`, fd);
+      toast.success("Brochure uploaded");
+      refresh();
+    } catch { toast.error("Failed to upload brochure"); }
+    finally { setUploadingMedia(false); }
+  };
+
+  const removeBrochure = async () => {
+    try {
+      await api(`/projects/${projectId}/brochure`, { method: "DELETE" });
+      toast.success("Brochure removed");
+      refresh();
+    } catch { toast.error("Failed to remove brochure"); }
+  };
 
   const addTower = async () => {
     try {
@@ -174,6 +219,40 @@ export default function ProjectDetailPage() {
         </div>
       </div>
 
+      {/* Media: photos + brochure */}
+      <div className="rounded-xl bg-[var(--card)] border border-[var(--border)] p-4 space-y-3">
+        <div>
+          <label className="text-sm font-medium block mb-1.5"><ImageIcon className="h-3.5 w-3.5 inline mr-1" /> Photos</label>
+          <div className="flex flex-wrap gap-2 mb-2">
+            {(project.images || []).map((img: any, i: number) => (
+              <div key={i} className="relative group">
+                <img src={img.url} alt="" className="h-20 w-20 rounded object-cover border border-[var(--border)]" />
+                <button type="button" onClick={() => removeImage(img.url)} className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+          <input ref={imageInputRef} type="file" accept="image/*" multiple className="hidden" onChange={e => uploadImages(e.target.files)} />
+          <Button variant="outline" disabled={uploadingMedia} onClick={() => imageInputRef.current?.click()}>
+            <Upload className="h-3.5 w-3.5 mr-1.5" /> {uploadingMedia ? "Uploading..." : "Add photos"}
+          </Button>
+        </div>
+        <div>
+          <label className="text-sm font-medium block mb-1.5"><FileText className="h-3.5 w-3.5 inline mr-1" /> Brochure (PDF)</label>
+          {project.brochureUrl && (
+            <div className="flex items-center gap-2 mb-2 text-sm">
+              <a href={project.brochureUrl} target="_blank" rel="noreferrer" className="text-[var(--primary)] hover:underline">View current brochure</a>
+              <button type="button" onClick={removeBrochure} className="text-red-500 hover:text-red-600"><X className="h-3.5 w-3.5" /></button>
+            </div>
+          )}
+          <input ref={brochureInputRef} type="file" accept="application/pdf" className="hidden" onChange={e => uploadBrochure(e.target.files?.[0] || null)} />
+          <Button variant="outline" disabled={uploadingMedia} onClick={() => brochureInputRef.current?.click()}>
+            <Upload className="h-3.5 w-3.5 mr-1.5" /> {project.brochureUrl ? "Replace brochure" : "Add brochure"}
+          </Button>
+        </div>
+      </div>
+
       {/* Velocity stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="rounded-xl bg-[var(--card)] border border-[var(--border)] p-4">
@@ -253,8 +332,8 @@ export default function ProjectDetailPage() {
 
       {/* Tower form */}
       {showTowerForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4" onClick={() => setShowTowerForm(false)}>
-          <div className="bg-[var(--card)] rounded-none sm:rounded-xl shadow-2xl w-full max-w-sm p-6 space-y-4 min-h-screen sm:min-h-0 overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowTowerForm(false)}>
+          <div className="bg-[var(--card)] rounded-xl shadow-2xl w-full max-w-sm p-6 space-y-4 overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold">Add Tower</h2>
               <button onClick={() => setShowTowerForm(false)}><X className="h-5 w-5" /></button>
@@ -271,8 +350,8 @@ export default function ProjectDetailPage() {
 
       {/* Unit form */}
       {showUnitForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4" onClick={() => setShowUnitForm(false)}>
-          <div className="bg-[var(--card)] rounded-none sm:rounded-xl shadow-2xl w-full max-w-md p-6 space-y-3 min-h-screen sm:min-h-0 overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowUnitForm(false)}>
+          <div className="bg-[var(--card)] rounded-xl shadow-2xl w-full max-w-md p-6 space-y-3 overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold">Add Unit</h2>
               <button onClick={() => setShowUnitForm(false)}><X className="h-5 w-5" /></button>
@@ -300,8 +379,8 @@ export default function ProjectDetailPage() {
 
       {/* Bulk unit import */}
       {showBulkForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4" onClick={closeBulkForm}>
-          <div className="bg-[var(--card)] rounded-none sm:rounded-xl shadow-2xl w-full max-w-lg p-6 space-y-4 min-h-screen sm:min-h-0 overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={closeBulkForm}>
+          <div className="bg-[var(--card)] rounded-xl shadow-2xl w-full max-w-lg p-6 space-y-4 overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold">Bulk Import Units (CSV)</h2>
               <button onClick={closeBulkForm}><X className="h-5 w-5" /></button>
@@ -343,8 +422,8 @@ export default function ProjectDetailPage() {
 
       {/* Unit status editor */}
       {editingUnit && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4" onClick={() => setEditingUnit(null)}>
-          <div className="bg-[var(--card)] rounded-none sm:rounded-xl shadow-2xl w-full max-w-sm p-6 space-y-3 min-h-screen sm:min-h-0 overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setEditingUnit(null)}>
+          <div className="bg-[var(--card)] rounded-xl shadow-2xl w-full max-w-sm p-6 space-y-3 overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold">Unit {editingUnit.unitNumber}</h2>
               <button onClick={() => setEditingUnit(null)}><X className="h-5 w-5" /></button>

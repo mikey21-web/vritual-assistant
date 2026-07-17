@@ -317,7 +317,7 @@ export class CopilotService {
       case 'send_media': {
         const mediaFile = await this.prisma.mediaFile.findUnique({ where: { id: action.args.mediaId } });
         if (!mediaFile) throw new NotFoundException('Media file not found');
-        const url = mediaFile.publicUrl || (await this.service.getDownloadUrl(mediaFile.id)).data?.url || '';
+        const url = mediaFile.publicUrl || '';
         result = await this.conversationsService.create({
           leadId: action.args.leadId,
           channel: action.args.channel || 'WHATSAPP',

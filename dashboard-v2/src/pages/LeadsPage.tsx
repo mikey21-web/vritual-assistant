@@ -604,8 +604,8 @@ export default function LeadsPage() {
       {briefLeadId && <PreVisitBrief leadId={briefLeadId} onClose={() => setBriefLeadId(null)} />}
 
       {showAddLead && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4" onClick={() => setShowAddLead(false)}>
-          <div className="bg-[var(--card)] rounded-none sm:rounded-xl shadow-2xl w-full max-w-md p-6 space-y-3 min-h-screen sm:min-h-0 overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowAddLead(false)}>
+          <div className="bg-[var(--card)] rounded-xl shadow-2xl w-full max-w-md p-6 space-y-3 overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-bold text-[var(--foreground)]">Add Lead</h2>

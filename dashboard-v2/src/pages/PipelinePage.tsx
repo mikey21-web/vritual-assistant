@@ -291,8 +291,8 @@ function ManageStagesPanel({ stages, onClose }: { stages: Stage[]; onClose: () =
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/30 p-0 sm:p-4" onClick={onClose}>
-      <div className="w-full max-w-lg rounded-t-xl sm:rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 max-h-[80vh] overflow-y-auto min-h-screen sm:min-h-0" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/30 p-4" onClick={onClose}>
+      <div className="w-full max-w-lg rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-[var(--foreground)]">Manage Stages</h2>
           <button onClick={onClose} className="text-[var(--muted-foreground)] hover:text-[var(--foreground)] text-lg leading-none">&times;</button>
