@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { CampaignDispatcherService } from '../campaigns/campaign-dispatcher.service';
 import OpenAI from 'openai';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -15,6 +16,7 @@ export class AICampaignsController {
   constructor(
     private config: ConfigService,
     private prisma: PrismaService,
+    private campaignDispatcher: CampaignDispatcherService,
   ) {
     const apiKey = this.config.get<string>('DEEPSEEK_API_KEY');
     const baseURL = this.config.get<string>('DEEPSEEK_BASE_URL') || 'https://api.deepseek.com/v1';
@@ -220,6 +222,21 @@ Rules:
         userId: req.user.sub,
         metadata: { source: 'ai_campaign_manager' },
       },
+    });
+
+    // Dispatch campaign messages to target leads
+    this.campaignDispatcher.dispatchCampaign(id, req.user.sub).then(result => {
+      this.prisma.campaignTimelineEntry.create({
+        data: {
+          campaignId: id,
+          event: 'campaign_dispatched',
+          detail: `Dispatched to ${result.sent} leads (${result.skipped} skipped, ${result.errors} errors)`,
+          userId: req.user.sub,
+          metadata: result,
+        },
+      });
+    }).catch(err => {
+      this.logger.error(`Campaign dispatch failed: ${err.message}`);
     });
 
     return updated;

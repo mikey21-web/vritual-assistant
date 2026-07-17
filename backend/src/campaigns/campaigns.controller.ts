@@ -87,4 +87,16 @@ export class CampaignsController {
   getTimeline(@Param('id') id: string) {
     return this.service.getTimeline(id);
   }
+
+  @Post(':id/dispatch')
+  @Roles('OWNER', 'ADMIN', 'MANAGER')
+  async dispatch(@Param('id') id: string, @Req() req) {
+    return this.service.dispatchCampaign(id, req.user.sub);
+  }
+
+  @Get(':id/dispatch-status')
+  @Roles('OWNER', 'ADMIN', 'MANAGER', 'VIEWER')
+  async dispatchStatus(@Param('id') id: string) {
+    return this.service.getDispatchStatus(id);
+  }
 }

@@ -1,11 +1,16 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
+import { CampaignDispatcherService } from './campaign-dispatcher.service';
 import { CampaignFilterDto } from './dto/campaign.dto';
 
 @Injectable()
 export class CampaignsService {
-  constructor(private prisma: PrismaService, private auditLogs: AuditLogsService) {}
+  constructor(
+    private prisma: PrismaService,
+    private auditLogs: AuditLogsService,
+    private dispatcher: CampaignDispatcherService,
+  ) {}
 
   private async addTimelineEntry(
     campaignId: string,
@@ -151,6 +156,16 @@ export class CampaignsService {
     });
     await this.addTimelineEntry(id, 'campaign_activated', 'Campaign activated', userId);
     await this.auditLogs.log('campaign_activated', 'Campaign', id, userId);
+
+    // Dispatch campaign messages to target leads
+    this.dispatcher.dispatchCampaign(id, userId).then(result => {
+      this.addTimelineEntry(id, 'campaign_dispatched',
+        `Dispatched to ${result.sent} leads (${result.skipped} skipped, ${result.errors} errors)`,
+        userId, result);
+    }).catch(err => {
+      this.addTimelineEntry(id, 'campaign_dispatch_failed', `Dispatch error: ${err.message}`, userId);
+    });
+
     return c;
   }
 
@@ -163,6 +178,16 @@ export class CampaignsService {
     });
     await this.addTimelineEntry(id, 'campaign_started', 'Campaign started', userId);
     await this.auditLogs.log('campaign_started', 'Campaign', id, userId);
+
+    // Dispatch campaign messages to target leads
+    this.dispatcher.dispatchCampaign(id, userId).then(result => {
+      this.addTimelineEntry(id, 'campaign_dispatched',
+        `Dispatched to ${result.sent} leads (${result.skipped} skipped, ${result.errors} errors)`,
+        userId, result);
+    }).catch(err => {
+      this.addTimelineEntry(id, 'campaign_dispatch_failed', `Dispatch error: ${err.message}`, userId);
+    });
+
     return c;
   }
 
@@ -241,6 +266,21 @@ export class CampaignsService {
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
+  }
+
+  async dispatchCampaign(id: string, userId?: string) {
+    return this.dispatcher.dispatchCampaign(id, userId);
+  }
+
+  async getDispatchStatus(id: string) {
+    await this.findOne(id);
+    const [total, delivered, failed, blocked] = await Promise.all([
+      this.prisma.conversationMessage.count({ where: { campaignId: id } }),
+      this.prisma.conversationMessage.count({ where: { campaignId: id, deliveryStatus: 'delivered' } }),
+      this.prisma.conversationMessage.count({ where: { campaignId: id, deliveryStatus: 'failed' } }),
+      this.prisma.conversationMessage.count({ where: { campaignId: id, deliveryStatus: 'blocked' } }),
+    ]);
+    return { total, delivered, failed, blocked, pending: total - delivered - failed - blocked };
   }
 
   async performance(id: string) {
