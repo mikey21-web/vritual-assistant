@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
-import { Plus, Search, Edit2, Trash2, Building2, MapPin, BedDouble, Bath, Maximize, IndianRupee, ToggleLeft, ToggleRight, X } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Plus, Search, Edit2, Trash2, Building2, MapPin, BedDouble, Bath, Maximize, IndianRupee, ToggleLeft, ToggleRight, X, Image as ImageIcon, FileText, Upload } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Badge } from "../components/ui/badge";
-import { api } from "../lib/api";
+import { api, apiUpload } from "../lib/api";
 import toast from "react-hot-toast";
 
 const statusColors: Record<string, string> = {
@@ -36,6 +36,11 @@ export default function PropertiesPage() {
     title: "", description: "", propertyType: "APARTMENT", price: "", bedrooms: "", bathrooms: "",
     areaSqft: "", location: "", address: "", features: "", amenities: "", reraId: "", status: "AVAILABLE",
   });
+  const [pendingImages, setPendingImages] = useState<File[]>([]);
+  const [pendingBrochure, setPendingBrochure] = useState<File | null>(null);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const brochureInputRef = useRef<HTMLInputElement>(null);
 
   const fetchProperties = useCallback(async () => {
     setLoading(true);
@@ -72,18 +77,59 @@ export default function PropertiesPage() {
         status: form.status || "AVAILABLE",
       };
       const headers = { "Content-Type": "application/json" };
+      let propertyId = editing?.id;
       if (editing) {
         await api(`/properties/${editing.id}`, { method: "PATCH", body: JSON.stringify(payload), headers });
         toast.success("Property updated");
       } else {
-        await api("/properties", { method: "POST", body: JSON.stringify(payload), headers });
+        const created = await api("/properties", { method: "POST", body: JSON.stringify(payload), headers });
+        propertyId = created.id;
         toast.success("Property created");
       }
+
+      if (propertyId && (pendingImages.length > 0 || pendingBrochure)) {
+        setUploadingMedia(true);
+        try {
+          if (pendingImages.length > 0) {
+            const fd = new FormData();
+            pendingImages.forEach(f => fd.append("images", f));
+            await apiUpload(`/properties/${propertyId}/images`, fd);
+          }
+          if (pendingBrochure) {
+            const fd = new FormData();
+            fd.append("brochure", pendingBrochure);
+            await apiUpload(`/properties/${propertyId}/brochure`, fd);
+          }
+        } catch {
+          toast.error("Property saved, but media upload failed");
+        } finally {
+          setUploadingMedia(false);
+        }
+      }
+
       setShowForm(false);
       setEditing(null);
       resetForm();
       fetchProperties();
     } catch { toast.error("Failed to save property"); }
+  };
+
+  const removeExistingImage = async (imageId: string) => {
+    if (!editing) return;
+    try {
+      await api(`/properties/${editing.id}/images/${imageId}`, { method: "DELETE" });
+      setEditing((prev: any) => ({ ...prev, images: prev.images.filter((img: any) => img.id !== imageId) }));
+      toast.success("Image removed");
+    } catch { toast.error("Failed to remove image"); }
+  };
+
+  const removeExistingBrochure = async () => {
+    if (!editing) return;
+    try {
+      await api(`/properties/${editing.id}/brochure`, { method: "DELETE" });
+      setEditing((prev: any) => ({ ...prev, brochureUrl: null }));
+      toast.success("Brochure removed");
+    } catch { toast.error("Failed to remove brochure"); }
   };
 
   const handleDelete = async (id: string) => {
@@ -127,6 +173,14 @@ export default function PropertiesPage() {
       title: "", description: "", propertyType: "APARTMENT", price: "", bedrooms: "", bathrooms: "",
       areaSqft: "", location: "", address: "", features: "", amenities: "", reraId: "", status: "AVAILABLE",
     });
+    setPendingImages([]);
+    setPendingBrochure(null);
+  };
+
+  const closeForm = () => {
+    setShowForm(false);
+    setEditing(null);
+    resetForm();
   };
 
   const formatPrice = (p: number) => {
@@ -233,11 +287,11 @@ export default function PropertiesPage() {
       )}
 
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4" onClick={() => setShowForm(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4" onClick={closeForm}>
           <div className="bg-[var(--card)] rounded-none sm:rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 space-y-4 min-h-screen sm:min-h-0" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold">{editing ? "Edit Property" : "Add Property"}</h2>
-              <button onClick={() => setShowForm(false)}><X className="h-5 w-5" /></button>
+              <button onClick={closeForm}><X className="h-5 w-5" /></button>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -297,11 +351,69 @@ export default function PropertiesPage() {
                 <label className="text-sm font-medium block mb-1">Description</label>
                 <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] p-2 min-h-[80px] text-sm" placeholder="Property description..." />
               </div>
+
+              <div className="col-span-2 space-y-3 pt-2 border-t border-[var(--border)]">
+                <div>
+                  <label className="text-sm font-medium block mb-1.5"><ImageIcon className="h-3.5 w-3.5 inline mr-1" /> Photos</label>
+                  {editing?.images?.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {editing.images.map((img: any) => (
+                        <div key={img.id} className="relative group">
+                          <img src={img.url} alt="" className="h-16 w-16 rounded object-cover border border-[var(--border)]" />
+                          <button type="button" onClick={() => removeExistingImage(img.id)} className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {pendingImages.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {pendingImages.map((f, i) => (
+                        <div key={i} className="relative group">
+                          <img src={URL.createObjectURL(f)} alt="" className="h-16 w-16 rounded object-cover border border-[var(--border)]" />
+                          <button type="button" onClick={() => setPendingImages(prev => prev.filter((_, j) => j !== i))} className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <input ref={imageInputRef} type="file" accept="image/*" multiple className="hidden"
+                    onChange={e => setPendingImages(prev => [...prev, ...Array.from(e.target.files || [])])} />
+                  <Button type="button" variant="outline" onClick={() => imageInputRef.current?.click()}>
+                    <Upload className="h-3.5 w-3.5 mr-1.5" /> Add photos
+                  </Button>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium block mb-1.5"><FileText className="h-3.5 w-3.5 inline mr-1" /> Brochure (PDF)</label>
+                  {editing?.brochureUrl && !pendingBrochure && (
+                    <div className="flex items-center gap-2 mb-2 text-sm">
+                      <a href={editing.brochureUrl} target="_blank" rel="noreferrer" className="text-[var(--primary)] hover:underline">View current brochure</a>
+                      <button type="button" onClick={removeExistingBrochure} className="text-red-500 hover:text-red-600"><X className="h-3.5 w-3.5" /></button>
+                    </div>
+                  )}
+                  {pendingBrochure && (
+                    <div className="flex items-center gap-2 mb-2 text-sm">
+                      <span className="text-[var(--muted-foreground)]">{pendingBrochure.name}</span>
+                      <button type="button" onClick={() => setPendingBrochure(null)} className="text-red-500 hover:text-red-600"><X className="h-3.5 w-3.5" /></button>
+                    </div>
+                  )}
+                  <input ref={brochureInputRef} type="file" accept="application/pdf" className="hidden"
+                    onChange={e => setPendingBrochure(e.target.files?.[0] || null)} />
+                  <Button type="button" variant="outline" onClick={() => brochureInputRef.current?.click()}>
+                    <Upload className="h-3.5 w-3.5 mr-1.5" /> {editing?.brochureUrl ? "Replace brochure" : "Add brochure"}
+                  </Button>
+                </div>
+              </div>
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
-              <Button onClick={handleSave} disabled={!form.title}>{editing ? "Update" : "Create"}</Button>
+              <Button variant="outline" onClick={closeForm}>Cancel</Button>
+              <Button onClick={handleSave} disabled={!form.title || uploadingMedia}>
+                {uploadingMedia ? "Uploading..." : editing ? "Update" : "Create"}
+              </Button>
             </div>
           </div>
         </div>

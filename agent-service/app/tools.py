@@ -331,6 +331,37 @@ def build_tools(ctx: ToolContext) -> list:
         return _ok(f"sent {sent} photo(s) across {len(unit_ids[:3])} unit(s)" + (f" (errors: {'; '.join(errors)})" if errors else ""))
 
     @tool
+    async def search_media_file(query: str):
+        """Search uploaded media files (images, brochures, floor plans, documents) by filename or tag. Use when the lead asks about specific visuals, photos, or documents related to a project, property, or unit. Returns matching file names and IDs."""
+        try:
+            results = await ctx.client.search_media(ctx.tenant_id, query)
+            if not results:
+                return _ok("no media files found matching your query")
+            summary = "\n".join(
+                f"- {m.get('originalName', '?')} (id: {m.get('id', '?')}) | {m.get('fileType', '')} | {m.get('tags', [])}"
+                for m in results[:10]
+            )
+            return _ok(f"found {len(results)} media file(s):\n{summary}")
+        except BackendError as e:
+            return _err(str(e))
+
+    @tool
+    async def send_media_file(media_id: str, caption: str = ""):
+        """Send a specific media file (image, brochure, floor plan, etc.) to the lead over WhatsApp. Use after search_media_file finds the matching file. Provide the media_id from the search results and an optional caption. Sends the image with the caption."""
+        try:
+            url = await ctx.client.get_media_download_url(media_id)
+            if not url:
+                return _err("could not get download URL for this media file")
+            display_caption = caption or "Here is the file you asked about"
+            await ctx.client.send_message(
+                ctx.lead_id, ctx.channel, display_caption,
+                media_url=url, media_type="image", caption=display_caption,
+            )
+            return _ok(f"sent media file to lead")
+        except BackendError as e:
+            return _err(str(e))
+
+    @tool
     async def search_units(project_id: str | None = None, unit_type: str | None = None, budget_max: float = 0, min_area: float = 0):
         """Search available units across builder projects (Project -> Tower -> Unit inventory, distinct from standalone Property listings). Filter by project, unit type (e.g. '2BHK'), max budget, or min area. Returns unit number, tower, floor, price, and status."""
         if not (ctx.features and ctx.features.get("projects")):
@@ -374,6 +405,8 @@ def build_tools(ctx: ToolContext) -> list:
         search_units,
         send_property_photos,
         send_unit_photos,
+        search_media_file,
+        send_media_file,
         get_quote,
         create_shipment,
         update_shipment_status,

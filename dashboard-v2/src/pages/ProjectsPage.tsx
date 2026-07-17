@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
-import { Plus, X, Building, MapPin } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Plus, X, Building, MapPin, Image as ImageIcon, FileText, Upload } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
-import { api } from "../lib/api";
+import { api, apiUpload } from "../lib/api";
 import toast from "react-hot-toast";
 
 const statusColors: Record<string, string> = {
@@ -19,6 +19,11 @@ export default function ProjectsPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<any>({ name: "", location: "", address: "", reraId: "", status: "UNDER_CONSTRUCTION", possessionDate: "" });
+  const [pendingImages, setPendingImages] = useState<File[]>([]);
+  const [pendingBrochure, setPendingBrochure] = useState<File | null>(null);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const brochureInputRef = useRef<HTMLInputElement>(null);
 
   const fetchProjects = useCallback(async () => {
     setLoading(true);
@@ -31,15 +36,42 @@ export default function ProjectsPage() {
 
   useEffect(() => { fetchProjects(); }, [fetchProjects]);
 
-  const resetForm = () => setForm({ name: "", location: "", address: "", reraId: "", status: "UNDER_CONSTRUCTION", possessionDate: "" });
+  const resetForm = () => {
+    setForm({ name: "", location: "", address: "", reraId: "", status: "UNDER_CONSTRUCTION", possessionDate: "" });
+    setPendingImages([]);
+    setPendingBrochure(null);
+  };
+
+  const closeForm = () => { setShowForm(false); resetForm(); };
 
   const handleCreate = async () => {
     try {
-      await api("/projects", {
+      const created = await api("/projects", {
         method: "POST",
         body: JSON.stringify({ ...form, possessionDate: form.possessionDate || undefined }),
         headers: { "Content-Type": "application/json" },
       });
+
+      if (pendingImages.length > 0 || pendingBrochure) {
+        setUploadingMedia(true);
+        try {
+          if (pendingImages.length > 0) {
+            const fd = new FormData();
+            pendingImages.forEach(f => fd.append("images", f));
+            await apiUpload(`/projects/${created.id}/images`, fd);
+          }
+          if (pendingBrochure) {
+            const fd = new FormData();
+            fd.append("brochure", pendingBrochure);
+            await apiUpload(`/projects/${created.id}/brochure`, fd);
+          }
+        } catch {
+          toast.error("Project created, but media upload failed");
+        } finally {
+          setUploadingMedia(false);
+        }
+      }
+
       toast.success("Project created");
       setShowForm(false);
       resetForm();
@@ -97,11 +129,11 @@ export default function ProjectsPage() {
       )}
 
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4" onClick={() => setShowForm(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4" onClick={closeForm}>
           <div className="bg-[var(--card)] rounded-none sm:rounded-xl shadow-2xl w-full max-w-lg p-6 space-y-4 min-h-screen sm:min-h-0 overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold">Add Project</h2>
-              <button onClick={() => setShowForm(false)}><X className="h-5 w-5" /></button>
+              <button onClick={closeForm}><X className="h-5 w-5" /></button>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
@@ -131,9 +163,50 @@ export default function ProjectsPage() {
                 <Input value={form.reraId} onChange={e => setForm((f: any) => ({ ...f, reraId: e.target.value }))} />
               </div>
             </div>
+
+            <div className="space-y-3 pt-2 border-t border-[var(--border)]">
+              <div>
+                <label className="text-sm font-medium block mb-1.5"><ImageIcon className="h-3.5 w-3.5 inline mr-1" /> Photos</label>
+                {pendingImages.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {pendingImages.map((f, i) => (
+                      <div key={i} className="relative group">
+                        <img src={URL.createObjectURL(f)} alt="" className="h-16 w-16 rounded object-cover border border-[var(--border)]" />
+                        <button type="button" onClick={() => setPendingImages(prev => prev.filter((_, j) => j !== i))} className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <input ref={imageInputRef} type="file" accept="image/*" multiple className="hidden"
+                  onChange={e => setPendingImages(prev => [...prev, ...Array.from(e.target.files || [])])} />
+                <Button type="button" variant="outline" onClick={() => imageInputRef.current?.click()}>
+                  <Upload className="h-3.5 w-3.5 mr-1.5" /> Add photos
+                </Button>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium block mb-1.5"><FileText className="h-3.5 w-3.5 inline mr-1" /> Brochure (PDF)</label>
+                {pendingBrochure && (
+                  <div className="flex items-center gap-2 mb-2 text-sm">
+                    <span className="text-[var(--muted-foreground)]">{pendingBrochure.name}</span>
+                    <button type="button" onClick={() => setPendingBrochure(null)} className="text-red-500 hover:text-red-600"><X className="h-3.5 w-3.5" /></button>
+                  </div>
+                )}
+                <input ref={brochureInputRef} type="file" accept="application/pdf" className="hidden"
+                  onChange={e => setPendingBrochure(e.target.files?.[0] || null)} />
+                <Button type="button" variant="outline" onClick={() => brochureInputRef.current?.click()}>
+                  <Upload className="h-3.5 w-3.5 mr-1.5" /> Add brochure
+                </Button>
+              </div>
+            </div>
+
             <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
-              <Button onClick={handleCreate} disabled={!form.name}>Create</Button>
+              <Button variant="outline" onClick={closeForm}>Cancel</Button>
+              <Button onClick={handleCreate} disabled={!form.name || uploadingMedia}>
+                {uploadingMedia ? "Uploading..." : "Create"}
+              </Button>
             </div>
           </div>
         </div>

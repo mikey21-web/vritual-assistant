@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { LeadsService } from '../leads/leads.service';
@@ -97,6 +97,8 @@ export class CopilotService {
     analyze_lead_source: 'analytics:read',
     bulk_send_message: 'conversations:write',
     search_knowledge: 'knowledge_base:read',
+    search_media: 'media:read',
+    send_media: 'media:read',
   };
 
   // Backstop for the "no emojis, no dashes" system prompt rule. Prompt instructions steer
@@ -295,6 +297,34 @@ export class CopilotService {
       }
       case 'send_email': {
         result = await this.emailAdapter.send(action.args.to, action.args.subject, action.args.body);
+        break;
+      }
+      case 'search_media': {
+        const mediaRes = await this.prisma.mediaFile.findMany({
+          where: {
+            OR: [
+              { originalName: { contains: action.args.query, mode: 'insensitive' } },
+              { tags: { hasSome: [action.args.query] } },
+              { fileName: { contains: action.args.query, mode: 'insensitive' } },
+            ],
+          },
+          take: 10, orderBy: { createdAt: 'desc' },
+          select: { id: true, originalName: true, fileType: true, mimeType: true, tags: true, createdAt: true },
+        });
+        result = { files: mediaRes, count: mediaRes.length };
+        break;
+      }
+      case 'send_media': {
+        const mediaFile = await this.prisma.mediaFile.findUnique({ where: { id: action.args.mediaId } });
+        if (!mediaFile) throw new NotFoundException('Media file not found');
+        const url = mediaFile.publicUrl || (await this.service.getDownloadUrl(mediaFile.id)).data?.url || '';
+        result = await this.conversationsService.create({
+          leadId: action.args.leadId,
+          channel: action.args.channel || 'WHATSAPP',
+          text: action.args.caption || mediaFile.originalName,
+          direction: 'OUTBOUND',
+          metadata: { mediaUrl: url, mediaType: mediaFile.mimeType, caption: action.args.caption || mediaFile.originalName },
+        }, userId);
         break;
       }
       default:

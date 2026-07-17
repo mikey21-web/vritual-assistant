@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Req } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, UseInterceptors, UploadedFile, UploadedFiles, Req } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -78,6 +79,34 @@ export class PropertiesController {
   @Roles('OWNER', 'ADMIN')
   remove(@Param('id') id: string) {
     return this.service.remove(id);
+  }
+
+  @Post('properties/:id/images')
+  @Roles('OWNER', 'ADMIN', 'MANAGER')
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FilesInterceptor('images', 10, { limits: { fileSize: 8 * 1024 * 1024 } }))
+  addImages(@Param('id') id: string, @UploadedFiles() files: Express.Multer.File[]) {
+    return this.service.addImages(id, files || []);
+  }
+
+  @Delete('properties/:id/images/:imageId')
+  @Roles('OWNER', 'ADMIN', 'MANAGER')
+  removeImage(@Param('id') id: string, @Param('imageId') imageId: string) {
+    return this.service.removeImage(id, imageId);
+  }
+
+  @Post('properties/:id/brochure')
+  @Roles('OWNER', 'ADMIN', 'MANAGER')
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('brochure', { limits: { fileSize: 20 * 1024 * 1024 } }))
+  setBrochure(@Param('id') id: string, @UploadedFile() file: Express.Multer.File) {
+    return this.service.setBrochure(id, file);
+  }
+
+  @Delete('properties/:id/brochure')
+  @Roles('OWNER', 'ADMIN', 'MANAGER')
+  removeBrochure(@Param('id') id: string) {
+    return this.service.removeBrochure(id);
   }
 
   @Get('tenants/:tenantId/properties')

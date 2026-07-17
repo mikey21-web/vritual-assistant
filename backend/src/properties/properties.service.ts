@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma, PropertyStatus } from '@prisma/client';
+import { saveUploadedFile, deleteUploadedFile } from '../shared/file-storage.util';
 
 @Injectable()
 export class PropertiesService {
@@ -181,5 +182,43 @@ export class PropertiesService {
       where: { id },
       data: { deletedAt: new Date() },
     });
+  }
+
+  async addImages(propertyId: string, files: Express.Multer.File[]) {
+    const property = await this.prisma.property.findUnique({ where: { id: propertyId }, include: { images: true } });
+    if (!property) throw new NotFoundException('Property not found');
+
+    const startIndex = property.images.length;
+    const hasPrimary = property.images.some(i => i.isPrimary);
+    return this.prisma.$transaction(
+      files.map((file, i) => {
+        const url = saveUploadedFile(file, 'property-images');
+        return this.prisma.propertyImage.create({
+          data: { propertyId, url, isPrimary: !hasPrimary && i === 0, orderIndex: startIndex + i },
+        });
+      }),
+    );
+  }
+
+  async removeImage(propertyId: string, imageId: string) {
+    const image = await this.prisma.propertyImage.findUnique({ where: { id: imageId } });
+    if (!image || image.propertyId !== propertyId) throw new NotFoundException('Image not found');
+    deleteUploadedFile(image.url);
+    return this.prisma.propertyImage.delete({ where: { id: imageId } });
+  }
+
+  async setBrochure(propertyId: string, file: Express.Multer.File) {
+    const property = await this.prisma.property.findUnique({ where: { id: propertyId } });
+    if (!property) throw new NotFoundException('Property not found');
+    if (property.brochureUrl) deleteUploadedFile(property.brochureUrl);
+    const url = saveUploadedFile(file, 'property-brochures');
+    return this.prisma.property.update({ where: { id: propertyId }, data: { brochureUrl: url } });
+  }
+
+  async removeBrochure(propertyId: string) {
+    const property = await this.prisma.property.findUnique({ where: { id: propertyId } });
+    if (!property) throw new NotFoundException('Property not found');
+    deleteUploadedFile(property.brochureUrl);
+    return this.prisma.property.update({ where: { id: propertyId }, data: { brochureUrl: null } });
   }
 }

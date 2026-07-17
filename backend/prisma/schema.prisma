@@ -1112,6 +1112,7 @@ model Property {
   metadata      Json           @default("{}")
   featured      Boolean        @default(false)
   availableFrom DateTime?
+  brochureUrl   String?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
@@ -1178,6 +1179,7 @@ model Project {
   possessionDate DateTime?
   amenities      String[]      @default([])
   images         Json          @default("[]")
+  brochureUrl    String?
   metadata       Json          @default("{}")
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt

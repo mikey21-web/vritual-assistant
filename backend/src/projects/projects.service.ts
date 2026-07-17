@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma, UnitStatus } from '@prisma/client';
+import { saveUploadedFile, deleteUploadedFile } from '../shared/file-storage.util';
 
 @Injectable()
 export class ProjectsService {
@@ -84,6 +85,48 @@ export class ProjectsService {
     const existing = await this.prisma.project.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Project not found');
     return this.prisma.project.update({ where: { id }, data: { deletedAt: new Date() } });
+  }
+
+  // Project.images is a raw JSON array (not a relation, unlike PropertyImage)
+  // since a builder project's photos are just gallery shots, not the
+  // per-unit media a full relation would justify.
+  async addImages(projectId: string, files: Express.Multer.File[]) {
+    const project = await this.prisma.project.findUnique({ where: { id: projectId } });
+    if (!project) throw new NotFoundException('Project not found');
+
+    const existingImages = Array.isArray(project.images) ? project.images as any[] : [];
+    const newImages = files.map(file => ({ url: saveUploadedFile(file, 'project-images'), uploadedAt: new Date().toISOString() }));
+    return this.prisma.project.update({
+      where: { id: projectId },
+      data: { images: [...existingImages, ...newImages] as any },
+    });
+  }
+
+  async removeImage(projectId: string, url: string) {
+    const project = await this.prisma.project.findUnique({ where: { id: projectId } });
+    if (!project) throw new NotFoundException('Project not found');
+
+    const existingImages = Array.isArray(project.images) ? project.images as any[] : [];
+    deleteUploadedFile(url);
+    return this.prisma.project.update({
+      where: { id: projectId },
+      data: { images: existingImages.filter(img => img.url !== url) as any },
+    });
+  }
+
+  async setBrochure(projectId: string, file: Express.Multer.File) {
+    const project = await this.prisma.project.findUnique({ where: { id: projectId } });
+    if (!project) throw new NotFoundException('Project not found');
+    if (project.brochureUrl) deleteUploadedFile(project.brochureUrl);
+    const url = saveUploadedFile(file, 'project-brochures');
+    return this.prisma.project.update({ where: { id: projectId }, data: { brochureUrl: url } });
+  }
+
+  async removeBrochure(projectId: string) {
+    const project = await this.prisma.project.findUnique({ where: { id: projectId } });
+    if (!project) throw new NotFoundException('Project not found');
+    deleteUploadedFile(project.brochureUrl);
+    return this.prisma.project.update({ where: { id: projectId }, data: { brochureUrl: null } });
   }
 
   // ── Towers ──────────────────────────────────────────────────────────────

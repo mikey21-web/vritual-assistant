@@ -38,6 +38,8 @@ const ACTION_RULES: ActionRule[] = [
   { tool: 'initiate_call', risk: 'high', autoExecute: false, description: 'Initiate call' },
   { tool: 'send_email', risk: 'high', autoExecute: false, description: 'Send email' },
   { tool: 'bulk_send_message', risk: 'high', autoExecute: false, description: 'Bulk send message' },
+  { tool: 'search_media', risk: 'low', autoExecute: true, description: 'Search media files' },
+  { tool: 'send_media', risk: 'low', autoExecute: true, description: 'Send media file to lead' },
 ];
 
 @Injectable()

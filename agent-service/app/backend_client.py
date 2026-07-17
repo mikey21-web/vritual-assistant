@@ -239,6 +239,18 @@ class BackendClient:
         if description: body["description"] = description
         return await self._retry_post("/events-ops", body)
 
+    async def search_media(self, tenant_id: str, query: str, project_id: str | None = None) -> list:
+        q = 'q=' + query
+        if project_id:
+            q += '&projectId=' + project_id
+        result = await self._retry_get('/media/search/ai?' + q)
+        return result if isinstance(result, list) else []
+
+    async def get_media_download_url(self, media_id: str) -> str:
+        result = await self._get('/media/' + media_id + '/download-url')
+        data = result.get('data', result)
+        return data.get('url', '')
+
     async def search_properties(self, tenant_id: str, query: dict) -> list:
         params = [f"tenantId={tenant_id}"]
         for k, v in query.items():

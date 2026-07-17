@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Req } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, UseInterceptors, UploadedFile, UploadedFiles, Req } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -34,6 +35,30 @@ export class ProjectsController {
 
   @Get('projects/:id/velocity') @Roles('OWNER', 'ADMIN', 'MANAGER', 'VIEWER')
   velocity(@Param('id') id: string) { return this.service.getVelocity(id); }
+
+  @Post('projects/:id/images') @Roles('OWNER', 'ADMIN', 'MANAGER')
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FilesInterceptor('images', 10, { limits: { fileSize: 8 * 1024 * 1024 } }))
+  addImages(@Param('id') id: string, @UploadedFiles() files: Express.Multer.File[]) {
+    return this.service.addImages(id, files || []);
+  }
+
+  @Delete('projects/:id/images') @Roles('OWNER', 'ADMIN', 'MANAGER')
+  removeImage(@Param('id') id: string, @Query('url') url: string) {
+    return this.service.removeImage(id, url);
+  }
+
+  @Post('projects/:id/brochure') @Roles('OWNER', 'ADMIN', 'MANAGER')
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('brochure', { limits: { fileSize: 20 * 1024 * 1024 } }))
+  setBrochure(@Param('id') id: string, @UploadedFile() file: Express.Multer.File) {
+    return this.service.setBrochure(id, file);
+  }
+
+  @Delete('projects/:id/brochure') @Roles('OWNER', 'ADMIN', 'MANAGER')
+  removeBrochure(@Param('id') id: string) {
+    return this.service.removeBrochure(id);
+  }
 
   // Towers
   @Post('projects/:id/towers') @Roles('OWNER', 'ADMIN', 'MANAGER')
