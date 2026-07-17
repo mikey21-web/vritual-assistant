@@ -3,11 +3,13 @@ import { NotFoundException } from '@nestjs/common';
 import { AdvancedFeaturesService } from './advanced-features.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
+import { ContactsService } from '../contacts/contacts.service';
 
 describe('AdvancedFeaturesService — blocklist & SLA', () => {
   let service: AdvancedFeaturesService;
   let prisma: any;
   const auditLogs = { log: jest.fn().mockResolvedValue({}) };
+  const contacts = { findOrCreate: jest.fn().mockResolvedValue({ id: 'contact-1' }) };
 
   const mockBlockEntry = { id: 'bl-1', type: 'email', value: 'spam@test.com', reason: 'Known spam' };
   const mockSlaRule = { id: 'sla-1', name: 'Urgent Response', condition: { status: 'NEW' }, responseTimeMinutes: 60, escalationAfterMinutes: 120, escalationUserId: 'user-1', active: true };
@@ -30,6 +32,7 @@ describe('AdvancedFeaturesService — blocklist & SLA', () => {
       },
       lead: {
         findMany: jest.fn().mockResolvedValue([]),
+        create: jest.fn().mockImplementation(({ data }) => ({ id: 'lead-1', ...data })),
       },
       pipelineStage: {
         findMany: jest.fn().mockResolvedValue([]),
@@ -69,9 +72,9 @@ describe('AdvancedFeaturesService — blocklist & SLA', () => {
       },
       importExportLog: {
         findMany: jest.fn().mockResolvedValue([]),
-        findUnique: jest.fn(),
+        findUnique: jest.fn().mockResolvedValue({ id: 'log-1', userId: 'user-1' }),
         create: jest.fn(),
-        update: jest.fn(),
+        update: jest.fn().mockResolvedValue({}),
       },
       automationEvent: {
         findMany: jest.fn().mockResolvedValue([]),
@@ -91,6 +94,7 @@ describe('AdvancedFeaturesService — blocklist & SLA', () => {
         AdvancedFeaturesService,
         { provide: PrismaService, useValue: prisma },
         { provide: AuditLogsService, useValue: auditLogs },
+        { provide: ContactsService, useValue: contacts },
       ],
     }).compile();
     service = module.get<AdvancedFeaturesService>(AdvancedFeaturesService);
@@ -162,6 +166,44 @@ describe('AdvancedFeaturesService — blocklist & SLA', () => {
     it('should run sandbox test', async () => {
       const result = await service.sandboxTest();
       expect(result.checks.database).toBe('ok');
+    });
+  });
+
+  describe('processImport — leads from an external CRM export', () => {
+    it('finds-or-creates the contact by email/name/phone when no contactId is given', async () => {
+      const result = await service.processImport('log-1', [
+        { contactName: 'Ramesh Kumar', contactEmail: 'ramesh@test.com', contactPhone: '+911234567890', source: 'MANUAL', message: 'Interested in 3BHK' },
+      ], 'lead');
+
+      expect(contacts.findOrCreate).toHaveBeenCalledWith({ name: 'Ramesh Kumar', email: 'ramesh@test.com', phone: '+911234567890' });
+      expect(prisma.lead.create).toHaveBeenCalledWith({
+        data: { source: 'MANUAL', message: 'Interested in 3BHK', interest: null, budget: null, urgency: null, contactId: 'contact-1' },
+      });
+      expect(result.processed).toBe(1);
+      expect(result.failed).toBe(0);
+    });
+
+    it('still supports a raw contactId for backward compatibility', async () => {
+      contacts.findOrCreate.mockClear();
+      const result = await service.processImport('log-1', [
+        { contactId: 'existing-contact-id', source: 'REFERRAL' },
+      ], 'lead');
+
+      expect(contacts.findOrCreate).not.toHaveBeenCalled();
+      expect(prisma.lead.create).toHaveBeenCalledWith({
+        data: { source: 'REFERRAL', message: null, interest: null, budget: null, urgency: null, contactId: 'existing-contact-id' },
+      });
+      expect(result.processed).toBe(1);
+    });
+
+    it('fails the row when there is no contactId and no contact info to match or create one', async () => {
+      const result = await service.processImport('log-1', [
+        { source: 'MANUAL', message: 'no contact info here' },
+      ], 'lead');
+
+      expect(result.processed).toBe(0);
+      expect(result.failed).toBe(1);
+      expect(result.errors[0]).toContain('no contact name/email/phone');
     });
   });
 });

@@ -1,24 +1,66 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../lib/api';
-import { Plus, Trash2, X, Calendar } from 'lucide-react';
+import { Plus, Trash2, X, Calendar, Pencil } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function BookingPage() {
   const [data, setData] = useState<any[]>([]);
   const [showCreate, setShowCreate] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: '', provider: 'CALENDLY', config: '{"calendarLink":"https://calendly.com/you/30min"}' });
+  const [configError, setConfigError] = useState('');
 
   const refresh = () => api('/booking-settings').then((r: any) => setData(r.data || r)).catch(() => {});
   useEffect(() => { refresh(); }, []);
 
-  const create = async (e: React.FormEvent) => {
+  const resetForm = () => {
+    setForm({ name: '', provider: 'CALENDLY', config: '{}' });
+    setShowCreate(false);
+    setEditingId(null);
+    setConfigError('');
+  };
+
+  const startEdit = (b: any) => {
+    setForm({
+      name: b.name || '',
+      provider: b.provider || 'CALENDLY',
+      config: b.config ? JSON.stringify(b.config, null, 2) : '{}',
+    });
+    setEditingId(b.id);
+    setShowCreate(true);
+    setConfigError('');
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    let parsedConfig: any;
     try {
-      await api('/booking-settings', { method: 'POST', body: JSON.stringify({ ...form, config: JSON.parse(form.config) }) });
-      setShowCreate(false);
-      setForm({ name: '', provider: 'CALENDLY', config: '{}' });
+      parsedConfig = JSON.parse(form.config);
+      setConfigError('');
+    } catch {
+      setConfigError('Invalid JSON — please fix the config field');
+      return;
+    }
+    try {
+      const body = { ...form, config: parsedConfig };
+      if (editingId) {
+        await api(`/booking-settings/${editingId}`, { method: 'PATCH', body: JSON.stringify(body) });
+        toast.success('Booking setting updated');
+      } else {
+        await api('/booking-settings', { method: 'POST', body: JSON.stringify(body) });
+        toast.success('Booking setting created');
+      }
+      resetForm();
       refresh();
-      toast.success('Booking setting created');
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Delete this booking setting?')) return;
+    try {
+      await api(`/booking-settings/${id}`, { method: 'DELETE' });
+      refresh();
+      toast.success('Deleted');
     } catch (e: any) { toast.error(e.message); }
   };
 
@@ -30,7 +72,7 @@ export default function BookingPage() {
           <p className="text-sm text-[var(--muted-foreground)] mt-1">{data.length} configurations</p>
         </div>
         <button
-          onClick={() => setShowCreate(true)}
+          onClick={() => { resetForm(); setShowCreate(true); }}
           className="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90 transition-opacity shadow-sm"
         >
           <Plus size={16} /> Add Booking
@@ -38,7 +80,7 @@ export default function BookingPage() {
       </div>
 
       {showCreate && (
-        <form onSubmit={create} className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 animate-scale-in">
+        <form onSubmit={handleSubmit} className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 animate-scale-in">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <input
               placeholder="Name"
@@ -54,16 +96,23 @@ export default function BookingPage() {
             >
               {['CALENDLY', 'GOOGLE_CALENDAR'].map(p => <option key={p} value={p}>{p}</option>)}
             </select>
-            <textarea
-              placeholder='Config JSON'
-              value={form.config}
-              onChange={e => setForm({ ...form, config: e.target.value })}
-              className="col-span-2 h-20 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20 font-mono"
-            />
+            <div className="col-span-2 space-y-1">
+              <textarea
+                placeholder='Config JSON'
+                value={form.config}
+                onChange={e => { setForm({ ...form, config: e.target.value }); setConfigError(''); }}
+                className={`w-full h-20 rounded-lg border px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20 font-mono bg-[var(--background)] ${
+                  configError ? 'border-red-400' : 'border-[var(--border)]'
+                }`}
+              />
+              {configError && <p className="text-xs text-red-500">{configError}</p>}
+            </div>
           </div>
           <div className="flex gap-2 mt-3">
-            <button type="submit" className="h-8 px-4 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90">Save</button>
-            <button type="button" onClick={() => setShowCreate(false)} className="h-8 px-4 rounded-lg border border-[var(--border)] text-sm text-[var(--foreground)] hover:bg-[var(--accent)] transition-colors">
+            <button type="submit" className="h-8 px-4 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90">
+              {editingId ? 'Update' : 'Save'}
+            </button>
+            <button type="button" onClick={resetForm} className="h-8 px-4 rounded-lg border border-[var(--border)] text-sm text-[var(--foreground)] hover:bg-[var(--accent)] transition-colors">
               <X size={14} />
             </button>
           </div>
@@ -90,12 +139,22 @@ export default function BookingPage() {
             <div className="text-xs text-[var(--muted-foreground)] mb-3">
               {b.config && Object.keys(b.config).join(', ') || 'No config'}
             </div>
-            <button
-              onClick={() => { api(`/booking-settings/${b.id}`, { method: 'DELETE' }).then(refresh); toast.success('Deleted'); }}
-              className="p-1.5 rounded-md hover:bg-[var(--accent)] text-red-400 hover:text-red-600 transition-colors"
-            >
-              <Trash2 size={14} />
-            </button>
+            <div className="flex gap-1">
+              <button
+                onClick={() => startEdit(b)}
+                className="p-1.5 rounded-md hover:bg-[var(--accent)] text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors"
+                title="Edit"
+              >
+                <Pencil size={14} />
+              </button>
+              <button
+                onClick={() => handleDelete(b.id)}
+                className="p-1.5 rounded-md hover:bg-[var(--accent)] text-red-400 hover:text-red-600 transition-colors"
+                title="Delete"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
           </div>
         ))}
       </div>

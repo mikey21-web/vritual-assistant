@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { fetchTasks, createTask, updateTask } from '../lib/data';
-import { Plus, CheckCircle, Circle } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { fetchTasks, createTask, updateTask, deleteTask, fetchLeads, fetchUsers } from '../lib/data';
+import { Plus, CheckCircle, Circle, Trash2, Calendar } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Dialog } from '../components/ui/dialog';
 import { Input } from '../components/ui/input';
@@ -11,9 +11,15 @@ export default function TasksPage() {
   const [data, setData] = useState<any>({ data: [], meta: {} });
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ title: '', priority: 'medium', leadId: '', assigneeId: '' });
+  const [leads, setLeads] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
-  const refresh = () => fetchTasks().then((r: any) => setData(r.data ? r : { data: r, meta: {} })).catch(() => {});
-  useEffect(() => { refresh(); }, []);
+  const refresh = useCallback(() => fetchTasks().then((r: any) => setData(r.data ? r : { data: r, meta: {} })).catch(() => {}), []);
+
+  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => { fetchLeads().then((r: any) => setLeads(r.data || [])).catch(() => {}); }, []);
+  useEffect(() => { fetchUsers().then((r: any) => setUsers(Array.isArray(r) ? r : r.data || [])).catch(() => {}); }, []);
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,6 +37,27 @@ export default function TasksPage() {
       await updateTask(id, { status: current === 'done' ? 'pending' : 'done' });
       refresh();
     } catch (e: any) { toast.error(e.message); }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (deleting === id) return;
+    setDeleting(id);
+    try {
+      await deleteTask(id);
+      refresh();
+      toast.success('Task deleted');
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setDeleting(null);
+    }
+  };
+
+  const confirmDelete = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (window.confirm('Are you sure you want to delete this task?')) {
+      handleDelete(id);
+    }
   };
 
   const items = Array.isArray(data.data) ? data.data : data;
@@ -76,6 +103,26 @@ export default function TasksPage() {
             <option value="medium">Medium</option>
             <option value="high">High</option>
           </Select>
+          <Select
+            label="Lead"
+            value={form.leadId}
+            onChange={e => setForm({ ...form, leadId: e.target.value })}
+          >
+            <option value="">No lead</option>
+            {leads.map((l: any) => (
+              <option key={l.id} value={l.id}>{l.contact?.name || l.id}</option>
+            ))}
+          </Select>
+          <Select
+            label="Assignee"
+            value={form.assigneeId}
+            onChange={e => setForm({ ...form, assigneeId: e.target.value })}
+          >
+            <option value="">Unassigned</option>
+            {users.map((u: any) => (
+              <option key={u.id} value={u.id}>{u.name || u.email || u.id}</option>
+            ))}
+          </Select>
         </form>
       </Dialog>
 
@@ -103,16 +150,32 @@ export default function TasksPage() {
                   {t.lead?.contact?.name && (
                     <div className="text-xs text-[var(--muted-foreground)] mt-0.5">{t.lead.contact.name}</div>
                   )}
+                  {t.dueAt && (
+                    <div className="flex items-center gap-1 text-xs text-[var(--muted-foreground)] mt-0.5">
+                      <Calendar size={11} />
+                      {new Date(t.dueAt).toLocaleDateString()}
+                    </div>
+                  )}
                 </div>
-                <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${
-                  t.priority === 'high'
-                    ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                    : t.priority === 'medium'
-                      ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                      : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
-                }`}>
-                  {t.priority}
-                </span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+                    t.priority === 'high'
+                      ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                      : t.priority === 'medium'
+                        ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                        : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                  }`}>
+                    {t.priority}
+                  </span>
+                  <button
+                    onClick={(e) => confirmDelete(e, t.id)}
+                    disabled={deleting === t.id}
+                    className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-[var(--muted-foreground)] hover:text-red-500 transition-colors disabled:opacity-40"
+                    title="Delete task"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
               </div>
             );
           })

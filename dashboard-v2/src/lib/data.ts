@@ -39,6 +39,7 @@ export async function fetchCampaignTimeline(id: string) { return api(`/campaigns
 export async function fetchTasks() { return api('/tasks') as Promise<any>; }
 export async function createTask(data: any) { return api('/tasks', { method: 'POST', body: JSON.stringify(data) }) as Promise<Task>; }
 export async function updateTask(id: string, data: any) { return api(`/tasks/${id}`, { method: 'PATCH', body: JSON.stringify(data) }); }
+export async function deleteTask(id: string) { return api(`/tasks/${id}`, { method: 'DELETE' }); }
 
 export async function fetchEvents(page = 1, filters: Record<string, string> = {}) {
   const q = new URLSearchParams({ page: String(page), limit: '20', ...filters });

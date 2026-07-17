@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { fetchAgentStatus } from '../lib/data';
+import { getPrimaryColor } from '../lib/niche-config';
 import { Code, Copy, Check, Eye, ExternalLink, Smartphone, Share2, Settings, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -17,7 +18,7 @@ export default function WidgetPage() {
   }, []);
 
   const bizName = status?.tone?.businessName || 'Your Business';
-  const primaryColor = '#0d6b6b';
+  const primaryColor = getPrimaryColor();
 
   const embedCode = `<!-- LeadFlow Chat Widget -->
 <script>

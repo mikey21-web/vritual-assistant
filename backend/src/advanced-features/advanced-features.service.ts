@@ -1,13 +1,18 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
+import { ContactsService } from '../contacts/contacts.service';
 import { CreatePipelineStageDto, UpdatePipelineStageDto, UpdateNotificationPrefsDto } from './dto/advanced-features.dto';
 import * as fs from 'fs';
 import * as path from 'path';
 
 @Injectable()
 export class AdvancedFeaturesService {
-  constructor(private prisma: PrismaService, private auditLogs: AuditLogsService) {}
+  constructor(
+    private prisma: PrismaService,
+    private auditLogs: AuditLogsService,
+    @Inject(forwardRef(() => ContactsService)) private contacts: ContactsService,
+  ) {}
 
   // === PIPELINE STAGES ===
   async getStages() {
@@ -258,11 +263,30 @@ export class AdvancedFeaturesService {
             });
           }
         } else if (entity === 'lead') {
+          // A row from an external CRM export (Zoho, Salesforce, ...) has the
+          // buyer's name/email/phone on it, not our internal contactId — so
+          // find-or-create the contact first (same helper manual lead entry
+          // uses) instead of demanding an ID the client could never supply.
+          let contactId = row.contactId;
+          if (!contactId) {
+            const name = row.contactName || row.name;
+            const email = row.contactEmail || row.email;
+            const phone = row.contactPhone || row.phone;
+            if (!name && !email && !phone) {
+              throw new Error('Row has no contactId and no contact name/email/phone to match or create a contact');
+            }
+            const contact = await this.contacts.findOrCreate({ name, email, phone });
+            contactId = contact.id;
+          }
+
           await this.prisma.lead.create({
             data: {
-              source: (row.source as any) || 'FORM',
+              source: (row.source as any) || 'MANUAL',
               message: row.message || null,
-              contactId: row.contactId,
+              interest: row.interest || null,
+              budget: row.budget || null,
+              urgency: row.urgency || null,
+              contactId,
             } as any,
           });
         }

@@ -26,11 +26,14 @@ export default function CallsPage() {
   const [calls, setCalls] = useState<any[]>([]);
   const [stats, setStats] = useState<{ callsToday: number; missedToday: number; avgDurationSec: number } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showPair, setShowPair] = useState(false);
   const { lastEvent } = useSocket();
+  const [search, setSearch] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const [callsRes, statsRes] = await Promise.all([
         api("/call-tracking/calls"),
@@ -38,7 +41,9 @@ export default function CallsPage() {
       ]);
       setCalls(callsRes.data || callsRes);
       setStats(statsRes);
-    } catch { /* mock fallback already handled in api() */ }
+    } catch (e: any) {
+      setError(e.message || 'Failed to load calls');
+    }
     setLoading(false);
   }, []);
 
@@ -53,6 +58,13 @@ export default function CallsPage() {
       setCalls(prev => prev.map(c => c.id === p.callLogId ? { ...c, summary: p.summary, transcript: p.transcript, summaryStatus: "DONE" } : c));
     }
   }, [lastEvent, load]);
+
+  const filteredCalls = calls.filter(c => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    const name = c.contact?.name || c.fromNumber || '';
+    return name.toLowerCase().includes(q) || (c.fromNumber && c.fromNumber.toLowerCase().includes(q));
+  });
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -87,6 +99,16 @@ export default function CallsPage() {
         </Card>
       </div>
 
+      <div className="flex items-center gap-2">
+        <input
+          type="text"
+          placeholder="Filter by contact name or number..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="h-9 w-full max-w-xs rounded-lg border border-[var(--input)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
+        />
+      </div>
+
       <Table>
         <TableHeader>
           <TableRow>
@@ -103,11 +125,25 @@ export default function CallsPage() {
         </TableHeader>
         <TableBody>
           {loading ? (
-            <TableRow><TableCell colSpan={9} className="text-center text-[var(--muted-foreground)] py-8">Loading...</TableCell></TableRow>
-          ) : calls.length === 0 ? (
-            <TableRow><TableCell colSpan={9} className="text-center text-[var(--muted-foreground)] py-8">No calls synced yet. Pair a device to get started.</TableCell></TableRow>
+            <TableRow><TableCell colSpan={9} className="text-center text-[var(--muted-foreground)] py-8">
+              <div className="flex flex-col items-center gap-2">
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--border)] border-t-[var(--primary)]" />
+                <span>Loading calls...</span>
+              </div>
+            </TableCell></TableRow>
+          ) : error ? (
+            <TableRow><TableCell colSpan={9} className="text-center py-8">
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-sm text-red-500">{error}</span>
+                <button onClick={load} className="text-xs text-[var(--primary)] hover:underline">Try again</button>
+              </div>
+            </TableCell></TableRow>
+          ) : filteredCalls.length === 0 ? (
+            <TableRow><TableCell colSpan={9} className="text-center text-[var(--muted-foreground)] py-8">
+              {search ? 'No calls match your filter' : 'No calls synced yet. Pair a device to get started.'}
+            </TableCell></TableRow>
           ) : (
-            calls.map((c) => (
+            filteredCalls.map((c) => (
               <TableRow key={c.id}>
                 <TableCell className="text-xs text-[var(--muted-foreground)] whitespace-nowrap">{new Date(c.createdAt).toLocaleString()}</TableCell>
                 <TableCell className="font-medium text-[var(--foreground)]">

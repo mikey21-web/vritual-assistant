@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { fetchMessages } from '../lib/data';
+import { api } from '../lib/api';
 import { MessageSquare, Phone, Mail, Send, ChevronLeft } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const channelIcons: Record<string, any> = {
   WHATSAPP: MessageSquare,
@@ -62,6 +64,8 @@ export default function MessagesPage() {
   const [search, setSearch] = useState('');
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [mobileView, setMobileView] = useState<'list' | 'chat'>('list');
+  const [replyText, setReplyText] = useState('');
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     fetchMessages().then((r: any) => setData(r.data || r)).catch(() => {});
@@ -81,6 +85,22 @@ export default function MessagesPage() {
   const sortedMessages = selectedConv
     ? [...selectedConv.messages].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
     : [];
+
+  const sendReply = async () => {
+    if (!replyText.trim() || !selectedLeadId || sending) return;
+    setSending(true);
+    try {
+      const msg = await api('/messages', {
+        method: 'POST',
+        body: JSON.stringify({ leadId: selectedLeadId, text: replyText.trim(), channel: selectedConv?.channel || 'WHATSAPP' }),
+      });
+      setData(prev => [...prev, msg]);
+      setReplyText('');
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to send message');
+    }
+    setSending(false);
+  };
 
   return (
     <div className="h-[calc(100vh-6rem)] flex gap-4 animate-fade-in">
@@ -188,6 +208,25 @@ export default function MessagesPage() {
                   </div>
                 );
               })}
+            </div>
+            {/* Reply input */}
+            <div className="border-t border-[var(--border)] p-3 flex items-center gap-2">
+              <input
+                type="text"
+                value={replyText}
+                onChange={e => setReplyText(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendReply(); } }}
+                placeholder="Type a reply..."
+                disabled={sending}
+                className="flex-1 h-10 rounded-lg border border-[var(--input)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20 disabled:opacity-50"
+              />
+              <button
+                onClick={sendReply}
+                disabled={!replyText.trim() || sending}
+                className="h-10 w-10 rounded-lg bg-[var(--primary)] text-[var(--primary-foreground)] flex items-center justify-center hover:bg-[var(--primary)]/90 transition-colors disabled:opacity-50"
+              >
+                <Send size={16} />
+              </button>
             </div>
           </>
         )}

@@ -2,20 +2,26 @@ import { useState, useEffect, useCallback } from "react";
 import { api } from "../lib/api";
 import toast from "react-hot-toast";
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
-import { BarChart3, PieChart as PieChartIcon, TrendingUp, Save, Play, Plus, X, Edit3, Trash2, Share2 } from "lucide-react";
+import { BarChart3, PieChart as PieChartIcon, TrendingUp, Save, Play, Plus, X, Edit3, Trash2, Share2, RefreshCw } from "lucide-react";
 
-const ENTITIES = ["lead", "conversion", "ticket", "revenue"] as const;
+const ENTITIES = ["lead", "conversion", "ticket", "revenue", "property", "project", "unit"] as const;
 const METRICS: Record<string, string[]> = {
   lead: ["count", "avg(score)"],
   conversion: ["count", "sum(amount)"],
   ticket: ["count"],
   revenue: ["count", "sum(amount)"],
+  property: ["count", "sum(price)", "avg(price)"],
+  project: ["count", "sum(budget)", "avg(budget)"],
+  unit: ["count", "sum(price)", "avg(price)"],
 };
 const GROUP_BYS: Record<string, string[]> = {
   lead: ["status", "source", "segment", "assignedAgent", "createdAt"],
   conversion: ["status", "source", "createdAt"],
   ticket: ["status", "priority", "assignedAgent", "createdAt"],
   revenue: ["source", "createdAt"],
+  property: ["status", "type", "location", "createdAt"],
+  project: ["status", "priority", "manager", "createdAt"],
+  unit: ["status", "type", "location", "createdAt"],
 };
 const CHART_TYPES = ["bar", "line", "pie"] as const;
 
@@ -41,25 +47,39 @@ export default function ReportsPage() {
   const [reportName, setReportName] = useState("");
   const [reportShared, setReportShared] = useState(false);
   const [showSaved, setShowSaved] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const loadSaved = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
       const res = await api("/reports");
       setSaved(res || []);
-    } catch { setSaved([]); }
+    } catch {
+      setSaved([]);
+      setError("Failed to load saved reports");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  useEffect(() => { loadSaved(); }, []);
+  useEffect(() => { loadSaved(); }, [refreshKey]);
 
   const handleRun = async () => {
     setRunning(true);
+    setError(null);
     try {
       const res = await api("/reports/run", {
         method: "POST",
         body: JSON.stringify({ entity, metric, groupBy }),
       });
       setResult(res);
-    } catch (err: any) { toast.error(err.message || "Failed to run report"); }
+    } catch (err: any) {
+      setError(err.message || "Failed to run report");
+      toast.error(err.message || "Failed to run report");
+    }
     setRunning(false);
   };
 
@@ -143,6 +163,10 @@ export default function ReportsPage() {
           <p className="text-sm text-[var(--muted-foreground)] mt-1">Build custom reports and save them for later</p>
         </div>
         <div className="flex items-center gap-2">
+          <button onClick={() => { setRefreshKey(k => k + 1); }} title="Refresh"
+            className="inline-flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--card)] px-4 py-2 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--accent)] transition-colors">
+            <RefreshCw size={16} className={loading ? "animate-spin" : ""} /> Refresh
+          </button>
           <button onClick={() => setShowSaved(true)}
             className="inline-flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--card)] px-4 py-2 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--accent)] transition-colors">
             <BarChart3 size={16} /> Saved Reports
@@ -205,6 +229,11 @@ export default function ReportsPage() {
         <h3 className="text-sm font-semibold text-[var(--foreground)] mb-4">
           {entity.charAt(0).toUpperCase() + entity.slice(1)}s by {groupBy.replace(/([A-Z])/g, ' $1').trim()}
         </h3>
+        {error && (
+          <div className="mb-4 flex items-center gap-2 px-4 py-3 bg-red-50 dark:bg-red-900/20 rounded-lg text-sm text-red-600 dark:text-red-400">
+            {error}
+          </div>
+        )}
         {renderChart()}
       </div>
 
@@ -244,9 +273,19 @@ export default function ReportsPage() {
               <button onClick={() => setShowSaved(false)} className="p-1 rounded-md text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--accent)] transition-colors cursor-pointer"><X size={16} /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-2">
-              {saved.length === 0 ? (
+              {loading && (
+                <div className="flex items-center justify-center py-8">
+                  <RefreshCw size={20} className="animate-spin text-[var(--muted-foreground)]" />
+                </div>
+              )}
+              {error && (
+                <div className="flex items-center justify-center py-4 px-4 bg-red-50 dark:bg-red-900/20 rounded-lg text-sm text-red-600 dark:text-red-400">
+                  {error}
+                </div>
+              )}
+              {!loading && !error && saved.length === 0 ? (
                 <p className="text-sm text-[var(--muted-foreground)] text-center py-8">No saved reports yet. Build and save one!</p>
-              ) : saved.map((r: any) => (
+              ) : !loading && !error && saved.map((r: any) => (
                 <div key={r.id} className="flex items-center justify-between rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 py-3">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-[var(--foreground)] truncate">{r.name}</p>

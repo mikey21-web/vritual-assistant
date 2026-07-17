@@ -406,10 +406,10 @@ export const mockForms = [
 ];
 
 export const mockQRCodes = [
-  { id: 'qr-1', name: 'Store Front Display', url: 'https://leadauto.com/scan/store', scans: 345, active: true, createdAt: randomDate(45) },
-  { id: 'qr-2', name: 'Business Card', url: 'https://leadauto.com/scan/card', scans: 189, active: true, createdAt: randomDate(30) },
-  { id: 'qr-3', name: 'Flyer Summer Campaign', url: 'https://leadauto.com/scan/summer', scans: 567, active: true, createdAt: randomDate(20) },
-  { id: 'qr-4', name: 'Event Banner', url: 'https://leadauto.com/scan/event', scans: 78, active: false, createdAt: randomDate(60) },
+  { id: 'qr-1', name: 'Store Front Display', destinationType: 'website', destination: 'https://leadauto.com/scan/store', scans: 345, active: true, createdAt: randomDate(45) },
+  { id: 'qr-2', name: 'Business Card', destinationType: 'website', destination: 'https://leadauto.com/scan/card', scans: 189, active: true, createdAt: randomDate(30) },
+  { id: 'qr-3', name: 'Flyer Summer Campaign', destinationType: 'form_link', destination: 'https://leadauto.com/scan/summer', scans: 567, active: true, createdAt: randomDate(20) },
+  { id: 'qr-4', name: 'Event Banner', destinationType: 'website', destination: 'https://leadauto.com/scan/event', scans: 78, active: false, createdAt: randomDate(60) },
 ];
 
 export const mockMedia = [

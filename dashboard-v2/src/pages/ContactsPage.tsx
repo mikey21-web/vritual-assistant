@@ -1,14 +1,18 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { fetchContacts } from '../lib/data';
 import { consumePendingFilter, PENDING_FILTER_APPLIED_EVENT } from '../lib/pendingSearch';
-import { Search, Users } from 'lucide-react';
+import { Search, Users, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import type { Contact } from '../lib/types';
 
 export default function ContactsPage() {
   const [data, setData] = useState<Contact[]>([]);
   const [search, setSearch] = useState('');
   const [debounced, setDebounced] = useState('');
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState<any>({ total: 0, page: 1, limit: 20, totalPages: 1 });
+  const [loading, setLoading] = useState(false);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const highlightRef = useRef<HTMLTableRowElement | null>(null);
 
@@ -30,8 +34,22 @@ export default function ContactsPage() {
     return () => window.removeEventListener(PENDING_FILTER_APPLIED_EVENT, onApplied);
   }, []);
 
-  useEffect(() => { const t = setTimeout(() => setDebounced(search), 300); return () => clearTimeout(t); }, [search]);
-  useEffect(() => { fetchContacts(1, debounced).then((r: any) => setData(r.data || r)).catch(() => {}); }, [debounced]);
+  useEffect(() => { const t = setTimeout(() => { setDebounced(search); setPage(1); }, 300); return () => clearTimeout(t); }, [search]);
+
+  const load = useCallback(async (p: number, q: string) => {
+    setLoading(true);
+    try {
+      const r: any = await fetchContacts(p, q);
+      setData(r.data || []);
+      setMeta(r.meta || { total: 0, page: p, limit: 20, totalPages: 1 });
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to load contacts');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(page, debounced); }, [page, debounced, load]);
 
   useEffect(() => {
     if (!highlightId || !highlightRef.current) return;
@@ -58,8 +76,15 @@ export default function ContactsPage() {
         </div>
       </div>
 
-      {data.length === 0 ? (
-        <div className="hidden sm:block rounded-xl border border-[var(--border)] bg-[var(--card)] py-16 text-center text-[var(--muted-foreground)]">
+      {loading ? (
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-8">
+          <div className="flex items-center justify-center gap-3 text-[var(--muted-foreground)]">
+            <Loader2 size={20} className="animate-spin" />
+            <p className="text-sm">Loading contacts...</p>
+          </div>
+        </div>
+      ) : data.length === 0 ? (
+        <div className="block rounded-xl border border-[var(--border)] bg-[var(--card)] py-16 text-center text-[var(--muted-foreground)]">
           <Users size={28} className="mx-auto mb-2 text-[var(--muted-foreground)]/40" />
           <p className="text-sm">No contacts found</p>
         </div>
@@ -143,6 +168,44 @@ export default function ContactsPage() {
             ))}
           </div>
         </>
+
+      )}
+
+      {meta.totalPages > 1 && (
+        <div className="flex items-center justify-between pt-2">
+          <p className="text-sm text-[var(--muted-foreground)]">
+            Page {meta.page} of {meta.totalPages} ({meta.total} total)
+          </p>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="h-8 px-3 rounded-lg border border-[var(--border)] text-sm text-[var(--foreground)] hover:bg-[var(--accent)] disabled:opacity-40 disabled:pointer-events-none transition-colors inline-flex items-center gap-1"
+            >
+              <ChevronLeft size={14} /> Prev
+            </button>
+            {Array.from({ length: meta.totalPages }, (_, i) => i + 1).map(p => (
+              <button
+                key={p}
+                onClick={() => setPage(p)}
+                className={`h-8 w-8 rounded-lg text-sm font-medium transition-colors ${
+                  p === page
+                    ? 'bg-[var(--primary)] text-white'
+                    : 'border border-[var(--border)] text-[var(--foreground)] hover:bg-[var(--accent)]'
+                }`}
+              >
+                {p}
+              </button>
+            ))}
+            <button
+              onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))}
+              disabled={page >= meta.totalPages}
+              className="h-8 px-3 rounded-lg border border-[var(--border)] text-sm text-[var(--foreground)] hover:bg-[var(--accent)] disabled:opacity-40 disabled:pointer-events-none transition-colors inline-flex items-center gap-1"
+            >
+              Next <ChevronRight size={14} />
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

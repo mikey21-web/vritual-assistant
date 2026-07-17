@@ -10,7 +10,7 @@ import { Button } from '../components/ui/button';
 import CustomFieldsSection from '../components/CustomFieldsSection';
 import { getTeamConfig, getPermissionModuleLabel } from '../lib/niche-config';
 
-const PERMISSION_MODULES = ['DASHBOARD', 'EVENTS', 'CRM', 'VENDORS', 'TEAM', 'TIMESHEET', 'ACCOUNTING', 'INVENTORY', 'PROCUREMENT'];
+const PERMISSION_MODULES = ['DASHBOARD', 'EVENTS', 'CRM', 'VENDORS', 'TEAM', 'TIMESHEET', 'ACCOUNTING', 'INVENTORY', 'PROCUREMENT', 'PROPERTIES', 'PROJECTS'];
 const PERMISSION_LEVELS = ['NO_ACCESS', 'VIEW_ONLY', 'EDIT', 'FULL_ACCESS'];
 
 function PermissionsPanel({ userId, onClose }: { userId: string; onClose: () => void }) {
@@ -132,6 +132,7 @@ export default function TeamPage() {
   const [form, setForm] = useState({ email: '', name: '', role: 'SALES_AGENT', phone: '', department: '' });
   const [permUserId, setPermUserId] = useState<string | null>(null);
   const [detailsUserId, setDetailsUserId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const refresh = () => api('/users').then((r: any) => setUsers(Array.isArray(r) ? r : r.data || [])).catch(() => {});
   useEffect(() => { refresh(); }, []);
@@ -273,7 +274,7 @@ export default function TeamPage() {
                           <Shield size={14} />
                         </button>
                         <button
-                          onClick={() => { api(`/users/${u.id}`, { method: 'DELETE' }).then(refresh); toast.success('Removed'); }}
+                          onClick={() => setDeleteConfirmId(u.id)}
                           className="p-1.5 rounded-md hover:bg-[var(--accent)] text-red-400 hover:text-red-600 transition-colors"
                         >
                           <Trash2 size={14} />
@@ -314,7 +315,7 @@ export default function TeamPage() {
                   </div>
                 </div>
                 <button
-                  onClick={() => { api(`/users/${u.id}`, { method: 'DELETE' }).then(refresh); toast.success('Removed'); }}
+                  onClick={() => setDeleteConfirmId(u.id)}
                   className="p-1.5 rounded-md hover:bg-[var(--accent)] text-red-400 hover:text-red-600 transition-colors shrink-0"
                 >
                   <Trash2 size={16} />
@@ -349,6 +350,39 @@ export default function TeamPage() {
           ))
         )}
       </div>
+
+      {/* Delete confirmation dialog */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={() => setDeleteConfirmId(null)}>
+          <div className="w-full max-w-sm rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-lg" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-[var(--foreground)] mb-2">Remove team member</h3>
+            <p className="text-sm text-[var(--muted-foreground)] mb-4">Are you sure you want to remove this team member? This action cannot be undone.</p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setDeleteConfirmId(null)}
+                className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--accent)] transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    await api(`/users/${deleteConfirmId}`, { method: 'DELETE' });
+                    refresh();
+                    toast.success('Removed');
+                  } catch (e: any) {
+                    toast.error(e.message || 'Failed to remove');
+                  }
+                  setDeleteConfirmId(null);
+                }}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 transition-colors"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

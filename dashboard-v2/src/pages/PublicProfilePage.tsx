@@ -37,7 +37,7 @@ export default function PublicProfilePage() {
           <button onClick={save} className="h-9 px-4 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90">Save changes</button>
           <button onClick={publish} className="h-9 px-4 rounded-lg border border-[var(--border)] text-sm text-[var(--foreground)]">Publish</button>
           <button onClick={copyLink} className="h-9 px-4 rounded-lg border border-[var(--border)] text-sm text-[var(--foreground)]">Copy public link</button>
-          <a href={form.slug ? `#/org/${form.slug}` : undefined} target="_blank" rel="noreferrer" className="h-9 px-4 rounded-lg border border-[var(--border)] text-sm text-[var(--foreground)] inline-flex items-center">Preview</a>
+          <a href={form.slug ? `#/org/${form.slug}` : '#'} target="_blank" rel="noreferrer" className="h-9 px-4 rounded-lg border border-[var(--border)] text-sm text-[var(--foreground)] inline-flex items-center">Preview</a>
         </div>
       </div>
 
@@ -65,6 +65,19 @@ export default function PublicProfilePage() {
               <input value={form.city || ''} onChange={e => setForm({ ...form, city: e.target.value })}
                 className="mt-1 w-full h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)]" />
             </div>
+            <div>
+              <label className="text-xs font-medium text-[var(--muted-foreground)]">Years of Experience</label>
+              <input value={form.yearsExperience || ''} onChange={e => setForm({ ...form, yearsExperience: e.target.value })}
+                placeholder="e.g. 15"
+                className="mt-1 w-full h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)]" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-[var(--muted-foreground)]">Services Offered</label>
+              <input value={(form.servicesOffered || []).join(', ')} onChange={e => setForm({ ...form, servicesOffered: e.target.value.split(',').map((s: string) => s.trim()).filter(Boolean) })}
+                placeholder="e.g. Residential Sales, Property Management, Consulting"
+                className="mt-1 w-full h-9 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)]" />
+              <p className="text-xs text-[var(--muted-foreground)] mt-1">Comma-separated list of services</p>
+            </div>
           </div>
           <div>
             <label className="text-xs font-medium text-[var(--muted-foreground)]">About</label>
@@ -79,7 +92,7 @@ export default function PublicProfilePage() {
           <h3 className="font-semibold text-[var(--foreground)] mt-3">{form.companyName || 'Your company name'}</h3>
           <div className="flex gap-4 mt-2 text-center text-xs text-[var(--muted-foreground)]">
             <div><div className="font-semibold text-[var(--foreground)]">{form.yearsExperience || '—'}</div>Years</div>
-            <div><div className="font-semibold text-[var(--foreground)]">{form.eventsExecuted || '—'}</div>Events</div>
+            <div><div className="font-semibold text-[var(--foreground)]">{form.eventsExecuted || '—'}</div>Properties</div>
             <div><div className="font-semibold text-[var(--foreground)]">{(form.servicesOffered || []).length}</div>Services</div>
           </div>
         </div>
