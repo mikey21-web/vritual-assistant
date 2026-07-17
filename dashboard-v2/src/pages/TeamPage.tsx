@@ -2,16 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../lib/api';
 import { UserPlus, Trash2, Shield, IdCard } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { fetchPermissionPresets, fetchUserPermissions, setUserPermission, applyPermissionPreset } from '../lib/data';
+import { fetchPermissionPresets, fetchUserPermissions, setUserPermission, applyPermissionPreset, createTeamInvite } from '../lib/data';
 import { Drawer } from '../components/ui/drawer';
 import { Input } from '../components/ui/input';
 import { Select } from '../components/ui/select';
 import { Button } from '../components/ui/button';
 import CustomFieldsSection from '../components/CustomFieldsSection';
 import { getTeamConfig, getPermissionModuleLabel } from '../lib/niche-config';
-
-const PERMISSION_MODULES = ['DASHBOARD', 'EVENTS', 'CRM', 'VENDORS', 'TEAM', 'TIMESHEET', 'ACCOUNTING', 'INVENTORY', 'PROCUREMENT', 'PROPERTIES', 'PROJECTS'];
-const PERMISSION_LEVELS = ['NO_ACCESS', 'VIEW_ONLY', 'EDIT', 'FULL_ACCESS'];
+import { PERMISSION_MODULES, PERMISSION_LEVELS } from '../lib/permission-modules';
 
 function PermissionsPanel({ userId, onClose }: { userId: string; onClose: () => void }) {
   const [presets, setPresets] = useState<any[]>([]);
@@ -140,11 +138,15 @@ export default function TeamPage() {
   const invite = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await api('/users', { method: 'POST', body: JSON.stringify(form) });
+      // Was calling POST /users directly, which requires a password this
+      // form never collected (an admin can't set someone else's password
+      // sight-unseen) — every invite here silently 400'd. Now sends a real
+      // invite: the teammate gets an email and sets their own password.
+      await createTeamInvite({ name: form.name, email: form.email, role: form.role, department: form.department });
       setShowInvite(false);
       setForm({ email: '', name: '', role: 'SALES_AGENT', phone: '', department: '' });
       refresh();
-      toast.success('Team member invited');
+      toast.success(`Invite sent to ${form.email}`);
     } catch (e: any) { toast.error(e.message); }
   };
 

@@ -267,6 +267,18 @@ export default function App() {
     );
   }
 
+  // Public accept-invite page — the invitee has no account yet, so this
+  // must render before the isLoggedIn gate below.
+  if (publicRoute.startsWith('/accept-invite/')) {
+    const AcceptInvitePage = lazy(() => import('./pages/AcceptInvitePage'));
+    const token = publicRoute.slice('/accept-invite/'.length);
+    return (
+      <Suspense fallback={<PageFallback />}>
+        <AcceptInvitePage token={token} />
+      </Suspense>
+    );
+  }
+
   if (!isLoggedIn) {
     return (
       <BrandingProvider>

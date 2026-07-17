@@ -243,6 +243,17 @@ export async function fetchUserPermissions(userId: string) { return api(`/module
 export async function setUserPermission(userId: string, module: string, level: string) { return api(`/module-permissions/users/${userId}`, { method: 'POST', body: JSON.stringify({ module, level }) }); }
 export async function applyPermissionPreset(userId: string, preset: string) { return api(`/module-permissions/users/${userId}/apply-preset`, { method: 'POST', body: JSON.stringify({ preset }) }); }
 
+export async function fetchTeamInvites() { return api('/team/invites') as Promise<any[]>; }
+export async function createTeamInvite(data: { name: string; email: string; role?: string; department?: string; moduleGrants?: Record<string, string> }) {
+  return api('/team/invites', { method: 'POST', body: JSON.stringify(data) });
+}
+export async function revokeTeamInvite(id: string) { return api(`/team/invites/${id}`, { method: 'DELETE' }); }
+export async function resendTeamInvite(id: string) { return api(`/team/invites/${id}/resend`, { method: 'POST' }); }
+export async function lookupTeamInvite(token: string) { return api(`/team/invites/${token}/lookup`); }
+export async function acceptTeamInvite(token: string, password: string) {
+  return api('/team/invites/accept', { method: 'POST', body: JSON.stringify({ token, password }) });
+}
+
 // --- Public Profile ---
 export async function fetchMyPublicProfile() { return api('/public-profile/mine'); }
 export async function updateMyPublicProfile(data: any) { return api('/public-profile/mine', { method: 'PATCH', body: JSON.stringify(data) }); }

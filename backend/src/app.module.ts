@@ -30,6 +30,7 @@ import { ProcurementModule } from './procurement/procurement.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { TeamOpsModule } from './team-ops/team-ops.module';
 import { ModulePermissionsModule } from './module-permissions/module-permissions.module';
+import { TeamInvitesModule } from './team-invites/team-invites.module';
 import { PublicProfileModule } from './public-profile/public-profile.module';
 import { ConversionsModule } from './conversions/conversions.module';
 import { IntegrationsModule } from './integrations/integrations.module';
@@ -119,6 +120,7 @@ import { AICampaignsController } from './ai-campaigns/ai-campaigns.controller';
     InventoryModule,
     TeamOpsModule,
     ModulePermissionsModule,
+    TeamInvitesModule,
     PublicProfileModule,
     ConversionsModule,
     BookingsModule,
