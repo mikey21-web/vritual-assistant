@@ -69,6 +69,7 @@ model Tenant {
   channelPartners  ChannelPartner[]
   projects         Project[]
   units            Unit[]
+  mediaCollections MediaCollection[]
 
   @@index([slug])
   @@map("tenants")
@@ -848,6 +849,38 @@ model MessageTemplate {
   @@map("message_templates")
 }
 
+model MediaCollection {
+  id        String   @id @default(uuid())
+  tenantId  String   @map("tenant_id")
+  name      String
+  description String?
+  coverImageUrl String?
+  projectId String?
+  propertyId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  items  MediaCollectionItem[]
+
+  @@index([tenantId])
+  @@map("media_collections")
+}
+
+model MediaCollectionItem {
+  id           String         @id @default(uuid())
+  collectionId String
+  collection   MediaCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  mediaId      String
+  media        MediaFile       @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  orderIndex   Int            @default(0)
+  createdAt    DateTime       @default(now())
+
+  @@unique([collectionId, mediaId])
+  @@index([mediaId])
+  @@map("media_collection_items")
+}
+
 model MediaFile {
   id             String        @id @default(uuid())
   fileName       String
@@ -863,6 +896,8 @@ model MediaFile {
   tags           String[]      @default([])
   isDigitalDownload Boolean    @default(false)
   downloadStatus String?
+  projectId      String?
+  propertyId     String?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
@@ -876,6 +911,7 @@ model MediaFile {
   contact      Contact?        @relation("ContactMedia", fields: [contactId], references: [id])
   templateId   String?
   template     MessageTemplate? @relation("TemplateMedia", fields: [templateId], references: [id])
+  collections  MediaCollectionItem[]
 
   @@index([category])
   @@index([fileType])
@@ -883,6 +919,8 @@ model MediaFile {
   @@index([leadId])
   @@index([campaignId])
   @@index([templateId])
+  @@index([projectId])
+  @@index([propertyId])
   @@map("media_files")
 }
 

@@ -6,7 +6,7 @@ import { Roles } from '../auth/roles.decorator';
 import { Public } from '../auth/public.decorator';
 import { MediaService } from './media.service';
 import { SignedUrlService } from '../shared/signed-url.service';
-import { UpdateMediaDto, AttachMediaDto, MediaQueryDto } from './dto/media.dto';
+import { UpdateMediaDto, AttachMediaDto, MediaQueryDto, CreateCollectionDto, UpdateCollectionDto } from './dto/media.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 import * as path from 'path';
@@ -30,9 +30,7 @@ export class MediaController {
   @Public()
   @Get(':id/file/:fileKey') serveSignedFile(@Param('id') id: string, @Param('fileKey') fileKey: string, @Query() q: Record<string, string>, @Res() res: Response) {
     if (!this.signedUrl.verify(`/media/${id}/file/${fileKey}`, q)) throw new BadRequestException('Invalid or expired signed URL');
-
     if (!/^[a-zA-Z0-9_.-]+$/.test(fileKey)) throw new BadRequestException('Invalid file key');
-
     const storagePath = path.resolve(process.env.STORAGE_PATH || './uploads');
     const fullPath = path.resolve(storagePath, fileKey);
     if (!fullPath.startsWith(storagePath + path.sep) && fullPath !== storagePath) {
@@ -60,6 +58,32 @@ export class MediaController {
 
   @Get(':id/download-url') @UseGuards(JwtAuthGuard, RolesGuard) @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT') @ApiBearerAuth()
   downloadUrl(@Param('id') id: string, @Req() req) { return this.service.getDownloadUrl(id, req.user.sub); }
+
+  // --- Collections ---
+  @Get('collections') @UseGuards(JwtAuthGuard, RolesGuard) @Roles('OWNER', 'ADMIN', 'MANAGER', 'VIEWER') @ApiBearerAuth()
+  listCollections(@Req() req) { return this.service.listCollections(req.user.sub); }
+
+  @Post('collections') @UseGuards(JwtAuthGuard, RolesGuard) @Roles('OWNER', 'ADMIN', 'MANAGER') @ApiBearerAuth()
+  createCollection(@Body() d: CreateCollectionDto, @Req() req) { return this.service.createCollection(d, req.user.sub); }
+
+  @Get('collections/:id') @UseGuards(JwtAuthGuard, RolesGuard) @Roles('OWNER', 'ADMIN', 'MANAGER', 'VIEWER') @ApiBearerAuth()
+  getCollection(@Param('id') id: string) { return this.service.getCollection(id); }
+
+  @Patch('collections/:id') @UseGuards(JwtAuthGuard, RolesGuard) @Roles('OWNER', 'ADMIN', 'MANAGER') @ApiBearerAuth()
+  updateCollection(@Param('id') id: string, @Body() d: UpdateCollectionDto, @Req() req) { return this.service.updateCollection(id, d, req.user.sub); }
+
+  @Delete('collections/:id') @UseGuards(JwtAuthGuard, RolesGuard) @Roles('OWNER', 'ADMIN') @ApiBearerAuth()
+  deleteCollection(@Param('id') id: string, @Req() req) { return this.service.deleteCollection(id, req.user.sub); }
+
+  @Post('collections/:id/media/:mediaId') @UseGuards(JwtAuthGuard, RolesGuard) @Roles('OWNER', 'ADMIN', 'MANAGER') @ApiBearerAuth()
+  addToCollection(@Param('id') id: string, @Param('mediaId') mediaId: string, @Req() req) { return this.service.addToCollection(id, mediaId, req.user.sub); }
+
+  @Delete('collections/:id/media/:mediaId') @UseGuards(JwtAuthGuard, RolesGuard) @Roles('OWNER', 'ADMIN', 'MANAGER') @ApiBearerAuth()
+  removeFromCollection(@Param('id') id: string, @Param('mediaId') mediaId: string, @Req() req) { return this.service.removeFromCollection(id, mediaId, req.user.sub); }
+
+  // --- AI / Mikey search ---
+  @Get('search/ai') @UseGuards(JwtAuthGuard, RolesGuard) @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT') @ApiBearerAuth()
+  aiSearch(@Query('q') q: string, @Query('projectId') projectId?: string) { return this.service.aiSearch(q, projectId); }
 }
 
 @ApiTags('Media') @Controller('leads/:leadId/media') @UseGuards(JwtAuthGuard, RolesGuard) @ApiBearerAuth()

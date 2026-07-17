@@ -50,6 +50,7 @@ export class BookingsController {
       price: dto.price,
       currency: dto.currency,
       propertyId: dto.propertyId,
+      unitId: dto.unitId,
     });
   }
 
@@ -66,6 +67,7 @@ export class BookingsController {
       price: dto.price,
       currency: dto.currency,
       propertyId: dto.propertyId,
+      unitId: dto.unitId,
     });
   }
 

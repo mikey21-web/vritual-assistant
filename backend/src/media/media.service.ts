@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { SignedUrlService } from '../shared/signed-url.service';
+import { CreateCollectionDto, UpdateCollectionDto } from './dto/media.dto';
 import * as path from 'path';
 import * as fs from 'fs';
 import { v4 as uuid } from 'uuid';
@@ -33,13 +34,21 @@ export class MediaService {
   constructor(private prisma: PrismaService, private config: ConfigService, private auditLogs: AuditLogsService, private signedUrl: SignedUrlService) {}
 
   async findAll(query: any = {}) {
-    const { category, fileType, search, page = 1, limit = 20 } = query;
+    const { category, fileType, search, projectId, propertyId, collectionId, page = 1, limit = 20 } = query;
     const where: any = {};
     if (category) where.category = category;
     if (fileType) where.fileType = fileType;
     if (search) where.originalName = { contains: search, mode: 'insensitive' };
+    if (projectId) where.projectId = projectId;
+    if (propertyId) where.propertyId = propertyId;
+    if (collectionId) {
+      where.collections = { some: { collectionId } };
+    }
     const [data, total] = await Promise.all([
-      this.prisma.mediaFile.findMany({ where, skip: (+page - 1) * +limit, take: +limit, orderBy: { createdAt: 'desc' }, include: { uploadedBy: { select: { id: true, name: true } } } }),
+      this.prisma.mediaFile.findMany({
+        where, skip: (+page - 1) * +limit, take: +limit, orderBy: { createdAt: 'desc' },
+        include: { uploadedBy: { select: { id: true, name: true } }, collections: { include: { collection: { select: { id: true, name: true } } } } },
+      }),
       this.prisma.mediaFile.count({ where }),
     ]);
     return { data, meta: { total, page: +page, limit: +limit } };
@@ -73,7 +82,9 @@ export class MediaService {
         fileName: file.originalname, originalName: file.originalname, fileType: ext, mimeType: file.mimetype, fileSize: file.size,
         storageProvider: this.config.get<string>('STORAGE_PROVIDER', 'local'), storageKey,
         publicUrl: isPrivate ? null : `/uploads/${storageKey}`,
-        category: metadata.category || 'OTHER', tags: metadata.tags || [], uploadedById: userId,
+        category: metadata.category || 'OTHER', tags: metadata.tags || [],
+        projectId: metadata.projectId || null, propertyId: metadata.propertyId || null,
+        uploadedById: userId,
       },
     });
     await this.auditLogs.log('media_uploaded', 'MediaFile', media.id, userId);
@@ -113,6 +124,77 @@ export class MediaService {
     }
     await this.auditLogs.log('media_downloaded', 'MediaFile', id, userId);
     return { data: { url: file.publicUrl, fileName: file.originalName, mimeType: file.mimeType } };
+  }
+
+  // --- Collections ---
+  async listCollections(userId: string) {
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    return this.prisma.mediaCollection.findMany({
+      where: { tenantId: user.tenantId },
+      orderBy: { createdAt: 'desc' },
+      include: { _count: { select: { items: true } } },
+    });
+  }
+
+  async createCollection(dto: CreateCollectionDto, userId: string) {
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    return this.prisma.mediaCollection.create({
+      data: { tenantId: user.tenantId, name: dto.name, description: dto.description, projectId: dto.projectId, propertyId: dto.propertyId },
+    });
+  }
+
+  async getCollection(id: string) {
+    const c = await this.prisma.mediaCollection.findUnique({
+      where: { id },
+      include: { items: { include: { media: { include: { uploadedBy: { select: { id: true, name: true } } } } }, orderBy: { orderIndex: 'asc' } } },
+    });
+    if (!c) throw new NotFoundException('Collection not found');
+    return c;
+  }
+
+  async updateCollection(id: string, dto: UpdateCollectionDto, userId?: string) {
+    await this.prisma.mediaCollection.findUniqueOrThrow({ where: { id } });
+    const c = await this.prisma.mediaCollection.update({ where: { id }, data: dto });
+    await this.auditLogs.log('collection_updated', 'MediaCollection', id, userId);
+    return c;
+  }
+
+  async deleteCollection(id: string, userId?: string) {
+    await this.prisma.mediaCollection.findUniqueOrThrow({ where: { id } });
+    await this.prisma.mediaCollection.delete({ where: { id } });
+    await this.auditLogs.log('collection_deleted', 'MediaCollection', id, userId);
+    return { deleted: true };
+  }
+
+  async addToCollection(collectionId: string, mediaId: string, userId?: string) {
+    await this.prisma.mediaFile.findUniqueOrThrow({ where: { id: mediaId } });
+    const item = await this.prisma.mediaCollectionItem.create({ data: { collectionId, mediaId } });
+    await this.auditLogs.log('media_added_to_collection', 'MediaCollectionItem', item.id, userId);
+    return item;
+  }
+
+  async removeFromCollection(collectionId: string, mediaId: string, userId?: string) {
+    await this.prisma.mediaCollectionItem.deleteMany({ where: { collectionId, mediaId } });
+    await this.auditLogs.log('media_removed_from_collection', 'MediaCollectionItem', '', userId);
+    return { deleted: true };
+  }
+
+  // --- AI search for Mikey ---
+  async aiSearch(q: string, projectId?: string) {
+    const where: any = {
+      OR: [
+        { originalName: { contains: q, mode: 'insensitive' } },
+        { tags: { hasSome: [q] } },
+        { fileName: { contains: q, mode: 'insensitive' } },
+      ],
+    };
+    if (projectId) where.projectId = projectId;
+    return this.prisma.mediaFile.findMany({
+      where,
+      take: 20,
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, originalName: true, fileType: true, mimeType: true, fileSize: true, publicUrl: true, tags: true, projectId: true, createdAt: true },
+    });
   }
 
   getByLead(leadId: string) { return this.prisma.mediaFile.findMany({ where: { leadId } }); }

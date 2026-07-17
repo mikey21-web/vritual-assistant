@@ -114,8 +114,21 @@ export async function fetchFormAnalytics(formId: string) { return api(`/forms/${
 export async function fetchQRCodes() { return api('/qr-codes') as Promise<any[]>; }
 export async function createQRCode(data: any) { return api('/qr-codes', { method: 'POST', body: JSON.stringify(data) }); }
 
-export async function fetchMedia() { return api('/media') as Promise<{ data: any[]; meta: any }>; }
+export async function fetchMedia(params?: Record<string, string>) {
+  const q = params ? '?' + new URLSearchParams(params).toString() : '';
+  return api(`/media${q}`) as Promise<{ data: any[]; meta: any }>;
+}
 export async function deleteMedia(id: string) { return api(`/media/${id}`, { method: 'DELETE' }); }
+export async function updateMedia(id: string, data: any) { return api(`/media/${id}`, { method: 'PATCH', body: JSON.stringify(data) }); }
+export async function getMediaDownloadUrl(id: string) { return api(`/media/${id}/download-url`) as Promise<any>; }
+
+export async function fetchMediaCollections() { return api('/media/collections') as Promise<any[]>; }
+export async function createMediaCollection(data: any) { return api('/media/collections', { method: 'POST', body: JSON.stringify(data) }); }
+export async function getMediaCollection(id: string) { return api(`/media/collections/${id}`) as Promise<any>; }
+export async function updateMediaCollection(id: string, data: any) { return api(`/media/collections/${id}`, { method: 'PATCH', body: JSON.stringify(data) }); }
+export async function deleteMediaCollection(id: string) { return api(`/media/collections/${id}`, { method: 'DELETE' }); }
+export async function addMediaToCollection(collectionId: string, mediaId: string) { return api(`/media/collections/${collectionId}/media/${mediaId}`, { method: 'POST' }); }
+export async function removeMediaFromCollection(collectionId: string, mediaId: string) { return api(`/media/collections/${collectionId}/media/${mediaId}`, { method: 'DELETE' }); }
 
 export interface AppNotification {
   id: string;
