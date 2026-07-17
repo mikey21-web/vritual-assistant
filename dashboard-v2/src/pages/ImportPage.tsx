@@ -68,7 +68,7 @@ export default function ImportPage() {
 
   const refreshLogs = async () => {
     try {
-      const r = await api("/advanced-features/import-export/logs");
+      const r = await api("/import-export/logs");
       setLogs(r.data || r || []);
     } catch {}
   };
@@ -117,11 +117,11 @@ export default function ImportPage() {
 
     setImporting(true);
     try {
-      const { id } = await api("/advanced-features/import/start", {
+      const { id } = await api("/import/start", {
         method: "POST",
         body: JSON.stringify({ totalRows: dataRows.length }),
       });
-      const result = await apiUpload(`/advanced-features/import/${id}/process`, formData);
+      const result = await apiUpload(`/import/${id}/process`, formData);
       setLastResult(result);
       setStep("done");
       refreshLogs();

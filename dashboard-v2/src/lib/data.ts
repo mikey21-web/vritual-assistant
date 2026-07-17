@@ -11,7 +11,7 @@ export async function fetchDeepHealth() { return api('/health/deep') as Promise<
 
 export async function fetchLeads(page = 1, filters: Record<string, string> = {}) {
   const q = new URLSearchParams({ page: String(page), limit: '20', ...filters });
-  return api(`/leads?${q}`) as Promise<{ data: Lead[]; meta: { total: number; page: number; limit: number } }>;
+  return api(`/leads?${q}`) as Promise<{ data: Lead[]; meta: { total: number; page: number; limit: number; totalPages?: number } }>;
 }
 export async function fetchLead(id: string) { return api(`/leads/${id}`) as Promise<Lead>; }
 export async function createLead(data: any) { return api('/leads', { method: 'POST', body: JSON.stringify(data) }) as Promise<Lead>; }

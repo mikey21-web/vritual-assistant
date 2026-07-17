@@ -49,4 +49,6 @@ export class LeadQueryDto {
   @ApiPropertyOptional() @IsOptional() @IsString() campaignId?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() assignedAgentId?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() search?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() sortBy?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() sortOrder?: 'asc' | 'desc';
 }

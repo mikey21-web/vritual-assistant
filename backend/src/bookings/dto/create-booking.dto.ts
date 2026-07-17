@@ -29,4 +29,8 @@ export class CreateBookingDto {
   @IsOptional()
   @IsString()
   propertyId?: string;
+
+  @IsOptional()
+  @IsString()
+  unitId?: string;
 }

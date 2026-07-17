@@ -20,7 +20,7 @@ export class LeadsService {
   ) {}
 
   async findAll(query: any = {}) {
-    const { page = 1, limit = 20, status, segment, source, campaignId, assignedAgentId, search } = query;
+    const { page = 1, limit = 20, status, segment, source, campaignId, assignedAgentId, search, sortBy, sortOrder } = query;
     const where: any = {};
     if (status) where.status = status;
     if (segment) where.segment = segment;
@@ -35,9 +35,13 @@ export class LeadsService {
         { message: { contains: search, mode: 'insensitive' } },
       ];
     }
+    const allowedSortFields = ['createdAt', 'updatedAt', 'score', 'status', 'segment', 'source', 'priority', 'dealValue'] as const;
+    const orderField = (allowedSortFields as readonly string[]).includes(sortBy) ? (sortBy as typeof allowedSortFields[number]) : 'createdAt';
+    const orderDir: Prisma.SortOrder = sortOrder === 'asc' ? 'asc' : 'desc';
+    const orderBy: Prisma.LeadOrderByWithRelationInput = { [orderField]: orderDir };
     const [data, total] = await Promise.all([
       this.prisma.lead.findMany({
-        where, skip: (+page - 1) * +limit, take: +limit, orderBy: { createdAt: 'desc' },
+        where, skip: (+page - 1) * +limit, take: +limit, orderBy,
         include: { contact: true, assignedAgent: { select: { id: true, name: true, email: true } }, campaign: { select: { id: true, name: true } } },
       }),
       this.prisma.lead.count({ where }),

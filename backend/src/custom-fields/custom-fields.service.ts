@@ -46,6 +46,7 @@ export class CustomFieldsService {
   }
 
   async getValues(target: string, targetId: string) {
+    target = target?.toLowerCase();
     const where = target === 'contact' ? { contactId: targetId }
       : target === 'ticket' ? { ticketId: targetId }
       : target === 'team_member' ? { userId: targetId }
@@ -54,6 +55,11 @@ export class CustomFieldsService {
   }
 
   async setValues(target: string, targetId: string, values: { definitionId: string; value: string }[]) {
+    // Definitions store target uppercase ('TEAM_MEMBER', per CreateCustomFieldDto's
+    // @IsIn), but this method's branches are lowercase — normalize so a caller
+    // using the definition's own target value doesn't silently fall through to
+    // the lead branch and try to attach the value to a nonexistent lead.
+    target = target?.toLowerCase();
     const results: any[] = [];
     for (const v of values) {
       let whereKey: any;

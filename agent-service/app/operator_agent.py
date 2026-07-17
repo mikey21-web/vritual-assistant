@@ -297,12 +297,13 @@ def build_operator_tools(client: BackendClient, tenant_id: str) -> list:
 
     @tool
     async def book_site_visit(lead_id: str, title: str, start_time: str, end_time: str | None = None,
-                              property_id: str | None = None, description: str | None = None):
-        """Book a site visit / appointment for a lead. start_time and end_time are ISO datetimes. Use search_properties first to get a property_id if the visit is for a specific listing. Internal-only, executes immediately."""
+                              property_id: str | None = None, unit_id: str | None = None, description: str | None = None):
+        """Book a site visit / appointment for a lead. start_time and end_time are ISO datetimes. Use search_properties for a broker/resale property_id, or search_units for a builder unit_id — pass whichever one matches the listing type the lead is interested in. Booking a unit_id automatically moves that unit out of AVAILABLE. Internal-only, executes immediately."""
         try:
             body: dict = {"leadId": lead_id, "title": title, "startTime": start_time}
             if end_time: body["endTime"] = end_time
             if property_id: body["propertyId"] = property_id
+            if unit_id: body["unitId"] = unit_id
             if description: body["description"] = description
             result = await client._post(f"/leads/{lead_id}/bookings", body)
             return f"Visit booked: {result.get('id', '')} — {title} at {start_time}"

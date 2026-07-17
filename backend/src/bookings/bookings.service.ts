@@ -45,6 +45,7 @@ export class BookingsService {
     price?: number;
     currency?: string;
     propertyId?: string;
+    unitId?: string;
   }) {
     let tenantId = data.tenantId;
     if (!tenantId) {
@@ -69,8 +70,26 @@ export class BookingsService {
         price: data.price,
         currency: data.currency || 'INR',
         propertyId: data.propertyId,
+        unitId: data.unitId,
       },
     });
+
+    // Booking a builder Unit (as opposed to a broker Property) should move it
+    // out of AVAILABLE so the availability grid and inventory velocity stay
+    // accurate — the same status-history pattern ProjectsService.updateUnit uses.
+    if (data.unitId) {
+      try {
+        const unit = await this.prisma.unit.findUnique({ where: { id: data.unitId } });
+        if (unit && unit.status === 'AVAILABLE') {
+          await this.prisma.unit.update({ where: { id: data.unitId }, data: { status: 'BLOCKED' } });
+          await this.prisma.unitStatusHistory.create({
+            data: { unitId: data.unitId, fromStatus: unit.status, toStatus: 'BLOCKED' },
+          });
+        }
+      } catch (e: any) {
+        this.logger.warn(`Failed to update unit status for booking ${booking.id}: ${e.message}`);
+      }
+    }
 
     // Queue the 24h + 2h reminders. Best-effort — a scheduling hiccup must never
     // block the booking itself from being created.
