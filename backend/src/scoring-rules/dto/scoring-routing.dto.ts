@@ -20,8 +20,11 @@ export class UpdateScoringRuleDto {
 
 export class CreateRoutingRuleDto {
   @ApiProperty() @IsString() name: string;
-  @ApiPropertyOptional() @IsOptional() @IsObject() conditions?: Record<string, unknown>;
-  @ApiPropertyOptional() @IsOptional() @IsObject() action?: Record<string, unknown>;
+  // Conditions can be a single-condition object ({field: {operator,value}}) or
+  // an array of {field,operator,value} for multi-condition rules — not validated
+  // as a strict object since @IsObject() would reject the array shape.
+  @ApiPropertyOptional() @IsOptional() conditions?: Record<string, unknown> | unknown[];
+  @ApiPropertyOptional() @IsOptional() action?: Record<string, unknown>;
 }
 
 export class CreateTaskDto {

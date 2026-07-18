@@ -4,6 +4,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ContactsService } from '../contacts/contacts.service';
 import { LeadsService } from '../leads/leads.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
+import { ConversationsService } from '../conversations/conversations.service';
+import { AgentClientService } from '../agent/agent-client.service';
 import { NotFoundException } from '@nestjs/common';
 
 describe('FormsService', () => {
@@ -12,6 +14,8 @@ describe('FormsService', () => {
   let contactsService: any;
   let leadsService: any;
   let auditLogs: any;
+  let conversationsService: any;
+  let agentClient: any;
 
   const mockForm = {
     id: 'form-1',
@@ -187,6 +191,14 @@ describe('FormsService', () => {
       log: jest.fn().mockResolvedValue({}),
     };
 
+    conversationsService = {
+      create: jest.fn().mockResolvedValue({ id: 'msg-1' }),
+    };
+
+    agentClient = {
+      trigger: jest.fn().mockResolvedValue(undefined),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         FormsService,
@@ -194,6 +206,8 @@ describe('FormsService', () => {
         { provide: ContactsService, useValue: contactsService },
         { provide: LeadsService, useValue: leadsService },
         { provide: AuditLogsService, useValue: auditLogs },
+        { provide: ConversationsService, useValue: conversationsService },
+        { provide: AgentClientService, useValue: agentClient },
       ],
     }).compile();
 

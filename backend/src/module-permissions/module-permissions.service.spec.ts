@@ -25,11 +25,14 @@ describe('ModulePermissionsService', () => {
   });
 
   describe('listPresets', () => {
-    it('should list all 5 named presets', () => {
+    it('should list all named presets, including the event-management and real-estate sets', () => {
       const presets = service.listPresets();
-      expect(presets).toHaveLength(5);
+      expect(presets).toHaveLength(10);
       expect(presets.map(p => p.name)).toEqual(
-        expect.arrayContaining(['Operations manager', 'Sales coordinator', 'Event coordinator', 'Finance manager', 'Operations staff']),
+        expect.arrayContaining([
+          'Operations manager', 'Sales coordinator', 'Event coordinator', 'Finance manager', 'Operations staff',
+          'Sales Agent', 'Sales Manager', 'Marketing Coordinator', 'Finance & Payments', 'Viewer',
+        ]),
       );
     });
   });

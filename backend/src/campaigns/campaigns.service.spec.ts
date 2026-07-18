@@ -3,11 +3,13 @@ import { CampaignsService } from './campaigns.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotFoundException } from '@nestjs/common';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
+import { CampaignDispatcherService } from './campaign-dispatcher.service';
 
 describe('CampaignsService', () => {
   let service: CampaignsService;
   let prisma: any;
   const auditLogs = { log: jest.fn().mockResolvedValue({}) };
+  const dispatcher = { dispatchCampaign: jest.fn().mockResolvedValue({ sent: 0, skipped: 0, errors: 0 }) };
 
   const now = new Date('2025-01-01T00:00:00Z');
 
@@ -113,6 +115,7 @@ describe('CampaignsService', () => {
         CampaignsService,
         { provide: PrismaService, useValue: prisma },
         { provide: AuditLogsService, useValue: auditLogs },
+        { provide: CampaignDispatcherService, useValue: dispatcher },
       ],
     }).compile();
 
@@ -660,7 +663,9 @@ describe('CampaignsService', () => {
     prisma.campaign.findUnique.mockResolvedValue({ ...mockCampaign, status: 'draft' });
     prisma.campaign.update.mockResolvedValue({ ...mockCampaign, status: 'active', active: true, startDate: now });
     await service.startCampaign('campaign-1', 'user-1');
-    expect(prisma.campaignTimelineEntry.create).toHaveBeenLastCalledWith(
+    // Not toHaveBeenLastCalledWith — starting a campaign also fires a
+    // fire-and-forget dispatch whose own timeline entry can land right after.
+    expect(prisma.campaignTimelineEntry.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ event: 'campaign_started' }) }),
     );
 
@@ -674,7 +679,9 @@ describe('CampaignsService', () => {
     // Activate again
     prisma.campaign.update.mockResolvedValue({ ...mockCampaign, status: 'active', active: true });
     await service.activate('campaign-1', 'user-1');
-    expect(prisma.campaignTimelineEntry.create).toHaveBeenLastCalledWith(
+    // Not toHaveBeenLastCalledWith — activating also fires a fire-and-forget
+    // dispatch whose own timeline entry can land right after.
+    expect(prisma.campaignTimelineEntry.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ event: 'campaign_activated' }) }),
     );
 

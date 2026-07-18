@@ -8,7 +8,9 @@ const CAMPAIGN_STATUSES = ['draft', 'active', 'paused', 'completed', 'archived']
 
 export class CreateCampaignDto {
   @ApiProperty() @IsString() name: string;
-  @ApiProperty() @IsString() sourceType: string;
+  // Optional — the campaign wizard doesn't expose a "lead source" concept to
+  // the user, so this defaults to 'CAMPAIGN' server-side when omitted.
+  @ApiPropertyOptional() @IsOptional() @IsString() sourceType?: string;
 
   @ApiPropertyOptional({ default: 'multi-channel' }) @IsOptional() @IsString() campaignType?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() description?: string;

@@ -72,7 +72,7 @@ describe('TasksService', () => {
       expect(prisma.task.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           include: {
-            lead: { select: { id: true, contact: { select: { name: true } } } },
+            lead: { select: { id: true, contact: { select: { name: true, phone: true } } } },
             assignee: { select: { id: true, name: true } },
           },
         }),
@@ -145,7 +145,10 @@ describe('TasksService', () => {
       expect(prisma.task.findUnique).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: 'task-1' },
-          include: { lead: true, assignee: true },
+          include: {
+            lead: { select: { id: true, contact: { select: { name: true, phone: true } }, dealValue: true, status: true, interest: true } },
+            assignee: { select: { id: true, name: true } },
+          },
         }),
       );
     });
@@ -165,7 +168,18 @@ describe('TasksService', () => {
       });
       expect(task.title).toBe('Follow up call');
       expect(prisma.task.create).toHaveBeenCalledWith({
-        data: { title: 'Follow up call', leadId: 'lead-1', assigneeId: 'user-1' },
+        data: {
+          title: 'Follow up call',
+          description: undefined,
+          priority: 'medium',
+          dueAt: undefined,
+          leadId: 'lead-1',
+          assigneeId: 'user-1',
+          createdBy: 'agent',
+          source: 'manual',
+          status: 'pending',
+        },
+        include: { assignee: { select: { id: true, name: true } } },
       });
     });
 
@@ -175,7 +189,7 @@ describe('TasksService', () => {
         title: 'Send email',
         description: 'Send the proposal document',
         status: 'IN_PROGRESS',
-        dueDate,
+        dueAt: dueDate,
         leadId: 'lead-1',
         assigneeId: 'user-2',
       });
@@ -184,10 +198,14 @@ describe('TasksService', () => {
           title: 'Send email',
           description: 'Send the proposal document',
           status: 'IN_PROGRESS',
-          dueDate,
+          priority: 'medium',
+          dueAt: dueDate,
           leadId: 'lead-1',
           assigneeId: 'user-2',
+          createdBy: 'agent',
+          source: 'manual',
         },
+        include: { assignee: { select: { id: true, name: true } } },
       });
     });
   });

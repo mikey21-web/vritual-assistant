@@ -46,11 +46,22 @@ export class ConversationsService {
   async create(data: any, userId?: string) {
     // Run policy gate for outbound messages
     if (data.direction === 'OUTBOUND') {
+      // A reply sent shortly after the lead messaged in is reactive, not
+      // proactive outreach — only unsolicited first-touch/follow-up sends
+      // need the proactive-only consent/quiet-hours/rate-limit checks.
+      const lastInbound = await this.prisma.conversationMessage.findFirst({
+        where: { leadId: data.leadId, direction: 'INBOUND' },
+        orderBy: { createdAt: 'desc' },
+        select: { createdAt: true },
+      });
+      const isProactive = !lastInbound
+        || (Date.now() - new Date(lastInbound.createdAt).getTime()) > 24 * 60 * 60 * 1000;
+
       const result = await this.policy.evaluate(
         data.leadId,
         data.channel,
         data.text,
-        { isProactive: true, templateId: data.messageTemplateId },
+        { isProactive, templateId: data.messageTemplateId },
       );
       if (!result.allowed) {
         const msg = await this.prisma.conversationMessage.create({

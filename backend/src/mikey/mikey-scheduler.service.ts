@@ -12,6 +12,7 @@ import { BookingLifecycleService } from '../bookings/booking-lifecycle.service';
 import { MorningDigestService } from './morning-digest.service';
 import { SalienceEngineService } from './salience-engine.service';
 import { MikeyService } from './mikey.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import type { SchedulerFinding } from './mikey-scheduler.types';
 
 @Injectable()
@@ -34,6 +35,7 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
     private morningDigest: MorningDigestService,
     private salienceEngine: SalienceEngineService,
     private mikey: MikeyService,
+    private notifications: NotificationsService,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -211,6 +213,10 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
           if (result.executed) {
             this.logger.log(`Auto-executed action for ${finding.type}: ${result.result}`);
           }
+        }
+
+        if (finding.severity === 'critical') {
+          await this.notifyOwnersOfCriticalFinding(finding);
         }
       }
 
@@ -418,6 +424,40 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
       count: topSource._count.id,
       metadata: { source: topSource.source, percent: topPercent, total },
     }];
+  }
+
+  /**
+   * Critical findings (currently just unassigned hot leads) were only ever
+   * logged and, at best, turned into auto-created tasks — nothing showed up
+   * in the notification bell. This creates a real Notification per affected
+   * tenant's OWNER/ADMIN/MANAGER so it's actually visible in the dashboard.
+   */
+  private async notifyOwnersOfCriticalFinding(finding: SchedulerFinding): Promise<void> {
+    const leadIds: string[] = (finding.metadata as any)?.leadIds;
+    if (!leadIds?.length) return;
+
+    const leads = await this.prisma.lead.findMany({
+      where: { id: { in: leadIds } },
+      select: { id: true, tenantId: true },
+    });
+    const tenantIds = [...new Set(leads.map(l => l.tenantId))];
+
+    for (const tenantId of tenantIds) {
+      const recipients = await this.prisma.user.findMany({
+        where: { tenantId, role: { in: ['OWNER', 'ADMIN', 'MANAGER'] }, active: true },
+        select: { id: true },
+      });
+      for (const user of recipients) {
+        await this.notifications.create({
+          tenantId,
+          userId: user.id,
+          type: 'lead_hot',
+          title: finding.title,
+          body: finding.description,
+          link: '#/leads',
+        });
+      }
+    }
   }
 }
 

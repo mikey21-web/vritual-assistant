@@ -92,6 +92,7 @@ export class CampaignsService {
     const c = await this.prisma.campaign.create({
       data: {
         ...data,
+        sourceType: data.sourceType || 'CAMPAIGN',
         status: data.status || 'draft',
         active: data.active !== undefined ? data.active : false,
       },

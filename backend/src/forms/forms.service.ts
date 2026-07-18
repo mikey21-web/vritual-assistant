@@ -3,9 +3,29 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ContactsService } from '../contacts/contacts.service';
 import { LeadsService } from '../leads/leads.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
+import { ConversationsService } from '../conversations/conversations.service';
+import { AgentClientService } from '../agent/agent-client.service';
 
 /** Keys that are stripped from the submission payload before storing as form field data. */
 const SUBMISSION_META_KEYS = ['_source', '_pageUrl', '_utm', '_startedAt', '_completedAt'];
+
+// Aliases the embed's dynamic fieldKeys are matched against to fill in the
+// generic contact/lead fields — form builders don't always name a field
+// exactly "name" or "phone".
+const NAME_KEYS = ['name', 'full_name', 'fullName', 'your_name'];
+const EMAIL_KEYS = ['email', 'email_address'];
+const PHONE_KEYS = ['phone', 'phone_number', 'phoneNumber', 'mobile', 'contact_number'];
+const WHATSAPP_KEYS = ['whatsapp', 'whatsapp_number'];
+const COMPANY_KEYS = ['company', 'company_name', 'organization'];
+const MESSAGE_KEYS = ['message', 'additional_message', 'notes', 'comments'];
+
+function firstOf(fields: Record<string, unknown>, keys: string[]): string | undefined {
+  for (const k of keys) {
+    const v = fields[k];
+    if (typeof v === 'string' && v.trim()) return v.trim();
+  }
+  return undefined;
+}
 
 @Injectable()
 export class FormsService {
@@ -14,6 +34,8 @@ export class FormsService {
     private contactsService: ContactsService,
     private leadsService: LeadsService,
     private auditLogs: AuditLogsService,
+    private conversationsService: ConversationsService,
+    private agentClient: AgentClientService,
   ) {}
 
   findAll() {
@@ -84,15 +106,22 @@ export class FormsService {
   // ── Submission ─────────────────────────────────────────────────────────────
 
   async submit(formId: string, payload: any, req?: any) {
-    await this.findOne(formId);
+    const form = await this.findOne(formId);
 
-    const contact = await this.contactsService.findOrCreate({
-      name: payload.name,
-      email: payload.email,
-      phone: payload.phone,
-      whatsapp: payload.whatsapp,
-      company: payload.company,
-    }, req);
+    // The embed sends dynamic field values nested under `payload.payload`
+    // (keyed by each field's fieldKey), not flat on the payload itself.
+    // Direct/legacy API callers may still send a flat body, so fall back to
+    // the raw payload when there's no nested `payload` object.
+    const fieldData: Record<string, unknown> =
+      payload.payload && typeof payload.payload === 'object' ? payload.payload : payload;
+
+    const name = firstOf(fieldData, NAME_KEYS) ?? payload.name;
+    const email = firstOf(fieldData, EMAIL_KEYS) ?? payload.email;
+    const phone = firstOf(fieldData, PHONE_KEYS) ?? payload.phone;
+    const whatsapp = firstOf(fieldData, WHATSAPP_KEYS) ?? payload.whatsapp;
+    const company = firstOf(fieldData, COMPANY_KEYS) ?? payload.company;
+
+    const contact = await this.contactsService.findOrCreate({ name, email, phone, whatsapp, company }, req);
 
     // Only trust a client-supplied qrCodeId if it's a real QR code, so a made-up id
     // can't misattribute a lead's source.
@@ -100,16 +129,31 @@ export class FormsService {
       && (await this.prisma.qrCode.findUnique({ where: { id: payload.qrCodeId } }))
       ? 'QR_CODE' : 'FORM';
 
+    // Summarize the submitted fields into readable text so the AI agent has
+    // something to score/extract from — dynamic forms are mostly dropdowns,
+    // not free text, so there's rarely a single "message" field to rely on.
+    const contactKeys = new Set([...NAME_KEYS, ...EMAIL_KEYS, ...PHONE_KEYS, ...WHATSAPP_KEYS, ...COMPANY_KEYS]);
+    const explicitMessage = firstOf(fieldData, MESSAGE_KEYS) ?? payload.message;
+    const summary = (form.fields ?? [])
+      .filter((f: any) => !contactKeys.has(f.fieldKey) && !MESSAGE_KEYS.includes(f.fieldKey))
+      .map((f: any) => {
+        const v = fieldData[f.fieldKey];
+        return v ? `${f.label}: ${v}` : null;
+      })
+      .filter(Boolean)
+      .join('. ');
+    const message = [summary, explicitMessage].filter(Boolean).join('. ') || undefined;
+
     const lead = await this.leadsService.create({
       contactId: contact.id,
       source: leadSource,
-      message: payload.message,
+      message,
       interest: payload.interest,
       metadata: payload,
     });
 
     // Strip prefixed meta keys — they are submission metadata, not form field values
-    const cleanPayload = this.stripMetaKeys(payload);
+    const cleanPayload = this.stripMetaKeys(fieldData);
 
     // Submission tracking metadata
     const completed = Boolean(payload._completedAt);
@@ -129,6 +173,21 @@ export class FormsService {
         completedAt,
       },
     });
+
+    // Log the submission as an inbound message and hand it to the AI agent for
+    // scoring/extraction — otherwise form-sourced leads sit at score 0 forever,
+    // unlike chatbot/WhatsApp leads which go through this same pipeline.
+    if (message) {
+      await this.conversationsService.create({
+        text: message,
+        channel: 'CHATBOT',
+        direction: 'INBOUND',
+        leadId: lead.id,
+        contactId: contact.id,
+        metadata: { formId, source: 'form' },
+      });
+      this.agentClient.trigger(lead.id, `form:${lead.id}`, 'CHATBOT', message, lead.tenantId);
+    }
 
     await this.auditLogs.log('form_submitted', 'LeadForm', formId);
     return { data: { lead, contact } };
