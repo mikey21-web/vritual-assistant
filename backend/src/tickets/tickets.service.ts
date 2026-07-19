@@ -15,10 +15,11 @@ export class TicketsService {
   ) {}
 
   async findAll(query: any = {}) {
-    const { page = 1, limit = 20, status, priority, assignedAgentId, leadId } = query;
+    const { page = 1, limit = 20, status, priority, category, assignedAgentId, leadId } = query;
     const where: any = {};
     if (status) where.status = status;
     if (priority) where.priority = priority;
+    if (category) where.category = category;
     if (assignedAgentId) where.assignedAgentId = assignedAgentId;
     if (leadId) where.leadId = leadId;
     const [data, total] = await Promise.all([

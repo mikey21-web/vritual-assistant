@@ -2,6 +2,16 @@ import { Module } from '@nestjs/common';
 import { BookingsModule } from '../bookings/bookings.module';
 import { AnalyticsModule } from '../analytics/analytics.module';
 import { ConversationsModule } from '../conversations/conversations.module';
+import { SiteVisitsModule } from '../site-visits/site-visits.module';
+import { UnitHoldsModule } from '../unit-holds/unit-holds.module';
+import { SlaModule } from '../sla/sla.module';
+import { CostSheetsModule } from '../cost-sheets/cost-sheets.module';
+import { OffersModule } from '../offers/offers.module';
+import { DocumentsModule } from '../documents/documents.module';
+import { ChannelPartnerClaimsModule } from '../channel-partner-claims/channel-partner-claims.module';
+import { TicketsModule } from '../tickets/tickets.module';
+import { JarvisToolsService } from './jarvis-tools.service';
+import { JarvisToolsController } from './jarvis-tools.controller';
 import { MikeySchedulerService } from './mikey-scheduler.service';
 import { MorningDigestService } from './morning-digest.service';
 import { SalienceEngineService } from './salience-engine.service';
@@ -26,9 +36,13 @@ import { NicheActionService } from './niche-action.service';
 import { MikeyController } from './mikey.controller';
 
 @Module({
-  imports: [BookingsModule, AnalyticsModule, ConversationsModule],
-  controllers: [MikeyController, MemoryController, ReflexionController, FederatedController, AggregatorController, AutonomousActionController],
+  imports: [
+    BookingsModule, AnalyticsModule, ConversationsModule, SiteVisitsModule, UnitHoldsModule, SlaModule,
+    CostSheetsModule, OffersModule, DocumentsModule, ChannelPartnerClaimsModule, TicketsModule,
+  ],
+  controllers: [MikeyController, MemoryController, ReflexionController, FederatedController, AggregatorController, AutonomousActionController, JarvisToolsController],
   providers: [
+    JarvisToolsService,
     MikeySchedulerService,
     MorningDigestService,
     OutcomeEngineService,

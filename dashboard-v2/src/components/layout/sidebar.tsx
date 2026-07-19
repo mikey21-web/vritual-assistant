@@ -5,7 +5,8 @@ import {
   ShoppingCart, Link, Calendar, Layers, ChevronLeft, ChevronRight, ChevronDown,
   UserCircle, CheckSquare, Sparkles, Phone,   Bot, MessageCircle, Smartphone, Webhook, Globe, LogOut, Columns3,
   LifeBuoy, BookOpen, Puzzle, Download, Headset, Brain,
-  Truck, ClipboardList, Package, Box, MapPin, Building2, Activity,
+  Truck, ClipboardList, Package, Box, MapPin, DollarSign,
+  Building2, Activity, CalendarClock, GitBranch, Gift, HardDrive, BookCopy, FileSearch,
 } from "lucide-react";
 import { fetchProfile, fetchBusinessSettings } from "../../lib/data";
 import { useAuth } from "../../lib/useAuth";
@@ -34,6 +35,23 @@ const featureMap: Record<string, string> = {
   "/website-crawler": "websiteCrawler", "/public-profile": "publicProfile",   "/properties": "properties", "/shipments": "shipments",
   "/channel-partners": "channelPartners", "/payment-schedules": "paymentSchedules",
   "/projects": "projects",
+  "/marketing-journeys": "marketingJourneys",
+  "/marketing-events": "marketingEvents",
+  "/portfolio": "portfolio",
+  "/cash-flow-forecast": "cashFlowForecast",
+  "/revenue-share": "revenueShare",
+  "/resale-listings": "resaleListings",
+  "/referrals": "referrals",
+  "/nri-profiles": "nriProfiles",
+  "/construction-erp": "constructionErp",
+  "/document-search": "documentSearch",
+  "/physical-documents": "physicalDocuments",
+  "/allied-inventory": "alliedInventory",
+  "/sales-targets": "salesTargets",
+  "/digital-sales-room": "digitalSalesRoom",
+  "/advanced-marketing": "advancedMarketing",
+  "/onboarding-progress": "onboardingProgress",
+  "/launch-control": "launchControl",
 };
 
 const labelMap: Record<string, "contact" | "conversion"> = {
@@ -47,6 +65,9 @@ const rawNavGroups = [
     items: [
       { label: "Dashboard", icon: LayoutDashboard, path: "/" },
       { label: "Builder Desk", icon: Building2, path: "/builder-desk" },
+      { label: "Portfolio", icon: BarChart3, path: "/portfolio" },
+      { label: "Launch Control", icon: Activity, path: "/launch-control" },
+      { label: "Onboarding", icon: CheckSquare, path: "/onboarding-progress" },
     ],
   },
   {
@@ -58,6 +79,7 @@ const rawNavGroups = [
       { label: "Campaigns", icon: Megaphone, path: "/campaigns" },
       { label: "Forms", icon: FormInput, path: "/forms" },
       { label: "QR Codes", icon: QrCode, path: "/qr-codes" },
+      { label: "NRI Buyers", icon: Globe, path: "/nri-profiles" },
     ],
   },
   {
@@ -66,6 +88,16 @@ const rawNavGroups = [
       { label: "Message Log", icon: MessageSquare, path: "/conversations" },
       { label: "Templates", icon: FileText, path: "/templates" },
       { label: "Media", icon: Layers, path: "/media" },
+    ],
+  },
+  {
+    label: "Marketing",
+    items: [
+      { label: "Journeys", icon: GitBranch, path: "/marketing-journeys" },
+      { label: "Events", icon: Calendar, path: "/marketing-events" },
+      { label: "Referrals", icon: Gift, path: "/referrals" },
+      { label: "Advanced Marketing", icon: Megaphone, path: "/advanced-marketing" },
+      { label: "Digital Sales Room", icon: ShoppingCart, path: "/digital-sales-room" },
     ],
   },
   {
@@ -88,6 +120,7 @@ const rawNavGroups = [
       { label: "Calls", icon: Phone, path: "/calls" },
       { label: "Sync Logs", icon: Activity, path: "/sync-logs" },
       { label: "Social Media", icon: MessageCircle, path: "/integrations" },
+      { label: "Lead Source Health", icon: Activity, path: "/source-health" },
     ],
   },
   {
@@ -102,8 +135,18 @@ const rawNavGroups = [
     items: [
       { label: "Projects", icon: Package, path: "/projects" },
       { label: "Properties", icon: Building2, path: "/properties" },
+      { label: "Site Visits", icon: CalendarClock, path: "/site-visits" },
+      { label: "Cost Sheets", icon: FileText, path: "/cost-sheets" },
+      { label: "Resale/Rental", icon: Building2, path: "/resale-listings" },
+      { label: "Allied Inventory", icon: Package, path: "/allied-inventory" },
+      { label: "KYC & Documents", icon: FileText, path: "/kyc" },
+      { label: "Document Search", icon: FileSearch, path: "/document-search" },
+      { label: "Physical Docs", icon: BookCopy, path: "/physical-documents" },
       { label: "Channel Partners", icon: Truck, path: "/channel-partners" },
+      { label: "Partner Claims", icon: Truck, path: "/partner-claims" },
+      { label: "Approvals", icon: CheckSquare, path: "/approvals" },
       { label: "Payments & Collections", icon: ClipboardList, path: "/payment-schedules" },
+      { label: "Collections Ledger", icon: ClipboardList, path: "/collections" },
     ],
   },
   {
@@ -117,6 +160,7 @@ const rawNavGroups = [
     items: [
       { label: "Events", icon: Calendar, path: "/events" },
       { label: "Calendar", icon: Calendar, path: "/calendar" },
+      { label: "Construction ERP", icon: HardDrive, path: "/construction-erp" },
     ],
   },
   {
@@ -128,6 +172,8 @@ const rawNavGroups = [
       { label: "Sale Agreements", icon: FileText, path: "/contracts" },
       { label: "Invoices", icon: FileText, path: "/invoices" },
       { label: "Finance Reports", icon: BarChart3, path: "/finance-reports" },
+      { label: "Cash Flow Forecast", icon: BarChart3, path: "/cash-flow-forecast" },
+      { label: "Revenue Share", icon: DollarSign, path: "/revenue-share" },
     ],
   },
   {
@@ -153,6 +199,7 @@ const rawNavGroups = [
       { label: "Leave Log", icon: Calendar, path: "/leave-log" },
       { label: "Salaries", icon: BarChart3, path: "/salaries" },
       { label: "Timesheet", icon: CheckSquare, path: "/timesheet" },
+      { label: "Sales Targets", icon: Target, path: "/sales-targets" },
     ],
   },
   {

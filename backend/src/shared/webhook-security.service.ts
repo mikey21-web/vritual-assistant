@@ -53,6 +53,20 @@ export class WebhookSecurityService {
     }
   }
 
+  /** DocuSign Connect uses HMAC-SHA256 (base64), not the hex scheme the other providers use. Rotation via comma-separated DOCUSIGN_CONNECT_HMAC_KEY. */
+  verifyDocuSignConnectSignature(signature: string, rawBody: Buffer): boolean {
+    const keys = (this.config.get<string>('DOCUSIGN_CONNECT_HMAC_KEY') || '').split(',').filter(Boolean);
+    if (!signature || keys.length === 0) return false;
+    return keys.some(key => {
+      const expected = crypto.createHmac('sha256', key).update(rawBody).digest('base64');
+      try {
+        return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+      } catch {
+        return false;
+      }
+    });
+  }
+
   verifyWebhookApiKey(key: string, expectedRoute: string): boolean {
     const globalKeys = (this.config.get<string>('WEBHOOK_API_KEYS') || '').split(',').filter(Boolean);
     const routeKey = this.config.get<string>(`WEBHOOK_API_KEY_${expectedRoute.toUpperCase().replace(/-/g, '_')}`);

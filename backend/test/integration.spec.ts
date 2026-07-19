@@ -470,6 +470,133 @@ describe('Integration Tests', () => {
     });
   });
 
+  describe('Real Estate Lifecycle (synthetic tenant flow)', () => {
+    let projectId: string;
+    let unitId: string;
+    let reLeadId: string;
+    let siteVisitId: string;
+    let costSheetId: string;
+    let bookingId: string;
+    let paymentScheduleId: string;
+    let receiptId: string;
+    let reContactId: string;
+
+    it('creates a project', async () => {
+      const res = await request(app.getHttpServer()).post('/projects').set('Authorization', `Bearer ${jwtToken}`).send({ name: 'E2E Towers' });
+      expect(res.status).toBe(201);
+      projectId = res.body.id;
+    });
+
+    it('creates a unit under the project', async () => {
+      const res = await request(app.getHttpServer()).post(`/projects/${projectId}/units`).set('Authorization', `Bearer ${jwtToken}`).send({ unitNumber: 'A-101', price: 5000000 });
+      expect(res.status).toBe(201);
+      unitId = res.body.id;
+    });
+
+    it('creates a lead for the buyer', async () => {
+      const contact = await request(app.getHttpServer()).post('/contacts').set('Authorization', `Bearer ${jwtToken}`).send({ name: 'RE Buyer', email: `re-buyer-${Date.now()}@test.com` });
+      expect(contact.status).toBe(201);
+      reContactId = contact.body.id;
+      const res = await request(app.getHttpServer()).post('/leads').set('Authorization', `Bearer ${jwtToken}`).send({ contactId: contact.body.id, source: 'FORM', message: 'Interested in A-101' });
+      expect(res.status).toBe(201);
+      reLeadId = res.body.id;
+    });
+
+    it('schedules and completes a site visit', async () => {
+      const create = await request(app.getHttpServer()).post('/site-visits').set('Authorization', `Bearer ${jwtToken}`).send({
+        leadId: reLeadId, projectId, unitId, startAt: new Date(Date.now() + 3600000).toISOString(),
+      });
+      expect(create.status).toBe(201);
+      siteVisitId = create.body.id;
+
+      const complete = await request(app.getHttpServer()).post(`/site-visits/${siteVisitId}/complete`).set('Authorization', `Bearer ${jwtToken}`).send({});
+      expect(complete.status).toBe(201);
+    });
+
+    it('creates, submits, and approves a cost sheet', async () => {
+      const create = await request(app.getHttpServer()).post('/cost-sheets').set('Authorization', `Bearer ${jwtToken}`).send({ leadId: reLeadId, unitId, projectId });
+      expect(create.status).toBe(201);
+      costSheetId = create.body.id;
+
+      const submit = await request(app.getHttpServer()).post(`/cost-sheets/${costSheetId}/submit`).set('Authorization', `Bearer ${jwtToken}`);
+      expect(submit.status).toBe(201);
+
+      const approve = await request(app.getHttpServer()).post(`/cost-sheets/${costSheetId}/approve`).set('Authorization', `Bearer ${jwtToken}`);
+      expect(approve.status).toBe(201);
+    });
+
+    it('places a hold on the unit', async () => {
+      const res = await request(app.getHttpServer()).post('/unit-holds').set('Authorization', `Bearer ${jwtToken}`).send({ unitId, leadId: reLeadId });
+      expect(res.status).toBe(201);
+    });
+
+    it('waives the required KYC documents so confirmation is not blocked', async () => {
+      for (const type of ['PAN', 'ADDRESS_PROOF']) {
+        const requested = await request(app.getHttpServer()).post('/kyc/documents').set('Authorization', `Bearer ${jwtToken}`).send({ leadId: reLeadId, type });
+        expect(requested.status).toBe(201);
+        const waived = await request(app.getHttpServer()).post(`/kyc/documents/${requested.body.id}/waive`).set('Authorization', `Bearer ${jwtToken}`).send({ reason: 'Synthetic E2E — waived for lifecycle test' });
+        expect(waived.status).toBe(201);
+      }
+    });
+
+    it('creates a draft purchase booking and confirms it against the active hold', async () => {
+      const draft = await request(app.getHttpServer()).post('/bookings/purchase').set('Authorization', `Bearer ${jwtToken}`).send({ leadId: reLeadId, unitId, costSheetId });
+      expect(draft.status).toBe(201);
+      bookingId = draft.body.id;
+
+      const confirm = await request(app.getHttpServer()).post(`/bookings/${bookingId}/confirm-purchase`).set('Authorization', `Bearer ${jwtToken}`).send({
+        applicants: [{ name: 'RE Buyer', role: 'PRIMARY' }],
+        bookingAmountPaise: 500000000,
+      });
+      expect(confirm.status).toBe(201);
+    });
+
+    it('confirms the unit is now BOOKED — the state the whole chain was verifying', async () => {
+      const res = await request(app.getHttpServer()).get(`/units/${unitId}`).set('Authorization', `Bearer ${jwtToken}`);
+      if (res.status === 200) expect(res.body.status).toBe('BOOKED');
+    });
+
+    it('creates a payment schedule entry and records a receipt against it', async () => {
+      const schedule = await request(app.getHttpServer()).post('/payment-schedules').set('Authorization', `Bearer ${jwtToken}`).send({
+        leadId: reLeadId, bookingId, label: 'Booking Amount', amount: 500000000,
+      });
+      expect(schedule.status).toBe(201);
+      paymentScheduleId = schedule.body.id;
+
+      const receipt = await request(app.getHttpServer()).post('/collections/receipts').set('Authorization', `Bearer ${jwtToken}`).send({
+        leadId: reLeadId, bookingId, amountPaise: 500000000, mode: 'BANK_TRANSFER',
+        allocations: [{ paymentScheduleId, amountPaise: 500000000 }],
+      });
+      expect(receipt.status).toBe(201);
+      receiptId = receipt.body.id;
+
+      const confirmReceipt = await request(app.getHttpServer()).post(`/collections/receipts/${receiptId}/confirm`).set('Authorization', `Bearer ${jwtToken}`);
+      expect(confirmReceipt.status).toBe(201);
+    });
+
+    it('marks the payment schedule entry paid (a deliberate manual step — receipt allocations are informational only)', async () => {
+      const markPaid = await request(app.getHttpServer()).post(`/payment-schedules/${paymentScheduleId}/mark-paid`).set('Authorization', `Bearer ${jwtToken}`);
+      expect(markPaid.status).toBe(201);
+      const res = await request(app.getHttpServer()).get(`/payment-schedules/${paymentScheduleId}`).set('Authorization', `Bearer ${jwtToken}`);
+      if (res.status === 200) expect(res.body.status).toBe('PAID');
+    });
+
+    afterAll(async () => {
+      await prisma.buyerDocument.deleteMany({ where: { leadId: reLeadId } }).catch(() => {});
+      await prisma.ledgerEntry.deleteMany({ where: { leadId: reLeadId } }).catch(() => {});
+      await prisma.paymentReceipt.deleteMany({ where: { leadId: reLeadId } }).catch(() => {});
+      await prisma.paymentSchedule.deleteMany({ where: { leadId: reLeadId } }).catch(() => {});
+      await prisma.booking.deleteMany({ where: { leadId: reLeadId } }).catch(() => {});
+      await prisma.unitHold.deleteMany({ where: { leadId: reLeadId } }).catch(() => {});
+      await prisma.costSheet.deleteMany({ where: { leadId: reLeadId } }).catch(() => {});
+      await prisma.siteVisit.deleteMany({ where: { leadId: reLeadId } }).catch(() => {});
+      await prisma.lead.deleteMany({ where: { id: reLeadId } }).catch(() => {});
+      await prisma.contact.deleteMany({ where: { id: reContactId } }).catch(() => {});
+      await prisma.unit.deleteMany({ where: { projectId } }).catch(() => {});
+      await prisma.project.deleteMany({ where: { id: projectId } }).catch(() => {});
+    });
+  });
+
   describe('Failures', () => {
     let failureId: string;
 

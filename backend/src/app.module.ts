@@ -78,6 +78,38 @@ import { ProjectsModule } from './projects/projects.module';
 import { PropertiesModule } from './properties/properties.module';
 import { ShipmentsModule } from './shipments/shipments.module';
 import { AICampaignsController } from './ai-campaigns/ai-campaigns.controller';
+import { SiteVisitsModule } from './site-visits/site-visits.module';
+import { UnitHoldsModule } from './unit-holds/unit-holds.module';
+import { CostSheetsModule } from './cost-sheets/cost-sheets.module';
+import { OffersModule } from './offers/offers.module';
+import { KycModule } from './kyc/kyc.module';
+import { CollectionsModule } from './collections/collections.module';
+import { ChannelPartnerClaimsModule } from './channel-partner-claims/channel-partner-claims.module';
+import { SlaModule } from './sla/sla.module';
+import { DocumentsModule } from './documents/documents.module';
+import { PartnerPortalModule } from './partner-portal/partner-portal.module';
+import { BuyerPortalModule } from './buyer-portal/buyer-portal.module';
+import { ApprovalsModule } from './approvals/approvals.module';
+import { PostSalesModule } from './post-sales/post-sales.module';
+import { LoanRegistrationModule } from './loan-registration/loan-registration.module';
+import { MarketingJourneysModule } from './marketing-journeys/marketing-journeys.module';
+import { MarketingEventsModule } from './marketing-events/marketing-events.module';
+import { PortfolioModule } from './portfolio/portfolio.module';
+import { CashFlowForecastModule } from './cash-flow-forecast/cash-flow-forecast.module';
+import { RevenueShareModule } from './revenue-share/revenue-share.module';
+import { ResaleListingsModule } from './resale-listings/resale-listings.module';
+import { ReferralsModule } from './referrals/referrals.module';
+import { NriProfilesModule } from './nri-profiles/nri-profiles.module';
+import { ConstructionErpModule } from './construction-erp/construction-erp.module';
+import { DocumentSearchModule } from './document-search/document-search.module';
+import { PhysicalDocumentsModule } from './physical-documents/physical-documents.module';
+import { SalesHierarchyModule } from './sales-hierarchy/sales-hierarchy.module';
+import { AlliedInventoryModule } from './allied-inventory/allied-inventory.module';
+import { SalesTargetsModule } from './sales-targets/sales-targets.module';
+import { BuyerCheckoutModule } from './buyer-checkout/buyer-checkout.module';
+import { AdvancedMarketingModule } from './advanced-marketing/advanced-marketing.module';
+import { OnboardingModule } from './onboarding/onboarding.module';
+import { LaunchControlModule } from './launch-control/launch-control.module';
 
 @Module({
   imports: [
@@ -124,6 +156,38 @@ import { AICampaignsController } from './ai-campaigns/ai-campaigns.controller';
     PublicProfileModule,
     ConversionsModule,
     BookingsModule,
+    SiteVisitsModule,
+    UnitHoldsModule,
+    CostSheetsModule,
+    OffersModule,
+    KycModule,
+    CollectionsModule,
+    ChannelPartnerClaimsModule,
+    SlaModule,
+    DocumentsModule,
+    PartnerPortalModule,
+    BuyerPortalModule,
+    ApprovalsModule,
+    PostSalesModule,
+    LoanRegistrationModule,
+    MarketingJourneysModule,
+    MarketingEventsModule,
+    PortfolioModule,
+    CashFlowForecastModule,
+    RevenueShareModule,
+    ResaleListingsModule,
+    ReferralsModule,
+    NriProfilesModule,
+    ConstructionErpModule,
+    DocumentSearchModule,
+    PhysicalDocumentsModule,
+    SalesHierarchyModule,
+    AlliedInventoryModule,
+    SalesTargetsModule,
+    BuyerCheckoutModule,
+    AdvancedMarketingModule,
+    OnboardingModule,
+    LaunchControlModule,
     PropertiesModule,
     ShipmentsModule,
     IntegrationsModule,

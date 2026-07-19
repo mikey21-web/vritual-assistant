@@ -13,6 +13,7 @@ export default function MikeyPage() {
   const [pendingRules, setPendingRules] = useState<any[]>([]);
   const [activeRules, setActiveRules] = useState<any[]>([]);
   const [autonomousActions, setAutonomousActions] = useState<any[]>([]);
+  const [policies, setPolicies] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'outcomes' | 'insights' | 'staff' | 'activity' | 'autonomy'>('overview');
   const [goalInput, setGoalInput] = useState('');
@@ -20,7 +21,7 @@ export default function MikeyPage() {
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [s, o, i, st, a, act, pr, ar, aa] = await Promise.all([
+      const [s, o, i, st, a, act, pr, ar, aa, pol] = await Promise.all([
         api('/mikey/status').catch(() => null),
         api('/mikey/outcomes').catch(() => []),
         api('/mikey/temporal-insights').catch(() => []),
@@ -30,6 +31,7 @@ export default function MikeyPage() {
         api('/mikey/memory/rules/pending?tenantId=default-tenant').catch(() => []),
         api('/mikey/memory/rules/active?tenantId=default-tenant').catch(() => []),
         api('/mikey/autonomous-actions').catch(() => []),
+        api('/mikey/autonomy-policies?tenantId=default-tenant').catch(() => ({})),
       ]);
       setStatus(s);
       setOutcomes(Array.isArray(o) ? o : o?.data || []);
@@ -40,6 +42,7 @@ export default function MikeyPage() {
       setPendingRules(Array.isArray(pr) ? pr : []);
       setActiveRules(Array.isArray(ar) ? ar : []);
       setAutonomousActions(Array.isArray(aa) ? aa : []);
+      setPolicies(pol && typeof pol === 'object' ? pol : {});
     } catch (e: any) {
       toast.error('Failed to load Mikey data');
     } finally {
@@ -63,6 +66,18 @@ export default function MikeyPage() {
       toast.success('Rule rejected');
       fetchAll();
     } catch (e: any) { toast.error(e.message || 'Failed to reject rule'); }
+  };
+
+  const setPolicyLevel = async (category: string, level: string) => {
+    const previous = policies[category];
+    setPolicies({ ...policies, [category]: level }); // optimistic — this is a low-stakes settings toggle
+    try {
+      await api(`/mikey/autonomy-policies/${category}`, { method: 'POST', body: JSON.stringify({ tenantId: 'default-tenant', level }) });
+      toast.success(`${category.replace(/_/g, ' ')} set to ${level}`);
+    } catch (e: any) {
+      setPolicies({ ...policies, [category]: previous });
+      toast.error(e.message || 'Failed to update policy');
+    }
   };
 
   const undoAction = async (id: string) => {
@@ -306,6 +321,40 @@ export default function MikeyPage() {
 
       {activeTab === 'autonomy' && (
         <div className="space-y-6">
+          <div>
+            <h2 className="text-lg font-semibold mb-1 flex items-center gap-2">
+              <Shield className="w-5 h-5 text-[var(--primary)]" />
+              Policies
+            </h2>
+            <p className="text-sm text-[var(--muted-foreground)] mb-3">
+              What Mikey is allowed to act on, per category. "Autonomous" acts on its own within the daily cap/quiet-hours/cooldown guardrails; "Observe" detects and reports but never acts; "Off" turns detection-driven action off entirely for that category.
+            </p>
+            <div className="space-y-2">
+              {[
+                { key: 'lead_assignment', label: 'Auto-assign unassigned/stale leads to the least-loaded agent' },
+                { key: 'lead_messaging', label: 'Send re-engagement WhatsApp nudges to stale hot leads' },
+                { key: 'task_escalation', label: 'Escalate overdue tasks to high priority' },
+                { key: 'jarvis_tools', label: 'Execute tool calls from chat/voice (site visits, holds, tickets, etc.)' },
+              ].map(({ key, label }) => (
+                <div key={key} className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">{key.replace(/_/g, ' ')}</p>
+                    <p className="text-xs text-[var(--muted-foreground)] mt-0.5">{label}</p>
+                  </div>
+                  <select
+                    value={policies[key] || 'autonomous'}
+                    onChange={(e) => setPolicyLevel(key, e.target.value)}
+                    className="shrink-0 rounded-md border border-[var(--border)] bg-[var(--background)] px-2 py-1.5 text-xs font-medium"
+                  >
+                    <option value="autonomous">Autonomous</option>
+                    <option value="observe">Observe only</option>
+                    <option value="off">Off</option>
+                  </select>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div>
             <h2 className="text-lg font-semibold mb-1 flex items-center gap-2">
               <Brain className="w-5 h-5 text-[var(--primary)]" />

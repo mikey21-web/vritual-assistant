@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNumber, IsIn, IsEmail } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsIn, IsEmail, IsDateString } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateChannelPartnerDto {
@@ -20,6 +20,9 @@ export class UpdateChannelPartnerDto {
   @ApiPropertyOptional() @IsOptional() @IsNumber() commissionRate?: number;
   @ApiPropertyOptional() @IsOptional() @IsIn(['ACTIVE', 'INACTIVE', 'SUSPENDED']) status?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() notes?: string;
+  @ApiPropertyOptional() @IsOptional() @IsDateString() reraExpiryAt?: string;
+  @ApiPropertyOptional() @IsOptional() @IsDateString() agreementSignedAt?: string;
+  @ApiPropertyOptional() @IsOptional() @IsDateString() agreementExpiryAt?: string;
 }
 
 export class AllocateLeadDto {

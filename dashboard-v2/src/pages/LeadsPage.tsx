@@ -33,6 +33,31 @@ const segmentStyles: Record<string, string> = {
 
 const ALL_SOURCES = ['CAMPAIGN','QR_CODE','FORM','CHATBOT','MOBILE_APP','WHATSAPP','SOCIAL_MEDIA','PHONE_CALL','MANUAL','REFERRAL','INDIAMART','NINETY_NINE_ACRES','JUSTDIAL','MAGICBRICKS','HOUSING_COM','TRADEINDIA','TELEGRAM'];
 
+const SLA_DONE_STATUSES = new Set(['CONVERTED', 'LOST', 'SPAM']);
+
+/** A first-response SLA clock (spec: "Add SLA clock display on each lead") — untouched-since-creation for NEW leads, otherwise time since last update. */
+function SlaClock({ lead }: { lead: any }) {
+  if (SLA_DONE_STATUSES.has(lead.status)) return null;
+  const anchor = new Date(lead.status === 'NEW' ? lead.createdAt : lead.updatedAt || lead.createdAt);
+  const minutes = Math.floor((Date.now() - anchor.getTime()) / 60000);
+  const isHot = lead.segment === 'HOT';
+  const thresholdMin = isHot ? 120 : 15;
+  const overdueMin = thresholdMin * 4;
+
+  let variant = 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400';
+  if (minutes >= overdueMin) variant = 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+  else if (minutes >= thresholdMin) variant = 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
+
+  const label = minutes < 60 ? `${minutes}m` : minutes < 1440 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${Math.floor(minutes / 1440)}d`;
+  const title = lead.status === 'NEW' ? `Untouched for ${label} since the lead arrived` : `${label} since last update`;
+
+  return (
+    <span title={title} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${variant}`}>
+      <Calendar size={10} /> {label}
+    </span>
+  );
+}
+
 export default function LeadsPage() {
   const { niche } = useApp();
   const [data, setData] = useState<Lead[]>([]);
@@ -369,7 +394,12 @@ export default function LeadsPage() {
                         <td className="px-4 py-3" onClick={e => e.stopPropagation()}>{renderStatusDropdown(l)}</td>
                         <td className="px-4 py-3" onClick={e => e.stopPropagation()}>{renderSegmentDropdown(l)}</td>
                         <td className="px-4 py-3"><span className="font-mono text-sm font-semibold text-[var(--foreground)]">{l.score}</span></td>
-                        <td className="px-4 py-3 text-xs text-[var(--muted-foreground)]">{new Date(l.createdAt).toLocaleDateString()}</td>
+                        <td className="px-4 py-3 text-xs text-[var(--muted-foreground)]">
+                          <div className="flex flex-col gap-1">
+                            <span>{new Date(l.createdAt).toLocaleDateString()}</span>
+                            <SlaClock lead={l} />
+                          </div>
+                        </td>
                       </motion.tr>
                       {expandedId === l.id && (
                         <tr key={`${l.id}-exp`}>
@@ -439,6 +469,26 @@ export default function LeadsPage() {
                               </div>
                               <div className="space-y-4">
                                 <div>
+                                  <h4 className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider mb-3">Builder Workbench</h4>
+                                  <div className="flex flex-wrap gap-1.5" onClick={e => e.stopPropagation()}>
+                                    <a href="#/site-visits" onClick={() => navigator.clipboard?.writeText(l.id)}
+                                      className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border border-[var(--border)] text-[var(--foreground)] hover:bg-[var(--accent)]"
+                                      title="Copies this lead's ID — paste it into Schedule visit">
+                                      <Calendar size={11} /> Schedule visit
+                                    </a>
+                                    <a href="#/cost-sheets" onClick={() => navigator.clipboard?.writeText(l.id)}
+                                      className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border border-[var(--border)] text-[var(--foreground)] hover:bg-[var(--accent)]"
+                                      title="Copies this lead's ID — paste it into New cost sheet">
+                                      Cost sheet
+                                    </a>
+                                    <a href="#/kyc" onClick={() => navigator.clipboard?.writeText(l.id)}
+                                      className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border border-[var(--border)] text-[var(--foreground)] hover:bg-[var(--accent)]"
+                                      title="Copies this lead's ID — paste it into Request document">
+                                      Request KYC doc
+                                    </a>
+                                  </div>
+                                </div>
+                                <div>
                                   <h4 className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider mb-3">Custom Fields</h4>
                                   <CustomFieldsSection target="LEAD" targetId={l.id} />
                                   <a href={`#/create-event?leadId=${l.id}&contactId=${l.contact?.id || ''}`} onClick={e => e.stopPropagation()}
@@ -482,7 +532,10 @@ export default function LeadsPage() {
                   {l.assignedAgent && <span className="text-[var(--muted-foreground)]">· {l.assignedAgent.name}</span>}
                   <span className="ml-auto font-mono font-semibold text-[var(--foreground)]">Score: {l.score}</span>
                 </div>
-                <div className="text-xs text-[var(--muted-foreground)] mt-1.5">{new Date(l.createdAt).toLocaleDateString()}</div>
+                <div className="flex items-center gap-2 text-xs text-[var(--muted-foreground)] mt-1.5">
+                  <span>{new Date(l.createdAt).toLocaleDateString()}</span>
+                  <SlaClock lead={l} />
+                </div>
 
                 {expandedId === l.id && (
                   <div className="mt-3 pt-3 border-t border-[var(--border)]">

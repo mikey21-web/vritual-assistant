@@ -414,6 +414,38 @@ export class CallTrackingService {
     return updated;
   }
 
+  /**
+   * Records a call disposition (spec 64.1) — mandatory for the "not
+   * following up" report to mean anything. When a next action date is
+   * given, it creates the follow-up task immediately so the disposition
+   * doesn't just sit as a label with no consequence.
+   */
+  async updateDisposition(id: string, disposition: string, nextActionAt: string | undefined, req?: any) {
+    const tenantId = getTenantId(req);
+    const callLog = await this.prisma.callLog.findFirst({ where: { id, tenantId } });
+    if (!callLog) throw new NotFoundException('Call log not found');
+
+    const updated = await this.prisma.callLog.update({
+      where: { id },
+      data: { disposition, nextActionAt: nextActionAt ? new Date(nextActionAt) : null },
+      select: { id: true, disposition: true, nextActionAt: true, leadId: true },
+    });
+
+    if (updated.leadId && nextActionAt) {
+      await this.prisma.task.create({
+        data: {
+          title: `Follow up: ${disposition.replace(/_/g, ' ')}`,
+          leadId: updated.leadId,
+          dueAt: new Date(nextActionAt),
+          createdBy: req?.user?.id || 'system',
+          source: 'call_disposition',
+        },
+      });
+    }
+
+    return updated;
+  }
+
   // ─── Fire-and-forget: push to CRM integrations & outbound webhooks ────────
 
   private async pushToIntegrationsAndWebhooks(tenantId: string, callLog: any, contact: any) {

@@ -4,16 +4,21 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { BookingsService } from './bookings.service';
+import { BookingConfirmationService } from './booking-confirmation.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
 import { CheckAvailabilityDto } from './dto/check-availability.dto';
+import { CreatePurchaseBookingDto, ConfirmBookingDto } from './dto/booking-confirmation.dto';
 
 @ApiTags('Bookings')
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class BookingsController {
-  constructor(private service: BookingsService) {}
+  constructor(
+    private service: BookingsService,
+    private confirmation: BookingConfirmationService,
+  ) {}
 
   @Post('bookings/check-availability')
   @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT')
@@ -87,5 +92,34 @@ export class BookingsController {
   @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT')
   createPaymentLink(@Param('id') id: string, @Headers('origin') origin?: string) {
     return this.service.createPaymentLink(id, origin);
+  }
+
+  @Post('bookings/purchase')
+  @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT')
+  createPurchaseDraft(@Body() dto: CreatePurchaseBookingDto, @Req() req: any) {
+    return this.confirmation.createDraft({
+      tenantId: req.user.tenantId,
+      leadId: dto.leadId,
+      unitId: dto.unitId,
+      costSheetId: dto.costSheetId,
+      createdById: req.user.id,
+    });
+  }
+
+  @Post('bookings/:id/confirm-purchase')
+  @Roles('OWNER', 'ADMIN', 'MANAGER')
+  confirmPurchase(@Param('id') id: string, @Body() dto: ConfirmBookingDto, @Req() req: any) {
+    return this.confirmation.confirm(req.user.tenantId, id, {
+      applicants: dto.applicants,
+      bookingAmountPaise: dto.bookingAmountPaise,
+      overrideMissingHold: dto.overrideMissingHold,
+      actorId: req.user.id,
+    });
+  }
+
+  @Post('bookings/:id/cancel-purchase')
+  @Roles('OWNER', 'ADMIN', 'MANAGER')
+  cancelPurchase(@Param('id') id: string, @Body('reason') reason: string, @Req() req: any) {
+    return this.confirmation.cancel(req.user.tenantId, id, reason, req.user.id);
   }
 }

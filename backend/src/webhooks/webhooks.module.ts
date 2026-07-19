@@ -6,9 +6,10 @@ import { ContactsModule } from '../contacts/contacts.module';
 import { LeadsModule } from '../leads/leads.module';
 import { ConversationsModule } from '../conversations/conversations.module';
 import { AgentModule } from '../agent/agent.module';
+import { DocumentsModule } from '../documents/documents.module';
 
 @Module({
-  imports: [PrismaModule, ContactsModule, LeadsModule, ConversationsModule, AgentModule],
+  imports: [PrismaModule, ContactsModule, LeadsModule, ConversationsModule, AgentModule, DocumentsModule],
   controllers: [WebhooksController],
   providers: [WebhooksService],
   exports: [WebhooksService],

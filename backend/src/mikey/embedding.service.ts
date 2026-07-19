@@ -11,7 +11,7 @@ export class EmbeddingService {
     const apiKey = this.config.get<string>('DEEPSEEK_API_KEY');
     const baseURL = this.config.get<string>('DEEPSEEK_BASE_URL') || 'https://api.deepseek.com/v1';
     if (apiKey) {
-      this.client = new OpenAI({ apiKey, baseURL });
+      this.client = new OpenAI({ apiKey, baseURL, timeout: 15000, maxRetries: 1 });
     }
   }
 

@@ -5,6 +5,9 @@ import { ConfigService } from '@nestjs/config';
 import { Request, Response } from 'express';
 import { WebhooksService } from './webhooks.service';
 import { WebhookSecurityService } from '../shared/webhook-security.service';
+import { ESignService } from '../documents/esign.service';
+import { DocuSignAdapter } from '../documents/esign-providers/docusign.adapter';
+import { ZohoSignAdapter } from '../documents/esign-providers/zoho-sign.adapter';
 import { Public } from '../auth/public.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -22,6 +25,9 @@ export class WebhooksController {
     private service: WebhooksService,
     private security: WebhookSecurityService,
     private configService: ConfigService,
+    private esignService: ESignService,
+    private docuSignAdapter: DocuSignAdapter,
+    private zohoSignAdapter: ZohoSignAdapter,
   ) {}
 
   @Public()
@@ -194,6 +200,43 @@ export class WebhooksController {
       throw new UnauthorizedException('Invalid payment signature');
     }
     return this.service.handlePayment('payment', d);
+  }
+
+  @Public()
+  @Post('esign/docusign') @HttpCode(200) @ApiOperation({ summary: 'DocuSign Connect envelope status callback (HMAC verified)' })
+  @ApiExcludeEndpoint()
+  async docuSignWebhook(
+    @Body() body: any,
+    @Headers('x-docusign-signature-1') signature?: string,
+    @Req() req?: RawBodyRequest<Request>,
+  ) {
+    const rawBody = req?.rawBody ?? Buffer.from(JSON.stringify(body));
+    if (!this.security.verifyDocuSignConnectSignature(signature || '', rawBody)) {
+      throw new UnauthorizedException('Invalid DocuSign Connect signature');
+    }
+    const envelopeId = body?.envelopeId || body?.data?.envelopeId;
+    const status = body?.status || body?.event;
+    const decision = this.docuSignAdapter.mapStatus(status);
+    if (envelopeId && decision) {
+      await this.esignService.markProviderDecision('DOCUSIGN', envelopeId, decision);
+    }
+    return { received: true };
+  }
+
+  @Public()
+  @Post('esign/zoho') @HttpCode(200) @ApiOperation({ summary: 'Zoho Sign request status callback (shared-secret verified)' })
+  @ApiExcludeEndpoint()
+  async zohoSignWebhook(@Body() body: any, @Query('key') key?: string) {
+    if (!this.security.verifyWebhookApiKey(key || '', 'esign-zoho')) {
+      throw new UnauthorizedException('Invalid Zoho Sign webhook key');
+    }
+    const requestId = body?.requests?.request_id;
+    const status = body?.requests?.request_status;
+    const decision = this.zohoSignAdapter.mapStatus(status);
+    if (requestId && decision) {
+      await this.esignService.markProviderDecision('ZOHO_SIGN', requestId, decision);
+    }
+    return { received: true };
   }
 
   @Public()

@@ -8,7 +8,7 @@ import { Roles } from '../auth/roles.decorator';
 import { Public } from '../auth/public.decorator';
 import { CallTrackingService } from './call-tracking.service';
 import { DeviceAuthGuard } from './device-auth.guard';
-import { GeneratePairingCodeDto, PairDeviceDto, CallSyncDto, AnalyticsQueryDto, SyncLogsQueryDto, UpdateNotesDto } from './dto/call-tracking.dto';
+import { GeneratePairingCodeDto, PairDeviceDto, CallSyncDto, AnalyticsQueryDto, SyncLogsQueryDto, UpdateNotesDto, UpdateDispositionDto } from './dto/call-tracking.dto';
 
 @ApiTags('Call Tracking')
 @Controller('call-tracking')
@@ -137,6 +137,15 @@ export class CallTrackingController {
   @ApiOperation({ summary: 'Update post-call notes on a call log' })
   updateNotes(@Param('id') id: string, @Body() d: UpdateNotesDto, @Req() req) {
     return this.service.updateNotes(id, d.notes, req);
+  }
+
+  @Patch('calls/:id/disposition')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT', 'SUPPORT_AGENT')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Record a call outcome/disposition, optionally scheduling a follow-up' })
+  updateDisposition(@Param('id') id: string, @Body() d: UpdateDispositionDto, @Req() req) {
+    return this.service.updateDisposition(id, d.disposition, d.nextActionAt, req);
   }
 
   // ─── Recording Retention ─────────────────────────────────────────────────

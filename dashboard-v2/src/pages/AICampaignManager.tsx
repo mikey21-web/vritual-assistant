@@ -43,7 +43,7 @@ export default function AICampaignManager() {
   const [launching, setLaunching] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [activeTab, setActiveTab] = useState<'generate' | 'drafts'>('generate');
-  const [imageResult, setImageResult] = useState<{ image?: string; prompt?: string } | null>(null);
+  const [imageResult, setImageResult] = useState<{ image?: string; prompt?: string; message?: string } | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const refresh = async () => {

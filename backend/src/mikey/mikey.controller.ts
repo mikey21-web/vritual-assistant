@@ -4,6 +4,8 @@ import { OutcomeEngineService } from './outcome-engine.service';
 import { TemporalStrategyService } from './temporal-strategy.service';
 import { StaffAwarenessService } from './staff-awareness.service';
 import { EventsService } from '../events/events.service';
+import { MikeySchedulerService } from './mikey-scheduler.service';
+import { AutonomyGuardrailsService, AutonomyCategory, AutonomyLevel } from './autonomy-guardrails.service';
 
 @Controller('mikey')
 export class MikeyController {
@@ -15,7 +17,30 @@ export class MikeyController {
     private temporal: TemporalStrategyService,
     private staff: StaffAwarenessService,
     private events: EventsService,
+    private scheduler: MikeySchedulerService,
+    private guardrails: AutonomyGuardrailsService,
   ) {}
+
+  /** Is the always-on scan loop actually alive and healthy? Surfaces a stuck or repeatedly-failing scan instead of hiding it in logs (spec invariant: every failed job becomes visible to a human). */
+  @Get('health')
+  async getHealth() {
+    return this.scheduler.getHealth();
+  }
+
+  /** Per-category autonomy dial (spec 56.4) — the owner controls what Mikey is allowed to act on, not one global switch. */
+  @Get('autonomy-policies')
+  async getAutonomyPolicies(@Query('tenantId') tenantId: string) {
+    return this.guardrails.getAllCategoryLevels(tenantId);
+  }
+
+  @Post('autonomy-policies/:category')
+  async setAutonomyPolicy(
+    @Param('category') category: AutonomyCategory,
+    @Body() body: { tenantId: string; level: AutonomyLevel },
+  ) {
+    await this.guardrails.setCategoryLevel(body.tenantId, category, body.level);
+    return this.guardrails.getAllCategoryLevels(body.tenantId);
+  }
 
   /**
    * Everything Mikey has noticed and done, persisted (SystemEvent rows with a

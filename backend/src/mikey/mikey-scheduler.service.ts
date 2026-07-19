@@ -9,6 +9,9 @@ import { NicheActionService } from './niche-action.service';
 import { ReflexionService } from './reflexion.service';
 import { FederatedService } from './federated.service';
 import { BookingLifecycleService } from '../bookings/booking-lifecycle.service';
+import { SiteVisitsService } from '../site-visits/site-visits.service';
+import { UnitHoldsService } from '../unit-holds/unit-holds.service';
+import { SlaBreachService } from '../sla/sla-breach.service';
 import { MorningDigestService } from './morning-digest.service';
 import { SalienceEngineService } from './salience-engine.service';
 import { MikeyService } from './mikey.service';
@@ -21,6 +24,27 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
   private interval: ReturnType<typeof setInterval> | null = null;
   private lastFindings: SchedulerFinding[] = [];
 
+  // Health/heartbeat state, exposed via getHealth() so a stuck or repeatedly
+  // failing scan is visible to a human instead of just sitting in logs.
+  private scanning = false;
+  private totalScans = 0;
+  private lastScanAt: Date | null = null;
+  private lastScanDurationMs: number | null = null;
+  private lastScanError: string | null = null;
+  private consecutiveFailures = 0;
+
+  getHealth() {
+    return {
+      scanning: this.scanning,
+      totalScans: this.totalScans,
+      lastScanAt: this.lastScanAt,
+      lastScanDurationMs: this.lastScanDurationMs,
+      lastScanError: this.lastScanError,
+      consecutiveFailures: this.consecutiveFailures,
+      healthy: this.consecutiveFailures < 3,
+    };
+  }
+
   constructor(
     private prisma: PrismaService,
     private events: EventsService,
@@ -32,6 +56,9 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
     private reflexion: ReflexionService,
     private federated: FederatedService,
     private bookingLifecycle: BookingLifecycleService,
+    private siteVisits: SiteVisitsService,
+    private unitHolds: UnitHoldsService,
+    private slaBreaches: SlaBreachService,
     private morningDigest: MorningDigestService,
     private salienceEngine: SalienceEngineService,
     private mikey: MikeyService,
@@ -78,21 +105,37 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
     }, msUntilMidnight());
   }
 
+  /** Runs one check and swallows its error so a single broken query can't take down the rest of the scan cycle. */
+  private async runCheck(name: string, check: () => Promise<SchedulerFinding[]>): Promise<SchedulerFinding[]> {
+    try {
+      return await check();
+    } catch (err: any) {
+      this.logger.error(`Scheduler check "${name}" failed: ${err.message}`);
+      return [];
+    }
+  }
+
   private async scan(): Promise<void> {
+    if (this.scanning) {
+      this.logger.warn('Scan already in progress — skipping this tick (previous scan is still running)');
+      return;
+    }
+    this.scanning = true;
+    const startedAt = Date.now();
     try {
       const findings: SchedulerFinding[] = [];
       const [staleHot, staleNew, overdue, unassigned] = await Promise.all([
-        this.checkStaleHotLeads(),
-        this.checkStaleNewLeads(),
-        this.checkOverdueTasks(),
-        this.checkUnassignedHotLeads(),
+        this.runCheck('checkStaleHotLeads', () => this.checkStaleHotLeads()),
+        this.runCheck('checkStaleNewLeads', () => this.checkStaleNewLeads()),
+        this.runCheck('checkOverdueTasks', () => this.checkOverdueTasks()),
+        this.runCheck('checkUnassignedHotLeads', () => this.checkUnassignedHotLeads()),
       ]);
       findings.push(...staleHot, ...staleNew, ...overdue, ...unassigned);
 
-      // Triage core: hand the two findings with an unambiguous, safe remedy
-      // straight to the salience engine so Mikey acts on them without being
-      // asked, instead of just logging that they exist.
-      for (const finding of [...staleHot, ...unassigned]) {
+      // Triage core: hand findings with an unambiguous, safe remedy straight
+      // to the salience engine so Mikey acts on them without being asked,
+      // instead of just logging that they exist.
+      for (const finding of [...staleHot, ...unassigned, ...staleNew, ...overdue]) {
         try {
           const outcome = await this.salienceEngine.route(finding);
           if (outcome.acted) this.logger.log(`Salience engine acted: ${outcome.summary}`);
@@ -102,8 +145,8 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
       }
 
       const [conversionAnomaly, sourceShift] = await Promise.all([
-        this.checkConversionAnomaly(),
-        this.checkLeadSourceShift(),
+        this.runCheck('checkConversionAnomaly', () => this.checkConversionAnomaly()),
+        this.runCheck('checkLeadSourceShift', () => this.checkLeadSourceShift()),
       ]);
       findings.push(...conversionAnomaly, ...sourceShift);
 
@@ -121,10 +164,28 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
         this.logger.error(`Overdue-payment scan failed: ${err.message}`);
       }
 
+      // Detect dedicated SiteVisit no-shows (separate from the legacy Booking-based ones above).
+      try {
+        await this.siteVisits.scanNoShows();
+      } catch (err: any) {
+        this.logger.error(`Site-visit no-show scan failed: ${err.message}`);
+      }
+
+      // Release unit holds whose expiry has passed.
+      try {
+        await this.unitHolds.scanExpiredHolds();
+      } catch (err: any) {
+        this.logger.error(`Unit-hold expiry scan failed: ${err.message}`);
+      }
+
       if (new Date().getMinutes() % 15 === 0) {
-        const nicheFindings = await this.nicheScanner.scanAll();
-        for (const nf of nicheFindings) {
-          findings.push(nf as any);
+        try {
+          const nicheFindings = await this.nicheScanner.scanAll();
+          for (const nf of nicheFindings) {
+            findings.push(nf as any);
+          }
+        } catch (err: any) {
+          this.logger.error(`Niche scan failed: ${err.message}`);
         }
       }
 
@@ -151,39 +212,47 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
         }
       }
 
-      const temporalInsights = await this.temporal.scan();
-      if (temporalInsights.length > 0) {
-        findings.push({
-          type: 'conversion_anomaly',
-          severity: 'warning',
-          title: 'Temporal conversion pattern detected',
-          description: temporalInsights[0].recommendation,
-          count: temporalInsights.length,
-          metadata: { insights: temporalInsights.slice(0, 3) },
-        });
+      try {
+        const temporalInsights = await this.temporal.scan();
+        if (temporalInsights.length > 0) {
+          findings.push({
+            type: 'conversion_anomaly',
+            severity: 'warning',
+            title: 'Temporal conversion pattern detected',
+            description: temporalInsights[0].recommendation,
+            count: temporalInsights.length,
+            metadata: { insights: temporalInsights.slice(0, 3) },
+          });
 
-        // Record temporal insights in the meta-cycle for follow-up measurement
-        for (const insight of temporalInsights) {
-          await this.metaCycle.recordDecision(
-            'temporal_insight',
-            `temporal: ${insight.type}${insight.source !== 'all' ? ` source=${insight.source}` : ''}`,
-            insight.recommendation.slice(0, 180),
-          );
+          // Record temporal insights in the meta-cycle for follow-up measurement
+          for (const insight of temporalInsights) {
+            await this.metaCycle.recordDecision(
+              'temporal_insight',
+              `temporal: ${insight.type}${insight.source !== 'all' ? ` source=${insight.source}` : ''}`,
+              insight.recommendation.slice(0, 180),
+            );
+          }
         }
+      } catch (err: any) {
+        this.logger.error(`Temporal scan failed: ${err.message}`);
       }
 
       if (new Date().getMinutes() % 15 === 0) {
-        const staffProfiles = await this.staff.scan();
-        if (staffProfiles.length > 0) {
-          const topPerformer = staffProfiles.reduce((best, p) => p.conversionRate > (best?.conversionRate || 0) ? p : best, staffProfiles[0]);
-          findings.push({
-            type: 'staff_performance_update',
-            severity: 'info',
-            title: 'Staff performance scan',
-            description: `${staffProfiles.length} active agents. Top: ${topPerformer.name} at ${(topPerformer.conversionRate * 100).toFixed(0)}% conversion.`,
-            count: staffProfiles.length,
-            metadata: { agents: staffProfiles.map(p => ({ name: p.name, rate: p.conversionRate, leads: p.totalLeadsHandled })) },
-          });
+        try {
+          const staffProfiles = await this.staff.scan();
+          if (staffProfiles.length > 0) {
+            const topPerformer = staffProfiles.reduce((best, p) => p.conversionRate > (best?.conversionRate || 0) ? p : best, staffProfiles[0]);
+            findings.push({
+              type: 'staff_performance_update',
+              severity: 'info',
+              title: 'Staff performance scan',
+              description: `${staffProfiles.length} active agents. Top: ${topPerformer.name} at ${(topPerformer.conversionRate * 100).toFixed(0)}% conversion.`,
+              count: staffProfiles.length,
+              metadata: { agents: staffProfiles.map(p => ({ name: p.name, rate: p.conversionRate, leads: p.totalLeadsHandled })) },
+            });
+          }
+        } catch (err: any) {
+          this.logger.error(`Staff performance scan failed: ${err.message}`);
         }
       }
 
@@ -193,36 +262,49 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
       });
 
       for (const finding of newFindings) {
-        await this.events.emit({
-          type: `mikey.${finding.type}`,
-          source: 'mikey-scheduler',
-          payload: finding as any,
-        });
+        try {
+          await this.events.emit({
+            type: `mikey.${finding.type}`,
+            source: 'mikey-scheduler',
+            payload: finding as any,
+          });
 
-        // Track every scheduler finding as a decision in the meta-cycle
-        await this.metaCycle.recordDecision(
-          'scheduler_finding',
-          `${finding.type}: ${finding.title}`,
-          finding.description,
-        );
+          // Track every scheduler finding as a decision in the meta-cycle
+          await this.metaCycle.recordDecision(
+            'scheduler_finding',
+            `${finding.type}: ${finding.title}`,
+            finding.description,
+          );
 
-        this.logger.warn(`[${finding.severity}] ${finding.title}: ${finding.description}`);
+          this.logger.warn(`[${finding.severity}] ${finding.title}: ${finding.description}`);
 
-        if (finding.severity === 'info') {
-          const result = await this.nicheAction.execute(finding);
-          if (result.executed) {
-            this.logger.log(`Auto-executed action for ${finding.type}: ${result.result}`);
+          if (finding.severity === 'info') {
+            const result = await this.nicheAction.execute(finding);
+            if (result.executed) {
+              this.logger.log(`Auto-executed action for ${finding.type}: ${result.result}`);
+            }
           }
-        }
 
-        if (finding.severity === 'critical') {
-          await this.notifyOwnersOfCriticalFinding(finding);
+          if (finding.severity === 'critical') {
+            await this.notifyOwnersOfCriticalFinding(finding);
+          }
+        } catch (err: any) {
+          this.logger.error(`Failed to process finding "${finding.type}": ${err.message}`);
         }
       }
 
       this.lastFindings = findings;
+      this.lastScanError = null;
+      this.consecutiveFailures = 0;
     } catch (err: any) {
       this.logger.error(`Scheduler scan failed: ${err.message}`);
+      this.lastScanError = err.message;
+      this.consecutiveFailures++;
+    } finally {
+      this.scanning = false;
+      this.totalScans++;
+      this.lastScanAt = new Date();
+      this.lastScanDurationMs = Date.now() - startedAt;
     }
   }
 
@@ -238,6 +320,13 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
       include: { assignedAgent: true, contact: true },
       take: 10,
     });
+
+    try {
+      await this.slaBreaches.reconcile('lead', 'stale_hot_lead', stale.map(l => ({ tenantId: l.tenantId, entityId: l.id, leadId: l.id })));
+    } catch (err: any) {
+      this.logger.error(`SLA breach reconcile (stale_hot_lead) failed: ${err.message}`);
+    }
+
     if (stale.length === 0) return [];
     return [{
       type: 'stale_hot_leads',
@@ -274,6 +363,14 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
       include: { lead: { include: { contact: true } } },
       take: 10,
     });
+
+    try {
+      const withTenant = overdue.filter(t => t.lead?.tenantId);
+      await this.slaBreaches.reconcile('task', 'overdue_task', withTenant.map(t => ({ tenantId: t.lead!.tenantId, entityId: t.id, leadId: t.leadId || undefined })));
+    } catch (err: any) {
+      this.logger.error(`SLA breach reconcile (overdue_task) failed: ${err.message}`);
+    }
+
     if (overdue.length === 0) return [];
     return [{
       type: 'overdue_tasks',
@@ -291,6 +388,13 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
       include: { contact: true },
       take: 10,
     });
+
+    try {
+      await this.slaBreaches.reconcile('lead', 'unassigned_hot_lead', unassigned.map(l => ({ tenantId: l.tenantId, entityId: l.id, leadId: l.id })));
+    } catch (err: any) {
+      this.logger.error(`SLA breach reconcile (unassigned_hot_lead) failed: ${err.message}`);
+    }
+
     if (unassigned.length === 0) return [];
     return [{
       type: 'unassigned_hot_leads',
@@ -363,11 +467,51 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
         }
       }
 
-      if (converted.length > 0 || lost.length > 0) {
+      const [confirmedBookings, cancelledBookings] = await Promise.all([
+        this.prisma.booking.findMany({
+          where: { status: 'CONFIRMED', updatedAt: { gte: oneHourAgo } },
+          select: { id: true, tenantId: true },
+          take: 10,
+        }),
+        this.prisma.booking.findMany({
+          where: { status: 'CANCELLED', updatedAt: { gte: oneHourAgo } },
+          select: { id: true, tenantId: true },
+          take: 10,
+        }),
+      ]);
+      for (const booking of [...confirmedBookings, ...cancelledBookings]) {
+        try {
+          await this.reflexion.reflectOnOutcome(booking.tenantId, 'booking_outcome', booking.id);
+          this.logger.log(`Reflexion: booking_outcome ${booking.id}`);
+        } catch (err: any) {
+          this.logger.warn(`Reflexion failed for booking_outcome ${booking.id}: ${err.message}`);
+        }
+      }
+
+      const deactivatedCampaigns = await this.prisma.campaign.findMany({
+        where: { active: false, updatedAt: { gte: oneHourAgo } },
+        select: { id: true, tenantId: true },
+        take: 10,
+      });
+      for (const campaign of deactivatedCampaigns) {
+        try {
+          await this.reflexion.reflectOnOutcome(campaign.tenantId, 'campaign_result', campaign.id);
+          this.logger.log(`Reflexion: campaign_result ${campaign.id}`);
+        } catch (err: any) {
+          this.logger.warn(`Reflexion failed for campaign_result ${campaign.id}: ${err.message}`);
+        }
+      }
+
+      const totalReflected = converted.length + lost.length + confirmedBookings.length + cancelledBookings.length + deactivatedCampaigns.length;
+      if (totalReflected > 0) {
         await this.events.emit({
           type: 'mikey.reflexion_completed',
           source: 'mikey-scheduler',
-          payload: { converted: converted.length, lost: lost.length },
+          payload: {
+            converted: converted.length, lost: lost.length,
+            bookings: confirmedBookings.length + cancelledBookings.length,
+            campaigns: deactivatedCampaigns.length,
+          },
         });
       }
     } catch (err: any) {

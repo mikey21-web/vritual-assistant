@@ -95,7 +95,31 @@ const PageComponents: Record<string, React.LazyExoticComponent<React.ComponentTy
   PaymentSchedules: lazy(() => import("./pages/PaymentSchedulesPage")),
   Projects: lazy(() => import("./pages/ProjectsPage")),
   ProjectDetail: lazy(() => import("./pages/ProjectDetailPage")),
+  SiteVisits: lazy(() => import("./pages/SiteVisitsPage")),
+  CostSheets: lazy(() => import("./pages/CostSheetsPage")),
+  Kyc: lazy(() => import("./pages/KycPage")),
+  Collections: lazy(() => import("./pages/CollectionsPage")),
+  PartnerClaims: lazy(() => import("./pages/PartnerClaimsPage")),
+  Approvals: lazy(() => import("./pages/ApprovalsPage")),
+  SourceHealth: lazy(() => import("./pages/SourceHealthPage")),
   CampaignDetail: lazy(() => import("./pages/CampaignDetailPage")),
+  MarketingJourneys: lazy(() => import("./pages/MarketingJourneysPage")),
+  MarketingEvents: lazy(() => import("./pages/MarketingEventsPage")),
+  Portfolio: lazy(() => import("./pages/PortfolioPage")),
+  CashFlowForecast: lazy(() => import("./pages/CashFlowForecastPage")),
+  RevenueShare: lazy(() => import("./pages/RevenueSharePage")),
+  ResaleListings: lazy(() => import("./pages/ResaleListingsPage")),
+  Referrals: lazy(() => import("./pages/ReferralsPage")),
+  NriProfiles: lazy(() => import("./pages/NriProfilesPage")),
+  ConstructionErp: lazy(() => import("./pages/ConstructionErpPage")),
+  DocumentSearch: lazy(() => import("./pages/DocumentSearchPage")),
+  PhysicalDocuments: lazy(() => import("./pages/PhysicalDocumentsPage")),
+  AlliedInventory: lazy(() => import("./pages/AlliedInventoryPage")),
+  SalesTargets: lazy(() => import("./pages/SalesTargetsPage")),
+  DigitalSalesRoom: lazy(() => import("./pages/DigitalSalesRoomPage")),
+  AdvancedMarketing: lazy(() => import("./pages/AdvancedMarketingPage")),
+  OnboardingProgress: lazy(() => import("./pages/OnboardingProgressPage")),
+  LaunchControl: lazy(() => import("./pages/LaunchControlPage")),
 };
 
 function PageFallback() {
@@ -147,6 +171,30 @@ function getPageKey(path: string): string {
     "/channel-partners": "ChannelPartners",
     "/payment-schedules": "PaymentSchedules",
     "/projects": "Projects",
+    "/site-visits": "SiteVisits",
+    "/cost-sheets": "CostSheets",
+    "/kyc": "Kyc",
+    "/collections": "Collections",
+    "/partner-claims": "PartnerClaims",
+    "/approvals": "Approvals",
+    "/source-health": "SourceHealth",
+    "/marketing-journeys": "MarketingJourneys",
+    "/marketing-events": "MarketingEvents",
+    "/portfolio": "Portfolio",
+    "/cash-flow-forecast": "CashFlowForecast",
+    "/revenue-share": "RevenueShare",
+    "/resale-listings": "ResaleListings",
+    "/referrals": "Referrals",
+    "/nri-profiles": "NriProfiles",
+    "/construction-erp": "ConstructionErp",
+    "/document-search": "DocumentSearch",
+    "/physical-documents": "PhysicalDocuments",
+    "/allied-inventory": "AlliedInventory",
+    "/sales-targets": "SalesTargets",
+    "/digital-sales-room": "DigitalSalesRoom",
+    "/advanced-marketing": "AdvancedMarketing",
+    "/onboarding-progress": "OnboardingProgress",
+    "/launch-control": "LaunchControl",
   };
   return map[path] || "Overview";
 }
@@ -277,6 +325,27 @@ export default function App() {
     return (
       <Suspense fallback={<PageFallback />}>
         <AcceptInvitePage token={token} />
+      </Suspense>
+    );
+  }
+
+  // Public partner portal — a channel partner's own login/session, entirely
+  // separate from the internal dashboard's auth (spec 48.12).
+  if (publicRoute.startsWith('/partner-portal')) {
+    const PartnerPortalPage = lazy(() => import('./pages/public/PartnerPortalPage'));
+    return (
+      <Suspense fallback={<PageFallback />}>
+        <PartnerPortalPage />
+      </Suspense>
+    );
+  }
+
+  // Public buyer portal — magic-link session scoped to exactly one booking (spec 54.1).
+  if (publicRoute.startsWith('/buyer-portal')) {
+    const BuyerPortalPage = lazy(() => import('./pages/public/BuyerPortalPage'));
+    return (
+      <Suspense fallback={<PageFallback />}>
+        <BuyerPortalPage />
       </Suspense>
     );
   }

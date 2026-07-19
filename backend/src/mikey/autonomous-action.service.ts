@@ -76,6 +76,12 @@ export class AutonomousActionService {
           data: { assignedAgentId: undoData.previousAgentId ?? null },
         });
         break;
+      case 'escalate_task_priority':
+        await this.prisma.task.update({
+          where: { id: undoData.taskId },
+          data: { priority: undoData.previousPriority ?? 'medium' },
+        });
+        break;
       default:
         throw new BadRequestException(`No undo handler for tool "${action.tool}"`);
     }

@@ -2,6 +2,7 @@ import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ContactsService } from '../contacts/contacts.service';
 import { LeadsService } from '../leads/leads.service';
+import { ConversationsService } from '../conversations/conversations.service';
 import * as crypto from 'crypto';
 
 export interface PortalLeadPayload {
@@ -23,6 +24,7 @@ export class PortalIntegrationsService {
     private prisma: PrismaService,
     private contactsService: ContactsService,
     private leadsService: LeadsService,
+    private conversationsService: ConversationsService,
   ) {}
 
   private idempotencyKey(parts: string[]): string {
@@ -48,6 +50,7 @@ export class PortalIntegrationsService {
       orderBy: { createdAt: 'desc' },
     });
 
+    const isNewLead = !existingLead;
     const lead = existingLead || await this.leadsService.create({
       contactId: contact.id,
       source: source as any,
@@ -61,7 +64,39 @@ export class PortalIntegrationsService {
       },
     });
 
+    if (isNewLead) {
+      this.sendFirstResponseAck(lead.id, contact).catch(err =>
+        this.logger.warn(`First-response WhatsApp ack failed for lead ${lead.id}: ${err.message}`),
+      );
+    }
+
     return { contact, lead };
+  }
+
+  /**
+   * Instant acknowledgement on a brand-new portal lead (spec 3/47). Only
+   * sends if the tenant has configured an active WELCOME WhatsApp template —
+   * there is no built-in default wording, and ConversationsService.create
+   * still runs the full consent/quiet-hours/rate-limit policy gate before
+   * anything actually goes out.
+   */
+  private async sendFirstResponseAck(leadId: string, contact: { id: string; name?: string | null }): Promise<void> {
+    const template = await this.prisma.messageTemplate.findFirst({
+      where: { type: 'WELCOME', channel: 'WHATSAPP', active: true },
+      orderBy: { updatedAt: 'desc' },
+    });
+    if (!template) return;
+
+    const firstName = (contact.name || '').trim().split(/\s+/)[0] || 'there';
+    const text = template.body.replace(/\{\{\s*name\s*\}\}/gi, firstName);
+
+    await this.conversationsService.create({
+      leadId,
+      channel: 'WHATSAPP',
+      direction: 'OUTBOUND',
+      text,
+      messageTemplateId: template.id,
+    });
   }
 
   async handleIndiaMART(raw: any) {

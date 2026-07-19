@@ -44,6 +44,10 @@ export class SalienceEngineService {
         return this.handleUnassignedHotLeads(finding);
       case 'stale_hot_leads':
         return this.handleStaleHotLeads(finding);
+      case 'stale_new_leads':
+        return this.handleStaleNewLeads(finding);
+      case 'overdue_tasks':
+        return this.handleOverdueTasks(finding);
       default:
         return { acted: false };
     }
@@ -51,7 +55,7 @@ export class SalienceEngineService {
 
   /** Assign each unassigned hot lead to the least-loaded active sales agent. Fully reversible. */
   private async handleUnassignedHotLeads(finding: SchedulerFinding): Promise<{ acted: boolean; summary?: string }> {
-    const gate = await this.guardrails.canActInternally(DEFAULT_TENANT_ID);
+    const gate = await this.guardrails.canActInternally(DEFAULT_TENANT_ID, 'lead_assignment');
     if (!gate.allowed) {
       this.logger.log(`Skipping auto-assign: ${gate.reason}`);
       return { acted: false };
@@ -97,7 +101,7 @@ export class SalienceEngineService {
 
     let sent = 0;
     for (const leadId of leadIds) {
-      const gate = await this.guardrails.canMessageLeadAutonomously(DEFAULT_TENANT_ID, leadId);
+      const gate = await this.guardrails.canMessageLeadAutonomously(DEFAULT_TENANT_ID, 'lead_messaging', leadId);
       if (!gate.allowed) {
         this.logger.log(`Skipping auto-nudge for lead ${leadId}: ${gate.reason}`);
         continue;
@@ -131,5 +135,88 @@ export class SalienceEngineService {
     }
 
     return { acted: sent > 0, summary: `Sent a re-engagement follow-up to ${sent} stale hot lead(s).` };
+  }
+
+  /** New leads sitting in NEW status for 24h+ get the same least-loaded-agent assignment as unassigned hot leads. Fully reversible. */
+  private async handleStaleNewLeads(finding: SchedulerFinding): Promise<{ acted: boolean; summary?: string }> {
+    const gate = await this.guardrails.canActInternally(DEFAULT_TENANT_ID, 'lead_assignment');
+    if (!gate.allowed) {
+      this.logger.log(`Skipping stale-new-lead auto-assign: ${gate.reason}`);
+      return { acted: false };
+    }
+
+    const leadIds: string[] = finding.metadata?.leadIds || [];
+    if (leadIds.length === 0) return { acted: false };
+
+    const leads = await this.prisma.lead.findMany({ where: { id: { in: leadIds } } });
+    const alreadyAssigned = leads.filter((l) => l.assignedAgentId).map((l) => l.id);
+    const needsAssignment = leadIds.filter((id) => !alreadyAssigned.includes(id));
+    if (needsAssignment.length === 0) return { acted: false };
+
+    const agents = await this.prisma.user.findMany({
+      where: { role: 'SALES_AGENT', active: true },
+      include: { assignedLeads: { where: { status: { notIn: ['CONVERTED', 'LOST', 'SPAM'] } } } },
+    });
+    if (agents.length === 0) return { acted: false };
+
+    let assigned = 0;
+    for (const leadId of needsAssignment) {
+      const leastLoaded = [...agents].sort((a, b) => a.assignedLeads.length - b.assignedLeads.length)[0];
+      await this.prisma.lead.update({ where: { id: leadId }, data: { assignedAgentId: leastLoaded.id } });
+      leastLoaded.assignedLeads.push({} as any);
+      await this.actions.record({
+        tenantId: DEFAULT_TENANT_ID,
+        findingType: finding.type,
+        tool: 'assign_lead_to_agent',
+        leadId,
+        args: { agentId: leastLoaded.id, reason: 'stale_new_lead' },
+        result: `Assigned to ${leastLoaded.name}`,
+        undoable: true,
+        undoData: { previousAgentId: null },
+      });
+      await this.emitAutonomousActionEvent(leadId, 'assign_lead_to_agent', { agentId: leastLoaded.id, findingType: finding.type });
+      assigned++;
+    }
+
+    return { acted: assigned > 0, summary: `Auto-assigned ${assigned} stale new lead(s) that had never been picked up.` };
+  }
+
+  /**
+   * Overdue tasks get bumped to high priority so they surface at the top of
+   * whoever owns them — never reassigned or completed automatically, since
+   * only the owning human knows if the task is still relevant. Reversible:
+   * undo restores the original priority.
+   */
+  private async handleOverdueTasks(finding: SchedulerFinding): Promise<{ acted: boolean; summary?: string }> {
+    const gate = await this.guardrails.canActInternally(DEFAULT_TENANT_ID, 'task_escalation');
+    if (!gate.allowed) {
+      this.logger.log(`Skipping overdue-task escalation: ${gate.reason}`);
+      return { acted: false };
+    }
+
+    const taskIds: string[] = finding.metadata?.taskIds || [];
+    if (taskIds.length === 0) return { acted: false };
+
+    const tasks = await this.prisma.task.findMany({ where: { id: { in: taskIds }, priority: { not: 'high' } } });
+    if (tasks.length === 0) return { acted: false };
+
+    let escalated = 0;
+    for (const task of tasks) {
+      const previousPriority = task.priority;
+      await this.prisma.task.update({ where: { id: task.id }, data: { priority: 'high' } });
+      await this.actions.record({
+        tenantId: DEFAULT_TENANT_ID,
+        findingType: finding.type,
+        tool: 'escalate_task_priority',
+        leadId: task.leadId ?? undefined,
+        args: { taskId: task.id, priority: 'high' },
+        result: `Escalated to high priority (was ${previousPriority})`,
+        undoable: true,
+        undoData: { taskId: task.id, previousPriority },
+      });
+      escalated++;
+    }
+
+    return { acted: escalated > 0, summary: `Escalated ${escalated} overdue task(s) to high priority.` };
   }
 }

@@ -16,11 +16,24 @@ export class ChannelPartnersController {
   @Get() @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT', 'VIEWER')
   findAll(@Query() q: any) { return this.service.findAll(q); }
 
+  @Get('expiry-alerts') @Roles('OWNER', 'ADMIN', 'MANAGER')
+  expiryAlerts(@Query('days') days: string, @Req() req: any) {
+    return this.service.expiryAlerts(req.user?.tenantId, days ? +days : undefined);
+  }
+
   @Get(':id') @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT', 'VIEWER')
   findOne(@Param('id') id: string) { return this.service.findOne(id); }
 
   @Get(':id/performance') @Roles('OWNER', 'ADMIN', 'MANAGER', 'VIEWER')
   performance(@Param('id') id: string) { return this.service.performance(id); }
+
+  @Patch(':id/onboarding-status') @Roles('OWNER', 'ADMIN', 'MANAGER')
+  updateOnboardingStatus(@Param('id') id: string, @Body('onboardingStatus') onboardingStatus: string) {
+    return this.service.updateOnboardingStatus(id, onboardingStatus);
+  }
+
+  @Post(':id/training-complete') @Roles('OWNER', 'ADMIN', 'MANAGER')
+  markTrainingComplete(@Param('id') id: string) { return this.service.markTrainingComplete(id); }
 
   @Post() @Roles('OWNER', 'ADMIN', 'MANAGER')
   create(@Body() dto: CreateChannelPartnerDto, @Req() req: any) {

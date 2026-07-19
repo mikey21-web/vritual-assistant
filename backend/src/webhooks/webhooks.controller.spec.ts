@@ -2,6 +2,9 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { WebhooksController } from './webhooks.controller';
 import { WebhooksService } from './webhooks.service';
 import { WebhookSecurityService } from '../shared/webhook-security.service';
+import { ESignService } from '../documents/esign.service';
+import { DocuSignAdapter } from '../documents/esign-providers/docusign.adapter';
+import { ZohoSignAdapter } from '../documents/esign-providers/zoho-sign.adapter';
 import { ConfigService } from '@nestjs/config';
 import { UnauthorizedException } from '@nestjs/common';
 
@@ -23,7 +26,14 @@ describe('WebhooksController', () => {
     verifyWebhookApiKey: jest.fn().mockReturnValue(true),
     verifyWhatsAppSignature: jest.fn().mockReturnValue(true),
     verifyStripeSignature: jest.fn().mockReturnValue(true),
+    verifyDocuSignConnectSignature: jest.fn().mockReturnValue(true),
   };
+
+  const esignService = {
+    markProviderDecision: jest.fn().mockResolvedValue({ id: 'esign-1', status: 'SIGNED' }),
+  };
+  const docuSignAdapter = { mapStatus: jest.fn().mockReturnValue('SIGNED') };
+  const zohoSignAdapter = { mapStatus: jest.fn().mockReturnValue('SIGNED') };
 
   const mockReq = (rawBody?: Buffer) =>
     ({ rawBody: rawBody ?? Buffer.from('{}') }) as any;
@@ -37,6 +47,9 @@ describe('WebhooksController', () => {
         { provide: WebhooksService, useValue: webhooksService },
         { provide: WebhookSecurityService, useValue: webhookSecurity },
         { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('mock-token') } },
+        { provide: ESignService, useValue: esignService },
+        { provide: DocuSignAdapter, useValue: docuSignAdapter },
+        { provide: ZohoSignAdapter, useValue: zohoSignAdapter },
       ],
     }).compile();
 
@@ -190,6 +203,33 @@ describe('WebhooksController', () => {
       await expect(
         controller.chatbotWebhook({} as any, 'bad-key', mockReq()),
       ).rejects.toThrow(UnauthorizedException);
+    });
+  });
+
+  describe('POST /webhooks/esign/docusign', () => {
+    it('marks the envelope decision when the signature is valid and status maps', async () => {
+      const body = { envelopeId: 'env-1', status: 'completed' };
+      await controller.docuSignWebhook(body, 'sig', mockReq());
+      expect(esignService.markProviderDecision).toHaveBeenCalledWith('DOCUSIGN', 'env-1', 'SIGNED');
+    });
+
+    it('throws UnauthorizedException on an invalid signature', async () => {
+      webhookSecurity.verifyDocuSignConnectSignature.mockReturnValueOnce(false);
+      await expect(controller.docuSignWebhook({ envelopeId: 'env-1', status: 'completed' }, 'bad', mockReq()))
+        .rejects.toThrow(UnauthorizedException);
+    });
+  });
+
+  describe('POST /webhooks/esign/zoho', () => {
+    it('marks the request decision when the key is valid and status maps', async () => {
+      const body = { requests: { request_id: 'req-1', request_status: 'completed' } };
+      await controller.zohoSignWebhook(body, 'valid-key');
+      expect(esignService.markProviderDecision).toHaveBeenCalledWith('ZOHO_SIGN', 'req-1', 'SIGNED');
+    });
+
+    it('throws UnauthorizedException on an invalid key', async () => {
+      webhookSecurity.verifyWebhookApiKey.mockReturnValueOnce(false);
+      await expect(controller.zohoSignWebhook({ requests: {} }, 'bad-key')).rejects.toThrow(UnauthorizedException);
     });
   });
 

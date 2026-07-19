@@ -74,6 +74,40 @@ export class ChannelPartnersService {
     return this.prisma.lead.update({ where: { id: leadId }, data: { channelPartnerId: partnerId } });
   }
 
+  /** Advance onboarding stage (INVITED -> DOCS_PENDING -> TRAINING_PENDING -> ACTIVE). */
+  async updateOnboardingStatus(id: string, onboardingStatus: string) {
+    await this.findOne(id);
+    return this.prisma.channelPartner.update({ where: { id }, data: { onboardingStatus: onboardingStatus as any } });
+  }
+
+  async markTrainingComplete(id: string) {
+    await this.findOne(id);
+    return this.prisma.channelPartner.update({
+      where: { id },
+      data: { trainingCompletedAt: new Date(), onboardingStatus: 'ACTIVE' },
+    });
+  }
+
+  /** Partners whose RERA registration or agreement expires within `days` (default 30), for renewal follow-up. */
+  async expiryAlerts(tenantId: string, days = 30) {
+    const cutoff = new Date(Date.now() + days * 86400000);
+    const partners = await this.prisma.channelPartner.findMany({
+      where: {
+        tenantId,
+        OR: [
+          { reraExpiryAt: { not: null, lte: cutoff } },
+          { agreementExpiryAt: { not: null, lte: cutoff } },
+        ],
+      },
+      select: { id: true, name: true, reraId: true, reraExpiryAt: true, agreementExpiryAt: true },
+    });
+    return partners.map(p => ({
+      ...p,
+      reraExpiring: !!p.reraExpiryAt && p.reraExpiryAt <= cutoff,
+      agreementExpiring: !!p.agreementExpiryAt && p.agreementExpiryAt <= cutoff,
+    }));
+  }
+
   /**
    * Per-partner performance: leads sourced, converted, conversion rate, and
    * estimated commission owed on converted deal value.

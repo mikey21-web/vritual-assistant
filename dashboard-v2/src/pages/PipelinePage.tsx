@@ -139,7 +139,7 @@ function TaskItem({ task, onUpdate, agents }: { task: any; onUpdate: (id: string
             <span className={`text-sm font-medium ${task.status === 'done' ? 'line-through text-[var(--muted-foreground)]' : 'text-[var(--foreground)]'}`}>
               {task.title}
             </span>
-            {isMikey && <Bot className="h-3.5 w-3.5 text-purple-500 shrink-0" title="Created by Mikey" />}
+            {isMikey && <span title="Created by Mikey"><Bot className="h-3.5 w-3.5 text-purple-500 shrink-0" /></span>}
           </div>
           {task.description && <p className="text-[11px] text-[var(--muted-foreground)] mt-0.5">{task.description}</p>}
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">

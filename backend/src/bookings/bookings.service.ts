@@ -135,6 +135,15 @@ export class BookingsService {
     const booking = await this.prisma.booking.findUnique({ where: { id } });
     if (!booking) throw new NotFoundException('Booking not found');
 
+    // A purchase booking can never be confirmed by a generic status patch —
+    // it must go through BookingConfirmationService.confirm(), which gates on
+    // an active hold, an approved cost sheet, verified documents, and a
+    // recorded amount (spec 48.9). Legacy calendar-style bookings may still
+    // move through COMPLETED/CANCELLED/NO_SHOW freely here.
+    if (data.status === 'CONFIRMED' && booking.status !== 'CONFIRMED') {
+      throw new BadRequestException('Use POST /bookings/:id/confirm-purchase to confirm a booking');
+    }
+
     const updated = await this.prisma.booking.update({ where: { id }, data });
 
     try {

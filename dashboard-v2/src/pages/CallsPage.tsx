@@ -120,26 +120,27 @@ export default function CallsPage() {
             <TableHead>Source</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Recording</TableHead>
+            <TableHead>Disposition</TableHead>
             <TableHead>Notes</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {loading ? (
-            <TableRow><TableCell colSpan={9} className="text-center text-[var(--muted-foreground)] py-8">
+            <TableRow><TableCell colSpan={10} className="text-center text-[var(--muted-foreground)] py-8">
               <div className="flex flex-col items-center gap-2">
                 <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--border)] border-t-[var(--primary)]" />
                 <span>Loading calls...</span>
               </div>
             </TableCell></TableRow>
           ) : error ? (
-            <TableRow><TableCell colSpan={9} className="text-center py-8">
+            <TableRow><TableCell colSpan={10} className="text-center py-8">
               <div className="flex flex-col items-center gap-2">
                 <span className="text-sm text-red-500">{error}</span>
                 <button onClick={load} className="text-xs text-[var(--primary)] hover:underline">Try again</button>
               </div>
             </TableCell></TableRow>
           ) : filteredCalls.length === 0 ? (
-            <TableRow><TableCell colSpan={9} className="text-center text-[var(--muted-foreground)] py-8">
+            <TableRow><TableCell colSpan={10} className="text-center text-[var(--muted-foreground)] py-8">
               {search ? 'No calls match your filter' : 'No calls synced yet. Pair a device to get started.'}
             </TableCell></TableRow>
           ) : (
@@ -176,6 +177,9 @@ export default function CallsPage() {
                     <span className="text-xs text-[var(--muted-foreground)]">—</span>
                   )}
                 </TableCell>
+                <DispositionCell call={c} onUpdate={(id, disposition) => {
+                  setCalls(prev => prev.map(call => call.id === id ? { ...call, disposition } : call));
+                }} />
                 <NotesCell call={c} onUpdate={(id, notes) => {
                   setCalls(prev => prev.map(call => call.id === id ? { ...call, notes } : call));
                 }} />
@@ -187,6 +191,57 @@ export default function CallsPage() {
 
       {showPair && <PairDeviceModal onClose={() => setShowPair(false)} />}
     </div>
+  );
+}
+
+const DISPOSITIONS = [
+  "connected_qualified", "connected_follow_up", "wrong_number", "no_answer",
+  "busy", "switched_off", "not_interested", "site_visit_scheduled", "lost",
+];
+
+function DispositionCell({ call, onUpdate }: { call: any; onUpdate: (id: string, disposition: string) => void }) {
+  const [saving, setSaving] = useState(false);
+  const [nextActionAt, setNextActionAt] = useState("");
+
+  const save = async (disposition: string) => {
+    if (!disposition) return;
+    setSaving(true);
+    try {
+      await api(`/call-tracking/calls/${call.id}/disposition`, {
+        method: "PATCH",
+        body: JSON.stringify({ disposition, nextActionAt: nextActionAt ? new Date(nextActionAt).toISOString() : undefined }),
+      });
+      onUpdate(call.id, disposition);
+      toast.success("Disposition saved");
+    } catch {
+      toast.error("Failed to save disposition");
+    }
+    setSaving(false);
+  };
+
+  return (
+    <TableCell>
+      <div className="flex flex-col gap-1">
+        <select
+          value={call.disposition || ""}
+          onChange={e => save(e.target.value)}
+          disabled={saving}
+          className="h-7 rounded border border-[var(--border)] bg-[var(--background)] px-1 text-xs text-[var(--foreground)]"
+        >
+          <option value="">Set outcome...</option>
+          {DISPOSITIONS.map(d => <option key={d} value={d}>{d.replace(/_/g, " ")}</option>)}
+        </select>
+        {!call.disposition && (
+          <input
+            type="datetime-local"
+            value={nextActionAt}
+            onChange={e => setNextActionAt(e.target.value)}
+            title="Follow-up date (optional, set before choosing an outcome)"
+            className="h-6 rounded border border-[var(--border)] bg-[var(--background)] px-1 text-[10px] text-[var(--foreground)]"
+          />
+        )}
+      </div>
+    </TableCell>
   );
 }
 

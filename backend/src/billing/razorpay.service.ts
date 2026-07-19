@@ -14,6 +14,10 @@ export class RazorpayService {
     if (this.keyId && this.keySecret) this.logger.log('Razorpay initialized');
   }
 
+  isConfigured(): boolean {
+    return !!(this.keyId && this.keySecret);
+  }
+
   async createOrder(amount: number, currency = 'INR', receipt?: string) {
     if (!this.keyId || !this.keySecret) {
       return { id: `stub_order_${Date.now()}`, amount, currency, receipt, stub: true };

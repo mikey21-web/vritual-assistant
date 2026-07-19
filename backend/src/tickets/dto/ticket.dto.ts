@@ -16,9 +16,23 @@ export enum TicketPriority {
   URGENT = 'URGENT',
 }
 
+/** spec 68.2 required categories */
+export enum TicketCategory {
+  PAYMENT_ACCOUNT = 'PAYMENT_ACCOUNT',
+  DOCUMENT_AGREEMENT = 'DOCUMENT_AGREEMENT',
+  LOAN_REGISTRATION = 'LOAN_REGISTRATION',
+  CONSTRUCTION_UPDATE = 'CONSTRUCTION_UPDATE',
+  POSSESSION = 'POSSESSION',
+  DEFECT_SERVICE = 'DEFECT_SERVICE',
+  COMMUNICATION = 'COMMUNICATION',
+  CANCELLATION_TRANSFER = 'CANCELLATION_TRANSFER',
+  OTHER = 'OTHER',
+}
+
 export class CreateTicketDto {
   @ApiProperty() @IsString() subject: string;
   @ApiProperty() @IsString() description: string;
+  @ApiPropertyOptional() @IsOptional() @IsEnum(TicketCategory) category?: string;
   @ApiPropertyOptional() @IsOptional() @IsEnum(TicketPriority) priority?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() leadId?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() contactId?: string;

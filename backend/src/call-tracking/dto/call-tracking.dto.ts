@@ -65,3 +65,14 @@ export class UpdateNotesDto {
   @IsString()
   notes: string;
 }
+
+export class UpdateDispositionDto {
+  @ApiProperty()
+  @IsString()
+  disposition: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  nextActionAt?: string;
+}
