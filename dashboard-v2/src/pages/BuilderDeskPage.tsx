@@ -5,12 +5,16 @@ import {
   Building2,
   CalendarCheck,
   CheckCircle2,
+  Clock,
   IndianRupee,
   MessageCircle,
   Phone,
   RefreshCw,
   Users,
   Warehouse,
+  Ban,
+  ThumbsDown,
+  Timer,
 } from "lucide-react";
 import { fetchBuilderCommand } from "../lib/data";
 import { Button } from "../components/ui/button";
@@ -135,7 +139,7 @@ export default function BuilderDeskPage() {
       <div className="flex flex-col gap-3 border-b border-[var(--border)] pb-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-[var(--foreground)]">Builder Desk</h1>
-          <p className="mt-1 text-sm text-[var(--muted-foreground)]">Lead leakage, site visits, inventory, collections, and channel partners in one owner view.</p>
+          <p className="mt-1 text-sm text-[var(--muted-foreground)]">Missed calls, no-shows, bookings, weak agents, units on hold, and money leaking — in one owner view.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={load}><RefreshCw className="mr-2 h-4 w-4" /> Refresh</Button>
@@ -148,6 +152,13 @@ export default function BuilderDeskPage() {
         <KpiCard icon={AlertTriangle} label="Unassigned leads" value={kpis.unassignedLeads || 0} tone={kpis.unassignedLeads > 0 ? "danger" : "good"} />
         <KpiCard icon={CalendarCheck} label="Visits today" value={kpis.todayVisits || 0} />
         <KpiCard icon={IndianRupee} label="Overdue collections" value={kpis.overduePayments || 0} tone={kpis.overduePayments > 0 ? "danger" : "good"} />
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <KpiCard icon={Clock} label="Missed calls today" value={kpis.missedCallsToday || 0} tone={kpis.missedCallsToday > 0 ? "danger" : "good"} />
+        <KpiCard icon={Ban} label="No-shows this month" value={kpis.noShowsThisMonth || 0} tone={kpis.noShowsThisMonth > 5 ? "danger" : "default"} />
+        <KpiCard icon={CheckCircle2} label="Bookings this month" value={kpis.bookingsThisMonth || 0} tone="good" />
+        <KpiCard icon={Timer} label="Tomorrow visits" value={kpis.tomorrowVisits || 0} />
+        <KpiCard icon={ThumbsDown} label="Weak agents" value={data.weakSalespeople?.length || 0} tone={data.weakSalespeople?.length > 0 ? "danger" : "good"} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -277,6 +288,40 @@ export default function BuilderDeskPage() {
                 <p className="text-sm font-semibold text-[var(--foreground)]">{partner.leadCount} leads</p>
               </div>
             )) : <EmptyState label="No active channel partner data yet." />}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-4">
+          <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-[var(--foreground)]"><Clock size={16} /> Units on Hold</h2>
+          <div className="space-y-2">
+            {data.activeHolds?.length ? data.activeHolds.map((hold: any) => (
+              <div key={hold.id} className="flex items-center justify-between rounded-lg border border-[var(--border)] px-3 py-2">
+                <div>
+                  <p className="text-sm font-medium text-[var(--foreground)]">{hold.buyer}</p>
+                  <p className="text-xs text-[var(--muted-foreground)]">Unit {hold.unitNumber}</p>
+                </div>
+                <span className={`text-xs font-medium ${new Date(hold.expiresAt).getTime() - Date.now() < 3 * 24 * 60 * 60 * 1000 ? 'text-red-600' : 'text-[var(--muted-foreground)]'}`}>
+                  Expires {new Date(hold.expiresAt).toLocaleDateString('en-IN')}
+                </span>
+              </div>
+            )) : <EmptyState label="No units currently on hold." />}
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-4">
+          <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-[var(--foreground)]"><ThumbsDown size={16} /> Weak Salespeople</h2>
+          <div className="space-y-2">
+            {data.weakSalespeople?.length ? data.weakSalespeople.map((agent: any) => (
+              <div key={agent.id} className="flex items-center justify-between rounded-lg border border-[var(--border)] px-3 py-2">
+                <div>
+                  <p className="text-sm font-medium text-[var(--foreground)]">{agent.name}</p>
+                  <p className="text-xs text-[var(--muted-foreground)]">{agent.totalLeads} leads assigned</p>
+                </div>
+                <span className="text-sm font-semibold text-red-600">{agent.converted}/{agent.totalLeads} converted ({(agent.rate * 100).toFixed(0)}%)</span>
+              </div>
+            )) : <EmptyState label="All salespeople are performing well." />}
           </div>
         </div>
       </div>

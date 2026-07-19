@@ -152,7 +152,11 @@ export class AnalyticsService {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+    const tomorrowStart = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+    const tomorrowEnd = new Date(tomorrowStart.getTime() + 24 * 60 * 60 * 1000);
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
     const activeLeadWhere = { status: { notIn: ['CONVERTED', 'LOST', 'SPAM'] as any[] } };
     const visitWhere = { startTime: { gte: todayStart, lt: todayEnd }, status: { in: ['PENDING', 'CONFIRMED'] as any[] } };
@@ -162,6 +166,8 @@ export class AnalyticsService {
         { status: 'PENDING' as any, dueDate: { lt: now } },
       ],
     };
+
+    const missedCallStatuses = ['NO_ANSWER', 'BUSY', 'FAILED', 'MISSED'] as any[];
 
     const [
       activeLeads,
@@ -178,6 +184,11 @@ export class AnalyticsService {
       upcomingVisits,
       collectionQueue,
       topPartners,
+      missedCallsToday,
+      noShowsThisMonth,
+      bookingsThisMonth,
+      activeHolds,
+      tomorrowVisits,
     ] = await Promise.all([
       this.prisma.lead.count({ where: activeLeadWhere }),
       this.prisma.lead.count({ where: { ...activeLeadWhere, segment: 'HOT' } }),
@@ -228,6 +239,11 @@ export class AnalyticsService {
         take: 5,
         include: { _count: { select: { leads: true } } },
       }),
+      this.prisma.callLog.count({ where: { createdAt: { gte: todayStart }, status: { in: missedCallStatuses } } }),
+      this.prisma.siteVisit.count({ where: { status: 'NO_SHOW' as any, startAt: { gte: monthStart } } }),
+      this.prisma.booking.count({ where: { status: 'CONFIRMED' as any, createdAt: { gte: monthStart } } }),
+      this.prisma.unitHold.findMany({ where: { status: 'ACTIVE' as any, expiresAt: { gte: now } }, orderBy: { expiresAt: 'asc' }, take: 10, include: { unit: { select: { unitNumber: true } }, lead: { include: { contact: { select: { name: true } } } } } }),
+      this.prisma.booking.count({ where: { startTime: { gte: tomorrowStart, lt: tomorrowEnd }, status: { in: ['PENDING', 'CONFIRMED'] as any[] } } }),
     ]);
 
     const inventory = unitGroups.reduce((acc, row) => {
@@ -243,6 +259,24 @@ export class AnalyticsService {
       leads: row._count,
     }));
 
+    const weakAgents = await this.prisma.user.findMany({ where: { active: true, role: 'SALES_AGENT' }, select: { id: true, name: true } });
+    const weakSalespeople: Array<{ id: string; name: string; totalLeads: number; converted: number; rate: number }> = [];
+    if (weakAgents.length > 0) {
+      const agentIds = weakAgents.map(a => a.id);
+      const [totalMap, convertedMap] = await Promise.all([
+        this.prisma.lead.groupBy({ by: ['assignedAgentId'], where: { assignedAgentId: { in: agentIds } }, _count: { id: true } }),
+        this.prisma.lead.groupBy({ by: ['assignedAgentId'], where: { assignedAgentId: { in: agentIds }, status: 'CONVERTED' as any }, _count: { id: true } }),
+      ]);
+      const totalByAgent = new Map(totalMap.map(s => [s.assignedAgentId, s._count.id]));
+      const convertedByAgent = new Map(convertedMap.map(s => [s.assignedAgentId, s._count.id]));
+      for (const a of weakAgents) {
+        const total = totalByAgent.get(a.id) || 0;
+        const converted = convertedByAgent.get(a.id) || 0;
+        const rate = total > 0 ? converted / total : 0;
+        if (total > 10 && rate < 0.1) weakSalespeople.push({ id: a.id, name: a.name, totalLeads: total, converted, rate });
+      }
+    }
+
     return {
       kpis: {
         activeLeads,
@@ -250,12 +284,24 @@ export class AnalyticsService {
         unassignedLeads,
         newLeadsToday,
         todayVisits,
+        tomorrowVisits,
+        missedCallsToday,
+        noShowsThisMonth,
+        bookingsThisMonth,
         overduePayments,
         activeProjects,
         activePartners,
       },
       sourceBreakdown,
       inventory,
+      activeHolds: activeHolds.map(h => ({
+        id: h.id,
+        unitNumber: h.unit?.unitNumber || 'Unknown',
+        buyer: h.lead?.contact?.name || 'Unknown buyer',
+        expiresAt: h.expiresAt,
+        status: h.status,
+      })),
+      weakSalespeople,
       recentLeads: recentLeads.map(l => ({
         id: l.id,
         buyer: l.contact?.name || 'Unknown buyer',
@@ -305,6 +351,9 @@ export class AnalyticsService {
       nextActions: [
         unassignedLeads > 0 ? { severity: 'critical', label: `${unassignedLeads} active leads need an owner`, href: '#/leads' } : null,
         overduePayments > 0 ? { severity: 'warning', label: `${overduePayments} collection milestones are overdue`, href: '#/payment-schedules' } : null,
+        missedCallsToday > 0 ? { severity: 'warning', label: `${missedCallsToday} missed calls today — review and call back`, href: '#/calls' } : null,
+        weakSalespeople.length > 0 ? { severity: 'warning', label: `${weakSalespeople.length} agent(s) with weak conversion — review performance`, href: '#/team' } : null,
+        activeHolds.length > 0 ? { severity: 'info', label: `${activeHolds.length} unit(s) on hold — ${activeHolds.filter(h => new Date(h.expiresAt).getTime() - Date.now() < 3 * 24 * 60 * 60 * 1000).length} expiring within 3 days`, href: '#/booking' } : null,
         hotLeads > 0 ? { severity: 'info', label: `${hotLeads} hot leads should get WhatsApp/call follow-up today`, href: '#/leads' } : null,
         todayVisits > 0 ? { severity: 'info', label: `${todayVisits} site visits need pre-visit briefs`, href: '#/booking' } : null,
       ].filter(Boolean),

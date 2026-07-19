@@ -12,25 +12,27 @@ describe('ClientFinanceService', () => {
     status: 'DRAFT', contactId: 'contact-1', lineItems: [{ id: 'li-1', description: 'Item', qty: 1, unitPrice: 1000, total: 1000 }],
   };
 
+  const tenantId = 'default-tenant';
+
   beforeEach(async () => {
     prisma = {
       invoice: {
         findMany: jest.fn().mockResolvedValue([mockInvoice]),
-        findUnique: jest.fn().mockResolvedValue(mockInvoice),
+        findFirst: jest.fn().mockResolvedValue(mockInvoice),
         create: jest.fn().mockResolvedValue(mockInvoice),
         update: jest.fn().mockImplementation(({ data }) => Promise.resolve({ ...mockInvoice, ...data })),
         count: jest.fn().mockResolvedValue(1),
       },
       quotation: {
         findMany: jest.fn().mockResolvedValue([]),
-        findUnique: jest.fn().mockResolvedValue({ id: 'q-1', sections: [{ lineItems: [{ total: 500 }, { total: 250 }] }] }),
+        findFirst: jest.fn().mockResolvedValue({ id: 'q-1', sections: [{ lineItems: [{ total: 500 }, { total: 250 }] }] }),
         create: jest.fn().mockImplementation(({ data }) => Promise.resolve({ id: 'q-1', ...data })),
         update: jest.fn().mockImplementation(({ data }) => Promise.resolve({ id: 'q-1', ...data })),
         count: jest.fn().mockResolvedValue(0),
       },
       contract: {
         findMany: jest.fn().mockResolvedValue([]),
-        findUnique: jest.fn().mockResolvedValue({ id: 'c-1', status: 'DRAFT' }),
+        findFirst: jest.fn().mockResolvedValue({ id: 'c-1', status: 'DRAFT' }),
         create: jest.fn().mockImplementation(({ data }) => Promise.resolve({ id: 'c-1', ...data })),
         update: jest.fn().mockImplementation(({ data }) => Promise.resolve({ id: 'c-1', ...data })),
         count: jest.fn().mockResolvedValue(0),
@@ -52,7 +54,7 @@ describe('ClientFinanceService', () => {
 
   describe('createInvoice', () => {
     it('should compute subtotal, gstTotal, and grandTotal from line items', async () => {
-      await service.createInvoice({ contactId: 'contact-1', gstPercent: 18, lineItems: [{ description: 'Item', qty: 2, unitPrice: 500 }] });
+      await service.createInvoice(tenantId, { contactId: 'contact-1', gstPercent: 18, lineItems: [{ description: 'Item', qty: 2, unitPrice: 500 }] });
       expect(prisma.invoice.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({ subtotal: 1000, gstTotal: 180, grandTotal: 1180 }),
@@ -63,34 +65,34 @@ describe('ClientFinanceService', () => {
 
   describe('updateInvoice', () => {
     it('should not set paidAt unless status is PAID', async () => {
-      await service.updateInvoice('inv-1', { status: 'SENT' });
+      await service.updateInvoice(tenantId, 'inv-1', { status: 'SENT' });
       expect(prisma.invoice.update).toHaveBeenCalledWith(
         expect.objectContaining({ data: { status: 'SENT' } }),
       );
     });
 
     it('should stamp paidAt when status transitions to PAID', async () => {
-      await service.updateInvoice('inv-1', { status: 'PAID' });
+      await service.updateInvoice(tenantId, 'inv-1', { status: 'PAID' });
       expect(prisma.invoice.update).toHaveBeenCalledWith(
         expect.objectContaining({ data: expect.objectContaining({ status: 'PAID', paidAt: expect.any(Date) }) }),
       );
     });
 
     it('should throw NotFoundException for a non-existent invoice', async () => {
-      prisma.invoice.findUnique.mockResolvedValue(null);
-      await expect(service.updateInvoice('nonexistent', { status: 'PAID' })).rejects.toThrow(NotFoundException);
+      prisma.invoice.findFirst.mockResolvedValue(null);
+      await expect(service.updateInvoice(tenantId, 'nonexistent', { status: 'PAID' })).rejects.toThrow(NotFoundException);
     });
   });
 
   describe('createContract', () => {
     it('should use the provided amount when given', async () => {
-      const c = await service.createContract({ amount: 5000 });
+      const c = await service.createContract(tenantId, { amount: 5000 });
       expect(c.amount).toBe(5000);
-      expect(prisma.quotation.findUnique).not.toHaveBeenCalled();
+      expect(prisma.quotation.findFirst).not.toHaveBeenCalled();
     });
 
     it('should derive amount from the quotation when not provided', async () => {
-      const c = await service.createContract({ quotationId: 'q-1' });
+      const c = await service.createContract(tenantId, { quotationId: 'q-1' });
       expect(c.amount).toBe(750);
     });
   });
@@ -99,7 +101,7 @@ describe('ClientFinanceService', () => {
     it('should compute collected, paid, and net payable', async () => {
       prisma.invoice.findMany.mockResolvedValue([{ gstTotal: 180 }, { gstTotal: 90 }]);
       prisma.transaction.findMany.mockResolvedValue([{ amount: 1000, gstPercent: 18 }]);
-      const report = await service.getTaxReport();
+      const report = await service.getTaxReport(tenantId);
       expect(report.taxCollected).toBe(270);
       expect(report.taxPaid).toBe(180);
       expect(report.netPayable).toBe(90);
@@ -111,7 +113,7 @@ describe('ClientFinanceService', () => {
       prisma.transaction.findMany
         .mockResolvedValueOnce([{ amount: 5000 }, { amount: 2000 }])
         .mockResolvedValueOnce([{ amount: 1500 }]);
-      const pl = await service.getProfitAndLoss();
+      const pl = await service.getProfitAndLoss(tenantId);
       expect(pl.income).toBe(7000);
       expect(pl.expenses).toBe(1500);
       expect(pl.netProfit).toBe(5500);
@@ -125,7 +127,7 @@ describe('ClientFinanceService', () => {
         { eventId: 'event-1', type: 'EXPENSE', amount: 300 },
         { eventId: 'event-2', type: 'INCOME', amount: 500 },
       ]);
-      const rows = await service.getEventProfitability();
+      const rows = await service.getEventProfitability(tenantId);
       const e1 = rows.find(r => r.eventId === 'event-1')!;
       expect(e1.income).toBe(1000);
       expect(e1.expenses).toBe(300);

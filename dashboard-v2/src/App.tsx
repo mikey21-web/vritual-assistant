@@ -95,7 +95,8 @@ const PageComponents: Record<string, React.LazyExoticComponent<React.ComponentTy
   PaymentSchedules: lazy(() => import("./pages/PaymentSchedulesPage")),
   Projects: lazy(() => import("./pages/ProjectsPage")),
   ProjectDetail: lazy(() => import("./pages/ProjectDetailPage")),
-  SiteVisits: lazy(() => import("./pages/SiteVisitsPage")),
+   SiteVisits: lazy(() => import("./pages/SiteVisitsPage")),
+   LeadWorkbench: lazy(() => import("./pages/LeadWorkbenchPage")),
   CostSheets: lazy(() => import("./pages/CostSheetsPage")),
   Kyc: lazy(() => import("./pages/KycPage")),
   Collections: lazy(() => import("./pages/CollectionsPage")),
@@ -141,6 +142,7 @@ function getPageKey(path: string): string {
   if (/^\/events\/[^/]+$/.test(path)) return "EventDetail";
   if (/^\/campaigns\/[^/]+$/.test(path)) return "CampaignDetail";
   if (/^\/projects\/[^/]+$/.test(path)) return "ProjectDetail";
+  if (/^\/leads\/[^/]+$/.test(path)) return "LeadWorkbench";
   if (/^\/forms\/[^/]+\/submissions$/.test(path)) return "FormSubmissions";
   if (path.startsWith("/create-event")) return "CreateEvent";
   const map: Record<string, string> = {

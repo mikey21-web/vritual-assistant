@@ -10,9 +10,9 @@ export class ClientFinanceService {
   constructor(private prisma: PrismaService) {}
 
   // --- Invoices ---
-  findInvoices(query: any = {}) {
+  findInvoices(tenantId: string, query: any = {}) {
     const { status, contactId, eventId, page = 1, limit = 20 } = query;
-    const where: any = {};
+    const where: any = { tenantId };
     if (status) where.status = status;
     if (contactId) where.contactId = contactId;
     if (eventId) where.eventId = eventId;
@@ -22,19 +22,20 @@ export class ClientFinanceService {
     ]).then(([data, total]) => ({ data, meta: { total, page: +page, limit: +limit } }));
   }
 
-  async findInvoice(id: string) {
-    const inv = await this.prisma.invoice.findUnique({ where: { id }, include: { lineItems: true, contact: true } });
+  async findInvoice(tenantId: string, id: string) {
+    const inv = await this.prisma.invoice.findFirst({ where: { id, tenantId }, include: { lineItems: true, contact: true } });
     if (!inv) throw new NotFoundException('Invoice not found');
     return inv;
   }
 
-  createInvoice(data: any) {
+  createInvoice(tenantId: string, data: any) {
     const { lineItems = [], ...rest } = data;
     const subtotal = lineItems.reduce((s: number, li: any) => s + (li.total ?? li.qty * li.unitPrice), 0);
     const gstTotal = rest.gstPercent ? subtotal * (rest.gstPercent / 100) : 0;
     return this.prisma.invoice.create({
       data: {
         ...rest,
+        tenantId,
         invoiceNumber: genNumber('INV'),
         subtotal,
         gstTotal,
@@ -47,17 +48,17 @@ export class ClientFinanceService {
 
   // Accrual discipline: an invoice only becomes income when explicitly marked PAID here —
   // never inferred just from the invoice existing (matches Vyuha's own stated accounting rule).
-  async updateInvoice(id: string, data: any) {
-    await this.findInvoice(id);
+  async updateInvoice(tenantId: string, id: string, data: any) {
+    await this.findInvoice(tenantId, id);
     const patch: any = { ...data };
     if (data.status === 'PAID' && !data.paidAt) patch.paidAt = new Date();
     return this.prisma.invoice.update({ where: { id }, data: patch });
   }
 
   // --- Quotations ---
-  findQuotations(query: any = {}) {
+  findQuotations(tenantId: string, query: any = {}) {
     const { status, contactId, eventId, page = 1, limit = 20 } = query;
-    const where: any = {};
+    const where: any = { tenantId };
     if (status) where.status = status;
     if (contactId) where.contactId = contactId;
     if (eventId) where.eventId = eventId;
@@ -67,17 +68,18 @@ export class ClientFinanceService {
     ]).then(([data, total]) => ({ data, meta: { total, page: +page, limit: +limit } }));
   }
 
-  async findQuotation(id: string) {
-    const q = await this.prisma.quotation.findUnique({ where: { id }, include: { sections: { include: { lineItems: true } }, contact: true } });
+  async findQuotation(tenantId: string, id: string) {
+    const q = await this.prisma.quotation.findFirst({ where: { id, tenantId }, include: { sections: { include: { lineItems: true } }, contact: true } });
     if (!q) throw new NotFoundException('Quotation not found');
     return q;
   }
 
-  createQuotation(data: any) {
+  createQuotation(tenantId: string, data: any) {
     const { sections = [], ...rest } = data;
     return this.prisma.quotation.create({
       data: {
         ...rest,
+        tenantId,
         quoteNumber: genNumber('Q'),
         sections: {
           create: sections.map((s: any, i: number) => ({
@@ -91,12 +93,12 @@ export class ClientFinanceService {
     });
   }
 
-  async updateQuotation(id: string, data: any) { await this.findQuotation(id); return this.prisma.quotation.update({ where: { id }, data }); }
+  async updateQuotation(tenantId: string, id: string, data: any) { await this.findQuotation(tenantId, id); return this.prisma.quotation.update({ where: { id }, data }); }
 
   // --- Contracts (own "New contract" flow, or convert an accepted quotation) ---
-  findContracts(query: any = {}) {
+  findContracts(tenantId: string, query: any = {}) {
     const { status, page = 1, limit = 20 } = query;
-    const where: any = {};
+    const where: any = { tenantId };
     if (status) where.status = status;
     return Promise.all([
       this.prisma.contract.findMany({ where, skip: (+page - 1) * +limit, take: +limit, orderBy: { createdAt: 'desc' } }),
@@ -104,27 +106,27 @@ export class ClientFinanceService {
     ]).then(([data, total]) => ({ data, meta: { total, page: +page, limit: +limit } }));
   }
 
-  async findContract(id: string) {
-    const c = await this.prisma.contract.findUnique({ where: { id } });
+  async findContract(tenantId: string, id: string) {
+    const c = await this.prisma.contract.findFirst({ where: { id, tenantId } });
     if (!c) throw new NotFoundException('Contract not found');
     return c;
   }
 
-  async createContract(data: any) {
+  async createContract(tenantId: string, data: any) {
     let amount = data.amount ?? 0;
     if (data.quotationId && !data.amount) {
-      const q = await this.prisma.quotation.findUnique({ where: { id: data.quotationId }, include: { sections: { include: { lineItems: true } } } });
+      const q = await this.prisma.quotation.findFirst({ where: { id: data.quotationId, tenantId }, include: { sections: { include: { lineItems: true } } } });
       amount = q?.sections.reduce((s, sec) => s + sec.lineItems.reduce((ss, li) => ss + li.total, 0), 0) ?? 0;
     }
-    return this.prisma.contract.create({ data: { ...data, amount, contractNumber: genNumber('C') } });
+    return this.prisma.contract.create({ data: { ...data, tenantId, amount, contractNumber: genNumber('C') } });
   }
 
-  async updateContract(id: string, data: any) { await this.findContract(id); return this.prisma.contract.update({ where: { id }, data }); }
+  async updateContract(tenantId: string, id: string, data: any) { await this.findContract(tenantId, id); return this.prisma.contract.update({ where: { id }, data }); }
 
   // --- Transactions ---
-  findTransactions(query: any = {}) {
+  findTransactions(tenantId: string, query: any = {}) {
     const { type, status, eventId, page = 1, limit = 20 } = query;
-    const where: any = {};
+    const where: any = { tenantId };
     if (type) where.type = type;
     if (status) where.status = status;
     if (eventId) where.eventId = eventId;
@@ -133,59 +135,59 @@ export class ClientFinanceService {
       this.prisma.transaction.count({ where }),
     ]).then(([data, total]) => ({ data, meta: { total, page: +page, limit: +limit } }));
   }
+  createTransaction(tenantId: string, data: any) { return this.prisma.transaction.create({ data: { ...data, tenantId } }); }
 
-  createTransaction(data: any) { return this.prisma.transaction.create({ data }); }
 
   // --- Reports ---
-  async getTaxReport() {
+  async getTaxReport(tenantId: string) {
     const [paidInvoices, paidExpenseTxns] = await Promise.all([
-      this.prisma.invoice.findMany({ where: { status: 'PAID' } }),
-      this.prisma.transaction.findMany({ where: { type: 'EXPENSE', status: 'PAID' } }),
+      this.prisma.invoice.findMany({ where: { tenantId, status: 'PAID' } }),
+      this.prisma.transaction.findMany({ where: { tenantId, type: 'EXPENSE', status: 'PAID' } }),
     ]);
     const taxCollected = paidInvoices.reduce((s, i) => s + i.gstTotal, 0);
     const taxPaid = paidExpenseTxns.reduce((s, t) => s + (t.gstPercent ? t.amount * (t.gstPercent / 100) : 0), 0);
     return { taxCollected, taxPaid, netPayable: taxCollected - taxPaid };
   }
 
-  async getProfitAndLoss() {
+  async getProfitAndLoss(tenantId: string) {
     const [incomeTxns, expenseTxns] = await Promise.all([
-      this.prisma.transaction.findMany({ where: { type: 'INCOME', status: 'RECEIVED' } }),
-      this.prisma.transaction.findMany({ where: { type: 'EXPENSE', status: 'PAID' } }),
+      this.prisma.transaction.findMany({ where: { tenantId, type: 'INCOME', status: 'RECEIVED' } }),
+      this.prisma.transaction.findMany({ where: { tenantId, type: 'EXPENSE', status: 'PAID' } }),
     ]);
     const income = incomeTxns.reduce((s, t) => s + t.amount, 0);
     const expenses = expenseTxns.reduce((s, t) => s + t.amount, 0);
     return { income, expenses, netProfit: income - expenses };
   }
 
-  async getCashFlow() {
+  async getCashFlow(tenantId: string) {
     const [cashIn, cashOut] = await Promise.all([
-      this.prisma.transaction.aggregate({ where: { type: 'INCOME', status: 'RECEIVED' }, _sum: { amount: true } }),
-      this.prisma.transaction.aggregate({ where: { type: 'EXPENSE', status: 'PAID' }, _sum: { amount: true } }),
+      this.prisma.transaction.aggregate({ where: { tenantId, type: 'INCOME', status: 'RECEIVED' }, _sum: { amount: true } }),
+      this.prisma.transaction.aggregate({ where: { tenantId, type: 'EXPENSE', status: 'PAID' }, _sum: { amount: true } }),
     ]);
     const inflow = cashIn._sum.amount || 0;
     const outflow = cashOut._sum.amount || 0;
     return { inflow, outflow, netCashFlow: inflow - outflow };
   }
 
-  async getBalanceSheet() {
+  async getBalanceSheet(tenantId: string) {
     const [receivablesInvoices, payablesTxns] = await Promise.all([
-      this.prisma.invoice.findMany({ where: { status: { in: ['SENT', 'OVERDUE', 'PENDING'] } } }),
-      this.prisma.transaction.findMany({ where: { type: 'EXPENSE', status: { in: ['PENDING', 'OVERDUE'] } } }),
+      this.prisma.invoice.findMany({ where: { tenantId, status: { in: ['SENT', 'OVERDUE', 'PENDING'] } } }),
+      this.prisma.transaction.findMany({ where: { tenantId, type: 'EXPENSE', status: { in: ['PENDING', 'OVERDUE'] } } }),
     ]);
     const receivables = receivablesInvoices.reduce((s, i) => s + i.grandTotal, 0);
     const payables = payablesTxns.reduce((s, t) => s + t.amount, 0);
     return { receivables, payables, netPosition: receivables - payables };
   }
 
-  async getVendorPayments() {
-    const vendorTxns = await this.prisma.transaction.findMany({ where: { partyType: 'VENDOR' } });
+  async getVendorPayments(tenantId: string) {
+    const vendorTxns = await this.prisma.transaction.findMany({ where: { tenantId, partyType: 'VENDOR' } });
     const paid = vendorTxns.filter(t => t.status === 'PAID').reduce((s, t) => s + t.amount, 0);
     const pending = vendorTxns.filter(t => t.status !== 'PAID').reduce((s, t) => s + t.amount, 0);
     return { paid, pending, total: paid + pending };
   }
 
-  async getEventProfitability() {
-    const txns = await this.prisma.transaction.findMany({ where: { eventId: { not: null } } });
+  async getEventProfitability(tenantId: string) {
+    const txns = await this.prisma.transaction.findMany({ where: { tenantId, eventId: { not: null } } });
     const byEvent = new Map<string, { income: number; expenses: number }>();
     for (const t of txns) {
       const key = t.eventId as string;
