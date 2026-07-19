@@ -6,6 +6,7 @@ import { AdvancedFeaturesService } from '../advanced-features/advanced-features.
 import { EventsService } from '../events/events.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ContactsService } from '../contacts/contacts.service';
+import { MetricsService } from '../monitoring/metrics.service';
 import { getNested, evaluateCondition } from '../shared/scoring.util';
 
 @Injectable()
@@ -17,6 +18,7 @@ export class LeadsService {
     private events: EventsService,
     private notifications: NotificationsService,
     private contacts: ContactsService,
+    private metrics: MetricsService,
   ) {}
 
   async findAll(query: any = {}) {
@@ -213,6 +215,7 @@ export class LeadsService {
       return created;
     });
     await this.events.emit({ type: 'lead.created', leadId: lead.id, entityType: 'lead', entityId: lead.id, payload: { source: lead.source, status: lead.status }, createdById: userId });
+    this.metrics.incrementCounter('leads_created_total', { source: lead.source });
     return lead;
   }
 

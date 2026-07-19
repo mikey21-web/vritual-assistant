@@ -16,6 +16,7 @@ import { MorningDigestService } from './morning-digest.service';
 import { SalienceEngineService } from './salience-engine.service';
 import { MikeyService } from './mikey.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { MetricsService } from '../monitoring/metrics.service';
 import type { SchedulerFinding } from './mikey-scheduler.types';
 
 @Injectable()
@@ -63,6 +64,7 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
     private salienceEngine: SalienceEngineService,
     private mikey: MikeyService,
     private notifications: NotificationsService,
+    private metrics: MetricsService,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -124,13 +126,17 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
     const startedAt = Date.now();
     try {
       const findings: SchedulerFinding[] = [];
-      const [staleHot, staleNew, overdue, unassigned] = await Promise.all([
+      const [staleHot, staleNew, overdue, unassigned, missedCalls, portalFails, weakSales, sourceDrops] = await Promise.all([
         this.runCheck('checkStaleHotLeads', () => this.checkStaleHotLeads()),
         this.runCheck('checkStaleNewLeads', () => this.checkStaleNewLeads()),
         this.runCheck('checkOverdueTasks', () => this.checkOverdueTasks()),
         this.runCheck('checkUnassignedHotLeads', () => this.checkUnassignedHotLeads()),
+        this.runCheck('scanMissedCalls', () => this.scanMissedCalls()),
+        this.runCheck('scanFailedPortalLeads', () => this.scanFailedPortalLeads()),
+        this.runCheck('scanWeakSalespeople', () => this.scanWeakSalespeople()),
+        this.runCheck('scanSourceDrops', () => this.scanSourceDrops()),
       ]);
-      findings.push(...staleHot, ...staleNew, ...overdue, ...unassigned);
+      findings.push(...staleHot, ...staleNew, ...overdue, ...unassigned, ...missedCalls, ...portalFails, ...weakSales, ...sourceDrops);
 
       // Triage core: hand findings with an unambiguous, safe remedy straight
       // to the salience engine so Mikey acts on them without being asked,
@@ -296,10 +302,12 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
       this.lastFindings = findings;
       this.lastScanError = null;
       this.consecutiveFailures = 0;
+      this.metrics.incrementCounter('agent_runs_total', { result: 'success' });
     } catch (err: any) {
       this.logger.error(`Scheduler scan failed: ${err.message}`);
       this.lastScanError = err.message;
       this.consecutiveFailures++;
+      this.metrics.incrementCounter('agent_runs_total', { result: 'error' });
     } finally {
       this.scanning = false;
       this.totalScans++;
@@ -568,6 +576,142 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
       count: topSource._count.id,
       metadata: { source: topSource.source, percent: topPercent, total },
     }];
+  }
+
+  // ── P6: Missed call detection ─────────────────────────────────────────
+  private async scanMissedCalls(): Promise<SchedulerFinding[]> {
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const missed = await this.prisma.callLog.findMany({
+      where: { direction: 'INBOUND', status: { in: ['NO_ANSWER', 'MISSED'] }, createdAt: { gte: oneDayAgo } },
+      select: { id: true, fromNumber: true, leadId: true, tenantId: true },
+    });
+    if (missed.length === 0) return [];
+
+    const callerCounts = new Map<string, { count: number; leadIds: Set<string> }>();
+    for (const call of missed) {
+      const key = call.fromNumber || call.leadId || 'unknown';
+      if (!callerCounts.has(key)) callerCounts.set(key, { count: 0, leadIds: new Set() });
+      const entry = callerCounts.get(key)!;
+      entry.count++;
+      if (call.leadId) entry.leadIds.add(call.leadId);
+    }
+
+    const repeatCallers = Array.from(callerCounts.entries()).filter(([, v]) => v.count >= 2);
+    if (repeatCallers.length === 0) return [];
+
+    return [{
+      type: 'missed_call',
+      severity: 'warning',
+      title: `${repeatCallers.length} caller(s) missed 2+ times in 24h`,
+      description: `${repeatCallers.length} repeat caller(s) went unanswered. Top: ${repeatCallers.slice(0, 3).map(([k]) => k).join(', ')}`,
+      count: repeatCallers.length,
+      metadata: { callers: repeatCallers.map(([k, v]) => ({ caller: k, missedCount: v.count })) },
+    }];
+  }
+
+  // ── P7: Failed portal lead ingestion ──────────────────────────────────
+  private async scanFailedPortalLeads(): Promise<SchedulerFinding[]> {
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const failures = await this.prisma.failureRecord.findMany({
+      where: { type: 'PORTAL_LEAD_INGESTION', status: 'open', createdAt: { gte: oneDayAgo } },
+      select: { id: true, provider: true },
+    });
+    if (failures.length < 3) return [];
+
+    const providerCounts = new Map<string, number>();
+    for (const f of failures) {
+      const provider = f.provider || 'unknown';
+      providerCounts.set(provider, (providerCounts.get(provider) || 0) + 1);
+    }
+    const failingProviders = Array.from(providerCounts.entries()).filter(([, c]) => c >= 3);
+    if (failingProviders.length === 0) return [];
+
+    return failingProviders.map(([provider, count]) => ({
+      type: 'portal_lead_failure' as const,
+      severity: 'critical' as const,
+      title: `Portal failures: ${provider}`,
+      description: `${count} open PORTAL_LEAD_INGESTION failures from ${provider} in 24h.`,
+      count,
+      metadata: { provider, failures: count },
+    }));
+  }
+
+  // ── P8: Weak salesperson detection ────────────────────────────────────
+  private async scanWeakSalespeople(): Promise<SchedulerFinding[]> {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const agents = await this.prisma.user.findMany({
+      where: { active: true, role: 'SALES_AGENT' },
+      select: { id: true, name: true },
+    });
+    if (agents.length === 0) return [];
+
+    const agentIds = agents.map(a => a.id);
+    const [totalLeads, convertedLeads, recentConverted] = await Promise.all([
+      this.prisma.lead.groupBy({ by: ['assignedAgentId'], where: { assignedAgentId: { in: agentIds } }, _count: { id: true } }),
+      this.prisma.lead.groupBy({ by: ['assignedAgentId'], where: { assignedAgentId: { in: agentIds }, status: 'CONVERTED' }, _count: { id: true } }),
+      this.prisma.lead.groupBy({ by: ['assignedAgentId'], where: { assignedAgentId: { in: agentIds }, status: 'CONVERTED', updatedAt: { gte: thirtyDaysAgo } }, _count: { id: true } }),
+    ]);
+
+    const totalMap = new Map(totalLeads.map(s => [s.assignedAgentId, s._count.id]));
+    const convertedMap = new Map(convertedLeads.map(s => [s.assignedAgentId, s._count.id]));
+    const recentMap = new Map(recentConverted.map(s => [s.assignedAgentId, s._count.id]));
+
+    const weak: Array<{ id: string; name: string; totalLeads: number; converted: number; rate: number }> = [];
+    for (const agent of agents) {
+      const total = totalMap.get(agent.id) || 0;
+      const converted = convertedMap.get(agent.id) || 0;
+      const recentConv = recentMap.get(agent.id) || 0;
+      const rate = total > 0 ? converted / total : 0;
+      if ((total > 10 && rate < 0.1) || (total > 5 && recentConv === 0)) {
+        weak.push({ ...agent, totalLeads: total, converted, rate });
+      }
+    }
+    if (weak.length === 0) return [];
+
+    return [{
+      type: 'weak_salesperson',
+      severity: 'warning',
+      title: `${weak.length} agent(s) with weak conversion`,
+      description: `${weak.slice(0, 3).map(a => `${a.name}: ${(a.rate * 100).toFixed(0)}% (${a.totalLeads} leads)`).join(', ')}${weak.length > 3 ? ` and ${weak.length - 3} more` : ''}`,
+      count: weak.length,
+      metadata: { agents: weak.map(a => ({ id: a.id, name: a.name, totalLeads: a.totalLeads, converted: a.converted, rate: a.rate })) },
+    }];
+  }
+
+  // ── P9: Lead source drop detection ────────────────────────────────────
+  private async scanSourceDrops(): Promise<SchedulerFinding[]> {
+    const now = new Date();
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+
+    const [recentCounts, prevCounts] = await Promise.all([
+      this.prisma.lead.groupBy({ by: ['source'], where: { createdAt: { gte: sevenDaysAgo } }, _count: { id: true } }),
+      this.prisma.lead.groupBy({ by: ['source'], where: { createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } }, _count: { id: true } }),
+    ]);
+
+    const recentMap = new Map(recentCounts.map(s => [s.source, s._count.id]));
+    const prevMap = new Map(prevCounts.map(s => [s.source, s._count.id]));
+    const allSources = new Set([...recentMap.keys(), ...prevMap.keys()]);
+
+    const drops: Array<{ source: string; recent: number; prev: number; dropPercent: number }> = [];
+    for (const source of allSources) {
+      const recent = recentMap.get(source) || 0;
+      const prev = prevMap.get(source) || 0;
+      if (prev > 0) {
+        const dropPercent = ((prev - recent) / prev) * 100;
+        if (dropPercent > 50) drops.push({ source: source as string, recent, prev, dropPercent });
+      }
+    }
+    if (drops.length === 0) return [];
+
+    return drops.map(d => ({
+      type: 'source_drop',
+      severity: 'critical',
+      title: `Lead source drop: ${d.source}`,
+      description: `${d.source} dropped ${d.dropPercent.toFixed(0)}% (${d.prev} → ${d.recent} leads/wk).`,
+      count: 1,
+      metadata: { source: d.source, recent: d.recent, prev: d.prev, dropPercent: d.dropPercent },
+    }));
   }
 
   /**

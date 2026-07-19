@@ -112,6 +112,41 @@ export class OffersService {
     return this.serializable(updated);
   }
 
+  async revise(tenantId: string, id: string, data: { discountPaise?: number; discountPercent?: number; reason?: string; requestedById?: string }) {
+    const old = await this.prisma.offer.findFirst({ where: { id, tenantId }, include: { costSheet: true } });
+    if (!old) throw new NotFoundException('Offer not found');
+    if (old.status !== OfferStatus.REJECTED) {
+      throw new ForbiddenException('Only a rejected offer can be revised');
+    }
+
+    let proposedValuePaise: bigint | undefined;
+    if (data.discountPaise != null) {
+      proposedValuePaise = old.costSheet.totalPaise - BigInt(data.discountPaise);
+    } else if (data.discountPercent != null) {
+      proposedValuePaise = old.costSheet.totalPaise - (old.costSheet.totalPaise * BigInt(Math.round(data.discountPercent * 100))) / BigInt(10000);
+    }
+
+    const offer = await this.prisma.offer.create({
+      data: {
+        tenantId, costSheetId: old.costSheetId, leadId: old.leadId,
+        requestedById: data.requestedById,
+        discountPaise: data.discountPaise != null ? BigInt(data.discountPaise) : undefined,
+        discountPercent: data.discountPercent,
+        reason: data.reason || `Revised from offer ${id}`,
+        proposedValuePaise,
+      },
+    });
+
+    await this.timeline.add({
+      type: 'offer_revised', title: 'Offer revised after rejection',
+      leadId: old.leadId, metadata: { oldOfferId: id, newOfferId: offer.id },
+      createdById: data.requestedById,
+    });
+    await this.auditLogs.log('CREATE', 'Offer', offer.id, data.requestedById, { revisedFrom: id });
+
+    return this.serializable(offer);
+  }
+
   private serializable(offer: any) {
     return {
       ...offer,

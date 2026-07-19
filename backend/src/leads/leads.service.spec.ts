@@ -7,6 +7,7 @@ import { AdvancedFeaturesService } from '../advanced-features/advanced-features.
 import { EventsService } from '../events/events.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ContactsService } from '../contacts/contacts.service';
+import { MetricsService } from '../monitoring/metrics.service';
 
 describe('LeadsService', () => {
   let service: LeadsService;
@@ -16,6 +17,7 @@ describe('LeadsService', () => {
   const events = { emit: jest.fn().mockResolvedValue({}) };
   const notifications = { create: jest.fn().mockResolvedValue(undefined) };
   const contacts = { findOrCreate: jest.fn().mockResolvedValue({ id: 'contact-1' }) };
+  const metrics = { incrementCounter: jest.fn() };
 
   const mockLead = {
     id: 'lead-1',
@@ -54,6 +56,7 @@ describe('LeadsService', () => {
         { provide: EventsService, useValue: events },
         { provide: NotificationsService, useValue: notifications },
         { provide: ContactsService, useValue: contacts },
+        { provide: MetricsService, useValue: metrics },
       ],
     }).compile();
 
@@ -95,3 +98,4 @@ describe('LeadsService', () => {
     expect(spam.score).toBe(-100);
   });
 });
+

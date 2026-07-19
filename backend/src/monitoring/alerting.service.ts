@@ -17,10 +17,10 @@ export interface FailureRecord {
   type: string;
   severity: string;
   message: string;
-  provider?: string;
-  operation?: string;
-  entityType?: string;
-  entityId?: string;
+  provider?: string | null;
+  operation?: string | null;
+  entityType?: string | null;
+  entityId?: string | null;
   createdAt: Date;
 }
 

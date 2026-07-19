@@ -6,6 +6,7 @@ import { LeadsService } from '../leads/leads.service';
 import { ConversationsService } from '../conversations/conversations.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { AgentClientService } from '../agent/agent-client.service';
+import { MetricsService } from '../monitoring/metrics.service';
 
 describe('WebhooksService', () => {
   let service: WebhooksService;
@@ -15,6 +16,7 @@ describe('WebhooksService', () => {
   let conversations: any;
   const auditLogs = { log: jest.fn().mockResolvedValue({}) };
   const agentClient = { trigger: jest.fn().mockResolvedValue(undefined) };
+  const metrics = { incrementCounter: jest.fn() };
 
   const mockContact = { id: 'contact-1', name: 'John', phone: '+1234567890' };
   const mockLead = { id: 'lead-1', status: 'NEW', contactId: 'contact-1' };
@@ -48,6 +50,7 @@ describe('WebhooksService', () => {
         { provide: ConversationsService, useValue: conversations },
         { provide: AuditLogsService, useValue: auditLogs },
         { provide: AgentClientService, useValue: agentClient },
+        { provide: MetricsService, useValue: metrics },
       ],
     }).compile();
 
@@ -121,3 +124,4 @@ describe('WebhooksService', () => {
     expect(conversations.create).not.toHaveBeenCalled();
   });
 });
+

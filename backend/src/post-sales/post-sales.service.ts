@@ -45,6 +45,50 @@ export class PostSalesService {
    * returns a clear reason rather than silently allowing the jump — this is
    * deliberately not a free-form dropdown.
    */
+  async getAccountStatement(tenantId: string, bookingId: string) {
+    const booking: any = await this.prisma.booking.findFirst({
+      where: { id: bookingId, tenantId },
+      include: {
+        unit: { select: { unitNumber: true, price: true, areaSqft: true, project: { select: { name: true } } } },
+      },
+    });
+    if (!booking) throw new NotFoundException('Booking not found');
+
+    const schedules = await this.prisma.paymentSchedule.findMany({
+      where: { bookingId, tenantId },
+      orderBy: { dueDate: 'asc' },
+    });
+    const receipts = await this.prisma.paymentReceipt.findMany({
+      where: { bookingId, tenantId },
+      orderBy: { receivedAt: 'asc' },
+    });
+
+    const totalPayable = schedules.reduce((s, p) => s + Math.round(Number(p.amount || 0) * 100), 0);
+    const totalPaid = receipts.reduce((s, r) => s + Number(r.amountPaise), 0);
+    const overdue = schedules
+      .filter(s => s.status === 'PENDING' && !!s.dueDate && new Date(s.dueDate) < new Date())
+      .reduce((s, p) => s + Math.round(Number(p.amount || 0) * 100), 0);
+
+    return {
+      booking: { id: booking.id, unitNumber: booking.unit?.unitNumber, projectName: booking.unit?.project?.name },
+      summary: { totalPayable, totalPaid, outstanding: totalPayable - totalPaid, overdue },
+      paymentSchedule: schedules,
+      receipts,
+    };
+  }
+
+  async addConstructionUpdate(tenantId: string, bookingId: string, message: string, imageUrl?: string) {
+    const booking = await this.prisma.booking.findFirst({ where: { id: bookingId, tenantId } });
+    if (!booking) throw new NotFoundException('Booking not found');
+    return this.timeline.add({
+      type: 'construction_update',
+      title: 'Construction Update',
+      description: message,
+      leadId: booking.leadId,
+      metadata: { bookingId, ...(imageUrl ? { imageUrl } : {}) },
+    });
+  }
+
   async advance(tenantId: string, bookingId: string, toStage: PostSalesStage, actorId: string | undefined, reason?: string) {
     const booking = await this.prisma.booking.findFirst({ where: { id: bookingId, tenantId } });
     if (!booking) throw new NotFoundException('Booking not found');
@@ -136,3 +180,5 @@ export class PostSalesService {
     return { passed: true, checkedAt };
   }
 }
+
+

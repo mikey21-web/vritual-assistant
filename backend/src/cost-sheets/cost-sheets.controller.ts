@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Query, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, UseGuards, Req, Res } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -60,5 +60,19 @@ export class CostSheetsController {
   @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT')
   send(@Param('id') id: string, @Req() req: any) {
     return this.service.send(req.user.tenantId, id, req.user.id);
+  }
+
+  @Get(':id/compare/:otherId')
+  @Roles('OWNER', 'ADMIN', 'MANAGER', 'VIEWER')
+  compare(@Param('id') id: string, @Param('otherId') otherId: string, @Req() req: any) {
+    return this.service.compareVersions(req.user.tenantId, id, otherId);
+  }
+
+  @Get(':id/print')
+  @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT', 'VIEWER')
+  async print(@Param('id') id: string, @Req() req: any, @Res() res: any) {
+    const html = await this.service.generatePrintHtml(req.user.tenantId, id);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
   }
 }

@@ -3,11 +3,13 @@ import { FailuresService } from './failures.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { getQueueToken } from '@nestjs/bullmq';
+import { AlertingService } from '../monitoring/alerting.service';
 
 describe('FailuresService', () => {
   let service: FailuresService;
   let prisma: any;
   let retryQueue: any;
+  let alerting: any;
 
   const mockFailure = {
     id: 'failure-1',
@@ -48,12 +50,14 @@ describe('FailuresService', () => {
     retryQueue = {
       add: jest.fn().mockResolvedValue({ id: 'job-1' }),
     };
+    alerting = { notifyOnFailure: jest.fn().mockResolvedValue(undefined) };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         FailuresService,
         { provide: PrismaService, useValue: prisma },
         { provide: getQueueToken('failure-retry'), useValue: retryQueue },
+        { provide: AlertingService, useValue: alerting },
       ],
     }).compile();
 
@@ -277,3 +281,4 @@ describe('FailuresService', () => {
     );
   });
 });
+

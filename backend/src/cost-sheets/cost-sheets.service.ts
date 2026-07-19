@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TimelineService } from '../timeline/timeline.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
@@ -100,7 +100,7 @@ export class CostSheetsService {
   }
 
   async findOne(tenantId: string, id: string) {
-    const sheet = await this.prisma.costSheet.findFirst({
+    const sheet: any = await this.prisma.costSheet.findFirst({
       where: { id, tenantId },
       include: { lineItems: { orderBy: { displayOrder: 'asc' } }, offers: true },
     });
@@ -168,8 +168,59 @@ export class CostSheetsService {
     return this.serializable(updated);
   }
 
+  async compareVersions(tenantId: string, id: string, otherId: string) {
+    const a = await this.prisma.costSheet.findFirst({ where: { id, tenantId } });
+    const b = await this.prisma.costSheet.findFirst({ where: { id: otherId, tenantId } });
+    if (!a || !b) throw new NotFoundException('Cost sheet not found');
+    const snapA = (a.snapshot || []) as any[];
+    const snapB = (b.snapshot || []) as any[];
+    const mapA = new Map(snapA.map((li: any) => [li.code, li]));
+    const mapB = new Map(snapB.map((li: any) => [li.code, li]));
+    const added = snapB.filter((li: any) => !mapA.has(li.code));
+    const removed = snapA.filter((li: any) => !mapB.has(li.code));
+    const changed = snapB.filter((li: any) => {
+      const old = mapA.get(li.code);
+      return old && (old.amountPaise !== li.amountPaise || old.label !== li.label);
+    }).map((li: any) => ({ code: li.code, label: li.label, oldAmountPaise: mapA.get(li.code)?.amountPaise, newAmountPaise: li.amountPaise }));
+    return { sheetA: { id: a.id, status: a.status, createdAt: a.createdAt }, sheetB: { id: b.id, status: b.status, createdAt: b.createdAt }, diff: { added, removed, changed } };
+  }
+
+  async generatePrintHtml(tenantId: string, id: string) {
+    const sheet: any = await this.prisma.costSheet.findFirst({
+      where: { id, tenantId },
+      include: { lineItems: true, unit: { select: { unitNumber: true, floor: true, unitType: true, areaSqft: true } }, project: { select: { name: true, location: true } }, lead: { select: { contact: { select: { name: true, phone: true } } } } },
+    });
+    if (!sheet) throw new NotFoundException('Cost sheet not found');
+    const items = sheet.lineItems.map(li => `<tr><td>${li.code}</td><td>${li.label}</td><td style="text-align:right">${(Number(li.amountPaise) / 100).toLocaleString('en-IN')}</td></tr>`).join('\n');
+    const total = (Number(sheet.totalPaise) / 100).toLocaleString('en-IN');
+    return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Cost Sheet</title><style>
+      body{font-family:Arial,sans-serif;max-width:800px;margin:40px auto;padding:20px;color:#333}
+      h1{color:#1a365d;border-bottom:2px solid #2b6cb0;padding-bottom:8px}
+      table{width:100%;border-collapse:collapse;margin:20px 0}
+      th,td{padding:10px 12px;text-align:left;border-bottom:1px solid #e2e8f0}
+      th{background:#f7fafc;font-weight:600}
+      .total{font-size:1.2em;font-weight:700;border-top:2px solid #2b6cb0;padding-top:10px}
+      .meta{color:#718096;font-size:0.9em;margin-bottom:20px}
+      @media print{body{margin:0}p{page-break-after:always}}
+    </style></head><body>
+    <h1>Cost Sheet</h1>
+    <div class="meta">Project: ${sheet.project?.name || 'N/A'} | Unit: ${sheet.unit?.unitNumber || 'N/A'} | Buyer: ${sheet.lead?.contact?.name || 'N/A'}</div>
+    <table><thead><tr><th>Code</th><th>Description</th><th style="text-align:right">Amount (INR)</th></tr></thead><tbody>${items}</tbody></table>
+    <div class="total">Total: ₹ ${total}</div>
+    <p style="color:#718096;font-size:0.8em;margin-top:40px;text-align:center">Generated on ${new Date().toLocaleDateString('en-IN')}</p>
+    </body></html>`;
+  }
+
+  computeLineItemAmount(calculationType: string, amountPaise: number, basePrice: number, superBuiltUpArea: number) {
+    switch (calculationType) {
+      case 'PER_SQFT': return Math.round(amountPaise * superBuiltUpArea);
+      case 'PERCENT': return Math.round(basePrice * amountPaise / 100);
+      case 'FLAT': default: return amountPaise;
+    }
+  }
+
   private async requireStatus(tenantId: string, id: string, allowed: CostSheetStatus[]) {
-    const sheet = await this.prisma.costSheet.findFirst({ where: { id, tenantId }, include: { lineItems: true } });
+    const sheet: any = await this.prisma.costSheet.findFirst({ where: { id, tenantId }, include: { lineItems: true } });
     if (!sheet) throw new NotFoundException('Cost sheet not found');
     if (!allowed.includes(sheet.status)) {
       throw new ForbiddenException(`Cost sheet is ${sheet.status} and cannot be modified this way`);
@@ -186,3 +237,5 @@ export class CostSheetsService {
     };
   }
 }
+
+

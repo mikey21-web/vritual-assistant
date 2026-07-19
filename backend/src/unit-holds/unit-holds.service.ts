@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, ConflictException, ForbiddenException, Logger } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { TimelineService } from '../timeline/timeline.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
@@ -149,6 +150,27 @@ export class UnitHoldsService {
    * hold whose expiry has passed. Verifies current unit status before
    * touching it — never auto-releases a unit that has since been booked.
    */
+  @Cron(CronExpression.EVERY_5_MINUTES)
+  async autoReleaseBatches(): Promise<number> {
+    const now = new Date();
+    const batches = await this.prisma.inventoryReleaseBatch.findMany({
+      where: { status: 'PLANNED', releaseAt: { lte: now } },
+    });
+    let released = 0;
+    for (const batch of batches) {
+      await this.prisma.$transaction(async (tx) => {
+        await tx.inventoryReleaseBatch.update({ where: { id: batch.id }, data: { status: 'RELEASED' } });
+        if (batch.unitIds?.length) {
+          await tx.unit.updateMany({ where: { id: { in: batch.unitIds as string[] }, status: UnitStatus.BLOCKED }, data: { status: UnitStatus.AVAILABLE } });
+        }
+      });
+      released++;
+    }
+    if (released > 0) this.logger.log(`Auto-released ${released} inventory batch(es)`);
+    return released;
+  }
+
+  @Cron(CronExpression.EVERY_5_MINUTES)
   async scanExpiredHolds(): Promise<number> {
     const now = new Date();
     const expired = await this.prisma.unitHold.findMany({
@@ -211,3 +233,4 @@ export class UnitHoldsService {
     });
   }
 }
+

@@ -2,10 +2,11 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
+import { AlertingService } from '../monitoring/alerting.service';
 
 @Injectable()
 export class FailuresService {
-  constructor(private prisma: PrismaService, @InjectQueue('failure-retry') private retryQueue: Queue) {}
+  constructor(private prisma: PrismaService, @InjectQueue('failure-retry') private retryQueue: Queue, private alerting: AlertingService) {}
 
   async record(data: {
     type: string;
@@ -21,7 +22,7 @@ export class FailuresService {
     rawError?: unknown;
     retryable?: boolean;
   }) {
-    return this.prisma.failureRecord.create({
+    const record = await this.prisma.failureRecord.create({
       data: {
         type: data.type,
         severity: data.severity || 'medium',
@@ -37,6 +38,8 @@ export class FailuresService {
         retryable: data.retryable !== false,
       },
     });
+    this.alerting.notifyOnFailure(record).catch(() => {});
+    return record;
   }
 
   async getInbox(filters: { status?: string; type?: string; leadId?: string } = {}) {

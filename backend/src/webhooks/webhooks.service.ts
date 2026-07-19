@@ -5,6 +5,7 @@ import { LeadsService } from '../leads/leads.service';
 import { ConversationsService } from '../conversations/conversations.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { AgentClientService } from '../agent/agent-client.service';
+import { MetricsService } from '../monitoring/metrics.service';
 import { envelopeDecrypt } from '../shared/crypto.util';
 import * as crypto from 'crypto';
 
@@ -17,6 +18,7 @@ export class WebhooksService {
     private conversationsService: ConversationsService,
     private auditLogs: AuditLogsService,
     private agentClient: AgentClientService,
+    private metrics: MetricsService,
   ) {}
 
   private idempotencyKey(parts: string[]): string { return parts.join(':').slice(0, 255); }
@@ -32,6 +34,7 @@ export class WebhooksService {
     const result = { contact, lead };
     await this.prisma.webhookEvent.create({ data: { provider, eventType: 'form_submit', idempotencyKey: key, rawPayload: payload, processedResult: result } });
     await this.auditLogs.log('webhook_processed', 'WebhookEvent', key, undefined, { provider, eventType: 'form_submit' });
+    this.metrics.incrementCounter('webhooks_processed_total', { provider, status: 'success' });
     return { data: result };
   }
 
@@ -104,6 +107,7 @@ export class WebhooksService {
 
     this.agentClient.trigger(lead.id, msgId, 'WHATSAPP', text, lead.tenantId || contact.tenantId);
 
+    this.metrics.incrementCounter('webhooks_processed_total', { provider, status: 'success' });
     return { data: result };
   }
 
@@ -218,6 +222,7 @@ export class WebhooksService {
 
     this.agentClient.trigger(lead.id, msgId || key, 'TELEGRAM', text, lead.tenantId || contact.tenantId);
 
+    this.metrics.incrementCounter('webhooks_processed_total', { provider: 'telegram', status: 'success' });
     return { data: result };
   }
 
@@ -227,6 +232,7 @@ export class WebhooksService {
     if (existing) return { status: 'duplicate', result: existing.processedResult };
     const result = { payment: payload, status: 'received' };
     await this.prisma.webhookEvent.create({ data: { provider, eventType: 'payment', idempotencyKey: key, rawPayload: payload, processedResult: result } });
+    this.metrics.incrementCounter('webhooks_processed_total', { provider, status: 'success' });
     return { data: result };
   }
 
@@ -272,6 +278,7 @@ export class WebhooksService {
 
     this.agentClient.trigger(lead.id, key, 'SOCIAL_DM', payload.message || '', lead.tenantId || contact.tenantId);
 
+    this.metrics.incrementCounter('webhooks_processed_total', { provider: source, status: 'success' });
     return { data: { leadId: lead.id, contactId: contact.id } };
   }
 
@@ -331,6 +338,7 @@ export class WebhooksService {
 
     this.agentClient.trigger(lead.id, callSid, 'PHONE_CALL', `Incoming call from ${fromNumber}`, lead.tenantId || contact.tenantId);
 
+    this.metrics.incrementCounter('webhooks_processed_total', { provider: 'twilio', status: 'success' });
     return { data: result };
   }
 
@@ -377,6 +385,7 @@ export class WebhooksService {
       },
     });
 
+    this.metrics.incrementCounter('webhooks_processed_total', { provider: 'twilio', status: 'success' });
     return { data: result };
   }
 
@@ -431,6 +440,7 @@ export class WebhooksService {
 
       this.agentClient.trigger(lead.id, key, 'CHATBOT', text, lead.tenantId || contact.tenantId);
 
+      this.metrics.incrementCounter('webhooks_processed_total', { provider, status: 'success' });
       return { data: result };
     }
 
@@ -470,11 +480,13 @@ export class WebhooksService {
       await this.prisma.webhookEvent.create({
         data: { provider, eventType, idempotencyKey: key, rawPayload: payload, processedResult: result },
       });
+      this.metrics.incrementCounter('webhooks_processed_total', { provider, status: 'success' });
       return { data: result };
     }
 
     const result = { received: true, eventType };
     await this.prisma.webhookEvent.create({ data: { provider, eventType, idempotencyKey: key, rawPayload: payload, processedResult: result } });
+    this.metrics.incrementCounter('webhooks_processed_total', { provider, status: 'success' });
     return { data: result };
   }
 

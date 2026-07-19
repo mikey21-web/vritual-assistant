@@ -71,6 +71,7 @@ import { MikeyController } from './mikey.controller';
     ReflexionService,
     FederatedService,
     AutonomousActionService,
+    AutonomyGuardrailsService,
   ],
 })
 export class MikeyModule {}

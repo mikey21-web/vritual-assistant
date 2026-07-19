@@ -52,4 +52,19 @@ export class ChannelPartnersController {
 
   @Delete(':id') @Roles('OWNER', 'ADMIN')
   remove(@Param('id') id: string) { return this.service.remove(id); }
+
+  @Get('inventory/available') @Roles('CHANNEL_PARTNER', 'OWNER', 'ADMIN', 'MANAGER')
+  availableInventory(@Query() q: any, @Req() req: any) {
+    return this.service.getAvailableInventory(req.user?.tenantId, q);
+  }
+
+  @Post(':id/lock-buyer') @Roles('OWNER', 'ADMIN', 'MANAGER', 'CHANNEL_PARTNER')
+  lockBuyer(@Param('id') id: string, @Body('phone') phone: string) {
+    return this.service.lockBuyerToPartner(id, phone);
+  }
+
+  @Get('check-buyer-lock') @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT', 'CHANNEL_PARTNER')
+  checkBuyerLock(@Query('phone') phone: string) {
+    return this.service.checkBuyerLock(phone);
+  }
 }

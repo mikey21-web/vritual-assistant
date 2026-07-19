@@ -6,6 +6,8 @@ import { StaffAwarenessService } from './staff-awareness.service';
 import { EventsService } from '../events/events.service';
 import { MikeySchedulerService } from './mikey-scheduler.service';
 import { AutonomyGuardrailsService, AutonomyCategory, AutonomyLevel } from './autonomy-guardrails.service';
+import { MetaCycleService } from './meta-cycle.service';
+import { ReflexionService } from './reflexion.service';
 
 @Controller('mikey')
 export class MikeyController {
@@ -19,7 +21,20 @@ export class MikeyController {
     private events: EventsService,
     private scheduler: MikeySchedulerService,
     private guardrails: AutonomyGuardrailsService,
+    private metaCycle: MetaCycleService,
+    private reflexion: ReflexionService,
   ) {}
+
+  /** Learning tab data (spec 56.5): decision/impact stats, generalized patterns, and reflexion outcome breakdown — the evidence behind "is Mikey actually helping". */
+  @Get('learning')
+  async getLearning(@Query('tenantId') tenantId: string) {
+    const [stats, patterns, reflexionStats] = await Promise.all([
+      this.metaCycle.getStats(),
+      this.metaCycle.getGeneralizedPatterns(),
+      this.reflexion.getReflexionStats(tenantId),
+    ]);
+    return { decisionStats: stats, patterns, reflexionStats };
+  }
 
   /** Is the always-on scan loop actually alive and healthy? Surfaces a stuck or repeatedly-failing scan instead of hiding it in logs (spec invariant: every failed job becomes visible to a human). */
   @Get('health')

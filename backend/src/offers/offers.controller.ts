@@ -50,4 +50,15 @@ export class OffersController {
   reject(@Param('id') id: string, @Body('reason') reason: string, @Req() req: any) {
     return this.service.decide(req.user.tenantId, id, OfferDecision.REJECTED, reason, req.user.id);
   }
+
+  @Post(':id/revise')
+  @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT')
+  revise(@Param('id') id: string, @Body() dto: any, @Req() req: any) {
+    return this.service.revise(req.user.tenantId, id, {
+      discountPaise: dto.discountPaise,
+      discountPercent: dto.discountPercent,
+      reason: dto.reason,
+      requestedById: req.user.id,
+    });
+  }
 }

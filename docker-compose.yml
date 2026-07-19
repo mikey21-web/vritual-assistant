@@ -241,6 +241,38 @@ services:
       - KHOJ_TELEMETRY_DISABLE=True
     command: --host="0.0.0.0" --port=42110 -vv --anonymous-mode --non-interactive
 
+  # ── Daily Database Backup ──────────────────────────────────────
+  db-backup:
+    image: postgres:16-alpine
+    container_name: lead-automation-db-backup
+    restart: unless-stopped
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-lead_automation}
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      BACKUP_DIR: /backups
+      R2_ENDPOINT: ${R2_ENDPOINT:-}
+      R2_BUCKET: ${R2_BUCKET:-}
+      R2_ACCESS_KEY: ${R2_ACCESS_KEY:-}
+      R2_SECRET_KEY: ${R2_SECRET_KEY:-}
+    volumes:
+      - ./scripts/backup-db.sh:/usr/local/bin/backup-db.sh:ro
+      - ./backups:/backups
+    entrypoint: >
+      sh -c "
+        if [ -n \"$$R2_ENDPOINT\" ]; then
+          apk add --no-cache rclone >/dev/null 2>&1 || true
+        fi &&
+        echo '0 2 * * * /usr/local/bin/backup-db.sh' > /etc/crontabs/root &&
+        echo 'Backup scheduler ready — daily at 2am.' &&
+        crond -f -L /dev/stdout
+      "
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   pgdata:
   redisdata:

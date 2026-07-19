@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { BullModule } from '@nestjs/bullmq';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
@@ -53,6 +53,7 @@ import { ComplianceModule } from './compliance/compliance.module';
 import { PermissionsModule } from './permissions/permissions.module';
 import { AgentModule } from './agent/agent.module';
 import { MonitoringModule } from './monitoring/monitoring.module';
+import { MetricsInterceptor } from './monitoring/metrics.interceptor';
 import { TenantsModule } from './tenants/tenants.module';
 import { AdminModule } from './admin/admin.module';
 import { RealtimeModule } from './realtime/realtime.module';
@@ -110,6 +111,7 @@ import { BuyerCheckoutModule } from './buyer-checkout/buyer-checkout.module';
 import { AdvancedMarketingModule } from './advanced-marketing/advanced-marketing.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { LaunchControlModule } from './launch-control/launch-control.module';
+import { StateTaxModule } from './state-tax/state-tax.module';
 
 @Module({
   imports: [
@@ -231,12 +233,14 @@ import { LaunchControlModule } from './launch-control/launch-control.module';
     ChannelPartnersModule,
     ProjectsModule,
     PosthogModule,
+    StateTaxModule,
   ],
   controllers: [AICampaignsController],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_INTERCEPTOR, useClass: MetricsInterceptor },
   ],
 })
 export class AppModule {}

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -45,7 +45,7 @@ export class ChannelPartnersService {
   async findOne(id: string) {
     const partner = await this.prisma.channelPartner.findUnique({
       where: { id },
-      include: { _count: { select: { leads: true } } },
+      include: { _count: { select: { leads: true } }, leads: { take: 5, orderBy: { createdAt: 'desc' } } },
     });
     if (!partner) throw new NotFoundException('Channel partner not found');
     return partner;
@@ -138,4 +138,50 @@ export class ChannelPartnersService {
       commissionOwed,
     };
   }
+
+  async lockBuyerToPartner(partnerId: string, buyerPhone: string) {
+    const partner = await this.prisma.channelPartner.findUnique({ where: { id: partnerId } });
+    if (!partner) throw new NotFoundException('Channel partner not found');
+
+    const existing = await this.prisma.lead.findFirst({
+      where: { contact: { phone: buyerPhone }, channelPartnerId: { not: null } },
+      include: { channelPartner: true },
+    });
+    if (existing && existing.channelPartnerId !== partnerId) {
+      throw new ConflictException(`Buyer already associated with partner "${existing.channelPartner?.name}"`);
+    }
+    return { locked: true, partnerId, buyerPhone };
+  }
+
+  async checkBuyerLock(buyerPhone: string) {
+    const lead = await this.prisma.lead.findFirst({
+      where: { contact: { phone: buyerPhone }, channelPartnerId: { not: null } },
+      include: { channelPartner: { select: { id: true, name: true, company: true } } },
+    });
+    if (!lead) return { locked: false };
+    return { locked: true, partner: lead.channelPartner };
+  }
+
+  async getAvailableInventory(tenantId: string, filters: { projectId?: string; towerId?: string; unitType?: string; minPrice?: number; maxPrice?: number }) {
+    const where: any = { tenantId, status: 'AVAILABLE' };
+    if (filters.projectId) where.projectId = filters.projectId;
+    if (filters.towerId) where.towerId = filters.towerId;
+    if (filters.unitType) where.unitType = filters.unitType;
+    if (filters.minPrice || filters.maxPrice) {
+      where.price = {};
+      if (filters.minPrice) where.price.gte = filters.minPrice;
+      if (filters.maxPrice) where.price.lte = filters.maxPrice;
+    }
+    return this.prisma.unit.findMany({
+      where,
+      select: {
+        id: true, unitNumber: true, floor: true, unitType: true,
+        areaSqft: true, price: true,
+        tower: { select: { id: true, name: true, project: { select: { id: true, name: true } } } },
+      },
+      orderBy: { unitNumber: 'asc' },
+    });
+  }
 }
+
+

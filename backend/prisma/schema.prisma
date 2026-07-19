@@ -1805,6 +1805,7 @@ enum OfferStatus {
   PENDING
   APPROVED
   REJECTED
+  REVISED
   EXPIRED
 
   @@map("offer_status")
