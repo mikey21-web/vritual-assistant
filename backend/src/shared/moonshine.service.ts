@@ -12,7 +12,7 @@ export class MoonshineService {
 
   async transcribe(audioBuffer: Buffer, filename = 'audio.wav'): Promise<string> {
     const formData = new FormData();
-    const blob = new Blob([audioBuffer], { type: 'audio/wav' });
+    const blob = new Blob([new Uint8Array(audioBuffer)], { type: 'audio/wav' });
     formData.append('audio', blob, filename);
 
     const res = await fetch(`${this.baseUrl}/transcribe`, { method: 'POST', body: formData });

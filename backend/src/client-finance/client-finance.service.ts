@@ -1,5 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
+import { InvoicePdfService } from './invoice-pdf.service';
+import { EmailAdapter } from '../shared/adapters/email.adapter';
+import { WhatsAppCloudAdapter } from '../shared/adapters/messaging.adapter';
 
 function genNumber(prefix: string) {
   return `${prefix}-${Date.now().toString(36).toUpperCase()}`;
@@ -7,7 +11,15 @@ function genNumber(prefix: string) {
 
 @Injectable()
 export class ClientFinanceService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(ClientFinanceService.name);
+
+  constructor(
+    private prisma: PrismaService,
+    private config: ConfigService,
+    private invoicePdf: InvoicePdfService,
+    private email: EmailAdapter,
+    private whatsApp: WhatsAppCloudAdapter,
+  ) {}
 
   // --- Invoices ---
   findInvoices(tenantId: string, query: any = {}) {
@@ -53,6 +65,66 @@ export class ClientFinanceService {
     const patch: any = { ...data };
     if (data.status === 'PAID' && !data.paidAt) patch.paidAt = new Date();
     return this.prisma.invoice.update({ where: { id }, data: patch });
+  }
+
+  // Generate (or regenerate) the invoice PDF and return its public URL.
+  async getInvoicePdf(tenantId: string, id: string) {
+    await this.findInvoice(tenantId, id);
+    return this.invoicePdf.generateInvoicePdf(tenantId, id);
+  }
+
+  // Generate the PDF, deliver it to the client over the requested channels
+  // (email and/or WhatsApp), and mark the invoice SENT. Delivery is best-effort
+  // per channel: one channel failing does not block the other, and the per-channel
+  // outcome is returned so the UI can show exactly what went through.
+  async sendInvoice(
+    tenantId: string,
+    id: string,
+    opts: { channels?: string[]; message?: string } = {},
+  ) {
+    const invoice = await this.findInvoice(tenantId, id);
+    const channels = opts.channels?.length ? opts.channels : ['email', 'whatsapp'];
+    const { publicUrl, fileName, filePath } = await this.invoicePdf.generateInvoicePdf(tenantId, id);
+
+    const settings = await this.prisma.businessSettings.findFirst();
+    const bizName = settings?.businessName || 'our team';
+    const results: Record<string, { success: boolean; error?: string }> = {};
+
+    if (channels.includes('email')) {
+      const to = invoice.contact?.email;
+      if (!to) {
+        results.email = { success: false, error: 'Client has no email address' };
+      } else {
+        const subject = `Invoice ${invoice.invoiceNumber} from ${bizName}`;
+        const body = opts.message
+          || `<p>Hi ${invoice.contact?.name || 'there'},</p><p>Please find your invoice <b>${invoice.invoiceNumber}</b> attached. You can also view it here: <a href="${publicUrl}">${publicUrl}</a></p><p>Thank you,<br/>${bizName}</p>`;
+        results.email = await this.email.send(to, subject, body, undefined, [{ filename: fileName, path: filePath }]);
+      }
+    }
+
+    if (channels.includes('whatsapp')) {
+      const to = invoice.contact?.whatsapp || invoice.contact?.phone;
+      if (!to) {
+        results.whatsapp = { success: false, error: 'Client has no WhatsApp/phone number' };
+      } else {
+        const caption = opts.message || `Invoice ${invoice.invoiceNumber} from ${bizName}`;
+        results.whatsapp = await this.whatsApp.sendMessage(to, caption, {
+          phoneNumberId: this.config.get<string>('WHATSAPP_PHONE_NUMBER_ID') || '',
+          accessToken: this.config.get<string>('WHATSAPP_ACCESS_TOKEN') || '',
+          within24h: true,
+          mediaUrl: publicUrl,
+          mediaType: 'document',
+          caption,
+        });
+      }
+    }
+
+    const anyDelivered = Object.values(results).some(r => r.success);
+    if (anyDelivered && invoice.status === 'DRAFT') {
+      await this.prisma.invoice.update({ where: { id }, data: { status: 'SENT' } });
+    }
+
+    return { invoiceNumber: invoice.invoiceNumber, publicUrl, delivered: anyDelivered, results };
   }
 
   // --- Quotations ---

@@ -28,13 +28,19 @@ export class EmailAdapter implements OnModuleInit {
     }
   }
 
-  async send(to: string, subject: string, html: string, replyTo?: string): Promise<{ success: boolean; error?: string }> {
+  async send(
+    to: string,
+    subject: string,
+    html: string,
+    replyTo?: string,
+    attachments?: Array<{ filename: string; path?: string; content?: Buffer }>,
+  ): Promise<{ success: boolean; error?: string }> {
     const from = this.config.get<string>('SMTP_FROM', 'noreply@example.com');
 
     if (!this.transporter) return { success: false, error: 'SMTP not configured' };
 
     try {
-      await this.transporter.sendMail({ from, to, subject, html, inReplyTo: replyTo, references: replyTo });
+      await this.transporter.sendMail({ from, to, subject, html, inReplyTo: replyTo, references: replyTo, attachments });
       return { success: true };
     } catch (e: any) {
       return { success: false, error: e.message };

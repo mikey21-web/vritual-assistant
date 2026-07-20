@@ -61,9 +61,14 @@ export class WhatsAppCloudAdapter implements MessagingAdapter {
         }
       } else if (mediaUrl && mediaType) {
         const caption = config?.caption || (mediaType !== 'audio' ? text : undefined);
+        const mediaObj: any = { link: mediaUrl };
+        if (caption) mediaObj.caption = caption;
+        // WhatsApp requires a filename for documents; without it the file
+        // downloads as an opaque blob on the recipient's phone.
+        if (mediaType === 'document' && config?.fileName) mediaObj.filename = config.fileName;
         body = {
           messaging_product: 'whatsapp', to, type: mediaType,
-          [mediaType]: caption ? { link: mediaUrl, caption } : { link: mediaUrl },
+          [mediaType]: mediaObj,
         };
       } else if (interactiveType === 'button' && interactiveBody && interactiveButtons) {
         body = {
