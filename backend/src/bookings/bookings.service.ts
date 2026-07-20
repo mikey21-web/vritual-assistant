@@ -99,6 +99,13 @@ export class BookingsService {
       this.logger.warn(`Failed to schedule reminders for booking ${booking.id}: ${e.message}`);
     }
 
+    // Schedule token payment follow-ups for purchase bookings.
+    try {
+      await this.lifecycle.scheduleBookingTokenFollowups(booking);
+    } catch (e: any) {
+      this.logger.warn(`Failed to schedule token follow-ups for booking ${booking.id}: ${e.message}`);
+    }
+
     return booking;
   }
 

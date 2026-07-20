@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Req, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -20,4 +20,9 @@ export class AnalyticsController {
   @Get('team-command') @Roles('OWNER', 'ADMIN', 'MANAGER') teamCommand() { return this.service.teamCommand(); }
   @Get('builder-command') @Roles('OWNER', 'ADMIN', 'MANAGER') builderCommand() { return this.service.builderCommand(); }
   @Get('data-health') @Roles('OWNER', 'ADMIN', 'MANAGER') dataHealth() { return this.service.dataHealth(); }
+  @Get('agent-response-times') @Roles('OWNER', 'ADMIN', 'MANAGER') agentResponseTimes(@Req() req: any) { return this.service.getAgentResponseTimes(req.user.tenantId); }
+  @Get('agent-overdue-followups') @Roles('OWNER', 'ADMIN', 'MANAGER') agentOverdueFollowups(@Req() req: any) { return this.service.getAgentOverdueFollowups(req.user.tenantId); }
+  @Get('agent-visit-conversion') @Roles('OWNER', 'ADMIN', 'MANAGER') agentVisitConversion(@Req() req: any) { return this.service.getAgentVisitConversion(req.user.tenantId); }
+  @Get('source-roi') @Roles('OWNER', 'ADMIN', 'MANAGER') sourceRoi(@Req() req: any) { return this.service.getSourceAnalytics(req.user.tenantId); }
+  @Get('broker-rankings') @Roles('OWNER', 'ADMIN', 'MANAGER') brokerRankings(@Req() req: any) { return this.service.getBrokerRankings(req.user.tenantId); }
 }

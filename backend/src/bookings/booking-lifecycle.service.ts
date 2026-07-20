@@ -179,6 +179,82 @@ export class BookingLifecycleService {
     });
   }
 
+  // ── Booking token follow-up ──────────────────────────────────────────────────
+
+  async scheduleBookingTokenFollowups(booking: {
+    id: string;
+    leadId: string;
+    status: string;
+    title: string;
+  }): Promise<void> {
+    if (booking.status !== 'PENDING') return;
+
+    const name = await this.leadFirstName(booking.leadId);
+    const base = Date.now();
+
+    await this.upsertAction({
+      leadId: booking.leadId,
+      kind: 'booking_token_reminder',
+      runAt: new Date(base + 24 * 60 * 60 * 1000),
+      dedupeKey: `booking_token:${booking.id}:24h`,
+      payload: {
+        bookingId: booking.id,
+        channel: 'WHATSAPP',
+        text: `Hi ${name}, a reminder to complete your token payment for ${booking.title}. Your booking is confirmed once the payment is received.`,
+      },
+    });
+
+    await this.upsertAction({
+      leadId: booking.leadId,
+      kind: 'booking_token_reminder',
+      runAt: new Date(base + 72 * 60 * 60 * 1000),
+      dedupeKey: `booking_token:${booking.id}:72h`,
+      payload: {
+        bookingId: booking.id,
+        channel: 'WHATSAPP',
+        text: `Hi ${name}, we're still holding your slot for ${booking.title}. Please complete the token payment at your earliest convenience to confirm the booking.`,
+      },
+    });
+
+    const holdExists = await this.prisma.unitHold.findFirst({
+      where: { leadId: booking.leadId, status: 'ACTIVE' },
+    });
+    if (holdExists) {
+      await this.upsertAction({
+        leadId: booking.leadId,
+        kind: 'booking_hold_warning',
+        runAt: new Date(base + 7 * 24 * 60 * 60 * 1000),
+        dedupeKey: `booking_hold:${booking.id}:7d`,
+        payload: {
+          bookingId: booking.id,
+          channel: 'WHATSAPP',
+          text: `Hi ${name}, the unit hold for ${booking.title} will be released if the token payment is not completed within the next 3 days. Please get in touch to arrange payment.`,
+        },
+      });
+    }
+
+    const lead = await this.prisma.lead.findUnique({
+      where: { id: booking.leadId },
+      select: { assignedAgentId: true, contact: { select: { name: true } } },
+    });
+    if (lead?.assignedAgentId) {
+      await this.prisma.task.create({
+        data: {
+          title: `Follow up on token payment for ${lead.contact?.name || booking.leadId}`,
+          description: `Token payment follow-up for booking ${booking.id}. Payment link sent on ${new Date().toISOString().slice(0, 10)}.`,
+          priority: 'high',
+          leadId: booking.leadId,
+          assigneeId: lead.assignedAgentId,
+          dueAt: new Date(base + 24 * 60 * 60 * 1000),
+          createdBy: 'system',
+          source: 'booking_token_followup',
+        },
+      });
+    }
+
+    this.logger.log(`Scheduled token payment follow-ups for booking ${booking.id}`);
+  }
+
   /**
    * Mark overdue payment milestones and queue an overdue nudge. Called on the
    * Mikey heartbeat alongside no-show detection. Recovers the ~30% of buyers who
@@ -189,7 +265,7 @@ export class BookingLifecycleService {
     const overdue = await this.prisma.paymentSchedule.findMany({
       where: { status: 'PENDING', dueDate: { lt: now } },
       take: 50,
-      select: { id: true, leadId: true, label: true, amount: true, currency: true },
+      select: { id: true, leadId: true, label: true, amount: true, currency: true, dueDate: true },
     });
 
     let marked = 0;
@@ -213,6 +289,32 @@ export class BookingLifecycleService {
           text: `Hi ${name}, just a gentle nudge that your ${p.label} payment of ${amountStr} is now past its due date. If there's anything holding it up, let me know — happy to help sort it out.`,
         },
       });
+
+      if (p.dueDate) {
+        const dueTs = p.dueDate.getTime();
+        await this.upsertAction({
+          leadId: p.leadId,
+          kind: 'payment_escalation',
+          runAt: new Date(dueTs + 4 * 24 * 60 * 60 * 1000),
+          dedupeKey: `pay_escalation:${p.id}:task`,
+          payload: { paymentScheduleId: p.id, stage: 'agent_task', label: p.label, amount: p.amount, currency: p.currency },
+        });
+        await this.upsertAction({
+          leadId: p.leadId,
+          kind: 'payment_escalation',
+          runAt: new Date(dueTs + 8 * 24 * 60 * 60 * 1000),
+          dedupeKey: `pay_escalation:${p.id}:manager`,
+          payload: { paymentScheduleId: p.id, stage: 'manager_notify', label: p.label, amount: p.amount, currency: p.currency },
+        });
+        await this.upsertAction({
+          leadId: p.leadId,
+          kind: 'payment_escalation',
+          runAt: new Date(dueTs + 14 * 24 * 60 * 60 * 1000),
+          dedupeKey: `pay_escalation:${p.id}:collections`,
+          payload: { paymentScheduleId: p.id, stage: 'collections', label: p.label, amount: p.amount, currency: p.currency },
+        });
+      }
+
       marked++;
     }
 

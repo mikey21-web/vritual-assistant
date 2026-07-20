@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { fetchLead, getLeadTimeline, fetchContacts, holdUnit, createBooking, fetchLeadBookings, fetchLeadCostSheets, draftAIReply } from '../lib/data';
+import { fetchLead, getLeadTimeline, fetchContacts, holdUnit, createBooking, fetchLeadBookings, fetchLeadCostSheets, draftAIReply, fetchUnits } from '../lib/data';
 import { api } from '../lib/api';
 import toast from 'react-hot-toast';
 import { startExplainFlow } from '../lib/explainMode';
@@ -134,6 +134,13 @@ export default function LeadWorkbenchPage() {
   const [existingBookings, setExistingBookings] = useState<any[]>([]);
   const [approvedCostSheets, setApprovedCostSheets] = useState<any[]>([]);
   const [showApprovedCS, setShowApprovedCS] = useState(false);
+  const [notes, setNotes] = useState<any[]>([]);
+  const [noteText, setNoteText] = useState('');
+  const [showAgentPicker, setShowAgentPicker] = useState(false);
+  const [users, setUsers] = useState<any[]>([]);
+  const [timelineFilter, setTimelineFilter] = useState<string | null>(null);
+  const [matchingProjectId, setMatchingProjectId] = useState('');
+  const [units, setUnits] = useState<any[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -159,12 +166,30 @@ export default function LeadWorkbenchPage() {
           const sheets = csRes?.data || [];
           setApprovedCostSheets(sheets.filter((s: any) => s.status === 'APPROVED'));
         } catch {}
+        try {
+          const notesRes = await api(`/leads/${id}/notes`);
+          setNotes(Array.isArray(notesRes) ? notesRes : notesRes?.data || []);
+        } catch {}
+        try {
+          const usersRes = await api('/users');
+          setUsers(Array.isArray(usersRes) ? usersRes : usersRes?.data || []);
+        } catch {}
       } catch (e: any) {
         toast.error(e.message || 'Failed to load lead');
       }
       setLoading(false);
     })();
   }, [id]);
+
+  useEffect(() => {
+    if (!matchingProjectId) { setUnits([]); return; }
+    (async () => {
+      try {
+        const res = await fetchUnits({ projectId: matchingProjectId });
+        setUnits(Array.isArray(res) ? res : res?.data || []);
+      } catch {}
+    })();
+  }, [matchingProjectId]);
 
   const updateField = async (field: string, value: any) => {
     try {
@@ -329,6 +354,18 @@ export default function LeadWorkbenchPage() {
     setActionLoading(null);
   };
 
+  const handleAddNote = async () => {
+    if (!noteText.trim()) return;
+    try {
+      const res = await api('/notes', { method: 'POST', body: JSON.stringify({ leadId: id, text: noteText.trim() }) });
+      setNotes(prev => [res?.data || res, ...prev]);
+      setNoteText('');
+      toast.success('Note added');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to add note');
+    }
+  };
+
   const nba = lead ? NextBestAction({ lead }) : null;
 
   if (loading) {
@@ -481,11 +518,62 @@ export default function LeadWorkbenchPage() {
                 ))}
               </select>
             </div>
-            {lead.assignedAgent && <div><span className="text-[var(--foreground)] font-medium">Agent:</span> <span className="text-[var(--muted-foreground)]">{lead.assignedAgent.name}</span></div>}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[var(--foreground)] font-medium">Agent:</span>
+              {lead.assignedAgent ? (
+                <>
+                  <span className="text-[var(--muted-foreground)]">{lead.assignedAgent.name}</span>
+                  <button onClick={() => setShowAgentPicker(true)} className="text-[10px] font-medium text-[var(--primary)] hover:underline">Change</button>
+                </>
+              ) : (
+                <>
+                  <span className="text-[var(--muted-foreground)]">Unassigned</span>
+                  <button onClick={() => setShowAgentPicker(true)} className="text-[10px] font-medium text-[var(--primary)] hover:underline">Assign</button>
+                </>
+              )}
+              {showAgentPicker && (
+                <select value={lead.assignedAgentId || ''} onChange={e => {
+                  const userId = e.target.value;
+                  if (!userId) return;
+                  (async () => {
+                    try {
+                      await api(`/leads/${id}/assign`, { method: 'POST', body: JSON.stringify({ agentId: userId }) });
+                      const user = users.find(u => u.id === userId);
+                      setLead(prev => prev ? { ...prev, assignedAgentId: userId, assignedAgent: user } as Lead : null);
+                      toast.success('Agent assigned');
+                      setShowAgentPicker(false);
+                    } catch (err: any) {
+                      toast.error(err.message || 'Failed to assign agent');
+                    }
+                  })();
+                }} className="text-xs rounded border border-[var(--border)] bg-[var(--background)] px-2 py-1" autoFocus>
+                  <option value="">Select agent...</option>
+                  {users.map((u: any) => <option key={u.id} value={u.id}>{u.name || u.email}</option>)}
+                </select>
+              )}
+            </div>
             {existingBookings.length > 0 && (
               <div><span className="text-[var(--foreground)] font-medium">Bookings:</span> <span className="text-[var(--muted-foreground)]">{existingBookings.length} existing</span></div>
             )}
             {lead.message && <div><span className="text-[var(--foreground)] font-medium">Message:</span> <span className="text-[var(--muted-foreground)]">{lead.message}</span></div>}
+            <div className="pt-3 border-t border-[var(--border)]">
+              <h5 className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider mb-2">Notes</h5>
+              <textarea value={noteText} onChange={e => setNoteText(e.target.value)} rows={2} placeholder="Add a note..."
+                className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20 resize-none mb-2" />
+              <button onClick={handleAddNote} disabled={!noteText.trim()}
+                className="inline-flex items-center gap-1 h-7 px-3 rounded-lg bg-[var(--primary)] text-white text-[11px] font-medium hover:opacity-90 disabled:opacity-50 transition-opacity">
+                Add Note
+              </button>
+              <div className="space-y-2 mt-3 max-h-40 overflow-y-auto">
+                {notes.length === 0 && <p className="text-[11px] text-[var(--muted-foreground)]">No notes yet</p>}
+                {notes.map((n: any) => (
+                  <div key={n.id} className="text-xs p-2 rounded-lg bg-[var(--accent)]/30">
+                    <p className="text-[var(--foreground)]">{n.text}</p>
+                    <p className="text-[10px] text-[var(--muted-foreground)] mt-1">{new Date(n.createdAt).toLocaleString()}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -505,9 +593,35 @@ export default function LeadWorkbenchPage() {
               </button>
             )}
           </div>
+          <div className="flex flex-wrap gap-1 mb-3">
+            {[
+              { key: null, label: 'All' },
+              { key: 'message', label: 'Messages' },
+              { key: 'call', label: 'Calls' },
+              { key: 'site_visit', label: 'Visits' },
+              { key: 'cost_sheet', label: 'Cost Sheets' },
+              { key: 'unit_hold', label: 'Holds' },
+              { key: 'booking', label: 'Bookings' },
+            ].map(f => (
+              <button key={f.label} onClick={() => setTimelineFilter(f.key)}
+                className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
+                  timelineFilter === f.key
+                    ? 'bg-[var(--primary)] text-white'
+                    : 'bg-[var(--accent)] text-[var(--muted-foreground)] hover:bg-[var(--muted)]'
+                }`}>
+                {f.label}
+              </button>
+            ))}
+          </div>
           <div className="space-y-1 max-h-[28rem] overflow-y-auto pr-1">
             {timeline.length === 0 && <p className="text-sm text-[var(--muted-foreground)] py-4 text-center">No activity yet</p>}
-            {timeline.slice(0, 30).map((t: any) => {
+            {timeline
+              .filter((t: any) => {
+                if (!timelineFilter) return true;
+                if (timelineFilter === 'call') return t.type === 'call';
+                return t.type.startsWith(timelineFilter + '_');
+              })
+              .slice(0, 30).map((t: any) => {
               const cfg = getTimelineConfig(t.type);
               const Icon = cfg.icon;
               return (
@@ -554,6 +668,42 @@ export default function LeadWorkbenchPage() {
             className="block mt-2 text-xs font-medium text-[var(--primary)] hover:underline text-center sm:text-left">
             <Calendar size={12} className="inline mr-1" />Create event from this lead
           </a>
+          <div className="pt-3 border-t border-[var(--border)]">
+            <h5 className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider mb-2">Matching Units</h5>
+            <div className="mb-2">
+              <label className="text-[10px] font-medium text-[var(--muted-foreground)] mb-1 block">Project</label>
+              <ProjectPicker value={matchingProjectId} onChange={(id: string) => setMatchingProjectId(id)} />
+            </div>
+            <div className="space-y-1.5 max-h-48 overflow-y-auto">
+              {!matchingProjectId && <p className="text-[11px] text-[var(--muted-foreground)]">Select a project to see units</p>}
+              {units.length === 0 && matchingProjectId && <p className="text-[11px] text-[var(--muted-foreground)]">No units found</p>}
+              {units.map((u: any) => (
+                <div key={u.id} className="text-xs p-2 rounded-lg border border-[var(--border)] bg-[var(--card)]">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-medium text-[var(--foreground)]">Unit {u.unitNumber || u.unit_number}</span>
+                    <span className="text-[var(--muted-foreground)]">{u.floor}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[10px] text-[var(--muted-foreground)] mb-1.5">
+                    <span>{u.size} sq.ft</span>
+                    <span>·</span>
+                    <span className={u.status === 'AVAILABLE' ? 'text-green-600' : 'text-amber-600'}>{u.status}</span>
+                    <span>·</span>
+                    <span>₹{(Number(u.price) / 100).toLocaleString()}</span>
+                  </div>
+                  <div className="flex gap-1">
+                    <button onClick={() => { setShowCostSheetForm(true); setCostSheetForm((f: any) => ({ ...f, projectId: matchingProjectId, unitId: u.id, unitLabel: `Unit ${u.unitNumber || u.unit_number}` })); }}
+                      className="flex-1 h-6 rounded text-[10px] font-medium bg-[var(--primary)] text-white hover:opacity-90 transition-opacity">
+                      Select for Cost Sheet
+                    </button>
+                    <button onClick={() => { setShowHoldForm(true); setHoldForm((f: any) => ({ ...f, projectId: matchingProjectId, unitId: u.id, unitLabel: `Unit ${u.unitNumber || u.unit_number}` })); }}
+                      className="flex-1 h-6 rounded text-[10px] font-medium bg-amber-600 text-white hover:opacity-90 transition-opacity">
+                      Hold Unit
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 

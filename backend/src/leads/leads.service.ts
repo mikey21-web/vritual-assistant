@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
@@ -7,10 +7,13 @@ import { EventsService } from '../events/events.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ContactsService } from '../contacts/contacts.service';
 import { MetricsService } from '../monitoring/metrics.service';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { getNested, evaluateCondition } from '../shared/scoring.util';
 
 @Injectable()
 export class LeadsService {
+  private readonly logger = new Logger(LeadsService.name);
+
   constructor(
     private prisma: PrismaService,
     private auditLogs: AuditLogsService,
@@ -19,6 +22,7 @@ export class LeadsService {
     private notifications: NotificationsService,
     private contacts: ContactsService,
     private metrics: MetricsService,
+    private realtimeGateway: RealtimeGateway,
   ) {}
 
   async findAll(query: any = {}) {
@@ -216,6 +220,52 @@ export class LeadsService {
     });
     await this.events.emit({ type: 'lead.created', leadId: lead.id, entityType: 'lead', entityId: lead.id, payload: { source: lead.source, status: lead.status }, createdById: userId });
     this.metrics.incrementCounter('leads_created_total', { source: lead.source });
+
+    if (!lead.assignedAgentId) {
+      try {
+        const agents = await this.prisma.user.findMany({
+          where: { tenantId: lead.tenantId, role: 'SALES_AGENT', active: true },
+          include: { _count: { select: { assignedLeads: true } } },
+        });
+        agents.sort((a, b) => a._count.assignedLeads - b._count.assignedLeads);
+        let assignToId: string | null = agents[0]?.id ?? null;
+        if (!assignToId) {
+          const manager = await this.prisma.user.findFirst({
+            where: { tenantId: lead.tenantId, role: 'MANAGER', active: true },
+          });
+          assignToId = manager?.id ?? null;
+        }
+        if (assignToId) {
+          await this.prisma.lead.update({ where: { id: lead.id }, data: { assignedAgentId: assignToId } });
+          lead.assignedAgentId = assignToId;
+          await this.notifications.create({ tenantId: lead.tenantId, userId: assignToId, type: 'lead_assigned', title: 'New lead assigned', body: 'New lead assigned to you', link: '/leads' });
+          this.realtimeGateway.emitToUser(assignToId, 'lead.assigned', { leadId: lead.id, assignedAgentId: assignToId });
+        }
+      } catch {}
+    }
+
+    try {
+      const welcomeSequence = await this.prisma.nurtureSequence.findFirst({
+        where: { name: 'New Lead Welcome', active: true },
+        include: { steps: { orderBy: { displayOrder: 'asc' }, take: 1 } },
+      });
+      if (welcomeSequence && welcomeSequence.steps.length > 0) {
+        await this.prisma.nurtureProgress.create({
+          data: {
+            leadId: lead.id,
+            sequenceId: welcomeSequence.id,
+            stepId: welcomeSequence.steps[0].id,
+            status: 'pending',
+            dueAt: new Date(),
+          },
+        });
+        this.logger.log(`Lead ${lead.id} enrolled in welcome sequence ${welcomeSequence.id}`);
+      }
+    } catch (e: any) {
+      this.logger.warn(`Failed to enroll lead in welcome sequence: ${e.message}`);
+    }
+
+    this.realtimeGateway.emitToTenant(lead.tenantId, 'lead.created', lead);
     return lead;
   }
 

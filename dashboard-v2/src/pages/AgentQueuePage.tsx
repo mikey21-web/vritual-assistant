@@ -1,36 +1,53 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { fetchTasks, fetchLeads, fetchAgentStatus, fetchAgentStats, updateTask } from '../lib/data';
+import { fetchTasks, fetchAgentStatus, fetchAgentStats, updateTask } from '../lib/data';
 import { api } from '../lib/api';
 import toast from 'react-hot-toast';
-import { CheckCircle, Circle, Phone, User, AlertTriangle, Clock, ListChecks, BarChart3, MessageSquare, ChevronRight, Send } from 'lucide-react';
+import { CheckCircle, Circle, Phone, User, AlertTriangle, Clock, ListChecks, BarChart3, MessageSquare, ChevronRight, Send, X, Search, Calendar } from 'lucide-react';
 
 type Tab = 'today' | 'leads' | 'activity';
 
 function goToLead(id: string) { window.location.hash = `#/leads/${id}`; }
-function goToQueue() { window.location.hash = '#/queue'; }
 
-async function sendWA(leadId: string, phone: string) {
-  const text = prompt('WhatsApp message:');
-  if (!text?.trim()) return;
-  try {
-    await api('/conversations/messages', {
-      method: 'POST',
-      body: JSON.stringify({ leadId, channel: 'WHATSAPP', direction: 'OUTBOUND', text: text.trim() }),
-    });
-    toast.success('WhatsApp sent');
-  } catch (e: any) { toast.error(e.message || 'Failed'); }
+function SlaIndicator({ lead }: { lead: any }) {
+  const anchor = new Date(lead.createdAt);
+  const minutes = Math.floor((Date.now() - anchor.getTime()) / 60000);
+  const isHot = lead.segment === 'HOT';
+  const green = isHot ? 30 : 60;
+  const red = isHot ? 120 : 240;
+  let color = 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400';
+  if (minutes >= red) color = 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+  else if (minutes >= green) color = 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
+  const label = minutes < 60 ? `${minutes}m` : `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${color}`}>
+      <Clock size={10} /> {label}
+    </span>
+  );
 }
 
 export default function AgentQueuePage() {
   const [tab, setTab] = useState<Tab>('today');
   const [tasks, setTasks] = useState<any[]>([]);
-  const [leads, setLeads] = useState<any[]>([]);
+  const [allLeads, setAllLeads] = useState<any[]>([]);
+  const [hotLeads, setHotLeads] = useState<any[]>([]);
+  const [todayVisits, setTodayVisits] = useState<any[]>([]);
   const [status, setStatus] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
+  const [showWAComposer, setShowWAComposer] = useState(false);
+  const [waLeadId, setWaLeadId] = useState('');
+  const [waPhone, setWaPhone] = useState('');
+  const [waText, setWaText] = useState('');
+  const [sendingWA, setSendingWA] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [pageSize, setPageSize] = useState(20);
 
   const refresh = useCallback(() => {
     fetchTasks().then((r: any) => setTasks(Array.isArray(r.data) ? r.data : Array.isArray(r) ? r : [])).catch(() => {});
-    fetchLeads().then((r: any) => setLeads(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+    api('/leads/worklist/mine').then((r: any) => {
+      setAllLeads(r.leads ?? r.data ?? []);
+      setHotLeads(r.hotLeads ?? []);
+      setTodayVisits(r.todayVisits ?? []);
+    }).catch(() => {});
     fetchAgentStatus().then(setStatus).catch(() => {});
     fetchAgentStats().then(setStats).catch(() => {});
   }, []);
@@ -44,9 +61,52 @@ export default function AgentQueuePage() {
     } catch {}
   };
 
+  const handleCall = async (leadId: string) => {
+    const tid = toast.loading('Initiating call...');
+    try {
+      await api('/telephony/call', { method: 'POST', body: JSON.stringify({ leadId }) });
+      toast.success('Call initiated!', { id: tid });
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to initiate call', { id: tid });
+    }
+  };
+
+  const handleSendWA = async () => {
+    if (!waText.trim()) return;
+    setSendingWA(true);
+    try {
+      await api('/conversations/messages', {
+        method: 'POST',
+        body: JSON.stringify({
+          leadId: waLeadId,
+          channel: 'WHATSAPP',
+          direction: 'OUTBOUND',
+          text: waText.trim(),
+        }),
+      });
+      toast.success('WhatsApp sent');
+      setShowWAComposer(false);
+      setWaText('');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to send WhatsApp');
+    }
+    setSendingWA(false);
+  };
+
+  const openWAComposer = (leadId: string, phone: string) => {
+    setWaLeadId(leadId);
+    setWaPhone(phone);
+    setWaText('');
+    setShowWAComposer(true);
+  };
+
   const highPriority = tasks.filter(t => t.priority === 'HIGH' || t.priority === 'high');
   const pending = tasks.filter(t => t.status !== 'COMPLETED' && t.status !== 'done');
-  const hotLeads = leads.filter(l => l.segment === 'HOT');
+  const filteredLeads = allLeads.filter(l =>
+    !searchQuery.trim() ||
+    (l.contact?.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (l.contact?.phone || '').includes(searchQuery)
+  );
 
   const tabs: { key: Tab; label: string; icon: React.ReactNode }[] = [
     { key: 'today', label: 'Today', icon: <Clock size={18} /> },
@@ -82,6 +142,19 @@ export default function AgentQueuePage() {
             </button>
           ))}
         </div>
+        {tab === 'leads' && (
+          <div className="mt-2">
+            <div className="relative">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted-foreground)]" />
+              <input
+                value={searchQuery}
+                onChange={e => { setSearchQuery(e.target.value); setPageSize(20); }}
+                placeholder="Search leads by name or phone..."
+                className="w-full h-9 pl-9 pr-3 rounded-lg border border-[var(--border)] bg-[var(--background)] text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {tab === 'today' && (
@@ -100,6 +173,33 @@ export default function AgentQueuePage() {
                 </div>
               ))}
             </div>
+          )}
+
+          {todayVisits.length > 0 && (
+            <section>
+              <h2 className="text-sm font-semibold text-[var(--muted-foreground)] uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                <Calendar size={14} className="text-blue-500" />
+                Today's Visits ({todayVisits.length})
+              </h2>
+              <div className="space-y-2">
+                {todayVisits.map((v: any) => (
+                  <div key={v.id} className="rounded-xl bg-[var(--card)] border border-blue-200 dark:border-blue-900/50 p-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
+                        <Calendar size={14} className="text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium text-[var(--foreground)] truncate">{v.contact?.name || 'Unknown'}</div>
+                        <div className="text-xs text-[var(--muted-foreground)]">{v.visitTime ? new Date(v.visitTime).toLocaleTimeString() : ''}</div>
+                      </div>
+                      <button onClick={() => goToLead(v.id)} className="p-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 hover:bg-blue-100 transition-colors">
+                        <ChevronRight size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
           )}
 
           {highPriority.length > 0 && (
@@ -121,7 +221,7 @@ export default function AgentQueuePage() {
               All Tasks ({pending.length})
             </h2>
             <div className="space-y-2">
-              {pending.slice(0, 10).map(t => (
+              {pending.slice(0, pageSize).map(t => (
                 <TaskCard key={t.id} task={t} onToggle={toggleTask} />
               ))}
               {pending.length === 0 && (
@@ -130,6 +230,12 @@ export default function AgentQueuePage() {
                   All caught up!
                 </div>
               )}
+              {pending.length > pageSize && (
+                <button onClick={() => setPageSize(p => p + 20)}
+                  className="w-full py-2 text-sm font-medium text-[var(--primary)] hover:bg-[var(--accent)] rounded-lg transition-colors">
+                  Show More ({pending.length - pageSize} remaining)
+                </button>
+              )}
             </div>
           </section>
         </div>
@@ -137,7 +243,11 @@ export default function AgentQueuePage() {
 
       {tab === 'leads' && (
         <div className="flex-1 px-4 py-4 space-y-4">
-          {hotLeads.length > 0 && (
+          {filteredLeads.length === 0 && searchQuery && (
+            <div className="text-center py-8 text-sm text-[var(--muted-foreground)]">No leads match your search</div>
+          )}
+
+          {hotLeads.length > 0 && !searchQuery && (
             <section>
               <h2 className="text-sm font-semibold text-[var(--muted-foreground)] uppercase tracking-wider mb-2 flex items-center gap-1.5">
                 <AlertTriangle size={14} className="text-amber-500" />
@@ -152,8 +262,11 @@ export default function AgentQueuePage() {
                           <User size={14} className="text-red-600 dark:text-red-400" />
                         </div>
                         <div className="min-w-0">
-                          <div className="text-sm font-medium text-[var(--foreground)] truncate">
-                            {l.contact?.name || 'Unknown'}
+                          <div className="flex items-center gap-2">
+                            <div className="text-sm font-medium text-[var(--foreground)] truncate">
+                              {l.contact?.name || 'Unknown'}
+                            </div>
+                            <SlaIndicator lead={l} />
                           </div>
                           <div className="text-xs text-[var(--muted-foreground)] truncate">
                             {l.interest || ''} · Score: {l.score || '-'} · {l.status}
@@ -162,10 +275,16 @@ export default function AgentQueuePage() {
                       </button>
                       <div className="flex gap-1 shrink-0">
                         {l.contact?.phone && (
-                          <button onClick={() => sendWA(l.id, l.contact.phone)}
-                            className="p-2 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-600 hover:bg-green-100 transition-colors" title="WhatsApp">
-                            <MessageSquare size={14} />
-                          </button>
+                          <>
+                            <button onClick={(e) => { e.stopPropagation(); handleCall(l.id); }}
+                              className="p-2 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-600 hover:bg-green-100 transition-colors" title="Call">
+                              <Phone size={14} />
+                            </button>
+                            <button onClick={(e) => { e.stopPropagation(); openWAComposer(l.id, l.contact.phone); }}
+                              className="p-2 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-600 hover:bg-green-100 transition-colors" title="WhatsApp">
+                              <MessageSquare size={14} />
+                            </button>
+                          </>
                         )}
                         <button onClick={() => goToLead(l.id)}
                           className="p-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 hover:bg-blue-100 transition-colors" title="Open">
@@ -181,35 +300,62 @@ export default function AgentQueuePage() {
 
           <section>
             <h2 className="text-sm font-semibold text-[var(--muted-foreground)] uppercase tracking-wider mb-2">
-              All Leads ({leads.length})
+              {searchQuery ? `Search Results (${filteredLeads.length})` : `All Leads (${allLeads.length})`}
             </h2>
             <div className="space-y-2">
-              {leads.slice(0, 15).map(l => (
-                <button key={l.id} onClick={() => goToLead(l.id)}
-                  className="w-full rounded-xl bg-[var(--card)] border border-[var(--border)] p-3 text-left hover:bg-[var(--accent)] transition-colors">
-                  <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full shrink-0 ${
-                      l.segment === 'HOT' ? 'bg-red-500' : l.segment === 'WARM' ? 'bg-amber-400' : 'bg-gray-300'
-                    }`} />
-                    <div className="min-w-0 flex-1">
-                      <div className="text-sm font-medium text-[var(--foreground)] truncate">
-                        {l.contact?.name || 'Unknown'}
+              {(searchQuery ? filteredLeads : allLeads).slice(0, pageSize).map(l => (
+                <div key={l.id} className="rounded-xl bg-[var(--card)] border border-[var(--border)] p-3">
+                  <div className="flex items-center justify-between">
+                    <button onClick={() => goToLead(l.id)} className="flex items-center gap-2 min-w-0 flex-1 text-left">
+                      <div className={`w-2 h-2 rounded-full shrink-0 ${
+                        l.segment === 'HOT' ? 'bg-red-500' : l.segment === 'WARM' ? 'bg-amber-400' : 'bg-gray-300'
+                      }`} />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <div className="text-sm font-medium text-[var(--foreground)] truncate">
+                            {l.contact?.name || 'Unknown'}
+                          </div>
+                          <SlaIndicator lead={l} />
+                        </div>
+                        <div className="text-xs text-[var(--muted-foreground)]">
+                          {l.status} · {l.source} {l.contact?.phone ? `· ${l.contact.phone}` : ''}
+                        </div>
                       </div>
-                      <div className="text-xs text-[var(--muted-foreground)]">
-                        {l.status} · {l.source}
-                      </div>
+                    </button>
+                    <div className="flex items-center gap-1 shrink-0 ml-2">
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        l.segment === 'HOT' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                        l.segment === 'WARM' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                        'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                      }`}>
+                        {l.segment}
+                      </span>
+                      {l.contact?.phone && (
+                        <>
+                          <button onClick={(e) => { e.stopPropagation(); handleCall(l.id); }}
+                            className="p-2 rounded-lg hover:bg-[var(--accent)] text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors" title="Call">
+                            <Phone size={14} />
+                          </button>
+                          <button onClick={(e) => { e.stopPropagation(); openWAComposer(l.id, l.contact.phone); }}
+                            className="p-2 rounded-lg hover:bg-[var(--accent)] text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors" title="WhatsApp">
+                            <MessageSquare size={14} />
+                          </button>
+                        </>
+                      )}
+                      <button onClick={() => goToLead(l.id)}
+                        className="p-2 rounded-lg hover:bg-[var(--accent)] text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors" title="Open">
+                        <ChevronRight size={14} />
+                      </button>
                     </div>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                      l.segment === 'HOT' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                      l.segment === 'WARM' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
-                      'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
-                    }`}>
-                      {l.segment}
-                    </span>
-                    <ChevronRight size={14} className="text-[var(--muted-foreground)] shrink-0" />
                   </div>
-                </button>
+                </div>
               ))}
+              {(searchQuery ? filteredLeads : allLeads).length > pageSize && (
+                <button onClick={() => setPageSize(p => p + 20)}
+                  className="w-full py-2 text-sm font-medium text-[var(--primary)] hover:bg-[var(--accent)] rounded-lg transition-colors">
+                  Show More ({(searchQuery ? filteredLeads : allLeads).length - pageSize} remaining)
+                </button>
+              )}
             </div>
           </section>
         </div>
@@ -257,6 +403,28 @@ export default function AgentQueuePage() {
           ))}
         </div>
       </div>
+
+      {showWAComposer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowWAComposer(false)}>
+          <div className="bg-[var(--card)] rounded-xl shadow-2xl w-full max-w-md p-6 space-y-3" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-[var(--foreground)]">Send WhatsApp</h2>
+              <button onClick={() => setShowWAComposer(false)}><X size={18} /></button>
+            </div>
+            <p className="text-xs text-[var(--muted-foreground)]">To: {waPhone}</p>
+            <textarea value={waText} onChange={e => setWaText(e.target.value)} rows={3} autoFocus
+              placeholder="Type your message..."
+              className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20 resize-none" />
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowWAComposer(false)} className="h-9 px-4 rounded-lg border border-[var(--border)] text-sm text-[var(--foreground)]">Cancel</button>
+              <button onClick={handleSendWA} disabled={sendingWA || !waText.trim()}
+                className="inline-flex items-center gap-1.5 h-9 px-5 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90 disabled:opacity-50">
+                <Send size={13} /> {sendingWA ? 'Sending...' : 'Send'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

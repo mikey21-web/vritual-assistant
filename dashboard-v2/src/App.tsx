@@ -121,7 +121,9 @@ const PageComponents: Record<string, React.LazyExoticComponent<React.ComponentTy
   AdvancedMarketing: lazy(() => import("./pages/AdvancedMarketingPage")),
   OnboardingProgress: lazy(() => import("./pages/OnboardingProgressPage")),
   LaunchControl: lazy(() => import("./pages/LaunchControlPage")),
-  AgentQueue: lazy(() => import("./pages/AgentQueuePage")),
+   AgentQueue: lazy(() => import("./pages/AgentQueuePage")),
+   SmartLists: lazy(() => import("./components/SmartLists")),
+   ManagerDashboard: lazy(() => import("./pages/ManagerDashboardPage")),
 };
 
 function PageFallback() {
@@ -139,15 +141,17 @@ function PageFallback() {
   );
 }
 
-function getPageKey(path: string): string {
+function getPageKey(raw: string): string {
+  const path = raw.split('?')[0];
   if (/^\/events\/[^/]+$/.test(path)) return "EventDetail";
   if (/^\/campaigns\/[^/]+$/.test(path)) return "CampaignDetail";
   if (/^\/projects\/[^/]+$/.test(path)) return "ProjectDetail";
   if (/^\/leads\/[^/]+$/.test(path)) return "LeadWorkbench";
   if (/^\/forms\/[^/]+\/submissions$/.test(path)) return "FormSubmissions";
   if (path.startsWith("/create-event")) return "CreateEvent";
+  if (path.startsWith("/smart-lists")) return "SmartLists";
   const map: Record<string, string> = {
-    "/": "Overview", "/builder-desk": "BuilderDesk", "/leads": "Leads", "/pipeline": "Pipeline", "/contacts": "Contacts",
+    "/": "Overview", "/builder-desk": "BuilderDesk", "/leads": "Leads", "/smart-lists": "SmartLists", "/pipeline": "Pipeline", "/contacts": "Contacts",
     "/campaigns": "Campaigns", "/forms": "Forms", "/qr-codes": "QRCodes",
     "/conversations": "Messages", "/messages": "Messages",
     "/templates": "Templates", "/media": "Media",
@@ -199,6 +203,7 @@ function getPageKey(path: string): string {
     "/onboarding-progress": "OnboardingProgress",
     "/launch-control": "LaunchControl",
     "/queue": "AgentQueue",
+    "/manager-dashboard": "ManagerDashboard",
   };
   return map[path] || "Overview";
 }

@@ -107,6 +107,10 @@ export class OffersService {
       metadata: { offerId: id, reason },
       createdById: approverId,
     });
+    if (decision === OfferDecision.APPROVED) {
+      const amount = offer.discountPaise ? (Number(offer.discountPaise) / 100).toString() : 'N/A';
+      await this.timeline.recordDiscountApproved(offer.leadId, amount, approverId);
+    }
     await this.auditLogs.log(decision, 'Offer', id, approverId, { reason });
 
     return this.serializable(updated);

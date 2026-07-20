@@ -8,7 +8,7 @@ import { WhatsAppCloudAdapter, TelegramBotAdapter, MessagingAdapter } from '../s
 import { EmailAdapter } from '../shared/adapters/email.adapter';
 import { ConversationsService } from '../conversations/conversations.service';
 
-const FOLLOWUP_KINDS = ['followup', 're_engage', 'send_retry', 'site_visit_reminder', 'post_visit_followup', 'payment_reminder', 'notification'] as const;
+const FOLLOWUP_KINDS = ['followup', 're_engage', 'send_retry', 'site_visit_reminder', 'post_visit_followup', 'payment_reminder', 'notification', 'cost_sheet_followup', 'cost_sheet_followup_2', 'cost_sheet_escalation', 'no_show_recovery', 'booking_token_reminder', 'booking_hold_warning', 'payment_escalation'] as const;
 type FollowupKind = (typeof FOLLOWUP_KINDS)[number];
 
 @Injectable()
@@ -123,9 +123,20 @@ export class FollowupProcessorService extends WorkerHost implements OnApplicatio
       case 'post_visit_followup':
       case 'payment_reminder':
       case 'notification':
+      case 'booking_token_reminder':
+      case 'booking_hold_warning':
         // Booking/payment lifecycle messages arrive with fully-rendered text in the
         // payload; just dispatch it on the requested channel.
         return this.handleBookingMessage(lead, payload);
+      case 'cost_sheet_followup':
+      case 'cost_sheet_followup_2':
+        return this.handleCostSheetFollowup(lead, payload);
+      case 'cost_sheet_escalation':
+        return this.handleCostSheetEscalation(lead, payload);
+      case 'no_show_recovery':
+        return this.handleNoShowRecovery(lead, payload);
+      case 'payment_escalation':
+        return this.handlePaymentEscalation(lead, payload);
       default:
         this.logger.warn(`Unknown followup kind: ${kind}`);
         return false;
@@ -217,6 +228,194 @@ export class FollowupProcessorService extends WorkerHost implements OnApplicatio
       this.logger.log(`Retry send succeeded for lead ${lead.id} via ${channel}`);
     }
     return success;
+  }
+
+  // ── cost_sheet_followup / cost_sheet_followup_2 ──
+
+  private async handleCostSheetFollowup(lead: any, payload: any): Promise<boolean> {
+    const contact = lead.contact;
+    if (!contact) return false;
+    const name = contact.name?.split(/\s+/)[0] || 'there';
+    const channel = this.resolvePreferredChannel(lead, payload);
+    const text = payload.text || `Hi ${name}, just checking in on the cost sheet we shared. Do you have any questions about the pricing or payment terms? Happy to walk through it.`;
+    const success = await this.dispatchMessage(lead, channel, text, payload);
+    if (success) this.logger.log(`Cost sheet follow-up sent to lead ${lead.id}`);
+    return success;
+  }
+
+  // ── cost_sheet_escalation ────────────────────────
+
+  private async handleCostSheetEscalation(lead: any, payload: any): Promise<boolean> {
+    const contact = lead.contact;
+    const name = contact?.name?.split(/\s+/)[0] || lead.id;
+    const assigneeId = lead.assignedAgentId || payload.agentId;
+    if (assigneeId) {
+      try {
+        await this.prisma.task.create({
+          data: {
+            title: `Escalation: Cost sheet follow-up required for ${name}`,
+            description: payload.text || 'Cost sheet has been pending for 7+ days — needs immediate follow-up.',
+            priority: 'high',
+            leadId: lead.id,
+            assigneeId,
+            dueAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+            createdBy: 'system',
+            source: 'cost_sheet_escalation',
+          },
+        });
+        this.logger.log(`Cost sheet escalation task created for lead ${lead.id}`);
+      } catch (e: any) {
+        this.logger.warn(`Failed to create cost sheet escalation task: ${e.message}`);
+        return false;
+      }
+    }
+    return true;
+  }
+
+  // ── no_show_recovery ─────────────────────────────
+
+  private async handleNoShowRecovery(lead: any, payload: any): Promise<boolean> {
+    const contact = lead.contact;
+    if (!contact) return false;
+    const name = contact.name?.split(/\s+/)[0] || 'there';
+    const step = payload.step;
+
+    if (step === 'escalate_to_manager') {
+      const assigneeId = lead.assignedAgentId || payload.agentId;
+      if (assigneeId) {
+        try {
+          await this.prisma.task.create({
+            data: {
+              title: `Escalation: No-show recovery for ${name}`,
+              description: 'Lead did not respond to no-show recovery messages within 72h — needs manager follow-up.',
+              priority: 'high',
+              leadId: lead.id,
+              assigneeId,
+              dueAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+              createdBy: 'system',
+              source: 'no_show_escalation',
+            },
+          });
+          this.logger.log(`No-show escalation task created for lead ${lead.id}`);
+        } catch (e: any) {
+          this.logger.warn(`Failed to create no-show escalation task: ${e.message}`);
+          return false;
+        }
+      }
+      return true;
+    }
+
+    const text = step === 'we_missed_you'
+      ? `Hi ${name}, we missed you at your scheduled visit. No worries at all! We'd love to reschedule at a time that works better for you.`
+      : `Hi ${name}, we have availability this week. Would any slots work for you? Let us know and we'll get you booked in.`;
+    const channel = this.resolvePreferredChannel(lead, payload);
+    const success = await this.dispatchMessage(lead, channel, text, payload);
+    if (success) this.logger.log(`No-show recovery (${step}) sent to lead ${lead.id}`);
+    return success;
+  }
+
+  // ── payment_escalation ───────────────────────────
+
+  private async handlePaymentEscalation(lead: any, payload: any): Promise<boolean> {
+    const contact = lead.contact;
+    const stage = payload.stage;
+    const name = contact?.name?.split(/\s+/)[0] || lead.id;
+
+    if (stage === 'agent_task') {
+      const assigneeId = lead.assignedAgentId || payload.agentId;
+      if (assigneeId) {
+        try {
+          await this.prisma.task.create({
+            data: {
+              title: `Payment follow-up required for ${name}`,
+              description: payload.text || `${payload.label || 'Payment'} of ${payload.amount || ''} ${payload.currency || 'INR'} is overdue — agent follow-up needed.`,
+              priority: 'high',
+              leadId: lead.id,
+              assigneeId,
+              dueAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+              createdBy: 'system',
+              source: 'payment_escalation_task',
+            },
+          });
+          this.logger.log(`Payment escalation task created for lead ${lead.id}`);
+        } catch (e: any) {
+          this.logger.warn(`Failed to create payment escalation task: ${e.message}`);
+          return false;
+        }
+      }
+      return true;
+    }
+
+    if (stage === 'manager_notify') {
+      try {
+        const leadRecord = await this.prisma.lead.findUnique({
+          where: { id: lead.id },
+          select: { tenantId: true },
+        });
+        if (leadRecord) {
+          const managers = await this.prisma.user.findMany({
+            where: { tenantId: leadRecord.tenantId, role: { in: ['MANAGER', 'OWNER', 'ADMIN'] }, active: true },
+            select: { id: true },
+          });
+          for (const manager of managers) {
+            await this.prisma.task.create({
+              data: {
+                title: `Manager alert: Payment overdue for ${name}`,
+                description: payload.text || `${payload.label || 'Payment'} overdue for 8+ days — manager review required.`,
+                priority: 'high',
+                leadId: lead.id,
+                assigneeId: manager.id,
+                dueAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+                createdBy: 'system',
+                source: 'payment_escalation_manager',
+              },
+            });
+          }
+          this.logger.log(`Payment escalation notified ${managers.length} manager(s) for lead ${lead.id}`);
+        }
+      } catch (e: any) {
+        this.logger.warn(`Failed to notify managers for payment escalation: ${e.message}`);
+        return false;
+      }
+      return true;
+    }
+
+    if (stage === 'collections') {
+      try {
+        const leadRecord = await this.prisma.lead.findUnique({
+          where: { id: lead.id },
+          select: { tenantId: true },
+        });
+        if (leadRecord) {
+          const admins = await this.prisma.user.findMany({
+            where: { tenantId: leadRecord.tenantId, role: { in: ['ADMIN', 'OWNER'] }, active: true },
+            select: { id: true },
+          });
+          for (const admin of admins) {
+            await this.prisma.task.create({
+              data: {
+                title: `Collections escalation: Payment overdue for ${name}`,
+                description: payload.text || `${payload.label || 'Payment'} overdue for 14+ days — escalate to collections.`,
+                priority: 'urgent',
+                leadId: lead.id,
+                assigneeId: admin.id,
+                dueAt: new Date(Date.now() + 12 * 60 * 60 * 1000),
+                createdBy: 'system',
+                source: 'payment_escalation_collections',
+              },
+            });
+          }
+          this.logger.log(`Payment escalation sent to collections for lead ${lead.id}`);
+        }
+      } catch (e: any) {
+        this.logger.warn(`Failed to escalate payment to collections: ${e.message}`);
+        return false;
+      }
+      return true;
+    }
+
+    this.logger.warn(`Unknown payment escalation stage: ${stage}`);
+    return false;
   }
 
   // ── Dispatch helpers ────────────────────────────

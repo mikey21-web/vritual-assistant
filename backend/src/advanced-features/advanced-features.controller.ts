@@ -123,6 +123,9 @@ export class AdvancedFeaturesController {
   }
   @Post('failure-inbox/:id/retry') @Roles('OWNER', 'ADMIN') retryFailedEvent(@Param('id') id: string) { return this.svc.retryFailedEvent(id); }
 
+  // Smart Lists
+  @Get('smart-lists') @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT', 'SUPPORT_AGENT', 'VIEWER') getSmartLists(@Req() req) { return this.svc.getSmartLists(req.user.tenantId); }
+
   // Sandbox test
   @Get('sandbox/test') @Roles('OWNER', 'ADMIN') sandboxTest() { return this.svc.sandboxTest(); }
 

@@ -124,6 +124,22 @@ export default function LeadsPage() {
     }
   };
 
+  const applyHashFilters = () => {
+    const hash = window.location.hash.split('?');
+    if (hash.length < 2) return;
+    const params = new URLSearchParams(hash[1]);
+    const status = params.get('status') || '';
+    const segment = params.get('segment') || '';
+    const source = params.get('source') || '';
+    const searchVal = params.get('search') || '';
+    if (status || segment || source || searchVal) {
+      setStatusFilter(status);
+      setSegmentFilter(segment);
+      setSourceFilter(source);
+      setSearch(searchVal);
+    }
+  };
+
   const applyPendingFilter = () => {
     const pending = consumePendingFilter('leads');
     if (!pending) return;
@@ -135,13 +151,32 @@ export default function LeadsPage() {
     setVoiceSummary(pending.summary || null);
   };
 
+  const hashHasFilters = window.location.hash.includes('?');
+
+  const clearHashFilters = () => {
+    const base = window.location.hash.split('?')[0];
+    window.location.hash = base;
+    setStatusFilter('');
+    setSegmentFilter('');
+    setSourceFilter('');
+    setSearch('');
+  };
+
   useEffect(() => {
+    applyHashFilters();
     applyPendingFilter();
     const onApplied = (e: Event) => {
       if ((e as CustomEvent<string>).detail === 'leads') applyPendingFilter();
     };
+    const onHash = () => {
+      if (window.location.hash.includes('?')) applyHashFilters();
+    };
     window.addEventListener(PENDING_FILTER_APPLIED_EVENT, onApplied);
-    return () => window.removeEventListener(PENDING_FILTER_APPLIED_EVENT, onApplied);
+    window.addEventListener('hashchange', onHash);
+    return () => {
+      window.removeEventListener(PENDING_FILTER_APPLIED_EVENT, onApplied);
+      window.removeEventListener('hashchange', onHash);
+    };
   }, []);
 
   useEffect(() => { refresh(1); }, [search, statusFilter, segmentFilter, sourceFilter, sortBy, sortOrder]);
@@ -304,6 +339,12 @@ export default function LeadsPage() {
           className="h-9 px-3 rounded-lg border border-[var(--border)] bg-[var(--card)] hover:bg-[var(--accent)] text-[var(--muted-foreground)] transition-all">
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
         </button>
+        {hashHasFilters && (
+          <button onClick={clearHashFilters}
+            className="h-9 px-3 rounded-lg border border-red-200 dark:border-red-900/30 bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 text-xs font-medium hover:bg-red-100 dark:hover:bg-red-900/20 transition-all inline-flex items-center gap-1.5">
+            <X size={13} /> Clear filters
+          </button>
+        )}
       </div>
 
       {loading ? (

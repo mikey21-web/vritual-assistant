@@ -360,6 +360,197 @@ export class AnalyticsService {
     };
   }
 
+  async getAgentResponseTimes(tenantId: string) {
+    const agents = await this.prisma.user.findMany({ where: { tenantId, role: 'SALES_AGENT', active: true } });
+    const results = await Promise.all(agents.map(async (agent) => {
+      const assignedLeads = await this.prisma.lead.findMany({
+        where: { assignedAgentId: agent.id, tenantId },
+        select: { id: true, createdAt: true },
+      });
+      if (assignedLeads.length === 0) {
+        return { agentId: agent.id, name: agent.name, avgFirstResponseMinutes: 0, medianFirstResponseMinutes: 0, leadsAssigned: 0, leadsResponded: 0, responseRate: 0, untouchedLeadCount: 0 };
+      }
+      const leadIds = assignedLeads.map(l => l.id);
+      const responseTimes: number[] = [];
+      let respondedCount = 0;
+      const leadCreatedMap = new Map(assignedLeads.map(l => [l.id, l.createdAt]));
+      for (const leadId of leadIds) {
+        const firstOutbound = await this.prisma.conversationMessage.findFirst({
+          where: { leadId, direction: 'OUTBOUND' },
+          orderBy: { createdAt: 'asc' },
+          select: { createdAt: true },
+        });
+        if (firstOutbound) {
+          const created = leadCreatedMap.get(leadId)!;
+          const diffMs = firstOutbound.createdAt.getTime() - created.getTime();
+          responseTimes.push(Math.max(0, diffMs / 60000));
+          respondedCount++;
+        }
+      }
+      const sorted = [...responseTimes].sort((a, b) => a - b);
+      const avg = responseTimes.length > 0 ? +(responseTimes.reduce((s, v) => s + v, 0) / responseTimes.length).toFixed(1) : 0;
+      const median = sorted.length > 0 ? (sorted.length % 2 === 0 ? (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2 : sorted[Math.floor(sorted.length / 2)]) : 0;
+      return {
+        agentId: agent.id, name: agent.name,
+        avgFirstResponseMinutes: avg,
+        medianFirstResponseMinutes: +median.toFixed(1),
+        leadsAssigned: assignedLeads.length,
+        leadsResponded: respondedCount,
+        responseRate: assignedLeads.length > 0 ? +((respondedCount / assignedLeads.length) * 100).toFixed(1) : 0,
+        untouchedLeadCount: assignedLeads.length - respondedCount,
+      };
+    }));
+    return results.sort((a, b) => a.responseRate - b.responseRate);
+  }
+
+  async getAgentOverdueFollowups(tenantId: string) {
+    const agents = await this.prisma.user.findMany({ where: { tenantId, role: 'SALES_AGENT', active: true } });
+    const now = new Date();
+    const results = await Promise.all(agents.map(async (agent) => {
+      const overdueTaskCount = await this.prisma.task.count({
+        where: { assigneeId: agent.id, dueAt: { lt: now }, status: { not: 'completed' } },
+      });
+      const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+      const hotLeads = await this.prisma.lead.findMany({
+        where: { assignedAgentId: agent.id, tenantId, segment: 'HOT', status: { notIn: ['CONVERTED', 'LOST', 'SPAM'] } },
+        select: { id: true },
+      });
+      let leadsStaleCount = 0;
+      for (const l of hotLeads) {
+        const lastMsg = await this.prisma.conversationMessage.findFirst({
+          where: { leadId: l.id, direction: 'OUTBOUND' },
+          orderBy: { createdAt: 'desc' },
+          select: { createdAt: true },
+        });
+        if (!lastMsg || lastMsg.createdAt < twoHoursAgo) leadsStaleCount++;
+      }
+      const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+      const agentVisits = await this.prisma.siteVisit.findMany({
+        where: { lead: { assignedAgentId: agent.id }, startAt: { lt: threeDaysAgo }, status: { in: ['COMPLETED', 'NO_SHOW'] } },
+        select: { id: true, startAt: true },
+      });
+      let overdueSiteVisits = 0;
+      for (const v of agentVisits) {
+        const followUp = await this.prisma.task.findFirst({
+          where: { lead: { siteVisits: { some: { id: v.id } } }, createdAt: { gt: v.startAt } },
+        });
+        if (!followUp) overdueSiteVisits++;
+      }
+      const totalOverdue = overdueTaskCount + leadsStaleCount + overdueSiteVisits;
+      return { agentId: agent.id, name: agent.name, overdueTaskCount, leadsStaleCount, overdueSiteVisits, totalOverdue };
+    }));
+    return results.sort((a, b) => b.totalOverdue - a.totalOverdue);
+  }
+
+  async getAgentVisitConversion(tenantId: string) {
+    const agents = await this.prisma.user.findMany({ where: { tenantId, role: 'SALES_AGENT', active: true } });
+    const results = await Promise.all(agents.map(async (agent) => {
+      const siteVisits = await this.prisma.siteVisit.findMany({
+        where: { lead: { assignedAgentId: agent.id } },
+        select: { id: true, status: true, startAt: true, leadId: true },
+      });
+      const total = siteVisits.length;
+      const completed = siteVisits.filter(v => v.status === 'COMPLETED').length;
+      const noShow = siteVisits.filter(v => v.status === 'NO_SHOW').length;
+      let bookingsAfterVisit = 0;
+      for (const v of siteVisits) {
+        if (v.status === 'NO_SHOW') continue;
+        const thirtyDaysLater = new Date(v.startAt.getTime() + 30 * 24 * 60 * 60 * 1000);
+        const booking = await this.prisma.booking.findFirst({
+          where: { leadId: v.leadId, createdAt: { gte: v.startAt, lte: thirtyDaysLater } },
+        });
+        if (booking) bookingsAfterVisit++;
+      }
+      return {
+        agentId: agent.id, name: agent.name,
+        siteVisitsScheduled: total,
+        siteVisitsCompleted: completed,
+        noShowCount: noShow,
+        bookingsAfterVisit,
+        visitToBookRate: completed > 0 ? +((bookingsAfterVisit / completed) * 100).toFixed(1) : 0,
+        showRate: total > 0 ? +((completed / total) * 100).toFixed(1) : 0,
+      };
+    }));
+    return results.sort((a, b) => b.visitToBookRate - a.visitToBookRate);
+  }
+
+  async getSourceAnalytics(tenantId: string) {
+    const sourceGroups = await this.prisma.lead.groupBy({
+      by: ['source'],
+      where: { tenantId },
+      _count: { id: true },
+      _sum: { dealValue: true },
+    });
+    const all = await this.prisma.lead.groupBy({
+      by: ['source', 'status'],
+      where: { tenantId, status: 'CONVERTED' },
+      _count: { id: true },
+      _sum: { dealValue: true },
+    });
+    const convertedBySource = new Map<string, { count: number; revenue: number }>();
+    for (const row of all) {
+      const prev = convertedBySource.get(row.source) || { count: 0, revenue: 0 };
+      convertedBySource.set(row.source, { count: prev.count + row._count.id, revenue: prev.revenue + (row._sum.dealValue || 0) });
+    }
+    const campaigns = await this.prisma.campaign.findMany({
+      where: { tenantId },
+      select: { sourceType: true, totalSpend: true, totalLeads: true },
+    });
+    const spendBySource = new Map<string, number>();
+    for (const c of campaigns) {
+      if (c.sourceType && c.totalSpend) {
+        spendBySource.set(c.sourceType, (spendBySource.get(c.sourceType) || 0) + c.totalSpend);
+      }
+    }
+    return sourceGroups.map(g => {
+      const total = g._count.id;
+      const converted = convertedBySource.get(g.source) || { count: 0, revenue: 0 };
+      const spend = spendBySource.get(g.source) || 0;
+      const cpl = spend > 0 && total > 0 ? +(spend / total).toFixed(2) : 0;
+      const roi = spend > 0 ? +(((converted.revenue - spend) / spend) * 100).toFixed(1) : 0;
+      return {
+        source: g.source,
+        totalLeads: total,
+        convertedLeads: converted.count,
+        conversionRate: total > 0 ? +((converted.count / total) * 100).toFixed(1) : 0,
+        totalSpend: spend,
+        costPerLead: cpl,
+        revenue: converted.revenue,
+        roi,
+      };
+    }).sort((a, b) => b.conversionRate - a.conversionRate);
+  }
+
+  async getBrokerRankings(tenantId: string) {
+    const brokers = await this.prisma.channelPartner.findMany({
+      where: { tenantId, status: 'ACTIVE' },
+      include: { _count: { select: { leads: true } } },
+    });
+    const results = await Promise.all(brokers.map(async (b) => {
+      const totalLeads = b._count.leads;
+      const convertedLeads = await this.prisma.lead.count({
+        where: { channelPartnerId: b.id, status: 'CONVERTED' },
+      });
+      const dealAgg = await this.prisma.lead.aggregate({
+        where: { channelPartnerId: b.id, status: 'CONVERTED' },
+        _sum: { dealValue: true },
+      });
+      const totalDealValue = dealAgg._sum.dealValue || 0;
+      const commissionOwed = b.commissionRate ? +((totalDealValue * b.commissionRate) / 100).toFixed(2) : 0;
+      return {
+        brokerId: b.id,
+        brokerName: b.company || b.name,
+        totalLeads,
+        convertedLeads,
+        conversionRate: totalLeads > 0 ? +((convertedLeads / totalLeads) * 100).toFixed(1) : 0,
+        totalDealValue,
+        commissionRate: b.commissionRate || 0,
+        commissionOwed,
+      };
+    }));
+    return results.sort((a, b) => b.conversionRate - a.conversionRate);
+  }
+
   async dataHealth() {
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000);
     const threeDaysAgo = new Date(Date.now() - 3 * 24 * 3600 * 1000);

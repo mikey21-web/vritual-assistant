@@ -1,17 +1,21 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TimelineService } from '../timeline/timeline.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
+import { AutomationSchedulerService } from '../automation/automation-scheduler.service';
 import { CostSheetStatus } from '@prisma/client';
 
 const EDITABLE_STATUSES: CostSheetStatus[] = [CostSheetStatus.DRAFT];
 
 @Injectable()
 export class CostSheetsService {
+  private readonly logger = new Logger(CostSheetsService.name);
+
   constructor(
     private prisma: PrismaService,
     private timeline: TimelineService,
     private auditLogs: AuditLogsService,
+    private automationScheduler: AutomationSchedulerService,
   ) {}
 
   /**
@@ -165,6 +169,24 @@ export class CostSheetsService {
     });
     await this.timeline.add({ type: 'cost_sheet_sent', title: 'Cost sheet sent to buyer', leadId: sheet.leadId, metadata: { costSheetId: id }, createdById: actorId });
     await this.auditLogs.log('SEND', 'CostSheet', id, actorId, {});
+
+    const now = Date.now();
+    try {
+      await this.automationScheduler.schedule(sheet.leadId, 'cost_sheet_followup', new Date(now + 48 * 60 * 60 * 1000), { costSheetId: id, leadId: sheet.leadId, stepIndex: 1 });
+    } catch (e: any) {
+      this.logger.warn(`Failed to schedule cost sheet follow-up: ${e.message}`);
+    }
+    try {
+      await this.automationScheduler.schedule(sheet.leadId, 'cost_sheet_followup_2', new Date(now + 5 * 24 * 60 * 60 * 1000), { costSheetId: id, leadId: sheet.leadId, stepIndex: 2 });
+    } catch (e: any) {
+      this.logger.warn(`Failed to schedule cost sheet follow-up 2: ${e.message}`);
+    }
+    try {
+      await this.automationScheduler.schedule(sheet.leadId, 'cost_sheet_escalation', new Date(now + 7 * 24 * 60 * 60 * 1000), { costSheetId: id, leadId: sheet.leadId, stepIndex: 3, priority: 'high' });
+    } catch (e: any) {
+      this.logger.warn(`Failed to schedule cost sheet escalation: ${e.message}`);
+    }
+
     return this.serializable(updated);
   }
 

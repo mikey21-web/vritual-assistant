@@ -70,6 +70,7 @@ export class SeedDataService implements OnApplicationBootstrap {
 
     if (industry === 'real_estate') await this.seedProperties(tenant.id);
     await this.seedKnowledgeArticles(tenant.id, admin.id, industry);
+    await this.seedMessageTemplates(tenant.id, admin.id);
 
     this.logger.log(`Seed data complete for ${industry}`);
   }
@@ -156,5 +157,41 @@ export class SeedDataService implements OnApplicationBootstrap {
       seeded++;
     }
     if (seeded > 0) this.logger.log(`Seeded ${seeded} knowledge articles for ${industry}`);
+  }
+
+  private async seedMessageTemplates(tenantId: string, creatorId: string) {
+    const existing = await this.prisma.messageTemplate.count({ where: { creator: { tenantId } } });
+    if (existing > 0) { this.logger.log('Message templates already seeded for this tenant'); return; }
+
+    const extractVars = (body: string) => Array.from(body.matchAll(/\{\{(\w+)\}\}/g), m => m[1]);
+
+    const templates = [
+      { name: 'First Reply', type: 'WELCOME' as const, body: 'Hi {{buyerName}}, thank you for your interest in {{projectName}}. This is {{agentName}} from {{builderName}}. Let me know what you\'d like to know more about!' },
+      { name: 'Brochure Share', type: 'WELCOME' as const, body: 'Hi {{buyerName}}, here\'s the brochure for {{projectName}} with pricing, floor plans, and amenities. Let me know if you\'d like to discuss further!' },
+      { name: 'Location Pin', type: 'FOLLOW_UP' as const, body: 'Hi {{buyerName}}, here\'s the exact location of {{projectName}}: {{locationLink}}. Let me know when you\'d like to visit!' },
+      { name: 'Visit Confirmation', type: 'APPOINTMENT_LINK' as const, body: 'Hi {{buyerName}}, your site visit at {{projectName}} is confirmed for {{visitDate}} at {{visitTime}}. See you there!' },
+      { name: 'Visit Reminder', type: 'FOLLOW_UP' as const, body: 'Hi {{buyerName}}, just a reminder — your site visit at {{projectName}} is tomorrow at {{visitTime}}. Reply CONFIRM or RESCHEDULE.' },
+      { name: 'No-Show Recovery', type: 'FOLLOW_UP' as const, body: 'Hi {{buyerName}}, we missed you at {{projectName}} today. Would you like to reschedule? We have slots available this week.' },
+      { name: 'Cost Sheet Follow-up', type: 'FOLLOW_UP' as const, body: 'Hi {{buyerName}}, I sent over the cost sheet for {{unitNumber}} at {{projectName}}. Have you had a chance to review it? Happy to answer questions.' },
+      { name: 'Token Reminder', type: 'PAYMENT_LINK' as const, body: 'Hi {{buyerName}}, just a reminder that the booking token of {{tokenAmount}} for {{unitNumber}} at {{projectName}} is due. Let me know if you need payment details.' },
+      { name: 'Payment Due', type: 'PAYMENT_LINK' as const, body: 'Hi {{buyerName}}, your payment of {{amount}} for {{unitNumber}} at {{projectName}} is due on {{dueDate}}. Please make the payment to avoid late fees.' },
+      { name: 'Possession Update', type: 'CRM_CONFIRMATION' as const, body: 'Hi {{buyerName}}, great news! Possession of your {{unitNumber}} at {{projectName}} is expected by {{possessionDate}}. We\'ll keep you updated on the handover process.' },
+    ];
+
+    for (const t of templates) {
+      await this.prisma.messageTemplate.create({
+        data: {
+          name: t.name,
+          type: t.type,
+          channel: 'WHATSAPP',
+          body: t.body,
+          variables: extractVars(t.body),
+          creatorId,
+          active: true,
+          version: 1,
+        },
+      });
+    }
+    this.logger.log(`Seeded ${templates.length} message templates`);
   }
 }

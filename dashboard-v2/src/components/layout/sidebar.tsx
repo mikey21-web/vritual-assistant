@@ -6,7 +6,7 @@ import {
   UserCircle, CheckSquare, Sparkles, Phone,   Bot, MessageCircle, Smartphone, Webhook, Globe, LogOut, Columns3,
   LifeBuoy, BookOpen, Puzzle, Download, Headset, Brain,
   Truck, ClipboardList, Package, Box, MapPin, DollarSign,
-  Building2, Activity, CalendarClock, GitBranch, Gift, HardDrive, BookCopy, FileSearch,
+  Building2, Activity, CalendarClock, GitBranch, Gift, HardDrive, BookCopy, FileSearch, Shield,
 } from "lucide-react";
 import { fetchProfile, fetchBusinessSettings } from "../../lib/data";
 import { useAuth } from "../../lib/useAuth";
@@ -14,7 +14,7 @@ import { useBranding } from "../../lib/useBranding";
 import { isFeatureEnabled, getLabel, getBusinessName, getNicheLogo, onConfigChange } from "../../lib/niche-config";
 
 const featureMap: Record<string, string> = {
-  "/": "overview", "/queue": "overview", "/builder-desk": "overview", "/leads": "leads", "/pipeline": "pipeline", "/contacts": "contacts",
+  "/": "overview", "/queue": "overview", "/builder-desk": "overview", "/leads": "leads", "/smart-lists": "leads", "/pipeline": "pipeline", "/contacts": "contacts",
   "/campaigns": "campaigns", "/forms": "forms", "/qr-codes": "qrCodes",
   "/conversations": "messages", "/templates": "templates", "/media": "media",
   "/scoring": "scoring", "/rules": "routing",
@@ -75,6 +75,7 @@ const rawNavGroups = [
     label: "Leads",
     items: [
       { label: "Leads", icon: Users, path: "/leads" },
+      { label: "Smart Lists", icon: Layers, path: "/smart-lists" },
       { label: "Pipeline", icon: Columns3, path: "/pipeline" },
       { label: "Contacts", icon: UserCircle, path: "/contacts" },
       { label: "Campaigns", icon: Megaphone, path: "/campaigns" },
@@ -222,6 +223,7 @@ const rawNavGroups = [
     label: "Admin",
     items: [
       { label: "Analytics", icon: BarChart3, path: "/analytics" },
+      { label: "Manager Dashboard", icon: Shield, path: "/manager-dashboard" },
       { label: "Reports", icon: BarChart3, path: "/reports" },
       { label: "Studio", icon: Puzzle, path: "/studio" },
       { label: "Settings", icon: Settings, path: "/settings" },
@@ -263,7 +265,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { co
   useEffect(() => onConfigChange(() => setCfgRev(v => v + 1)), []);
 
   const findActiveGroupLabel = () => {
-    const hash = window.location.hash.replace('#', '') || '/';
+    const hash = (window.location.hash.replace('#', '') || '/').split('?')[0];
     const group = getNavGroups().find(g => g.items.some(item => hash === item.path || (item.path !== '/' && hash.startsWith(item.path))));
     return group?.label;
   };
@@ -354,7 +356,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { co
                   }`}
                 >
                   {group.items.map((item) => {
-                    const isActive = activeHash === `#${item.path}` || (!activeHash && item.path === "/");
+                    const isActive = activeHash.split('?')[0] === `#${item.path}` || (!activeHash && item.path === "/");
                     return (
                       <a
                         key={item.path}

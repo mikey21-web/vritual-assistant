@@ -80,4 +80,8 @@ export class TimelineService {
     const title = disposition ? `Call: ${disposition.replace(/_/g, ' ')}` : `Call status: ${status}`;
     return this.add({ type: 'call', title, description: status, leadId, metadata: { recordingUrl, disposition } as any });
   }
+
+  async recordDiscountApproved(leadId: string, discountAmount: string, approvedBy?: string) {
+    return this.add({ type: 'discount_approved', title: 'Discount Approved', description: `Discount amount: ${discountAmount}`, leadId, createdById: approvedBy });
+  }
 }

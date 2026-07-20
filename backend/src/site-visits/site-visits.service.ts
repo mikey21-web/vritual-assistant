@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException, ForbiddenException,
 import { PrismaService } from '../prisma/prisma.service';
 import { TimelineService } from '../timeline/timeline.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
+import { AutomationSchedulerService } from '../automation/automation-scheduler.service';
 import { SiteVisitStatus } from '@prisma/client';
 
 const OPEN_STATUSES: SiteVisitStatus[] = [SiteVisitStatus.SCHEDULED, SiteVisitStatus.CONFIRMED];
@@ -16,6 +17,7 @@ export class SiteVisitsService {
     private prisma: PrismaService,
     private timeline: TimelineService,
     private auditLogs: AuditLogsService,
+    private automationScheduler: AutomationSchedulerService,
   ) {}
 
   async create(data: {
@@ -289,6 +291,24 @@ export class SiteVisitsService {
     });
 
     await this.cancelReminders(id);
+
+    const base = Date.now();
+    try {
+      await this.automationScheduler.schedule(visit.leadId, 'no_show_recovery', new Date(base + 60 * 60 * 1000), { siteVisitId: id, step: 'we_missed_you', stepIndex: 1 });
+    } catch (e: any) {
+      this.logger.warn(`Failed to schedule no-show recovery +1h: ${e.message}`);
+    }
+    try {
+      await this.automationScheduler.schedule(visit.leadId, 'no_show_recovery', new Date(base + 24 * 60 * 60 * 1000), { siteVisitId: id, step: 'reschedule_offer', stepIndex: 2 });
+    } catch (e: any) {
+      this.logger.warn(`Failed to schedule no-show recovery +24h: ${e.message}`);
+    }
+    try {
+      await this.automationScheduler.schedule(visit.leadId, 'no_show_recovery', new Date(base + 72 * 60 * 60 * 1000), { siteVisitId: id, step: 'escalate_to_manager', stepIndex: 3 });
+    } catch (e: any) {
+      this.logger.warn(`Failed to schedule no-show recovery +72h: ${e.message}`);
+    }
+
     await this.timeline.add({
       type: 'site_visit_no_show',
       title: 'Site visit no-show',
