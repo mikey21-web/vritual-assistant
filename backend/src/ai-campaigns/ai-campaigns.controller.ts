@@ -84,16 +84,28 @@ Rules:
   @Post('generate-image')
   async generateImage(@Body() body: { prompt: string }) {
     if (!body.prompt?.trim()) throw new Error('Prompt is required');
-    const response = await this.client.chat.completions.create({
-      model: 'deepseek-chat',
-      messages: [
-        { role: 'system', content: 'Generate a detailed photorealistic image generation prompt for a real estate marketing image based on the user\'s description. Return only the prompt text, nothing else.' },
-        { role: 'user', content: body.prompt },
-      ],
-      max_tokens: 200,
-    });
-    const generatedPrompt = response.choices[0]?.message?.content || body.prompt;
-    return { generated: false, imagePrompt: generatedPrompt, message: 'Preview prompt generated. Use this with any image tool (DALL-E, Midjourney, Canva). Add a DALL-E-enabled OpenAI key for direct generation.', prompt: body.prompt };
+
+    const cfToken = this.config.get<string>('CLOUDFLARE_API_TOKEN');
+    const cfAccount = this.config.get<string>('CLOUDFLARE_ACCOUNT_ID');
+    if (!cfToken || !cfAccount) {
+      return { generated: false, message: 'Image generation not configured. Contact admin.', prompt: body.prompt };
+    }
+
+    try {
+      const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${cfAccount}/ai/run/@cf/bytedance/stable-diffusion-xl-lightning`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${cfToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: body.prompt }),
+      });
+      const data = await res.json() as any;
+      if (!data.success) throw new Error(data.errors?.[0]?.message || 'Image generation failed');
+
+      const base64 = Buffer.from(data.result.image).toString('base64');
+      return { generated: true, image: `data:image/png;base64,${base64}`, format: 'png', prompt: body.prompt };
+    } catch (e: any) {
+      this.logger.error('Image generation failed', e.message);
+      return { generated: false, message: `Image generation failed: ${e.message}`, prompt: body.prompt };
+    }
   }
 
   @Get()
