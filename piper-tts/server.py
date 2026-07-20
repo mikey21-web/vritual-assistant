@@ -1,8 +1,7 @@
-import os, asyncio, subprocess
+import os, asyncio, subprocess, glob
 from aiohttp import web
 
 VOICES_DIR = '/voices'
-PIPER_BIN = '/app/piper'
 LANG_MAP = {
     'te': 'te_IN', 'hi': 'hi_IN', 'ta': 'ta_IN', 'kn': 'kn_IN',
     'ml': 'ml_IN', 'bn': 'bn_IN', 'mr': 'mr_IN', 'gu': 'gu_IN',
@@ -16,15 +15,25 @@ async def tts(request):
     voice = LANG_MAP.get(lang, 'te_IN')
     model = os.path.join(VOICES_DIR, f'{voice}.onnx')
     if not os.path.exists(model):
-        return web.json_response({'error': f'voice model not found for {lang}'}, status=400)
+        available = [os.path.basename(p) for p in glob.glob(f'{VOICES_DIR}/*.onnx')]
+        return web.json_response({'error': f'voice model not found for {lang}', 'available': available}, status=400)
     try:
+        # Try piper via command line, fall back to espeak-ng
+        piper = subprocess.run(['which', 'piper'], capture_output=True, text=True)
+        if piper.returncode == 0:
+            proc = await asyncio.create_subprocess_exec(
+                'piper', '--model', model, '--output-raw',
+                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            )
+            stdout, stderr = await proc.communicate(text.encode(), timeout=30)
+            if proc.returncode == 0:
+                return web.Response(body=stdout, content_type='audio/x-wav')
+        # Fallback to espeak-ng
         proc = await asyncio.create_subprocess_exec(
-            PIPER_BIN, '--model', model, '--output-raw',
-            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            'espeak-ng', '-v', voice.replace('_', '-'), '--stdout', text,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
-        stdout, stderr = await proc.communicate(text.encode(), timeout=30)
-        if proc.returncode != 0:
-            raise Exception(stderr.decode()[:200])
+        stdout, stderr = await proc.communicate(timeout=30)
         return web.Response(body=stdout, content_type='audio/x-wav')
     except Exception as e:
         return web.json_response({'error': str(e)}, status=500)
