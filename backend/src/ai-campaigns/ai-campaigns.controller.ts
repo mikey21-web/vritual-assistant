@@ -85,56 +85,24 @@ Rules:
   async generateImage(@Body() body: { prompt: string }) {
     if (!body.prompt?.trim()) throw new Error('Prompt is required');
 
-    const cfToken = this.config.get<string>('CLOUDFLARE_API_TOKEN');
-    const cfAccount = this.config.get<string>('CLOUDFLARE_ACCOUNT_ID');
-
-    if (!cfToken || !cfAccount) {
-      const response = await this.client.chat.completions.create({
-        model: 'deepseek-chat',
-        messages: [
-          {
-            role: 'system',
-            content: 'Generate a detailed Stable Diffusion prompt for a real estate marketing image based on the user\'s description. Return only the prompt text, nothing else.',
-          },
-          { role: 'user', content: body.prompt },
-        ],
-        max_tokens: 200,
-      });
-      return {
-        generated: false,
-        message: 'Image generation not configured. Add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID to enable AI image generation.',
-        prompt: response.choices[0]?.message?.content || body.prompt,
-      };
+    const openaiKey = this.config.get<string>('OPENAI_API_KEY');
+    if (!openaiKey) {
+      return { generated: false, message: 'OpenAI API key not configured. Add OPENAI_API_KEY to environment.', prompt: body.prompt };
     }
 
     try {
-      const fetch = (await import('node-fetch')).default;
-      const res = await fetch(
-        `https://api.cloudflare.com/client/v4/accounts/${cfAccount}/ai/run/@cf/bytedance/stable-diffusion-xl-lightning`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${cfToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ prompt: body.prompt }),
-        },
-      );
+      const res = await fetch('https://api.openai.com/v1/images/generations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${openaiKey}` },
+        body: JSON.stringify({ model: 'dall-e-3', prompt: body.prompt, n: 1, size: '1024x1024', response_format: 'b64_json' }),
+      });
       const data = await res.json() as any;
-      if (!data.success) throw new Error(data.errors?.[0]?.message || 'Image generation failed');
+      if (!data.data?.[0]?.b64_json) throw new Error(data.error?.message || 'Image generation failed');
 
-      const base64 = Buffer.from(data.result.image).toString('base64');
-      const mimeType = 'image/png';
-      const dataUri = `data:${mimeType};base64,${base64}`;
-
-      return { generated: true, image: dataUri, format: 'png', prompt: body.prompt };
+      return { generated: true, image: `data:image/png;base64,${data.data[0].b64_json}`, format: 'png', prompt: body.prompt };
     } catch (e: any) {
       this.logger.error('Image generation failed', e.message);
-      return {
-        generated: false,
-        message: `Image generation failed: ${e.message}`,
-        prompt: body.prompt,
-      };
+      return { generated: false, message: `Image generation failed: ${e.message}`, prompt: body.prompt };
     }
   }
 
