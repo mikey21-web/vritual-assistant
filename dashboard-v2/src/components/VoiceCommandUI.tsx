@@ -69,6 +69,12 @@ export default function VoiceCommandUI() {
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const resultTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  // Silence-detection + hard-cap so the recorder auto-sends when you stop
+  // talking and can never hang open waiting for a manual stop.
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const silenceTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const maxTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const rafRef = useRef<number>(0);
 
   useEffect(() => {
     const hasWhisperPath = !!(navigator.mediaDevices?.getUserMedia && (window as any).MediaRecorder);
@@ -145,7 +151,8 @@ export default function VoiceCommandUI() {
 
   // Press-to-talk + Whisper: a clean start/stop recording is transcribed
   // server-side, which catches full sentences the browser's live recognizer
-  // routinely cuts off or mishears.
+  // routinely cuts off or mishears. Auto-stops ~1.5s after you stop talking,
+  // and hard-stops at 15s so it can never hang open.
   const startWhisperRecording = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -154,10 +161,23 @@ export default function VoiceCommandUI() {
       const recorder = new MediaRecorder(stream);
       recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
       recorder.onstop = async () => {
+        // Tear down all the listening machinery before we do anything else.
+        if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+        if (maxTimerRef.current) clearTimeout(maxTimerRef.current);
+        if (rafRef.current) cancelAnimationFrame(rafRef.current);
+        try { await audioCtxRef.current?.close(); } catch {}
+        audioCtxRef.current = null;
         streamRef.current?.getTracks().forEach(t => t.stop());
         streamRef.current = null;
         setMode('copilot');
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' });
+        // Nothing captured (instant stop / muted mic) — bail cleanly.
+        if (blob.size < 1000) {
+          setResult("Didn't catch that — tap the mic and speak.");
+          setListening(false);
+          setMode('idle');
+          return;
+        }
         const formData = new FormData();
         formData.append('audio', blob, 'command.webm');
         try {
@@ -179,6 +199,58 @@ export default function VoiceCommandUI() {
       recorder.start();
       setListening(true);
       setMode('listening');
+
+      // Hard cap: stop after 15s no matter what.
+      maxTimerRef.current = setTimeout(() => {
+        if (recorderRef.current && recorderRef.current.state !== 'inactive') {
+          recorderRef.current.stop();
+          recorderRef.current = null;
+        }
+      }, 15000);
+
+      // Silence detection: watch the mic level, and once it stays quiet for
+      // ~1.5s (after the person has actually started talking), auto-stop.
+      try {
+        const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
+        const ctx = new AudioCtx();
+        audioCtxRef.current = ctx;
+        const source = ctx.createMediaStreamSource(stream);
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 512;
+        source.connect(analyser);
+        const data = new Uint8Array(analyser.frequencyBinCount);
+        let hasSpoken = false;
+
+        const tick = () => {
+          if (!audioCtxRef.current) return;
+          analyser.getByteTimeDomainData(data);
+          // Root-mean-square deviation from the 128 midpoint = rough loudness.
+          let sum = 0;
+          for (let i = 0; i < data.length; i++) {
+            const v = (data[i] - 128) / 128;
+            sum += v * v;
+          }
+          const rms = Math.sqrt(sum / data.length);
+          const SPEAKING = rms > 0.04;
+
+          if (SPEAKING) {
+            hasSpoken = true;
+            if (silenceTimerRef.current) { clearTimeout(silenceTimerRef.current); silenceTimerRef.current = undefined; }
+          } else if (hasSpoken && !silenceTimerRef.current) {
+            // Gone quiet after speaking — arm the auto-stop.
+            silenceTimerRef.current = setTimeout(() => {
+              if (recorderRef.current && recorderRef.current.state !== 'inactive') {
+                recorderRef.current.stop();
+                recorderRef.current = null;
+              }
+            }, 1500);
+          }
+          rafRef.current = requestAnimationFrame(tick);
+        };
+        rafRef.current = requestAnimationFrame(tick);
+      } catch {
+        // AudioContext unavailable — the 15s cap + manual Tap to send still work.
+      }
     } catch {
       setResult('Microphone permission denied.');
     }
@@ -231,22 +303,31 @@ export default function VoiceCommandUI() {
   }
 
   if (listening) {
+    const thinking = mode === 'copilot';
     return (
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] animate-fade-up pointer-events-none">
-        <div className="rounded-full border border-[var(--border)] bg-[var(--card)] px-5 py-2.5 shadow-2xl flex items-center gap-3">
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] animate-fade-up flex flex-col items-center gap-2">
+        <div className="rounded-full border border-[var(--border)] bg-[var(--card)] px-5 py-2.5 shadow-2xl flex items-center gap-3 pointer-events-none">
           <div className="flex items-end gap-0.5 h-5">
             {Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="w-1 rounded-full bg-[var(--primary)] animate-pulse" style={{ height: `${20 + Math.random() * 60}%` }} />
             ))}
           </div>
           <span className="text-xs text-[var(--muted-foreground)] whitespace-nowrap">
-            {mode === 'copilot' ? 'Thinking...' : 'Listening...'}
+            {thinking ? 'Thinking...' : 'Listening... speak, then it sends automatically'}
           </span>
-          {mode === 'listening' && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />}
-          <button onClick={stopListening} className="p-1 rounded-full hover:bg-[var(--accent)] transition-colors">
-            <MicOff size={14} className="text-[var(--muted-foreground)]" />
-          </button>
+          {!thinking && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />}
         </div>
+        {/* Big, thumb-friendly stop control. Auto-stop handles most cases, but
+            this is the obvious tap target on mobile where there's no Esc key. */}
+        {!thinking && (
+          <button
+            onClick={stopListening}
+            className="flex items-center gap-2 rounded-full bg-[var(--primary)] text-white px-6 py-3 shadow-2xl active:scale-95 transition-transform"
+          >
+            <MicOff size={18} />
+            <span className="text-sm font-medium">Tap to send</span>
+          </button>
+        )}
       </div>
     );
   }

@@ -91,17 +91,18 @@ export class PortalIntegrationsService {
       where: { type: 'WELCOME', channel: 'WHATSAPP', active: true },
       orderBy: { updatedAt: 'desc' },
     });
-    if (!template) return;
 
     const firstName = (contact.name || '').trim().split(/\s+/)[0] || 'there';
-    const text = template.body.replace(/\{\{\s*name\s*\}\}/gi, firstName);
+    const text = template
+      ? template.body.replace(/\{\{\s*name\s*\}\}/gi, firstName)
+      : `Hi ${firstName}! 👋\n\nThanks for your interest. One of our team members will reach out to you shortly with more details.\n\nIn the meantime, feel free to reply here if you have any questions.`;
 
     await this.conversationsService.create({
       leadId,
       channel: 'WHATSAPP',
       direction: 'OUTBOUND',
       text,
-      messageTemplateId: template.id,
+      ...(template ? { messageTemplateId: template.id } : {}),
     });
   }
 

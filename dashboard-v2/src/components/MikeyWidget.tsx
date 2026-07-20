@@ -85,26 +85,16 @@ export default function MikeyWidget() {
                     ? "bg-[var(--primary)] text-white rounded-br-md"
                     : "bg-[var(--muted)] text-[var(--foreground)] rounded-bl-md"
                 }`}>
-                  {m.toolCalls && m.toolCalls.filter(a => a.tool !== "navigate_ui" && a.tool !== "explain_flow").length > 0 && (
-                    <div className="mb-2 space-y-1">
-                      {m.toolCalls.filter(a => a.tool !== "navigate_ui" && a.tool !== "explain_flow").map((a, i) => (
-                        <div key={i} className="flex items-center gap-1.5 text-xs">
-                          {a.status === "error" ? <AlertTriangle size={10} className="text-red-500 shrink-0" /> :
-                           a.status === "pending" ? <Circle size={10} className="text-amber-500 fill-amber-500 shrink-0" /> :
-                           <CircleCheck size={10} className="text-[var(--muted-foreground)] shrink-0" />}
-                          <span className="font-mono text-[var(--muted-foreground)]">
-                            {a.tool === "bulk_send_message" ? `${a.args?.messages?.length ?? 0} messages ready to send` : a.tool}
-                          </span>
-                          {a.requiresConfirmation && (
-                            <button onClick={() => handleConfirm(m.id, a)}
-                              className="ml-auto rounded-md bg-[var(--card)] border border-[var(--border)] px-2 py-0.5 text-[10px] font-medium text-[var(--foreground)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition-colors">
-                              Confirm
-                            </button>
-                          )}
-                        </div>
-                      ))}
+                  {m.toolCalls?.filter(a => a.requiresConfirmation).map((a, i) => (
+                    <div key={i} className="mb-2 flex items-center gap-1.5 text-xs">
+                      <AlertTriangle size={10} className="text-amber-500 shrink-0" />
+                      <span className="text-[var(--muted-foreground)]">{a.tool === "bulk_send_message" ? `${a.args?.messages?.length ?? 0} messages ready to send` : a.tool}</span>
+                      <button onClick={() => handleConfirm(m.id, a)}
+                        className="ml-auto rounded-md bg-[var(--card)] border border-[var(--border)] px-2 py-0.5 text-[10px] font-medium text-[var(--foreground)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition-colors">
+                        Confirm
+                      </button>
                     </div>
-                  )}
+                  ))}
                   {m.role === "user" ? m.content : <MarkdownMessage content={m.content} />}
                 </div>
               </div>
