@@ -71,6 +71,8 @@ export async function createEventRunSheetItem(id: string, data: any) { return ap
 export async function fetchInvoices(filters: Record<string, string> = {}) { const q = new URLSearchParams(filters); return api(`/client-finance/invoices?${q}`) as Promise<{ data: any[]; meta: any }>; }
 export async function createInvoice(data: any) { return api('/client-finance/invoices', { method: 'POST', body: JSON.stringify(data) }); }
 export async function updateInvoice(id: string, data: any) { return api(`/client-finance/invoices/${id}`, { method: 'PATCH', body: JSON.stringify(data) }); }
+export async function getInvoicePdf(id: string) { return api(`/client-finance/invoices/${id}/pdf`) as Promise<{ publicUrl: string; fileName: string }>; }
+export async function sendInvoice(id: string, data: { channels?: string[]; message?: string } = {}) { return api(`/client-finance/invoices/${id}/send`, { method: 'POST', body: JSON.stringify(data) }) as Promise<{ delivered: boolean; publicUrl: string; results: Record<string, { success: boolean; error?: string }> }>; }
 
 export async function fetchQuotations(filters: Record<string, string> = {}) { const q = new URLSearchParams(filters); return api(`/client-finance/quotations?${q}`) as Promise<{ data: any[]; meta: any }>; }
 export async function createQuotation(data: any) { return api('/client-finance/quotations', { method: 'POST', body: JSON.stringify(data) }); }

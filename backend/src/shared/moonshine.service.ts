@@ -24,6 +24,16 @@ export class MoonshineService {
     return data.text || '';
   }
 
+  async tts(text: string, language = 'en_us'): Promise<Buffer> {
+    const res = await fetch(`${this.baseUrl}/tts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, language }),
+    });
+    if (!res.ok) throw new Error(`TTS failed: ${await res.text().catch(() => 'unknown')}`);
+    return Buffer.from(await res.arrayBuffer());
+  }
+
   async health(): Promise<boolean> {
     try {
       const res = await fetch(`${this.baseUrl}/health`);

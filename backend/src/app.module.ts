@@ -104,6 +104,7 @@ import { NriProfilesModule } from './nri-profiles/nri-profiles.module';
 import { ConstructionErpModule } from './construction-erp/construction-erp.module';
 import { DocumentSearchModule } from './document-search/document-search.module';
 import { PhysicalDocumentsModule } from './physical-documents/physical-documents.module';
+import { VoiceAgentModule } from './voice-agent/voice-agent.module';
 import { SalesHierarchyModule } from './sales-hierarchy/sales-hierarchy.module';
 import { AlliedInventoryModule } from './allied-inventory/allied-inventory.module';
 import { SalesTargetsModule } from './sales-targets/sales-targets.module';
@@ -178,6 +179,7 @@ import { StateTaxModule } from './state-tax/state-tax.module';
     CashFlowForecastModule,
     RevenueShareModule,
     ResaleListingsModule,
+    VoiceAgentModule,
     ReferralsModule,
     NriProfilesModule,
     ConstructionErpModule,

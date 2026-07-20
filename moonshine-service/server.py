@@ -1,5 +1,5 @@
-import os, tempfile, logging
-from flask import Flask, request, jsonify
+import os, tempfile, logging, io
+from flask import Flask, request, jsonify, send_file
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('moonshine')
@@ -42,6 +42,53 @@ def transcribe():
         return jsonify({'text': text.strip() or ''})
     except Exception as e:
         log.error('Transcription failed: %s', e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        os.unlink(tmp_path)
+
+@app.route('/tts', methods=['POST'])
+def tts():
+    data = request.get_json(silent=True) or {}
+    text = data.get('text', '')
+    lang = data.get('language', 'en_us')
+    if not text.strip():
+        return jsonify({'error': 'no text'}), 400
+    try:
+        from moonshine_voice.tts import TextToSpeech
+        t = TextToSpeech(language=lang)
+        audio = t.say(text)
+        buf = io.BytesIO()
+        import soundfile as sf
+        sf.write(buf, audio, 24000, format='wav')
+        buf.seek(0)
+        return send_file(buf, mimetype='audio/wav', as_attachment=False, download_name='speech.wav')
+    except Exception as e:
+        log.error('TTS failed: %s', e)
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/voice-agent', methods=['POST'])
+def voice_agent():
+    """One-shot: transcribe audio → return STT text + intent (no LLM loop, just the pipeline)"""
+    if 'audio' not in request.files:
+        return jsonify({'error': 'no audio file'}), 400
+    f = request.files['audio']
+    suffix = os.path.splitext(f.filename or 'audio.wav')[1] or '.wav'
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+        f.save(tmp.name)
+        tmp_path = tmp.name
+    try:
+        import soundfile as sf
+        data, sr = sf.read(tmp_path)
+        if len(data.shape) > 1:
+            data = data.mean(axis=1)
+        t = get_transcriber()
+        t.start()
+        t.add_audio(data, sr)
+        t.stop()
+        text = ' '.join(line.text for line in (t.get_transcript() or []))
+        return jsonify({'text': text.strip(), 'language': 'en'})
+    except Exception as e:
+        log.error('Voice agent failed: %s', e)
         return jsonify({'error': str(e)}), 500
     finally:
         os.unlink(tmp_path)

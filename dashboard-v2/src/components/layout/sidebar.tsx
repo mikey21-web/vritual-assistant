@@ -16,7 +16,7 @@ import { isFeatureEnabled, getLabel, getBusinessName, getNicheLogo, onConfigChan
 const featureMap: Record<string, string> = {
   "/": "overview", "/queue": "overview", "/builder-desk": "overview", "/leads": "leads", "/smart-lists": "leads", "/pipeline": "pipeline", "/contacts": "contacts",
   "/campaigns": "campaigns", "/forms": "forms", "/qr-codes": "qrCodes",
-  "/conversations": "messages", "/templates": "templates", "/media": "media",
+  "/voice-agent": "voiceAgent", "/conversations": "messages", "/templates": "templates", "/media": "media",
   "/scoring": "scoring", "/rules": "routing",
   "/ai-campaigns": "aiCampaigns", "/ai-agent": "aiAgent", "/copilot": "copilot",
   "/webhooks": "webhooks", "/sms": "sms", "/widget": "widget", "/calls": "calls", "/sync-logs": "syncLogs",
@@ -87,6 +87,7 @@ const rawNavGroups = [
   {
     label: "Outreach",
     items: [
+      { label: "Voice Agent", icon: Phone, path: "/voice-agent" },
       { label: "Message Log", icon: MessageSquare, path: "/conversations" },
       { label: "Templates", icon: FileText, path: "/templates" },
       { label: "Media", icon: Layers, path: "/media" },

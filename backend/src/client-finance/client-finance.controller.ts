@@ -24,6 +24,8 @@ export class ClientFinanceController {
   @Post('invoices') @Roles(...WRITE_ROLES) createInvoice(@Req() req: any, @Body() d: CreateInvoiceDto) { return this.service.createInvoice(req.user.tenantId, d); }
   @Get('invoices/:id') @Roles(...READ_ROLES) findInvoice(@Req() req: any, @Param('id') id: string) { return this.service.findInvoice(req.user.tenantId, id); }
   @Patch('invoices/:id') @Roles(...WRITE_ROLES) updateInvoice(@Req() req: any, @Param('id') id: string, @Body() d: UpdateInvoiceDto) { return this.service.updateInvoice(req.user.tenantId, id, d); }
+  @Get('invoices/:id/pdf') @Roles(...READ_ROLES) getInvoicePdf(@Req() req: any, @Param('id') id: string) { return this.service.getInvoicePdf(req.user.tenantId, id); }
+  @Post('invoices/:id/send') @Roles(...WRITE_ROLES) sendInvoice(@Req() req: any, @Param('id') id: string, @Body() d: { channels?: string[]; message?: string }) { return this.service.sendInvoice(req.user.tenantId, id, d || {}); }
 
   @Get('quotations') @Roles(...READ_ROLES) findQuotations(@Req() req: any, @Query() q: PaginationDto & { status?: string; contactId?: string; eventId?: string }) { return this.service.findQuotations(req.user.tenantId, q); }
   @Post('quotations') @Roles(...WRITE_ROLES) createQuotation(@Req() req: any, @Body() d: CreateQuotationDto) { return this.service.createQuotation(req.user.tenantId, d); }

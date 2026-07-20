@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { fetchInvoices, createInvoice, updateInvoice, fetchContacts } from '../lib/data';
-import { Plus, FileText } from 'lucide-react';
+import { fetchInvoices, createInvoice, updateInvoice, fetchContacts, getInvoicePdf, sendInvoice } from '../lib/data';
+import { Plus, FileText, Download, Send } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 function money(n: number | undefined) { return `₹${(n || 0).toLocaleString('en-IN')}`; }
@@ -40,6 +40,35 @@ export default function InvoicesPage() {
   const markPaid = async (id: string) => {
     try { await updateInvoice(id, { status: 'PAID' }); refresh(); toast.success('Marked as paid'); }
     catch (err: any) { toast.error(err.message); }
+  };
+
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const downloadPdf = async (id: string) => {
+    setBusyId(id);
+    try {
+      const { publicUrl } = await getInvoicePdf(id);
+      window.open(publicUrl, '_blank');
+    } catch (err: any) { toast.error(err.message || 'Could not generate PDF'); }
+    finally { setBusyId(null); }
+  };
+
+  const send = async (id: string) => {
+    setBusyId(id);
+    try {
+      const res = await sendInvoice(id, { channels: ['email', 'whatsapp'] });
+      if (res.delivered) {
+        const ok = Object.entries(res.results).filter(([, r]) => r.success).map(([c]) => c);
+        const failed = Object.entries(res.results).filter(([, r]) => !r.success).map(([c, r]) => `${c}: ${r.error}`);
+        toast.success(`Sent via ${ok.join(', ')}`);
+        if (failed.length) toast.error(failed.join('  •  '));
+        refresh();
+      } else {
+        const errs = Object.entries(res.results).map(([c, r]) => `${c}: ${r.error}`).join('  •  ');
+        toast.error(`Nothing sent — ${errs}`);
+      }
+    } catch (err: any) { toast.error(err.message || 'Send failed'); }
+    finally { setBusyId(null); }
   };
 
   return (
@@ -95,6 +124,14 @@ export default function InvoicesPage() {
               </div>
               <div className="flex items-center gap-2">
                 <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_STYLES[i.status] || STATUS_STYLES.DRAFT}`}>{i.status}</span>
+                <button onClick={() => downloadPdf(i.id)} disabled={busyId === i.id} title="Download PDF"
+                  className="inline-flex items-center gap-1 h-7 px-2 rounded-lg border border-[var(--border)] text-xs text-[var(--foreground)] hover:bg-[var(--muted)] disabled:opacity-50">
+                  <Download size={13} /> PDF
+                </button>
+                <button onClick={() => send(i.id)} disabled={busyId === i.id} title="Send to client via WhatsApp + email"
+                  className="inline-flex items-center gap-1 h-7 px-2 rounded-lg bg-[var(--primary)] text-white text-xs font-medium hover:opacity-90 disabled:opacity-50">
+                  <Send size={13} /> {busyId === i.id ? 'Sending…' : 'Send'}
+                </button>
                 {i.status !== 'PAID' && <button onClick={() => markPaid(i.id)} className="text-xs text-[var(--primary)] hover:underline">Mark paid</button>}
               </div>
             </div>

@@ -115,6 +115,7 @@ const PageComponents: Record<string, React.LazyExoticComponent<React.ComponentTy
   ConstructionErp: lazy(() => import("./pages/ConstructionErpPage")),
   DocumentSearch: lazy(() => import("./pages/DocumentSearchPage")),
   PhysicalDocuments: lazy(() => import("./pages/PhysicalDocumentsPage")),
+  VoiceAgent: lazy(() => import("./pages/VoiceAgentPage")),
   AlliedInventory: lazy(() => import("./pages/AlliedInventoryPage")),
   SalesTargets: lazy(() => import("./pages/SalesTargetsPage")),
   DigitalSalesRoom: lazy(() => import("./pages/DigitalSalesRoomPage")),
@@ -149,6 +150,7 @@ function getPageKey(raw: string): string {
   if (/^\/leads\/[^/]+$/.test(path)) return "LeadWorkbench";
   if (/^\/forms\/[^/]+\/submissions$/.test(path)) return "FormSubmissions";
   if (path.startsWith("/create-event")) return "CreateEvent";
+  if (path.startsWith("/voice-agent")) return "VoiceAgent";
   if (path.startsWith("/smart-lists")) return "SmartLists";
   const map: Record<string, string> = {
     "/": "Overview", "/builder-desk": "BuilderDesk", "/leads": "Leads", "/smart-lists": "SmartLists", "/pipeline": "Pipeline", "/contacts": "Contacts",
@@ -198,6 +200,7 @@ function getPageKey(raw: string): string {
     "/physical-documents": "PhysicalDocuments",
     "/allied-inventory": "AlliedInventory",
     "/sales-targets": "SalesTargets",
+    "/voice-agent": "VoiceAgent",
     "/digital-sales-room": "DigitalSalesRoom",
     "/advanced-marketing": "AdvancedMarketing",
     "/onboarding-progress": "OnboardingProgress",

@@ -114,6 +114,7 @@ export class ClientFinanceService {
           within24h: true,
           mediaUrl: publicUrl,
           mediaType: 'document',
+          fileName,
           caption,
         });
       }
