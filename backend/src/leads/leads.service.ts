@@ -213,6 +213,10 @@ export class LeadsService {
   }
 
   async create(data: any, userId?: string) {
+    if (!data.tenantId && data.contactId) {
+      const c = await this.prisma.contact.findUnique({ where: { id: data.contactId }, select: { tenantId: true } });
+      if (c) data.tenantId = c.tenantId;
+    }
     const lead = await this.prisma.$transaction(async (tx) => {
       const created = await tx.lead.create({ data });
       await this.auditLogs.log('lead_created', 'Lead', created.id, userId);
@@ -282,6 +286,7 @@ export class LeadsService {
     const contact = await this.contacts.findOrCreate({ name: data.name, phone: data.phone, email: data.email });
     return this.create({
       contactId: contact.id,
+      tenantId: contact.tenantId,
       source: data.source || 'MANUAL',
       interest: data.interest,
       budget: data.budget,
