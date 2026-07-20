@@ -79,7 +79,7 @@ services:
       CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:-}
       CLOUDFLARE_ACCOUNT_ID: ${CLOUDFLARE_ACCOUNT_ID:-}
       BOLNA_URL: http://bolna:8000
-      VOICEBOX_URL: http://voicebox:17493
+      PIPER_URL: http://piper-tts:8123
       DEEPGRAM_AUTH_TOKEN: ${DEEPGRAM_AUTH_TOKEN:-}
       AGENT_MODEL: ${AGENT_MODEL:-deepseek-v4-flash}
       POSTHOG_KEY: ${POSTHOG_KEY:-}
@@ -278,6 +278,14 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+
+  # ── Piper TTS (on-device Indian language TTS — Telugu, Hindi, etc.) ──
+  piper-tts:
+    build: ./piper-tts
+    container_name: lead-automation-piper
+    restart: unless-stopped
+    ports:
+      - "8123:8123"
 
   # ── Bolna Voice Agent Orchestrator (STT → LLM → TTS → Twilio) ──
   bolna:

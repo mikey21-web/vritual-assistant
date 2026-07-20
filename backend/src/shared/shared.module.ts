@@ -19,6 +19,7 @@ import { HealthController } from './health.controller';
 import { SentryService } from './sentry.service';
 import { MoonshineService } from './moonshine.service';
 import { BolnaService } from './bolna.service';
+import { PiperTtsService } from './piper-tts.service';
 
 @Global()
 @Module({
@@ -29,7 +30,7 @@ import { BolnaService } from './bolna.service';
     HubspotAdapter, SalesforceAdapter, ZohoAdapter,
     CalendlyAdapter, GoogleCalendarAdapter,
     WhatsAppCloudAdapter, TelegramBotAdapter, TwilioSmsAdapter, TwilioVoiceAdapter, TwiMLGenerator,
-    EmailAdapter, OutboxService, SentryService, MoonshineService, BolnaService,
+    EmailAdapter, OutboxService, SentryService, MoonshineService, BolnaService, PiperTtsService,
   ],
   exports: [
     SignedUrlService, WebhookSecurityService, HealthService, PackApplierService,
@@ -37,7 +38,7 @@ import { BolnaService } from './bolna.service';
     HubspotAdapter, SalesforceAdapter, ZohoAdapter,
     CalendlyAdapter, GoogleCalendarAdapter,
     WhatsAppCloudAdapter, TelegramBotAdapter, TwilioSmsAdapter, TwilioVoiceAdapter, TwiMLGenerator,
-    EmailAdapter, OutboxService, SentryService, MoonshineService, BolnaService,
+    EmailAdapter, OutboxService, SentryService, MoonshineService, BolnaService, PiperTtsService,
   ],
 })
 export class SharedModule {}
