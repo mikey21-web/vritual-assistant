@@ -30,7 +30,7 @@ export class MorningDigestService {
     private memory: MemoryService,
   ) {}
 
-  async sendDailyDigests(): Promise<void> {
+  async sendDailyDigests(days = 1): Promise<void> {
     const owners = await this.prisma.user.findMany({
       where: { role: { in: ['OWNER', 'ADMIN'] }, active: true },
     });
@@ -38,10 +38,11 @@ export class MorningDigestService {
 
     const [summary, overnightActions, pendingRules] = await Promise.all([
       this.analytics.teamCommand(),
-      this.autonomousActions.findRecent(DEFAULT_TENANT_ID, 24),
+      this.autonomousActions.findRecent(DEFAULT_TENANT_ID, days === 30 ? 720 : 24),
       this.memory.getPendingRules(DEFAULT_TENANT_ID),
     ]);
-    const text = this.buildDigestText(summary, overnightActions, pendingRules.length);
+    const label = days === 30 ? 'monthly' : 'daily';
+    const text = this.buildDigestText(summary, overnightActions, pendingRules.length, label);
 
     for (const owner of owners) {
       await this.sendToOwner(owner, text);
@@ -53,9 +54,12 @@ export class MorningDigestService {
     s: Awaited<ReturnType<AnalyticsService['teamCommand']>>,
     overnightActions: Array<{ tool: string; findingType: string }>,
     pendingRuleCount: number,
+    label = 'daily',
   ): string {
     const lines = [
-      "Good morning. Here's your brief while you were away:",
+      label === 'monthly'
+        ? "Your monthly report is ready. Here's how things went this month:"
+        : "Good morning. Here's your brief while you were away:",
       '',
       `${s.todayVisitsCount} site visit(s) booked for today.`,
       s.unassignedHotLeads.length > 0

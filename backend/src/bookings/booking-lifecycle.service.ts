@@ -147,6 +147,11 @@ export class BookingLifecycleService {
 
     const reminders: { runAt: Date; suffix: string; text: string }[] = [
       {
+        runAt: new Date(ps.dueDate.getTime() - 7 * 24 * 60 * 60 * 1000),
+        suffix: 'due7d',
+        text: `Hi ${name}, this is a heads-up that your ${ps.label} payment of ${amountStr} is due on ${dueStr}. Let me know if you need any assistance.`,
+      },
+      {
         runAt: new Date(ps.dueDate.getTime() - 3 * 24 * 60 * 60 * 1000),
         suffix: 'due3d',
         text: `Hi ${name}, a friendly reminder that your ${ps.label} payment of ${amountStr} is due on ${dueStr}. Let me know if you'd like the payment details or any help.`,

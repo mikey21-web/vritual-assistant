@@ -98,6 +98,15 @@ export class MikeySchedulerService {
     }
   }
 
+  @Cron('0 8 1 * *')
+  async handleMonthlyDigest(): Promise<void> {
+    try {
+      await this.morningDigest.sendDailyDigests(30);
+    } catch (err: any) {
+      this.logger.error(`Monthly digest failed: ${err.message}`);
+    }
+  }
+
   @Cron('15 0 * * *')
   async handleMidnightReflexion(): Promise<void> {
     this.logger.log('Running daily peak Mikey jobs');
@@ -401,9 +410,15 @@ export class MikeySchedulerService {
     }
 
     if (unassigned.length === 0) return [];
+
+    const oldest = Math.min(...unassigned.map(l => l.createdAt.getTime()));
+    const hoursUnassigned = (Date.now() - oldest) / 3600000;
+    // ponytail: flat severity tiers based on oldest lead wait time. Replace with per-lead SLA tracking if managers need per-agent escalation visibility.
+    const severity = hoursUnassigned > 8 ? 'critical' : hoursUnassigned > 4 ? 'warning' : 'info';
+
     return [{
       type: 'unassigned_hot_leads',
-      severity: 'critical',
+      severity,
       title: `Unassigned hot leads`,
       description: `${unassigned.length} hot lead(s) have no assigned agent. ${unassigned.slice(0, 3).map(l => l.contact?.name || 'Unknown').join(', ')}${unassigned.length > 3 ? ` and ${unassigned.length - 3} more` : ''}`,
       count: unassigned.length,

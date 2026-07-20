@@ -102,6 +102,9 @@ export class WebhooksService {
       leadId: lead.id, contactId: contact.id, metadata: { from: fromNumber, timestamp: msg.timestamp },
     });
 
+    // FAQ auto-reply: check inbound text against tenant's keyword→answer map
+    await this.maybeReplyFaq(lead.id, contact.id, text, lead.tenantId || contact.tenantId);
+
     const result = { contact, lead };
     await this.prisma.webhookEvent.create({
       data: { provider, eventType: 'whatsapp_message', idempotencyKey: key, rawPayload: payload, processedResult: result },
@@ -111,6 +114,20 @@ export class WebhooksService {
 
     this.metrics.incrementCounter('webhooks_processed_total', { provider, status: 'success' });
     return { data: result };
+  }
+
+  /** Check inbound message against tenant's FAQ keyword map and auto-reply if matched. */
+  private async maybeReplyFaq(leadId: string, contactId: string, text: string, tenantId: string): Promise<void> {
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId }, select: { settings: true } });
+    const faqs = (tenant?.settings as any)?.faqs as Record<string, string> | undefined;
+    if (!faqs) return;
+    const lower = text.toLowerCase();
+    for (const [keywords, answer] of Object.entries(faqs)) {
+      if (keywords.split(',').some(k => lower.includes(k.trim()))) {
+        await this.conversationsService.create({ leadId, contactId, channel: 'WHATSAPP', direction: 'OUTBOUND', text: answer });
+        return;
+      }
+    }
   }
 
   private async handleWhatsAppStatuses(statuses: any[]) {
