@@ -15,6 +15,7 @@ import { JarvisToolsService } from './jarvis-tools.service';
 import { JarvisToolsController } from './jarvis-tools.controller';
 import { MikeySchedulerService } from './mikey-scheduler.service';
 import { MorningDigestService } from './morning-digest.service';
+import { DailyBriefService } from './daily-brief.service';
 import { SalienceEngineService } from './salience-engine.service';
 import { AutonomyGuardrailsService } from './autonomy-guardrails.service';
 import { AutonomousActionService } from './autonomous-action.service';
@@ -40,6 +41,7 @@ import { GuardrailsController } from './guardrails.controller';
     JarvisToolsService,
     MikeySchedulerService,
     MorningDigestService,
+    DailyBriefService,
     OutcomeEngineService,
     MikeyService,
     TemporalStrategyService,

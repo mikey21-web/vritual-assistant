@@ -63,7 +63,7 @@ const rawNavGroups = [
   {
     label: "Overview",
     items: [
-      { label: "Dashboard", icon: LayoutDashboard, path: "/" },
+      { label: "Today", icon: LayoutDashboard, path: "/" },
       { label: "My Queue", icon: CheckSquare, path: "/queue" },
       { label: "Builder Desk", icon: Building2, path: "/builder-desk" },
       { label: "Portfolio", icon: BarChart3, path: "/portfolio" },

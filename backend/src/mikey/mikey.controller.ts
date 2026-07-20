@@ -8,6 +8,7 @@ import { MikeyService } from './mikey.service';
 import { OutcomeEngineService } from './outcome-engine.service';
 import { TemporalStrategyService } from './temporal-strategy.service';
 import { StaffAwarenessService } from './staff-awareness.service';
+import { DailyBriefService } from './daily-brief.service';
 import { EventsService } from '../events/events.service';
 import { MikeySchedulerService } from './mikey-scheduler.service';
 import { AutonomyGuardrailsService, AutonomyCategory, AutonomyLevel } from './autonomy-guardrails.service';
@@ -24,6 +25,7 @@ export class MikeyController {
     private outcomes: OutcomeEngineService,
     private temporal: TemporalStrategyService,
     private staff: StaffAwarenessService,
+    private dailyBrief: DailyBriefService,
     private events: EventsService,
     private scheduler: MikeySchedulerService,
     private guardrails: AutonomyGuardrailsService,
@@ -157,6 +159,12 @@ export class MikeyController {
       totalOutcomes: outcomes.length,
       outcomes: outcomes.map(o => ({ id: o.id, goal: o.goal, status: o.status, steps: o.steps.length, progress: o.steps.filter(s => s.status === 'completed').length })),
     };
+  }
+
+  @Get('daily-brief')
+  @ApiOperation({ summary: 'Mikey\'s daily command center brief — everything the owner needs to know in one response' })
+  async getDailyBrief(@Query('tenantId') tenantId: string) {
+    return this.dailyBrief.getDailyBrief(tenantId || 'default-tenant');
   }
 
   @Post('pause')
