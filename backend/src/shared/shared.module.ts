@@ -18,6 +18,7 @@ import { EmailAdapter } from './adapters/email.adapter';
 import { HealthController } from './health.controller';
 import { SentryService } from './sentry.service';
 import { MoonshineService } from './moonshine.service';
+import { BolnaService } from './bolna.service';
 
 @Global()
 @Module({
@@ -28,7 +29,7 @@ import { MoonshineService } from './moonshine.service';
     HubspotAdapter, SalesforceAdapter, ZohoAdapter,
     CalendlyAdapter, GoogleCalendarAdapter,
     WhatsAppCloudAdapter, TelegramBotAdapter, TwilioSmsAdapter, TwilioVoiceAdapter, TwiMLGenerator,
-    EmailAdapter, OutboxService, SentryService, MoonshineService,
+    EmailAdapter, OutboxService, SentryService, MoonshineService, BolnaService,
   ],
   exports: [
     SignedUrlService, WebhookSecurityService, HealthService, PackApplierService,
@@ -36,7 +37,7 @@ import { MoonshineService } from './moonshine.service';
     HubspotAdapter, SalesforceAdapter, ZohoAdapter,
     CalendlyAdapter, GoogleCalendarAdapter,
     WhatsAppCloudAdapter, TelegramBotAdapter, TwilioSmsAdapter, TwilioVoiceAdapter, TwiMLGenerator,
-    EmailAdapter, OutboxService, SentryService, MoonshineService,
+    EmailAdapter, OutboxService, SentryService, MoonshineService, BolnaService,
   ],
 })
 export class SharedModule {}

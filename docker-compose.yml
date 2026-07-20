@@ -78,7 +78,9 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:-}
       CLOUDFLARE_ACCOUNT_ID: ${CLOUDFLARE_ACCOUNT_ID:-}
-      MOONSHINE_URL: http://moonshine:8002
+      BOLNA_URL: http://bolna:8000
+      VOICEBOX_URL: http://voicebox:17493
+      DEEPGRAM_AUTH_TOKEN: ${DEEPGRAM_AUTH_TOKEN:-}
       AGENT_MODEL: ${AGENT_MODEL:-deepseek-v4-flash}
       POSTHOG_KEY: ${POSTHOG_KEY:-}
       POSTHOG_HOST: ${POSTHOG_HOST:-https://us.i.posthog.com}
@@ -277,18 +279,25 @@ services:
       postgres:
         condition: service_healthy
 
-  # ── Moonshine Voice AI (on-device STT / TTS) ───────────────────
-  moonshine:
-    build: ./moonshine-service
-    container_name: lead-automation-moonshine
+  # ── Bolna Voice Agent Orchestrator (STT → LLM → TTS → Twilio) ──
+  bolna:
+    build: ./bolna-server
+    container_name: lead-automation-bolna
     restart: unless-stopped
     ports:
-      - "8002:8002"
+      - "8003:8000"
     environment:
-      MOONSHINE_MODEL_PATH: /models/moonshine
-      MOONSHINE_MODEL_ARCH: moonshine_base
-    volumes:
-      - moonshine_models:/models/moonshine
+      REDIS_URL: redis://redis:6379
+      DEEPGRAM_AUTH_TOKEN: ${DEEPGRAM_AUTH_TOKEN:-}
+      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
+      OPENAI_API_KEY: ${DEEPSEEK_API_KEY:-}
+      OPENAI_MODEL: deepseek-chat
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER:-}
+    depends_on:
+      redis:
+        condition: service_healthy
 
 volumes:
   pgdata:
@@ -296,7 +305,6 @@ volumes:
   uploads:
   n8ndata:
   khoj_db:
-  moonshine_models:
   khoj_config:
   khoj_models:
   khoj_search:
