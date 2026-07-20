@@ -20,7 +20,7 @@ const fields = [
   { key: 'notificationPhone', label: 'Notification Phone (for alerts)', type: 'text' },
 ];
 
-const TABS = ['Profile', 'Workspace', 'Public profile', 'Members & access', 'Billing', 'Support'] as const;
+const TABS = ['Profile', 'Workspace', 'Public profile', 'Members & access', 'Automation', 'Billing', 'Support'] as const;
 type Tab = (typeof TABS)[number];
 
 const roleLabel = (r: string) => r.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
@@ -52,6 +52,7 @@ export default function SettingsPage() {
       {tab === 'Workspace' && <WorkspaceTab />}
       {tab === 'Public profile' && <PublicProfileTab />}
       {tab === 'Members & access' && <MembersAccessTab />}
+      {tab === 'Automation' && <AutomationTab />}
       {tab === 'Billing' && <BillingTab />}
       {tab === 'Support' && <SupportTab />}
     </div>
@@ -331,6 +332,81 @@ function MembersAccessTab() {
       </div>
 
       {showInvite && <InviteTeamMemberModal onClose={() => setShowInvite(false)} onInvited={refresh} />}
+    </div>
+  );
+}
+
+function AutomationTab() {
+  const [faqs, setFaqs] = useState<{ keywords: string; answer: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [tenantId, setTenantId] = useState('');
+
+  useEffect(() => {
+    api('/tenants/me').then((t: any) => {
+      setTenantId(t.id);
+      const existing = (t.settings as any)?.faqs;
+      setFaqs(existing ? Object.entries(existing).map(([k, v]) => ({ keywords: k, answer: v as string })) : [{ keywords: '', answer: '' }]);
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  const save = async () => {
+    setSaving(true);
+    const map: Record<string, string> = {};
+    for (const f of faqs) {
+      if (f.keywords.trim() && f.answer.trim()) map[f.keywords.trim()] = f.answer.trim();
+    }
+    try {
+      await api('/tenants/' + tenantId, { method: 'PATCH', body: JSON.stringify({ settings: { faqs: map } }) });
+      toast.success('FAQ auto-replies saved');
+    } catch { toast.error('Failed to save'); }
+    setSaving(false);
+  };
+
+  if (loading) return <div className="py-10 text-center text-[var(--muted-foreground)]">Loading...</div>;
+
+  return (
+    <div className="max-w-2xl space-y-4 animate-fade-in">
+      <div>
+        <h2 className="text-lg font-semibold text-[var(--foreground)]">FAQ Auto-Replies</h2>
+        <p className="text-sm text-[var(--muted-foreground)] mt-0.5">When an inbound WhatsApp message contains any keyword, Mikey auto-replies with the answer.</p>
+      </div>
+
+      <div className="space-y-3">
+        {faqs.map((f, i) => (
+          <div key={i} className="flex gap-3 items-start p-3 rounded-lg border border-[var(--border)] bg-[var(--card)]">
+            <div className="flex-1 space-y-2">
+              <input
+                placeholder="Keywords (comma-separated): price, cost, rate"
+                value={f.keywords} onChange={e => { const n = [...faqs]; n[i].keywords = e.target.value; setFaqs(n); }}
+                className="w-full px-3 py-1.5 text-sm rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] outline-none focus:border-[var(--primary)]"
+              />
+              <textarea
+                placeholder="Auto-reply message: Our 2BHK starts at ₹75 lakhs..."
+                value={f.answer} onChange={e => { const n = [...faqs]; n[i].answer = e.target.value; setFaqs(n); }}
+                rows={2}
+                className="w-full px-3 py-1.5 text-sm rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] outline-none focus:border-[var(--primary)] resize-none"
+              />
+            </div>
+            <button onClick={() => setFaqs(faqs.filter((_, j) => j !== i))}
+              className="p-1.5 rounded-md hover:bg-red-100 dark:hover:bg-red-900 text-red-500 mt-1 shrink-0">
+              <Trash2 size={14} />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <button onClick={() => setFaqs([...faqs, { keywords: '', answer: '' }])}
+        className="text-sm text-[var(--primary)] hover:underline">
+        + Add FAQ
+      </button>
+
+      <div className="flex gap-2 pt-2">
+        <button onClick={save} disabled={saving}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50">
+          <Save size={15} /> {saving ? 'Saving...' : 'Save'}
+        </button>
+      </div>
     </div>
   );
 }
