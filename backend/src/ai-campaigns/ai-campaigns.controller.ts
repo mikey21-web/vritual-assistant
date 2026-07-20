@@ -94,12 +94,12 @@ Rules:
       const res = await fetch('https://api.openai.com/v1/images/generations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${openaiKey}` },
-        body: JSON.stringify({ model: 'dall-e-3', prompt: body.prompt, n: 1, size: '1024x1024', response_format: 'b64_json' }),
+        body: JSON.stringify({ model: 'dall-e-3', prompt: body.prompt, n: 1, size: '1024x1024' }),
       });
       const data = await res.json() as any;
-      if (!data.data?.[0]?.b64_json) throw new Error(data.error?.message || 'Image generation failed');
+      if (!data.data?.[0]?.url) throw new Error(data.error?.message || 'Image generation failed');
 
-      return { generated: true, image: `data:image/png;base64,${data.data[0].b64_json}`, format: 'png', prompt: body.prompt };
+      return { generated: true, image: data.data[0].url, format: 'url', prompt: body.prompt };
     } catch (e: any) {
       this.logger.error('Image generation failed', e.message);
       return { generated: false, message: `Image generation failed: ${e.message}`, prompt: body.prompt };
