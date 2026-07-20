@@ -1,11 +1,11 @@
 FROM alpine:3.19
-RUN apk add --no-cache curl python3 py3-pip py3-numpy py3-aiohttp
+RUN apk add --no-cache curl python3 py3-pip py3-aiohttp
 RUN pip3 install --break-system-packages aiohttp
 WORKDIR /app
 
-# Download piper binary
+# Download piper binary — extract to temp first to avoid dir collision
 RUN curl -sL -o piper.tar.gz "https://github.com/rhasspy/piper/releases/download/2023.11.14-2/piper_linux_x86_64.tar.gz" && \
-    tar xzf piper.tar.gz && mv piper/piper . && rm -rf piper piper.tar.gz && chmod +x piper
+    tar xzf piper.tar.gz -C /tmp && mv /tmp/piper/piper . && rm -rf /tmp/piper piper.tar.gz && chmod +x piper
 
 # Download Indian language voice models
 RUN mkdir -p /voices && \

@@ -1,4 +1,4 @@
-import os, sys, json, subprocess, tempfile, asyncio
+import os, asyncio, subprocess
 from aiohttp import web
 
 VOICES_DIR = '/voices'
@@ -6,7 +6,6 @@ PIPER_BIN = '/app/piper'
 LANG_MAP = {
     'te': 'te_IN', 'hi': 'hi_IN', 'ta': 'ta_IN', 'kn': 'kn_IN',
     'ml': 'ml_IN', 'bn': 'bn_IN', 'mr': 'mr_IN', 'gu': 'gu_IN',
-    'en': 'en_US',
 }
 
 async def tts(request):
@@ -14,12 +13,10 @@ async def tts(request):
     lang = request.query.get('lang', 'te')
     if not text:
         return web.json_response({'error': 'no text'}, status=400)
-
     voice = LANG_MAP.get(lang, 'te_IN')
     model = os.path.join(VOICES_DIR, f'{voice}.onnx')
     if not os.path.exists(model):
         return web.json_response({'error': f'voice model not found for {lang}'}, status=400)
-
     try:
         proc = await asyncio.create_subprocess_exec(
             PIPER_BIN, '--model', model, '--output-raw',
@@ -28,9 +25,7 @@ async def tts(request):
         stdout, stderr = await proc.communicate(text.encode(), timeout=30)
         if proc.returncode != 0:
             raise Exception(stderr.decode()[:200])
-        return web.Response(body=stdout, content_type='audio/x-raw', headers={
-            'X-Sample-Rate': '22050', 'X-Channels': '1'
-        })
+        return web.Response(body=stdout, content_type='audio/x-wav')
     except Exception as e:
         return web.json_response({'error': str(e)}, status=500)
 
