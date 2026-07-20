@@ -160,8 +160,8 @@ function PerformanceView({ campaigns, loading }: { campaigns: any[]; loading: bo
   const sourceData = useMemo(() => {
     const sourceMap: Record<string, number> = {};
     campaigns.forEach((c) => {
-      (c.channels || []).forEach((ch: string) => {
-        const key = ch.toLowerCase();
+      (c.channels || []).forEach((ch: any) => {
+        const key = (typeof ch === 'string' ? ch : ch?.type || '').toLowerCase();
         sourceMap[key] = (sourceMap[key] || 0) + (c.leadCount ?? c._count?.leads ?? 0);
       });
     });
