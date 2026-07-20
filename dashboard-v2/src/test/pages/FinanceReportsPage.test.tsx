@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppContext, type NicheConfig } from '../../context/AppContext';
 import { vi } from 'vitest';
@@ -45,5 +45,24 @@ describe('FinanceReportsPage', () => {
   it('renders Financial Reports heading', () => {
     render(<FinanceReportsPage />, { wrapper: Wrapper });
     expect(screen.getByText('Financial Reports')).toBeInTheDocument();
+  });
+
+  it('shows click to download subtitle', () => {
+    render(<FinanceReportsPage />, { wrapper: Wrapper });
+    expect(screen.getByText('Click to download CSV')).toBeInTheDocument();
+  });
+
+  it('renders all 6 report cards', () => {
+    render(<FinanceReportsPage />, { wrapper: Wrapper });
+    for (const report of ['Profit & Loss', 'Cash Flow', 'Balance Sheet', 'Tax Reports', 'Vendor Payments', 'Event Profitability']) {
+      expect(screen.getByText(report)).toBeInTheDocument();
+    }
+  });
+
+  it('renders all report cards as enabled buttons', () => {
+    render(<FinanceReportsPage />, { wrapper: Wrapper });
+    const buttons = screen.getAllByRole('button');
+    expect(buttons).toHaveLength(6);
+    buttons.forEach(b => expect(b).not.toBeDisabled());
   });
 });

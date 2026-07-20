@@ -31,7 +31,10 @@ function Wrapper({ children }: { children: React.ReactNode }) {
 }
 
 vi.mock('../../lib/data', () => ({
-  fetchInvoices: vi.fn().mockResolvedValue({ data: [] }),
+  fetchInvoices: vi.fn().mockResolvedValue({ data: [
+    { id: '1', invoiceNumber: 'INV-001', contact: { name: 'Client A' }, grandTotal: 59000, status: 'SENT' },
+    { id: '2', invoiceNumber: 'INV-002', contact: null, grandTotal: 120000, status: 'PAID' },
+  ] }),
   fetchContacts: vi.fn().mockResolvedValue({ data: [] }),
   createInvoice: vi.fn(),
   updateInvoice: vi.fn(),
@@ -43,5 +46,24 @@ describe('InvoicesPage', () => {
   it('renders Invoices heading', async () => {
     render(<InvoicesPage />, { wrapper: Wrapper });
     expect(await screen.findByText('Invoices')).toBeInTheDocument();
+  });
+
+  it('shows Create invoice button', async () => {
+    render(<InvoicesPage />, { wrapper: Wrapper });
+    expect(await screen.findByText('Create invoice')).toBeInTheDocument();
+  });
+
+  it('loads and displays invoices list with numbers, contacts, and statuses', async () => {
+    render(<InvoicesPage />, { wrapper: Wrapper });
+    expect(await screen.findByText('INV-001 — Client A')).toBeInTheDocument();
+    expect(await screen.findByText('INV-002 — No customer linked')).toBeInTheDocument();
+    expect(await screen.findByText('SENT')).toBeInTheDocument();
+    expect(await screen.findByText('PAID')).toBeInTheDocument();
+  });
+
+  it('shows Mark paid button only for unpaid invoices', async () => {
+    render(<InvoicesPage />, { wrapper: Wrapper });
+    const markPaidButtons = await screen.findAllByText('Mark paid');
+    expect(markPaidButtons).toHaveLength(1);
   });
 });

@@ -61,6 +61,7 @@ const timelineIcon: Record<string, { icon: any; color: string; bg: string }> = {
   crm_push_succeeded: { icon: Database, color: 'text-blue-600', bg: 'bg-blue-100 dark:bg-blue-900/30' },
   crm_push_failed: { icon: Database, color: 'text-red-600', bg: 'bg-red-100 dark:bg-red-900/30' },
   conversion: { icon: Star, color: 'text-yellow-600', bg: 'bg-yellow-100 dark:bg-yellow-900/30' },
+  note: { icon: MessageCircle, color: 'text-amber-600', bg: 'bg-amber-100 dark:bg-amber-900/30' },
   agent_run_completed: { icon: Bot, color: 'text-purple-600', bg: 'bg-purple-100 dark:bg-purple-900/30' },
   automation_failed: { icon: AlertTriangle, color: 'text-red-600', bg: 'bg-red-100 dark:bg-red-900/30' },
   event_invited: { icon: Calendar, color: 'text-pink-600', bg: 'bg-pink-100 dark:bg-pink-900/30' },
@@ -136,6 +137,8 @@ export default function LeadWorkbenchPage() {
   const [showApprovedCS, setShowApprovedCS] = useState(false);
   const [notes, setNotes] = useState<any[]>([]);
   const [noteText, setNoteText] = useState('');
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editingNoteText, setEditingNoteText] = useState('');
   const [showAgentPicker, setShowAgentPicker] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
   const [timelineFilter, setTimelineFilter] = useState<string | null>(null);
@@ -358,13 +361,61 @@ export default function LeadWorkbenchPage() {
     if (!noteText.trim()) return;
     try {
       const res = await api('/notes', { method: 'POST', body: JSON.stringify({ leadId: id, text: noteText.trim() }) });
-      setNotes(prev => [res?.data || res, ...prev]);
+      const added = res?.data || res;
+      setNotes(prev => [added, ...prev]);
       setNoteText('');
       toast.success('Note added');
     } catch (err: any) {
       toast.error(err.message || 'Failed to add note');
     }
   };
+
+  const handleEditNote = async (noteId: string) => {
+    if (!editingNoteText.trim()) return;
+    try {
+      await api(`/notes/${noteId}`, { method: 'PATCH', body: JSON.stringify({ text: editingNoteText.trim() }) });
+      setNotes(prev => prev.map(n => n.id === noteId ? { ...n, text: editingNoteText.trim() } : n));
+      setEditingNoteId(null);
+      setEditingNoteText('');
+      toast.success('Note updated');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update note');
+    }
+  };
+
+  const handleDeleteNote = async (noteId: string) => {
+    if (!confirm('Delete this note?')) return;
+    try {
+      await api(`/notes/${noteId}`, { method: 'DELETE' });
+      setNotes(prev => prev.filter(n => n.id !== noteId));
+      toast.success('Note deleted');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete note');
+    }
+  };
+
+  const handleTogglePinNote = async (noteId: string, currentPinned: boolean) => {
+    try {
+      await api(`/notes/${noteId}`, { method: 'PATCH', body: JSON.stringify({ pinned: !currentPinned }) });
+      setNotes(prev => prev.map(n => n.id === noteId ? { ...n, pinned: !currentPinned } : n));
+      toast.success(currentPinned ? 'Note unpinned' : 'Note pinned');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to pin note');
+    }
+  };
+
+  const noteTimelineEntries = notes.map((n: any) => ({
+    id: `note-${n.id}`,
+    type: 'note',
+    title: n.pinned ? '📌 Pinned note' : 'Note',
+    description: n.text,
+    metadata: {},
+    createdAt: n.createdAt,
+  }));
+
+  const allTimeline = [...timeline, ...noteTimelineEntries].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
 
   const nba = lead ? NextBestAction({ lead }) : null;
 
@@ -557,7 +608,7 @@ export default function LeadWorkbenchPage() {
             )}
             {lead.message && <div><span className="text-[var(--foreground)] font-medium">Message:</span> <span className="text-[var(--muted-foreground)]">{lead.message}</span></div>}
             <div className="pt-3 border-t border-[var(--border)]">
-              <h5 className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider mb-2">Notes</h5>
+              <h5 className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider mb-2">Notes <span className="text-[10px] font-normal normal-case text-[var(--muted-foreground)]">({notes.length})</span></h5>
               <textarea value={noteText} onChange={e => setNoteText(e.target.value)} rows={2} placeholder="Add a note..."
                 className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20 resize-none mb-2" />
               <button onClick={handleAddNote} disabled={!noteText.trim()}
@@ -566,10 +617,40 @@ export default function LeadWorkbenchPage() {
               </button>
               <div className="space-y-2 mt-3 max-h-40 overflow-y-auto">
                 {notes.length === 0 && <p className="text-[11px] text-[var(--muted-foreground)]">No notes yet</p>}
-                {notes.map((n: any) => (
-                  <div key={n.id} className="text-xs p-2 rounded-lg bg-[var(--accent)]/30">
-                    <p className="text-[var(--foreground)]">{n.text}</p>
-                    <p className="text-[10px] text-[var(--muted-foreground)] mt-1">{new Date(n.createdAt).toLocaleString()}</p>
+                {[...notes].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((n: any) => (
+                  <div key={n.id} className={`text-xs p-2 rounded-lg ${n.pinned ? 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/30' : 'bg-[var(--accent)]/30'}`}>
+                    {editingNoteId === n.id ? (
+                      <div className="space-y-1.5">
+                        <textarea value={editingNoteText} onChange={e => setEditingNoteText(e.target.value)} rows={2} autoFocus
+                          className="w-full rounded border border-[var(--border)] bg-[var(--background)] px-2 py-1 text-xs text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20 resize-none" />
+                        <div className="flex gap-1.5">
+                          <button onClick={() => handleEditNote(n.id)} disabled={!editingNoteText.trim()}
+                            className="h-6 px-2 rounded text-[10px] font-medium bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">Save</button>
+                          <button onClick={() => { setEditingNoteId(null); setEditingNoteText(''); }}
+                            className="h-6 px-2 rounded text-[10px] font-medium border border-[var(--border)] text-[var(--foreground)] hover:bg-[var(--accent)]">Cancel</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-start justify-between gap-1">
+                          <p className="text-[var(--foreground)] flex-1">{n.text}</p>
+                          <div className="flex items-center gap-0.5 shrink-0">
+                            <button onClick={() => handleTogglePinNote(n.id, n.pinned)} title={n.pinned ? 'Unpin' : 'Pin'}
+                              className="p-0.5 rounded hover:bg-[var(--muted)] transition-colors">
+                              <span className={`text-[10px] ${n.pinned ? 'text-amber-500' : 'text-[var(--muted-foreground)]'}`}>{n.pinned ? '📌' : '📍'}</span>
+                            </button>
+                            <button onClick={() => { setEditingNoteId(n.id); setEditingNoteText(n.text); }} title="Edit"
+                              className="p-0.5 rounded hover:bg-[var(--muted)] transition-colors text-[10px] text-[var(--muted-foreground)]">✏️</button>
+                            <button onClick={() => handleDeleteNote(n.id)} title="Delete"
+                              className="p-0.5 rounded hover:bg-[var(--muted)] transition-colors text-[10px] text-red-500">🗑️</button>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <p className="text-[10px] text-[var(--muted-foreground)]">{new Date(n.createdAt).toLocaleString()}</p>
+                          {n.pinned && <span className="text-[9px] text-amber-600 dark:text-amber-400 font-medium">Pinned</span>}
+                        </div>
+                      </>
+                    )}
                   </div>
                 ))}
               </div>
@@ -581,9 +662,9 @@ export default function LeadWorkbenchPage() {
         <div>
           <div className="flex items-center justify-between mb-3">
             <h4 className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Unified Timeline</h4>
-            {timeline.length > 0 && (
+            {allTimeline.length > 0 && (
               <button onClick={() => {
-                const ordered = [...timeline].reverse();
+                const ordered = [...allTimeline].reverse();
                 startExplainFlow(ordered.map((t: any) => ({
                   page: 'leads', highlightId: id,
                   narration: t.description ? `${t.title}: ${t.description}` : t.title,
@@ -602,6 +683,7 @@ export default function LeadWorkbenchPage() {
               { key: 'cost_sheet', label: 'Cost Sheets' },
               { key: 'unit_hold', label: 'Holds' },
               { key: 'booking', label: 'Bookings' },
+              { key: 'note', label: 'Notes' },
             ].map(f => (
               <button key={f.label} onClick={() => setTimelineFilter(f.key)}
                 className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
@@ -614,11 +696,12 @@ export default function LeadWorkbenchPage() {
             ))}
           </div>
           <div className="space-y-1 max-h-[28rem] overflow-y-auto pr-1">
-            {timeline.length === 0 && <p className="text-sm text-[var(--muted-foreground)] py-4 text-center">No activity yet</p>}
-            {timeline
+            {allTimeline.length === 0 && <p className="text-sm text-[var(--muted-foreground)] py-4 text-center">No activity yet</p>}
+            {allTimeline
               .filter((t: any) => {
                 if (!timelineFilter) return true;
                 if (timelineFilter === 'call') return t.type === 'call';
+                if (timelineFilter === 'note') return t.type === 'note';
                 return t.type.startsWith(timelineFilter + '_');
               })
               .slice(0, 30).map((t: any) => {

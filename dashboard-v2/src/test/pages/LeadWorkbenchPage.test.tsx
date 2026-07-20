@@ -1,4 +1,4 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppContext, type NicheConfig } from '../../context/AppContext';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -277,5 +277,97 @@ describe('LeadWorkbenchPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Matching Units')).toBeInTheDocument();
     });
+  });
+
+  it('edits an existing note', async () => {
+    vi.mocked(api).mockImplementation((url: string, options?: any) => {
+      if (url.includes('/notes') && options?.method === 'PATCH') return Promise.resolve({ success: true });
+      if (url.includes('/notes')) return Promise.resolve([{ id: 'n1', text: 'Original text', createdAt: '2025-01-01T10:00:00Z' }]);
+      if (url === '/users') return Promise.resolve([{ id: 'agent-1', name: 'Priya Sharma', role: 'SALES_AGENT' }]);
+      if (url.includes('/custom-fields')) return Promise.resolve({ data: [] });
+      if (url.includes('/payment-schedules')) return Promise.resolve({ data: [] });
+      return Promise.resolve({ success: true });
+    });
+    const LeadWorkbenchPage = (await import('../../pages/LeadWorkbenchPage')).default;
+    render(<LeadWorkbenchPage />, { wrapper: Wrapper });
+    await waitFor(() => {
+      expect(screen.getByText('Original text')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTitle('Edit'));
+    const editTextarea = screen.getByDisplayValue('Original text');
+    fireEvent.change(editTextarea, { target: { value: 'Edited text' } });
+    fireEvent.click(screen.getByText('Save'));
+    await waitFor(() => {
+      expect(vi.mocked(api)).toHaveBeenCalledWith('/notes/n1', expect.objectContaining({
+        method: 'PATCH',
+        body: expect.stringContaining('Edited text'),
+      }));
+    });
+  });
+
+  it('deletes a note', async () => {
+    vi.mocked(api).mockImplementation((url: string, options?: any) => {
+      if (url.includes('/notes') && options?.method === 'DELETE') return Promise.resolve({ success: true });
+      if (url.includes('/notes')) return Promise.resolve([{ id: 'n1', text: 'Delete me', createdAt: '2025-01-01T10:00:00Z' }]);
+      if (url === '/users') return Promise.resolve([{ id: 'agent-1', name: 'Priya Sharma', role: 'SALES_AGENT' }]);
+      if (url.includes('/custom-fields')) return Promise.resolve({ data: [] });
+      if (url.includes('/payment-schedules')) return Promise.resolve({ data: [] });
+      return Promise.resolve({ success: true });
+    });
+    const LeadWorkbenchPage = (await import('../../pages/LeadWorkbenchPage')).default;
+    render(<LeadWorkbenchPage />, { wrapper: Wrapper });
+    await waitFor(() => {
+      expect(screen.getByText('Delete me')).toBeInTheDocument();
+    });
+    window.confirm = vi.fn(() => true);
+    fireEvent.click(screen.getByTitle('Delete'));
+    await waitFor(() => {
+      expect(vi.mocked(api)).toHaveBeenCalledWith('/notes/n1', { method: 'DELETE' });
+    });
+  });
+
+  it('pins and unpins a note', async () => {
+    vi.mocked(api).mockImplementation((url: string, options?: any) => {
+      if (url.includes('/notes') && options?.method === 'PATCH') return Promise.resolve({ success: true });
+      if (url.includes('/notes')) return Promise.resolve([{ id: 'n1', text: 'Pin me', createdAt: '2025-01-01T10:00:00Z' }]);
+      if (url === '/users') return Promise.resolve([{ id: 'agent-1', name: 'Priya Sharma', role: 'SALES_AGENT' }]);
+      if (url.includes('/custom-fields')) return Promise.resolve({ data: [] });
+      if (url.includes('/payment-schedules')) return Promise.resolve({ data: [] });
+      return Promise.resolve({ success: true });
+    });
+    const LeadWorkbenchPage = (await import('../../pages/LeadWorkbenchPage')).default;
+    render(<LeadWorkbenchPage />, { wrapper: Wrapper });
+    await waitFor(() => {
+      expect(screen.getByText('Pin me')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTitle('Pin'));
+    await waitFor(() => {
+      expect(vi.mocked(api)).toHaveBeenCalledWith('/notes/n1', expect.objectContaining({
+        method: 'PATCH',
+        body: expect.stringContaining('"pinned":true'),
+      }));
+    });
+  });
+
+  it('shows notes in the timeline and filters by Notes', async () => {
+    vi.mocked(api).mockImplementation((url: string, options?: any) => {
+      if (url.includes('/notes')) return Promise.resolve([{ id: 'n1', text: 'Timeline note', createdAt: '2025-01-01T10:00:00Z' }]);
+      if (url === '/users') return Promise.resolve([{ id: 'agent-1', name: 'Priya Sharma', role: 'SALES_AGENT' }]);
+      if (url.includes('/custom-fields')) return Promise.resolve({ data: [] });
+      if (url.includes('/payment-schedules')) return Promise.resolve({ data: [] });
+      return Promise.resolve({ success: true });
+    });
+    const LeadWorkbenchPage = (await import('../../pages/LeadWorkbenchPage')).default;
+    render(<LeadWorkbenchPage />, { wrapper: Wrapper });
+    await waitFor(() => {
+      expect(screen.getByText('Timeline note')).toBeInTheDocument();
+    });
+    expect(screen.getAllByText('Notes').length).toBeGreaterThanOrEqual(2);
+    const filterBtns = screen.getAllByText('Notes');
+    fireEvent.click(filterBtns[filterBtns.length - 1]);
+    await waitFor(() => {
+      expect(screen.getByText('Note')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Lead created')).not.toBeInTheDocument();
   });
 });

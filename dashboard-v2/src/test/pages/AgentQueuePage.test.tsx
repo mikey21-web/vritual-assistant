@@ -152,4 +152,195 @@ describe('AgentQueuePage', () => {
     });
     expect(screen.queryByText('Priya Sharma')).not.toBeInTheDocument();
   });
+
+  it('loads and displays hot leads section', async () => {
+    vi.mocked(api).mockImplementation((path: string) => {
+      if (path === '/leads/worklist/mine') return Promise.resolve({
+        leads: [],
+        hotLeads: [{ id: 'hl1', contact: { name: 'Hot Lead One', phone: '+919876543210' }, segment: 'HOT', status: 'NEW', source: 'MANUAL', score: 90, createdAt: new Date().toISOString() }],
+        todayVisits: [],
+      });
+      return Promise.resolve({ success: true });
+    });
+    render(<AgentQueuePage />, { wrapper: Wrapper });
+    await waitFor(() => {
+      expect(screen.getByText('My Queue')).toBeInTheDocument();
+    });
+    const leadsButtons = screen.getAllByText('Leads');
+    fireEvent.click(leadsButtons[leadsButtons.length - 1]);
+    await waitFor(() => {
+      expect(screen.getByText('Hot Lead One')).toBeInTheDocument();
+    });
+  });
+
+  it('loads and displays today visits', async () => {
+    const visitTime = new Date();
+    vi.mocked(api).mockImplementation((path: string) => {
+      if (path === '/leads/worklist/mine') return Promise.resolve({
+        leads: [],
+        hotLeads: [],
+        todayVisits: [{ id: 'v1', contact: { name: 'Visit Person' }, visitTime: visitTime.toISOString() }],
+      });
+      return Promise.resolve({ success: true });
+    });
+    render(<AgentQueuePage />, { wrapper: Wrapper });
+    await waitFor(() => {
+      expect(screen.getByText('Visit Person')).toBeInTheDocument();
+    });
+    expect(screen.getByText(/Today's Visits/i)).toBeInTheDocument();
+  });
+
+  it('WhatsApp composer: opens modal, types message, sends it', async () => {
+    vi.mocked(api).mockImplementation((path: string) => {
+      if (path === '/leads/worklist/mine') return Promise.resolve({
+        leads: [],
+        hotLeads: [{ id: 'l1', contact: { name: 'Test Lead', phone: '+919876543210' }, segment: 'HOT', status: 'NEW', source: 'MANUAL', score: 85, createdAt: new Date().toISOString() }],
+        todayVisits: [],
+      });
+      return Promise.resolve({ success: true });
+    });
+    render(<AgentQueuePage />, { wrapper: Wrapper });
+    await waitFor(() => {
+      expect(screen.getByText('My Queue')).toBeInTheDocument();
+    });
+    const leadsButtons = screen.getAllByText('Leads');
+    fireEvent.click(leadsButtons[leadsButtons.length - 1]);
+    await waitFor(() => {
+      expect(screen.getByText('Test Lead')).toBeInTheDocument();
+    });
+    const waButton = screen.getAllByTitle('WhatsApp')[0];
+    fireEvent.click(waButton);
+    await waitFor(() => {
+      expect(screen.getByText('Send')).toBeInTheDocument();
+    });
+    const textarea = screen.getByPlaceholderText('Type your message...');
+    fireEvent.change(textarea, { target: { value: 'Hello, this is a test message' } });
+    const sendButton = screen.getByRole('button', { name: /^send$/i });
+    fireEvent.click(sendButton);
+    await waitFor(() => {
+      expect(vi.mocked(api)).toHaveBeenCalledWith('/conversations/messages', expect.objectContaining({
+        method: 'POST',
+        body: expect.stringContaining('WHATSAPP'),
+      }));
+    });
+  });
+
+  it('Call button: clicking initiates call', async () => {
+    vi.mocked(api).mockImplementation((path: string) => {
+      if (path === '/leads/worklist/mine') return Promise.resolve({
+        leads: [],
+        hotLeads: [{ id: 'l1', contact: { name: 'Ravi Kumar', phone: '+919876543210' }, segment: 'HOT', status: 'NEW', source: 'MANUAL', score: 85, createdAt: new Date().toISOString() }],
+        todayVisits: [],
+      });
+      return Promise.resolve({ success: true });
+    });
+    render(<AgentQueuePage />, { wrapper: Wrapper });
+    await waitFor(() => {
+      expect(screen.getByText('My Queue')).toBeInTheDocument();
+    });
+    const leadsButtons = screen.getAllByText('Leads');
+    fireEvent.click(leadsButtons[leadsButtons.length - 1]);
+    await waitFor(() => {
+      expect(screen.getByText('Ravi Kumar')).toBeInTheDocument();
+    });
+    const callButton = screen.getAllByTitle('Call')[0];
+    fireEvent.click(callButton);
+    await waitFor(() => {
+      expect(vi.mocked(api)).toHaveBeenCalledWith('/telephony/call', expect.objectContaining({
+        method: 'POST',
+        body: expect.stringContaining('l1'),
+      }));
+    });
+  });
+
+  it('SLA indicator renders with correct time format', async () => {
+    vi.mocked(api).mockImplementation((path: string) => {
+      if (path === '/leads/worklist/mine') return Promise.resolve({
+        leads: [],
+        hotLeads: [{ id: 'l1', contact: { name: 'SLA Test', phone: '+919876543210' }, segment: 'HOT', status: 'NEW', source: 'MANUAL', score: 85, createdAt: new Date().toISOString() }],
+        todayVisits: [],
+      });
+      return Promise.resolve({ success: true });
+    });
+    render(<AgentQueuePage />, { wrapper: Wrapper });
+    await waitFor(() => {
+      expect(screen.getByText('My Queue')).toBeInTheDocument();
+    });
+    const leadsButtons = screen.getAllByText('Leads');
+    fireEvent.click(leadsButtons[leadsButtons.length - 1]);
+    await waitFor(() => {
+      expect(screen.getByText('SLA Test')).toBeInTheDocument();
+    });
+    const slaTimes = screen.getAllByText(/\d+m/);
+    expect(slaTimes.length).toBeGreaterThan(0);
+  });
+
+  it('Search filters leads by name', async () => {
+    vi.mocked(api).mockImplementation((path: string) => {
+      if (path === '/leads/worklist/mine') return Promise.resolve({
+        leads: [
+          { id: 'l1', contact: { name: 'Ravi Kumar', phone: '+919876543210' }, segment: 'HOT', status: 'NEW', source: 'MANUAL', score: 85, createdAt: new Date().toISOString() },
+          { id: 'l2', contact: { name: 'Priya Sharma', phone: '+919876543211' }, segment: 'WARM', status: 'CONTACTED', source: 'MANUAL', score: 60, createdAt: new Date().toISOString() },
+        ],
+        hotLeads: [],
+        todayVisits: [],
+      });
+      return Promise.resolve({ success: true });
+    });
+    render(<AgentQueuePage />, { wrapper: Wrapper });
+    await waitFor(() => {
+      expect(screen.getByText('My Queue')).toBeInTheDocument();
+    });
+    const leadsButtons = screen.getAllByText('Leads');
+    fireEvent.click(leadsButtons[leadsButtons.length - 1]);
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Search leads by name or phone...')).toBeInTheDocument();
+    });
+    expect(screen.getByText('Ravi Kumar')).toBeInTheDocument();
+    expect(screen.getByText('Priya Sharma')).toBeInTheDocument();
+    const searchInput = screen.getByPlaceholderText('Search leads by name or phone...');
+    fireEvent.change(searchInput, { target: { value: 'Ravi' } });
+    await waitFor(() => {
+      expect(screen.getByText('Ravi Kumar')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Priya Sharma')).not.toBeInTheDocument();
+  });
+
+  it('Show More pagination works', async () => {
+    const manyLeads = Array.from({ length: 25 }, (_, i) => ({
+      id: `l${i}`,
+      contact: { name: `Lead ${i + 1}`, phone: `+919876543${String(i).padStart(3, '0')}` },
+      segment: i % 2 === 0 ? 'HOT' : 'WARM',
+      status: 'NEW',
+      source: 'MANUAL',
+      score: 50 + i,
+      createdAt: new Date().toISOString(),
+    }));
+    vi.mocked(api).mockImplementation((path: string) => {
+      if (path === '/leads/worklist/mine') return Promise.resolve({
+        leads: manyLeads,
+        hotLeads: [],
+        todayVisits: [],
+      });
+      return Promise.resolve({ success: true });
+    });
+    render(<AgentQueuePage />, { wrapper: Wrapper });
+    await waitFor(() => {
+      expect(screen.getByText('My Queue')).toBeInTheDocument();
+    });
+    const leadsButtons = screen.getAllByText('Leads');
+    fireEvent.click(leadsButtons[leadsButtons.length - 1]);
+    await waitFor(() => {
+      expect(screen.getByText('Lead 1')).toBeInTheDocument();
+    });
+    expect(screen.getByText('Lead 20')).toBeInTheDocument();
+    expect(screen.queryByText('Lead 21')).not.toBeInTheDocument();
+    const showMore = screen.getByRole('button', { name: /Show More/i });
+    expect(showMore).toBeInTheDocument();
+    fireEvent.click(showMore);
+    await waitFor(() => {
+      expect(screen.getByText('Lead 21')).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/Show More/)).not.toBeInTheDocument();
+  });
 });

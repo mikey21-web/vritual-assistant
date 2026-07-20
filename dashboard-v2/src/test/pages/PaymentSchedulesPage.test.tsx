@@ -30,13 +30,25 @@ function Wrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
-vi.mock('../../lib/api', () => ({
-  api: vi.fn().mockResolvedValue([]),
-}));
+vi.mock('../../lib/api', () => ({ api: vi.fn() }));
+
+import { api } from '../../lib/api';
 
 const PaymentSchedulesPage = (await import('../../pages/PaymentSchedulesPage')).default;
 
+const mockSchedules = [
+  { id: '1', lead: { contact: { name: 'John Doe' } }, label: 'Booking Amount', amount: 500000, currency: 'INR', dueDate: '2024-02-15', status: 'PENDING' },
+  { id: '2', lead: null, label: 'Registration', amount: 250000, currency: 'INR', dueDate: '2024-03-01', status: 'PAID' },
+];
+
 describe('PaymentSchedulesPage', () => {
+  beforeEach(() => {
+    vi.mocked(api).mockImplementation((path: string) => {
+      if (path.includes('/payment-schedules')) return Promise.resolve(mockSchedules);
+      return Promise.resolve([]);
+    });
+  });
+
   it('shows loading text initially', () => {
     render(<PaymentSchedulesPage />, { wrapper: Wrapper });
     expect(screen.getByText('Loading...')).toBeInTheDocument();
@@ -46,6 +58,31 @@ describe('PaymentSchedulesPage', () => {
     render(<PaymentSchedulesPage />, { wrapper: Wrapper });
     await waitFor(() => {
       expect(screen.getByText('Payments & Collections')).toBeInTheDocument();
+    });
+  });
+
+  it('renders status filter dropdown with All Status default', async () => {
+    render(<PaymentSchedulesPage />, { wrapper: Wrapper });
+    await waitFor(() => {
+      expect(screen.getByText('All Status')).toBeInTheDocument();
+    });
+  });
+
+  it('loads and displays schedules in the table', async () => {
+    render(<PaymentSchedulesPage />, { wrapper: Wrapper });
+    await waitFor(() => {
+      expect(screen.getByText('Booking Amount')).toBeInTheDocument();
+      expect(screen.getByText('John Doe')).toBeInTheDocument();
+    });
+    expect(await screen.findByText('Registration')).toBeInTheDocument();
+    const paidElements = await screen.findAllByText('Paid');
+    expect(paidElements.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('shows Add Milestone button', async () => {
+    render(<PaymentSchedulesPage />, { wrapper: Wrapper });
+    await waitFor(() => {
+      expect(screen.getByText('Add Milestone')).toBeInTheDocument();
     });
   });
 });

@@ -31,7 +31,10 @@ function Wrapper({ children }: { children: React.ReactNode }) {
 }
 
 vi.mock('../../lib/data', () => ({
-  fetchContracts: vi.fn().mockResolvedValue({ data: [] }),
+  fetchContracts: vi.fn().mockResolvedValue({ data: [
+    { id: '1', contractNumber: 'CT-001', amount: 5000000, status: 'ACTIVE' },
+    { id: '2', contractNumber: 'CT-002', amount: 7500000, status: 'DRAFT' },
+  ] }),
   fetchQuotations: vi.fn().mockResolvedValue({ data: [] }),
   createContract: vi.fn(),
 }));
@@ -42,5 +45,18 @@ describe('ContractsPage', () => {
   it('renders Contracts heading', async () => {
     render(<ContractsPage />, { wrapper: Wrapper });
     expect(await screen.findByText('Contracts')).toBeInTheDocument();
+  });
+
+  it('shows New contract button', async () => {
+    render(<ContractsPage />, { wrapper: Wrapper });
+    expect(await screen.findByText('New contract')).toBeInTheDocument();
+  });
+
+  it('loads and displays contracts list with numbers and statuses', async () => {
+    render(<ContractsPage />, { wrapper: Wrapper });
+    expect(await screen.findByText('CT-001')).toBeInTheDocument();
+    expect(await screen.findByText('CT-002')).toBeInTheDocument();
+    expect(await screen.findByText('ACTIVE')).toBeInTheDocument();
+    expect(await screen.findByText('DRAFT')).toBeInTheDocument();
   });
 });

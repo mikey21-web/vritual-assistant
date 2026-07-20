@@ -31,16 +31,46 @@ function Wrapper({ children }: { children: React.ReactNode }) {
 }
 
 vi.mock('../../lib/data', () => ({
-  fetchQuotations: vi.fn().mockResolvedValue({ data: [] }),
+  fetchQuotations: vi.fn(),
   fetchContacts: vi.fn().mockResolvedValue({ data: [] }),
   createQuotation: vi.fn(),
 }));
 
+import { fetchQuotations } from '../../lib/data';
+
 const QuotationsPage = (await import('../../pages/QuotationsPage')).default;
 
+const mockQuotations = [
+  { id: '1', quoteNumber: 'Q-001', contact: { name: 'Client A' }, status: 'SENT', sections: [{ lineItems: [{ total: 50000 }] }] },
+  { id: '2', quoteNumber: 'Q-002', contact: null, status: 'DRAFT', sections: [] },
+];
+
 describe('QuotationsPage', () => {
+  beforeEach(() => {
+    vi.mocked(fetchQuotations).mockResolvedValue({ data: mockQuotations });
+  });
+
   it('renders Quotations heading', async () => {
     render(<QuotationsPage />, { wrapper: Wrapper });
     expect(await screen.findByText('Quotations')).toBeInTheDocument();
+  });
+
+  it('shows New quotation button', async () => {
+    render(<QuotationsPage />, { wrapper: Wrapper });
+    expect(await screen.findByText('New quotation')).toBeInTheDocument();
+  });
+
+  it('loads and displays quotations list', async () => {
+    render(<QuotationsPage />, { wrapper: Wrapper });
+    expect(await screen.findByText('Q-001 — Client A')).toBeInTheDocument();
+    expect(await screen.findByText('Q-002 — Not selected')).toBeInTheDocument();
+    expect(await screen.findByText('SENT')).toBeInTheDocument();
+    expect(await screen.findByText('DRAFT')).toBeInTheDocument();
+  });
+
+  it('shows empty state when no quotations exist', async () => {
+    vi.mocked(fetchQuotations).mockResolvedValue({ data: [] });
+    render(<QuotationsPage />, { wrapper: Wrapper });
+    expect(await screen.findByText('No quotations yet.')).toBeInTheDocument();
   });
 });
