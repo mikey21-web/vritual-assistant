@@ -338,6 +338,7 @@ function MembersAccessTab() {
 
 function AutomationTab() {
   const [faqs, setFaqs] = useState<{ keywords: string; answer: string }[]>([]);
+  const [qualQs, setQualQs] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [tenantId, setTenantId] = useState('');
@@ -345,8 +346,10 @@ function AutomationTab() {
   useEffect(() => {
     api('/tenants/me').then((t: any) => {
       setTenantId(t.id);
-      const existing = (t.settings as any)?.faqs;
+      const s = t.settings as any || {};
+      const existing = s.faqs;
       setFaqs(existing ? Object.entries(existing).map(([k, v]) => ({ keywords: k, answer: v as string })) : [{ keywords: '', answer: '' }]);
+      setQualQs(s.qualificationQuestions || '');
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
@@ -357,8 +360,8 @@ function AutomationTab() {
       if (f.keywords.trim() && f.answer.trim()) map[f.keywords.trim()] = f.answer.trim();
     }
     try {
-      await api('/tenants/' + tenantId, { method: 'PATCH', body: JSON.stringify({ settings: { faqs: map } }) });
-      toast.success('FAQ auto-replies saved');
+      await api('/tenants/' + tenantId, { method: 'PATCH', body: JSON.stringify({ settings: { faqs: map, qualificationQuestions: qualQs } }) });
+      toast.success('Saved');
     } catch { toast.error('Failed to save'); }
     setSaving(false);
   };
@@ -366,7 +369,19 @@ function AutomationTab() {
   if (loading) return <div className="py-10 text-center text-[var(--muted-foreground)]">Loading...</div>;
 
   return (
-    <div className="max-w-2xl space-y-4 animate-fade-in">
+    <div className="max-w-2xl space-y-6 animate-fade-in">
+      <div>
+        <h2 className="text-lg font-semibold text-[var(--foreground)]">WhatsApp Ad Qualification</h2>
+        <p className="text-sm text-[var(--muted-foreground)] mt-0.5">When someone clicks your Facebook/Google ad and messages on WhatsApp for the first time, Mikey sends this to qualify them.</p>
+        <textarea value={qualQs} onChange={e => setQualQs(e.target.value)}
+          placeholder="Thanks for your interest! 🏡 To help you find the perfect home, please tell me:&#10;1. Which project interests you?&#10;2. 2BHK or 3BHK?&#10;3. Your budget range?&#10;4. When do you plan to buy?"
+          rows={6}
+          className="w-full mt-2 px-3 py-2 text-sm rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] outline-none focus:border-[var(--primary)] resize-none"
+        />
+      </div>
+
+      <hr className="border-[var(--border)]" />
+
       <div>
         <h2 className="text-lg font-semibold text-[var(--foreground)]">FAQ Auto-Replies</h2>
         <p className="text-sm text-[var(--muted-foreground)] mt-0.5">When an inbound WhatsApp message contains any keyword, Mikey auto-replies with the answer.</p>

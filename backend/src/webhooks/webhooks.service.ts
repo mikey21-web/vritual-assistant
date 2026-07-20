@@ -80,6 +80,8 @@ export class WebhooksService {
       lead = existingLead;
     } else {
       lead = await this.leadsService.create({ contactId: contact.id, source: 'WHATSAPP', message: text, metadata: { from: fromNumber, timestamp: msg.timestamp, msgId } });
+      // New lead from ad click — send qualification questions if configured
+      await this.maybeSendQualificationQs(lead.id, contact.id, lead.tenantId || contact.tenantId);
     }
 
     const stopPattern = /^\s*(stop|unsubscribe|cancel|opt.?out)\s*$/i;
@@ -114,6 +116,14 @@ export class WebhooksService {
 
     this.metrics.incrementCounter('webhooks_processed_total', { provider, status: 'success' });
     return { data: result };
+  }
+
+  /** Send qualification questions when a new lead comes from WhatsApp (ad click). */
+  private async maybeSendQualificationQs(leadId: string, contactId: string, tenantId: string): Promise<void> {
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId }, select: { settings: true } });
+    const questions = (tenant?.settings as any)?.qualificationQuestions as string | undefined;
+    if (!questions?.trim()) return;
+    await this.conversationsService.create({ leadId, contactId, channel: 'WHATSAPP', direction: 'OUTBOUND', text: questions.trim() });
   }
 
   /** Check inbound message against tenant's FAQ keyword map and auto-reply if matched. */
