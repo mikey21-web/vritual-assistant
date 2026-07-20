@@ -283,8 +283,8 @@ export class LeadsService {
   async createManual(data: {
     name: string; phone?: string; email?: string; source?: string;
     interest?: string; budget?: string; message?: string; assignedAgentId?: string;
-  }, userId?: string) {
-    const contact = await this.contacts.findOrCreate({ name: data.name, phone: data.phone, email: data.email });
+  }, userId?: string, req?: any) {
+    const contact = await this.contacts.findOrCreate({ name: data.name, phone: data.phone, email: data.email }, req);
     return this.create({
       contactId: contact.id,
       tenantId: contact.tenantId,

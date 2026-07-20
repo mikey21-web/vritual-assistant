@@ -27,7 +27,7 @@ export class LeadsController {
   @Post('manual')
   @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT')
   @ApiOperation({ summary: "Manually add a lead that came from outside Mikey's coverage (walk-in, referral, offline)" })
-  createManual(@Body() d: CreateManualLeadDto, @Req() req) { return this.service.createManual(d, req.user.sub); }
+  createManual(@Body() d: CreateManualLeadDto, @Req() req) { return this.service.createManual(d, req.user.sub, req); }
 
   @Get(':id')
   @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT', 'SUPPORT_AGENT', 'VIEWER')
