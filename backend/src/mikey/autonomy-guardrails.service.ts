@@ -111,7 +111,7 @@ export class AutonomyGuardrailsService {
   async canMessageLeadAutonomously(tenantId: string, category: AutonomyCategory, leadId: string): Promise<{ allowed: boolean; reason?: string; mode?: AutonomyLevel }> {
     const level = await this.getCategoryLevel(tenantId, category);
     if (level === 'off') return { allowed: false, reason: `${category} autonomy is turned off` };
-    if (level === 'observe') return { allowed: true, mode: 'observe', reason: `${category} is in observe-only mode — drafting for approval` };
+    if (level === 'observe') return { allowed: false, mode: 'observe', reason: `${category} is in observe-only mode — drafting for approval` };
     if (await this.isQuietHours(tenantId)) return { allowed: false, reason: 'quiet hours' };
     if (!(await this.isUnderDailyCap(tenantId))) return { allowed: false, reason: 'daily autonomous action cap reached' };
     if (!(await this.isLeadOffCooldown(tenantId, leadId))) return { allowed: false, reason: 'lead was already actioned autonomously within the cooldown window' };

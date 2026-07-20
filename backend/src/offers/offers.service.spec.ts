@@ -32,7 +32,7 @@ describe('OffersService', () => {
       providers: [
         OffersService,
         { provide: PrismaService, useValue: prisma },
-        { provide: TimelineService, useValue: { add: jest.fn() } },
+        { provide: TimelineService, useValue: { add: jest.fn(), recordDiscountApproved: jest.fn() } },
         { provide: AuditLogsService, useValue: { log: jest.fn() } },
       ],
     }).compile();

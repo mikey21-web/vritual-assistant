@@ -19,6 +19,7 @@ import { KhojClientService } from '../khoj-client/khoj-client.service';
 import { MikeyService } from '../mikey/mikey.service';
 import { OutcomeEngineService } from '../mikey/outcome-engine.service';
 import { MemoryService } from '../mikey/memory.service';
+import { ApprovalsService } from '../approvals/approvals.service';
 
 // chat() no longer runs an in-process OpenAI tool-loop — it delegates all reasoning
 // and tool execution to the Python agent-service over HTTP (POST /agent/copilot/chat),
@@ -75,6 +76,7 @@ describe('CopilotService', () => {
         { provide: MikeyService, useValue: { runAutonomousAction: jest.fn() } },
         { provide: OutcomeEngineService, useValue: { defineOutcome: jest.fn() } },
         { provide: MemoryService, useValue: { recallRecent: jest.fn().mockResolvedValue([]) } },
+        { provide: ApprovalsService, useValue: { request: jest.fn(), decide: jest.fn() } },
       ],
     }).compile();
 

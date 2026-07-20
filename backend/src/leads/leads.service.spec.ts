@@ -8,6 +8,7 @@ import { EventsService } from '../events/events.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ContactsService } from '../contacts/contacts.service';
 import { MetricsService } from '../monitoring/metrics.service';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
 
 describe('LeadsService', () => {
   let service: LeadsService;
@@ -57,6 +58,7 @@ describe('LeadsService', () => {
         { provide: NotificationsService, useValue: notifications },
         { provide: ContactsService, useValue: contacts },
         { provide: MetricsService, useValue: metrics },
+        { provide: RealtimeGateway, useValue: { broadcastLeadUpdate: jest.fn(), sendToUser: jest.fn(), emitToTenant: jest.fn() } },
       ],
     }).compile();
 
