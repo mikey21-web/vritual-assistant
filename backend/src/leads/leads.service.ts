@@ -217,6 +217,7 @@ export class LeadsService {
       const c = await this.prisma.contact.findUnique({ where: { id: data.contactId }, select: { tenantId: true } });
       if (c) data.tenantId = c.tenantId;
     }
+    if (data.assignedAgentId === '') delete data.assignedAgentId;
     const lead = await this.prisma.$transaction(async (tx) => {
       const created = await tx.lead.create({ data });
       await this.auditLogs.log('lead_created', 'Lead', created.id, userId);
