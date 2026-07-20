@@ -94,7 +94,7 @@ Rules:
       const res = await fetch('https://api.openai.com/v1/images/generations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${openaiKey}` },
-        body: JSON.stringify({ model: 'dall-e-3', prompt: body.prompt, n: 1, size: '1024x1024' }),
+        body: JSON.stringify({ model: 'dall-e-2', prompt: body.prompt, n: 1, size: '1024x1024' }),
       });
       const data = await res.json() as any;
       if (!data.data?.[0]?.url) throw new Error(data.error?.message || 'Image generation failed');
