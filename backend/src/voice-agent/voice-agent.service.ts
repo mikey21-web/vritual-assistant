@@ -32,7 +32,7 @@ export class VoiceAgentService {
     const result = await this.twilio.makeCall(lead.contact.phone, callConfig);
 
     if (result.success) {
-      await this.prisma.callLog.create({ data: { leadId, tenantId: lead.tenantId, direction: 'OUTBOUND', fromNumber: this.config.get('TWILIO_PHONE_NUMBER', ''), toNumber: lead.contact.phone, status: 'INITIATED' as any, providerCallId: result.callSid, initiatedById: userId } });
+      await this.prisma.callLog.create({ data: { leadId, tenantId: lead.tenantId, direction: 'OUTBOUND', fromNumber: this.config.get('TWILIO_PHONE_NUMBER', ''), toNumber: lead.contact.phone, status: 'INITIATED', providerSid: result.callSid, agentId: userId } });
       this.logger.log(`Voice agent call initiated to ${lead.contact.name} (${lead.contact.phone})`);
     }
     return result;
