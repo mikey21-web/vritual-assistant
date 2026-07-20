@@ -189,6 +189,12 @@ export async function createBooking(leadId: string, data: any) {
 export async function fetchLeadBookings(leadId: string) {
   return api(`/bookings?leadId=${leadId}`);
 }
+export async function fetchLeadCostSheets(leadId: string) {
+  return api(`/cost-sheets?leadId=${leadId}`) as Promise<{ data: any[]; meta: any }>;
+}
+export async function draftAIReply(leadId: string, context?: string) {
+  return api('/agent/draft-reply', { method: 'POST', body: JSON.stringify({ leadId, context }) }) as Promise<{ draft: string; source: string }>;
+}
 
 export async function fetchUsers() { return api('/users') as Promise<User[]>; }
 export async function fetchAuditLogs() { return api('/audit-logs') as Promise<any>; }

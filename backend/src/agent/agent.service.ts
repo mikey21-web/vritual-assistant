@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { TimelineService } from '../timeline/timeline.service';
@@ -186,6 +186,42 @@ export class AgentService {
     const idx = Math.floor(Math.random() * fallbackResponses.length);
 
     return { response: fallbackResponses[idx], source: 'fallback' };
+  }
+
+  async draftReply(leadId: string, context?: string) {
+    const lead = await this.prisma.lead.findUnique({
+      where: { id: leadId },
+      include: { contact: true },
+    });
+    if (!lead) throw new NotFoundException('Lead not found');
+
+    const name = lead.contact?.name || 'there';
+    const interest = lead.interest || 'our projects';
+    const prompt = `Draft a WhatsApp reply for a real estate lead. Name: ${name}. Interest: ${interest}.${context ? ` Context: ${context}` : ''} Keep it under 160 characters, friendly and professional, end with a question.`;
+
+    const agentUrl = process.env.AGENT_SERVICE_URL;
+    const key = process.env.AGENT_INBOUND_KEY;
+    if (agentUrl) {
+      try {
+        const response = await fetch(`${agentUrl}/agent/test`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-agent-key': key || '' },
+          body: JSON.stringify({ message: prompt, channel: 'WHATSAPP' }),
+          signal: AbortSignal.timeout(5000),
+        });
+        if (response.ok) {
+          const data = await response.json();
+          return { draft: data.response || data.message || '...', source: 'agent-service' };
+        }
+      } catch {}
+    }
+
+    const drafts = [
+      `Hi ${name}, thanks for your interest in ${interest}! Would you like to schedule a site visit to see the property? Let me know a convenient time.`,
+      `Hello ${name}! We have great options matching your interest in ${interest}. Would you like me to share the latest cost sheet?`,
+      `Hi! Following up on your inquiry about ${interest}. We've just released new units that might be perfect. Care to take a look?`,
+    ];
+    return { draft: drafts[Math.floor(Math.random() * drafts.length)], source: 'fallback' };
   }
 
   async updateConfig(dto: { businessName?: string; industry?: string; toneStyle?: string; qualificationQuestions?: string[]; customPrompt?: string }) {

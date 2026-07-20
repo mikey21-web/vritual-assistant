@@ -37,6 +37,12 @@ export class AgentController {
     return this.agent.testAgent(d.message, d.channel || 'chatbot');
   }
 
+  @Post('draft-reply')
+  @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT')
+  draftReply(@Body() d: { leadId: string; context?: string }) {
+    return this.agent.draftReply(d.leadId, d.context);
+  }
+
   @Patch('config')
   @Roles('OWNER', 'ADMIN')
   async updateConfig(@Body() d: UpdateAgentConfigDto) {

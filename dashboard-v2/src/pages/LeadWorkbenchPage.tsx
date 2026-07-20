@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { fetchLead, getLeadTimeline, fetchContacts, holdUnit, createBooking, fetchLeadBookings } from '../lib/data';
+import { fetchLead, getLeadTimeline, fetchContacts, holdUnit, createBooking, fetchLeadBookings, fetchLeadCostSheets, draftAIReply } from '../lib/data';
 import { api } from '../lib/api';
 import toast from 'react-hot-toast';
 import { startExplainFlow } from '../lib/explainMode';
-import { ArrowLeft, Phone, MessageSquare, Calendar, FileText, X, AlertTriangle, Sparkles, Play, Send, Lock, ShoppingCart, MessageCircle } from 'lucide-react';
+import { ArrowLeft, Phone, MessageSquare, Calendar, FileText, X, AlertTriangle, Sparkles, Play, Send, Lock, ShoppingCart, MessageCircle, UserPlus, TrendingUp, Tag, UserCheck, CheckCircle, Database, Star, Bot, DollarSign, Clock, ChevronRight, ChevronLeft, Zap } from 'lucide-react';
 import CustomFieldsSection from '../components/CustomFieldsSection';
 import LeadPaymentMilestones from '../components/LeadPaymentMilestones';
 import PreVisitBrief from '../components/PreVisitBrief';
@@ -31,6 +31,47 @@ const segmentStyles: Record<string, string> = {
 };
 
 const SLA_DONE_STATUSES = new Set(['CONVERTED', 'LOST', 'SPAM']);
+
+const timelineIcon: Record<string, { icon: any; color: string; bg: string }> = {
+  lead_created: { icon: UserPlus, color: 'text-green-600', bg: 'bg-green-100 dark:bg-green-900/30' },
+  message_received: { icon: MessageSquare, color: 'text-blue-600', bg: 'bg-blue-100 dark:bg-blue-900/30' },
+  message_sent: { icon: Send, color: 'text-blue-600', bg: 'bg-blue-100 dark:bg-blue-900/30' },
+  call: { icon: Phone, color: 'text-green-600', bg: 'bg-green-100 dark:bg-green-900/30' },
+  score_changed: { icon: TrendingUp, color: 'text-indigo-600', bg: 'bg-indigo-100 dark:bg-indigo-900/30' },
+  segment_changed: { icon: Tag, color: 'text-amber-600', bg: 'bg-amber-100 dark:bg-amber-900/30' },
+  assigned: { icon: UserCheck, color: 'text-purple-600', bg: 'bg-purple-100 dark:bg-purple-900/30' },
+  site_visit_scheduled: { icon: Calendar, color: 'text-blue-600', bg: 'bg-blue-100 dark:bg-blue-900/30' },
+  site_visit_confirmed: { icon: Calendar, color: 'text-green-600', bg: 'bg-green-100 dark:bg-green-900/30' },
+  site_visit_completed: { icon: Calendar, color: 'text-emerald-600', bg: 'bg-emerald-100 dark:bg-emerald-900/30' },
+  site_visit_checked_in: { icon: Calendar, color: 'text-teal-600', bg: 'bg-teal-100 dark:bg-teal-900/30' },
+  site_visit_no_show: { icon: Calendar, color: 'text-red-600', bg: 'bg-red-100 dark:bg-red-900/30' },
+  site_visit_rescheduled: { icon: Calendar, color: 'text-amber-600', bg: 'bg-amber-100 dark:bg-amber-900/30' },
+  site_visit_cancelled: { icon: Calendar, color: 'text-gray-600', bg: 'bg-gray-100 dark:bg-gray-800' },
+  cost_sheet_created: { icon: FileText, color: 'text-gray-600', bg: 'bg-gray-100 dark:bg-gray-800' },
+  cost_sheet_submitted: { icon: FileText, color: 'text-amber-600', bg: 'bg-amber-100 dark:bg-amber-900/30' },
+  cost_sheet_approved: { icon: FileText, color: 'text-green-600', bg: 'bg-green-100 dark:bg-green-900/30' },
+  cost_sheet_sent: { icon: Send, color: 'text-blue-600', bg: 'bg-blue-100 dark:bg-blue-900/30' },
+  unit_hold_created: { icon: Lock, color: 'text-amber-600', bg: 'bg-amber-100 dark:bg-amber-900/30' },
+  unit_hold_released: { icon: Lock, color: 'text-gray-600', bg: 'bg-gray-100 dark:bg-gray-800' },
+  unit_hold_expired: { icon: Clock, color: 'text-red-600', bg: 'bg-red-100 dark:bg-red-900/30' },
+  booking_draft_created: { icon: ShoppingCart, color: 'text-blue-600', bg: 'bg-blue-100 dark:bg-blue-900/30' },
+  booking_confirmed: { icon: ShoppingCart, color: 'text-green-600', bg: 'bg-green-100 dark:bg-green-900/30' },
+  booking_cancelled: { icon: ShoppingCart, color: 'text-red-600', bg: 'bg-red-100 dark:bg-red-900/30' },
+  delivery_updated: { icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-100 dark:bg-green-900/30' },
+  crm_push_succeeded: { icon: Database, color: 'text-blue-600', bg: 'bg-blue-100 dark:bg-blue-900/30' },
+  crm_push_failed: { icon: Database, color: 'text-red-600', bg: 'bg-red-100 dark:bg-red-900/30' },
+  conversion: { icon: Star, color: 'text-yellow-600', bg: 'bg-yellow-100 dark:bg-yellow-900/30' },
+  agent_run_completed: { icon: Bot, color: 'text-purple-600', bg: 'bg-purple-100 dark:bg-purple-900/30' },
+  automation_failed: { icon: AlertTriangle, color: 'text-red-600', bg: 'bg-red-100 dark:bg-red-900/30' },
+  event_invited: { icon: Calendar, color: 'text-pink-600', bg: 'bg-pink-100 dark:bg-pink-900/30' },
+  event_rsvp: { icon: Calendar, color: 'text-pink-600', bg: 'bg-pink-100 dark:bg-pink-900/30' },
+  payment_confirmed: { icon: DollarSign, color: 'text-green-600', bg: 'bg-green-100 dark:bg-green-900/30' },
+  payment_reversed: { icon: DollarSign, color: 'text-red-600', bg: 'bg-red-100 dark:bg-red-900/30' },
+};
+
+function getTimelineConfig(type: string) {
+  return timelineIcon[type] || { icon: Clock, color: 'text-gray-500', bg: 'bg-gray-100 dark:bg-gray-800' };
+}
 
 function SlaClock({ lead }: { lead: any }) {
   if (SLA_DONE_STATUSES.has(lead.status)) return null;
@@ -77,6 +118,7 @@ export default function LeadWorkbenchPage() {
   const [creatingVisit, setCreatingVisit] = useState(false);
   const [creatingCS, setCreatingCS] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [draftingReply, setDraftingReply] = useState(false);
 
   const [visitForm, setVisitForm] = useState({ projectId: '', projectName: '', startAt: '' });
   const [costSheetForm, setCostSheetForm] = useState({ projectId: '', projectName: '', unitId: '', unitLabel: '' });
@@ -90,6 +132,8 @@ export default function LeadWorkbenchPage() {
   const [creatingBooking, setCreatingBooking] = useState(false);
 
   const [existingBookings, setExistingBookings] = useState<any[]>([]);
+  const [approvedCostSheets, setApprovedCostSheets] = useState<any[]>([]);
+  const [showApprovedCS, setShowApprovedCS] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -109,6 +153,11 @@ export default function LeadWorkbenchPage() {
         try {
           const bookings = await fetchLeadBookings(id);
           setExistingBookings(Array.isArray(bookings) ? bookings : bookings?.data || []);
+        } catch {}
+        try {
+          const csRes = await fetchLeadCostSheets(id);
+          const sheets = csRes?.data || [];
+          setApprovedCostSheets(sheets.filter((s: any) => s.status === 'APPROVED'));
         } catch {}
       } catch (e: any) {
         toast.error(e.message || 'Failed to load lead');
@@ -162,6 +211,18 @@ export default function LeadWorkbenchPage() {
     setSendingWA(false);
   };
 
+  const handleDraftReply = async () => {
+    setDraftingReply(true);
+    try {
+      const res = await draftAIReply(id);
+      setWhatsAppText(res.draft);
+      toast.success('Draft generated');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to generate draft');
+    }
+    setDraftingReply(false);
+  };
+
   const handleCreateVisit = async () => {
     if (!visitForm.projectId || !visitForm.startAt) return toast.error('Project and date/time required');
     setCreatingVisit(true);
@@ -173,6 +234,8 @@ export default function LeadWorkbenchPage() {
       toast.success('Site visit scheduled');
       setShowVisitForm(false);
       setVisitForm({ projectId: '', projectName: '', startAt: '' });
+      const t = await getLeadTimeline(id);
+      setTimeline(t);
     } catch (err: any) {
       toast.error(err.message || 'Failed to schedule visit');
     }
@@ -190,6 +253,10 @@ export default function LeadWorkbenchPage() {
       toast.success('Cost sheet created');
       setShowCostSheetForm(false);
       setCostSheetForm({ projectId: '', projectName: '', unitId: '', unitLabel: '' });
+      const t = await getLeadTimeline(id);
+      setTimeline(t);
+      const csRes = await fetchLeadCostSheets(id);
+      setApprovedCostSheets((csRes?.data || []).filter((s: any) => s.status === 'APPROVED'));
     } catch (err: any) {
       toast.error(err.message || 'Failed to create cost sheet');
     }
@@ -204,6 +271,8 @@ export default function LeadWorkbenchPage() {
       toast.success(`Unit held for ${holdForm.holdHours}h`);
       setShowHoldForm(false);
       setHoldForm({ projectId: '', projectName: '', unitId: '', unitLabel: '', holdHours: 24 });
+      const t = await getLeadTimeline(id);
+      setTimeline(t);
     } catch (err: any) {
       toast.error(err.message || 'Failed to hold unit');
     }
@@ -224,6 +293,29 @@ export default function LeadWorkbenchPage() {
       toast.success('Booking created');
       setShowBookingForm(false);
       setBookingForm({ projectId: '', projectName: '', unitId: '', unitLabel: '', title: '' });
+      const t = await getLeadTimeline(id);
+      setTimeline(t);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to create booking');
+    }
+    setCreatingBooking(false);
+  };
+
+  const handleQuickBookFromApproved = async (cs: any) => {
+    setCreatingBooking(true);
+    try {
+      await createBooking(id, {
+        leadId: id,
+        unitId: cs.unitId,
+        propertyId: cs.projectId,
+        costSheetId: cs.id,
+        title: `Booking from approved cost sheet — Unit ${cs.unit?.unitNumber || ''}`,
+        startTime: new Date().toISOString(),
+      });
+      toast.success('Booking created from approved cost sheet');
+      setShowApprovedCS(false);
+      const t = await getLeadTimeline(id);
+      setTimeline(t);
     } catch (err: any) {
       toast.error(err.message || 'Failed to create booking');
     }
@@ -244,7 +336,7 @@ export default function LeadWorkbenchPage() {
       <div className="space-y-4 animate-fade-in p-6">
         <div className="h-5 w-32 bg-[var(--muted)] rounded animate-pulse" />
         <div className="h-8 w-64 bg-[var(--muted)] rounded animate-pulse" />
-        <div className="grid grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-48 bg-[var(--muted)] rounded-lg animate-pulse" />)}
         </div>
       </div>
@@ -261,16 +353,17 @@ export default function LeadWorkbenchPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* Header */}
       <div className="flex items-center gap-3">
         <button onClick={backToList} className="p-1.5 rounded-lg hover:bg-[var(--accent)] text-[var(--muted-foreground)]">
           <ArrowLeft size={18} />
         </button>
-        <div className="flex items-center gap-3 flex-1">
-          <h1 className="text-xl font-bold text-[var(--foreground)]">{lead.contact?.name || 'Unknown'}</h1>
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <h1 className="text-lg sm:text-xl font-bold text-[var(--foreground)] truncate">{lead.contact?.name || 'Unknown'}</h1>
           <SlaClock lead={lead} />
-          <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${statusStyles[lead.status] || ''}`}>{lead.status}</span>
-          <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${segmentStyles[lead.segment] || ''}`}>{lead.segment}</span>
-          {lead.score !== undefined && <span className="font-mono text-xs text-[var(--muted-foreground)]">Score: {lead.score}</span>}
+          <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium shrink-0 ${statusStyles[lead.status] || ''}`}>{lead.status}</span>
+          <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium shrink-0 ${segmentStyles[lead.segment] || ''}`}>{lead.segment}</span>
+          {lead.score !== undefined && <span className="font-mono text-xs text-[var(--muted-foreground)] shrink-0 hidden sm:inline">Score: {lead.score}</span>}
         </div>
       </div>
 
@@ -288,6 +381,21 @@ export default function LeadWorkbenchPage() {
         </div>
       )}
 
+      {/* Approved Cost Sheet Quick Action */}
+      {approvedCostSheets.length > 0 && (
+        <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-lg bg-green-50 border border-green-300 text-green-800 dark:bg-green-900/20 dark:border-green-700/30 dark:text-green-400">
+          <div className="flex items-center gap-2">
+            <FileText size={16} />
+            <span className="text-sm font-medium">{approvedCostSheets.length} approved cost sheet{approvedCostSheets.length > 1 ? 's' : ''} ready</span>
+          </div>
+          <button onClick={() => setShowApprovedCS(true)}
+            className="inline-flex items-center gap-1.5 h-8 px-4 rounded-lg bg-green-600 text-white text-xs font-medium hover:bg-green-700 transition-colors">
+            <ShoppingCart size={13} /> Book Now
+          </button>
+        </div>
+      )}
+
+      {/* Actions - mobile responsive */}
       <div className="flex flex-wrap gap-2">
         {lead.contact?.phone && (
           <button onClick={handleCall} disabled={actionLoading === 'call'}
@@ -303,7 +411,7 @@ export default function LeadWorkbenchPage() {
         )}
         <button onClick={() => setShowVisitForm(true)}
           className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] text-sm font-medium hover:bg-[var(--accent)] transition-all">
-          <Calendar size={14} /> Schedule Visit
+          <Calendar size={14} /> Visit
         </button>
         <button onClick={() => setShowCostSheetForm(true)}
           className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] text-sm font-medium hover:bg-[var(--accent)] transition-all">
@@ -316,14 +424,9 @@ export default function LeadWorkbenchPage() {
           </button>
         )}
         {!SLA_DONE_STATUSES.has(lead.status) && (
-          <button onClick={() => {
-            if (existingBookings.length > 0) {
-              setBookingForm(f => ({ ...f, title: `Booking for ${lead.contact?.name || 'Lead'}` }));
-            }
-            setShowBookingForm(true);
-          }}
+          <button onClick={() => { setShowBookingForm(true); }}
             className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg border border-green-300 bg-green-50 text-green-700 text-sm font-medium hover:bg-green-100 dark:border-green-800/30 dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/30 transition-all">
-            <ShoppingCart size={14} /> Proceed to Booking
+            <ShoppingCart size={14} /> Book
           </button>
         )}
         <button onClick={() => {
@@ -333,17 +436,19 @@ export default function LeadWorkbenchPage() {
             narration: t.description ? `${t.title}: ${t.description}` : t.title,
           })));
         }} className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg border border-purple-300 bg-purple-50 text-purple-700 text-sm font-medium hover:bg-purple-100 dark:border-purple-800/30 dark:bg-purple-900/20 dark:text-purple-400 dark:hover:bg-purple-900/30 transition-all">
-          <Play size={14} /> Play Timeline
+          <Play size={14} /> Timeline
         </button>
         {!SLA_DONE_STATUSES.has(lead.status) && (
           <button onClick={handleMarkLost} disabled={actionLoading === 'lost'}
             className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 dark:border-red-800/30 dark:text-red-400 dark:hover:bg-red-900/20 transition-all">
-            <X size={14} /> {actionLoading === 'lost' ? '...' : 'Mark Lost'}
+            <X size={14} /> {actionLoading === 'lost' ? '...' : 'Lost'}
           </button>
         )}
       </div>
 
+      {/* Desktop: 3-column layout / Mobile: single column */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Details Column */}
         <div>
           <h4 className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider mb-3">Details</h4>
           <div className="space-y-2.5 text-sm">
@@ -384,9 +489,10 @@ export default function LeadWorkbenchPage() {
           </div>
         </div>
 
+        {/* Timeline Column */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h4 className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Timeline</h4>
+            <h4 className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">Unified Timeline</h4>
             {timeline.length > 0 && (
               <button onClick={() => {
                 const ordered = [...timeline].reverse();
@@ -399,46 +505,53 @@ export default function LeadWorkbenchPage() {
               </button>
             )}
           </div>
-          <div className="space-y-2 max-h-60 overflow-y-auto">
-            {timeline.length === 0 && <p className="text-sm text-[var(--muted-foreground)]">No activity yet</p>}
-            {timeline.slice(0, 15).map((t: any) => (
-              <div key={t.id} className="flex items-start gap-2.5 text-sm">
-                {t.metadata?.recordingUrl ? <Phone size={14} className="text-green-500 mt-0.5 shrink-0" /> : <Calendar size={14} className="text-[var(--primary)] mt-0.5 shrink-0" />}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-[var(--foreground)] truncate">{t.title}</p>
-                    {t.type === 'delivery_updated' && (
-                      <span className={`shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded ${t.description === 'delivered' || t.description === 'read' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : t.description === 'failed' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'}`}>
-                        {t.description}
-                      </span>
-                    )}
-                    {t.metadata?.disposition && (
-                      <span className="shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">{t.metadata.disposition.replace(/_/g, ' ')}</span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <p className="text-xs text-[var(--muted-foreground)]">{new Date(t.createdAt).toLocaleString()}</p>
-                    {t.metadata?.recordingUrl && (
-                      <a href={t.metadata.recordingUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-[var(--primary)] hover:underline">Listen</a>
-                    )}
+          <div className="space-y-1 max-h-[28rem] overflow-y-auto pr-1">
+            {timeline.length === 0 && <p className="text-sm text-[var(--muted-foreground)] py-4 text-center">No activity yet</p>}
+            {timeline.slice(0, 30).map((t: any) => {
+              const cfg = getTimelineConfig(t.type);
+              const Icon = cfg.icon;
+              return (
+                <div key={t.id} className="flex items-start gap-2.5 py-2 text-sm group hover:bg-[var(--accent)]/30 rounded-lg px-2 -mx-2 transition-colors">
+                  <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full ${cfg.bg} shrink-0 mt-0.5`}>
+                    <Icon size={13} className={cfg.color} />
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-[var(--foreground)] truncate text-sm font-medium">{t.title}</p>
+                      {t.type === 'delivery_updated' && (
+                        <span className={`shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded ${t.description === 'delivered' || t.description === 'read' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : t.description === 'failed' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'}`}>
+                          {t.description}
+                        </span>
+                      )}
+                      {t.metadata?.disposition && (
+                        <span className="shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">{t.metadata.disposition.replace(/_/g, ' ')}</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs text-[var(--muted-foreground)]">{new Date(t.createdAt).toLocaleString()}</p>
+                      {t.metadata?.recordingUrl && (
+                        <a href={t.metadata.recordingUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-[var(--primary)] hover:underline">Listen</a>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
+        {/* Custom Fields & Tools Column */}
         <div className="space-y-6">
           <div>
             <CustomFieldsSection target="LEAD" targetId={lead.id} />
           </div>
           <LeadPaymentMilestones leadId={lead.id} />
           <button onClick={() => setBriefLeadId(lead.id)}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-[var(--primary)] text-[var(--primary-foreground)] hover:opacity-90 transition-opacity">
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-[var(--primary)] text-[var(--primary-foreground)] hover:opacity-90 transition-opacity w-full sm:w-auto justify-center">
             <Sparkles size={12} /> Pre-Visit Brief
           </button>
           <a href={`#/create-event?leadId=${lead.id}&contactId=${lead.contact?.id || ''}`}
-            className="block mt-2 text-xs font-medium text-[var(--primary)] hover:underline">
+            className="block mt-2 text-xs font-medium text-[var(--primary)] hover:underline text-center sm:text-left">
             <Calendar size={12} className="inline mr-1" />Create event from this lead
           </a>
         </div>
@@ -446,6 +559,7 @@ export default function LeadWorkbenchPage() {
 
       {briefLeadId && <PreVisitBrief leadId={briefLeadId} onClose={() => setBriefLeadId(null)} />}
 
+      {/* WhatsApp Composer with Jarvis Draft */}
       {showWhatsApp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowWhatsApp(false)}>
           <div className="bg-[var(--card)] rounded-xl shadow-2xl w-full max-w-md p-6 space-y-3" onClick={e => e.stopPropagation()}>
@@ -457,146 +571,201 @@ export default function LeadWorkbenchPage() {
             <textarea value={whatsAppText} onChange={e => setWhatsAppText(e.target.value)} rows={3} autoFocus
               placeholder="Type your message..."
               className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20 resize-none" />
-            <div className="flex justify-end gap-2">
-              <button onClick={() => setShowWhatsApp(false)} className="h-9 px-4 rounded-lg border border-[var(--border)] text-sm">Cancel</button>
-              <button onClick={handleSendWhatsApp} disabled={sendingWA || !whatsAppText.trim()}
-                className="inline-flex items-center gap-1.5 h-9 px-5 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90 disabled:opacity-50">
-                <Send size={13} /> {sendingWA ? 'Sending...' : 'Send'}
+            <div className="flex justify-between gap-2">
+              <button onClick={handleDraftReply} disabled={draftingReply}
+                className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg border border-purple-300 bg-purple-50 text-purple-700 text-sm font-medium hover:bg-purple-100 disabled:opacity-50 dark:border-purple-800/30 dark:bg-purple-900/20 dark:text-purple-400 dark:hover:bg-purple-900/30 transition-all">
+                <Sparkles size={13} /> {draftingReply ? 'Drafting...' : 'Draft with Jarvis'}
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showVisitForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowVisitForm(false)}>
-          <div className="bg-[var(--card)] rounded-xl shadow-2xl w-full max-w-md p-6 space-y-3" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-[var(--foreground)]">Schedule Site Visit</h2>
-              <button onClick={() => setShowVisitForm(false)}><X size={18} /></button>
-            </div>
-            <div>
-              <label className="text-xs font-medium text-[var(--muted-foreground)] mb-1 block">Project</label>
-              <ProjectPicker value={visitForm.projectId} onChange={(id, name) => setVisitForm(f => ({ ...f, projectId: id, projectName: name }))} />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-[var(--muted-foreground)] mb-1 block">Date & Time</label>
-              <input value={visitForm.startAt} onChange={e => setVisitForm(f => ({ ...f, startAt: e.target.value }))} type="datetime-local"
-                className="w-full h-10 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm" />
-            </div>
-            <div className="flex justify-end gap-2">
-              <button onClick={() => setShowVisitForm(false)} className="h-9 px-4 rounded-lg border border-[var(--border)] text-sm">Cancel</button>
-              <button onClick={handleCreateVisit} disabled={creatingVisit}
-                className="h-9 px-5 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90 disabled:opacity-50">
-                {creatingVisit ? 'Scheduling...' : 'Schedule'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showCostSheetForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowCostSheetForm(false)}>
-          <div className="bg-[var(--card)] rounded-xl shadow-2xl w-full max-w-md p-6 space-y-3" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-[var(--foreground)]">Create Cost Sheet</h2>
-              <button onClick={() => setShowCostSheetForm(false)}><X size={18} /></button>
-            </div>
-            <div>
-              <label className="text-xs font-medium text-[var(--muted-foreground)] mb-1 block">Project</label>
-              <ProjectPicker value={costSheetForm.projectId} onChange={(id, name) => setCostSheetForm(f => ({ ...f, projectId: id, projectName: name, unitId: '', unitLabel: '' }))} />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-[var(--muted-foreground)] mb-1 block">Unit</label>
-              <UnitPicker value={costSheetForm.unitId} onChange={(id, label) => setCostSheetForm(f => ({ ...f, unitId: id, unitLabel: label }))} projectId={costSheetForm.projectId} />
-            </div>
-            <div className="flex justify-end gap-2">
-              <button onClick={() => setShowCostSheetForm(false)} className="h-9 px-4 rounded-lg border border-[var(--border)] text-sm">Cancel</button>
-              <button onClick={handleCreateCostSheet} disabled={creatingCS}
-                className="h-9 px-5 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90 disabled:opacity-50">
-                {creatingCS ? 'Creating...' : 'Create'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showHoldForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowHoldForm(false)}>
-          <div className="bg-[var(--card)] rounded-xl shadow-2xl w-full max-w-md p-6 space-y-3" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-[var(--foreground)]">Hold Unit</h2>
-              <button onClick={() => setShowHoldForm(false)}><X size={18} /></button>
-            </div>
-            <p className="text-xs text-[var(--muted-foreground)]">Reserve a unit for {lead.contact?.name || 'this lead'} — blocks other sales</p>
-            <div>
-              <label className="text-xs font-medium text-[var(--muted-foreground)] mb-1 block">Project</label>
-              <ProjectPicker value={holdForm.projectId} onChange={(id, name) => setHoldForm(f => ({ ...f, projectId: id, projectName: name, unitId: '', unitLabel: '' }))} />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-[var(--muted-foreground)] mb-1 block">Unit</label>
-              <UnitPicker value={holdForm.unitId} onChange={(id, label) => setHoldForm(f => ({ ...f, unitId: id, unitLabel: label }))} projectId={holdForm.projectId} />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-[var(--muted-foreground)] mb-1 block">Hold Duration</label>
-              <select value={holdForm.holdHours} onChange={e => setHoldForm(f => ({ ...f, holdHours: Number(e.target.value) }))}
-                className="w-full h-10 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm">
-                <option value={6}>6 hours</option>
-                <option value={12}>12 hours</option>
-                <option value={24}>24 hours</option>
-                <option value={48}>48 hours</option>
-                <option value={72}>72 hours (3 days)</option>
-                <option value={168}>7 days</option>
-              </select>
-            </div>
-            <div className="flex justify-end gap-2">
-              <button onClick={() => setShowHoldForm(false)} className="h-9 px-4 rounded-lg border border-[var(--border)] text-sm">Cancel</button>
-              <button onClick={handleHoldUnit} disabled={creatingHold || !holdForm.unitId}
-                className="h-9 px-5 rounded-lg bg-amber-600 text-white text-sm font-medium hover:opacity-90 disabled:opacity-50">
-                {creatingHold ? 'Holding...' : 'Hold Unit'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showBookingForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowBookingForm(false)}>
-          <div className="bg-[var(--card)] rounded-xl shadow-2xl w-full max-w-md p-6 space-y-3" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-[var(--foreground)]">Proceed to Booking</h2>
-              <button onClick={() => setShowBookingForm(false)}><X size={18} /></button>
-            </div>
-            <p className="text-xs text-[var(--muted-foreground)]">Create a booking for {lead.contact?.name || 'this lead'}</p>
-            {existingBookings.length > 0 && (
-              <div className="px-3 py-2 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 text-xs dark:bg-blue-900/20 dark:border-blue-800/30 dark:text-blue-400">
-                {existingBookings.length} existing booking{existingBookings.length > 1 ? 's' : ''} found for this lead
+              <div className="flex gap-2">
+                <button onClick={() => setShowWhatsApp(false)} className="h-9 px-4 rounded-lg border border-[var(--border)] text-sm text-[var(--foreground)]">Cancel</button>
+                <button onClick={handleSendWhatsApp} disabled={sendingWA || !whatsAppText.trim()}
+                  className="inline-flex items-center gap-1.5 h-9 px-5 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90 disabled:opacity-50">
+                  <Send size={13} /> {sendingWA ? 'Sending...' : 'Send'}
+                </button>
               </div>
-            )}
-            <div>
-              <label className="text-xs font-medium text-[var(--muted-foreground)] mb-1 block">Booking Title</label>
-              <input value={bookingForm.title} onChange={e => setBookingForm(f => ({ ...f, title: e.target.value }))}
-                placeholder={`Booking for ${lead.contact?.name || 'Lead'}`}
-                className="w-full h-10 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm" />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-[var(--muted-foreground)] mb-1 block">Project</label>
-              <ProjectPicker value={bookingForm.projectId} onChange={(id, name) => setBookingForm(f => ({ ...f, projectId: id, projectName: name, unitId: '', unitLabel: '' }))} />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-[var(--muted-foreground)] mb-1 block">Unit</label>
-              <UnitPicker value={bookingForm.unitId} onChange={(id, label) => setBookingForm(f => ({ ...f, unitId: id, unitLabel: label }))} projectId={bookingForm.projectId} />
-            </div>
-            <div className="flex justify-end gap-2">
-              <button onClick={() => setShowBookingForm(false)} className="h-9 px-4 rounded-lg border border-[var(--border)] text-sm">Cancel</button>
-              <button onClick={handleProceedToBooking} disabled={creatingBooking || !bookingForm.unitId}
-                className="h-9 px-5 rounded-lg bg-green-600 text-white text-sm font-medium hover:opacity-90 disabled:opacity-50">
-                {creatingBooking ? 'Creating...' : 'Create Booking'}
-              </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Schedule Visit */}
+      {showVisitForm && <VisitFormModal lead={lead} visitForm={visitForm} setVisitForm={setVisitForm} onClose={() => setShowVisitForm(false)} onSubmit={handleCreateVisit} creating={creatingVisit} />}
+
+      {/* Cost Sheet Form */}
+      {showCostSheetForm && <CostSheetFormModal lead={lead} form={costSheetForm} setForm={setCostSheetForm} onClose={() => setShowCostSheetForm(false)} onSubmit={handleCreateCostSheet} creating={creatingCS} />}
+
+      {/* Hold Unit */}
+      {showHoldForm && <HoldUnitModal lead={lead} form={holdForm} setForm={setHoldForm} onClose={() => setShowHoldForm(false)} onSubmit={handleHoldUnit} creating={creatingHold} />}
+
+      {/* Proceed to Booking */}
+      {showBookingForm && <BookingFormModal lead={lead} form={bookingForm} setForm={setBookingForm} onClose={() => setShowBookingForm(false)} onSubmit={handleProceedToBooking} creating={creatingBooking} existingBookings={existingBookings} />}
+
+      {/* Quick Book from Approved Cost Sheet */}
+      {showApprovedCS && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowApprovedCS(false)}>
+          <div className="bg-[var(--card)] rounded-xl shadow-2xl w-full max-w-md p-6 space-y-3" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-[var(--foreground)]">Quick Book from Approved Cost Sheet</h2>
+              <button onClick={() => setShowApprovedCS(false)}><X size={18} /></button>
+            </div>
+            <p className="text-xs text-[var(--muted-foreground)]">These cost sheets are approved and ready for booking.</p>
+            <div className="space-y-2">
+              {approvedCostSheets.map((cs: any) => (
+                <div key={cs.id} className="flex items-center justify-between p-3 rounded-lg border border-green-200 bg-green-50 dark:border-green-800/30 dark:bg-green-900/10">
+                  <div>
+                    <p className="text-sm font-medium text-[var(--foreground)]">{cs.project?.name || 'Project'} — {cs.unit?.unitNumber || 'Unit'}</p>
+                    <p className="text-xs text-[var(--muted-foreground)]">Approved · {cs.totalPaise ? `₹${(Number(cs.totalPaise) / 100).toLocaleString()}` : ''}</p>
+                  </div>
+                  <button onClick={() => handleQuickBookFromApproved(cs)} disabled={creatingBooking}
+                    className="inline-flex items-center gap-1.5 h-8 px-4 rounded-lg bg-green-600 text-white text-xs font-medium hover:bg-green-700 disabled:opacity-50 transition-colors">
+                    {creatingBooking ? 'Booking...' : 'Book Now'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ============= Modal Sub-components ============= */
+
+function VisitFormModal({ lead, visitForm, setVisitForm, onClose, onSubmit, creating }: any) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="bg-[var(--card)] rounded-xl shadow-2xl w-full max-w-md p-6 space-y-3" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold text-[var(--foreground)]">Schedule Site Visit</h2>
+          <button onClick={onClose}><X size={18} /></button>
+        </div>
+        <div>
+          <label className="text-xs font-medium text-[var(--muted-foreground)] mb-1 block">Project</label>
+          <ProjectPicker value={visitForm.projectId} onChange={(id: string, name: string) => setVisitForm((f: any) => ({ ...f, projectId: id, projectName: name }))} />
+        </div>
+        <div>
+          <label className="text-xs font-medium text-[var(--muted-foreground)] mb-1 block">Date & Time</label>
+          <input value={visitForm.startAt} onChange={e => setVisitForm((f: any) => ({ ...f, startAt: e.target.value }))} type="datetime-local"
+            className="w-full h-10 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm" />
+        </div>
+        <div className="flex justify-end gap-2">
+          <button onClick={onClose} className="h-9 px-4 rounded-lg border border-[var(--border)] text-sm text-[var(--foreground)]">Cancel</button>
+          <button onClick={onSubmit} disabled={creating}
+            className="h-9 px-5 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90 disabled:opacity-50">
+            {creating ? 'Scheduling...' : 'Schedule'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CostSheetFormModal({ lead, form, setForm, onClose, onSubmit, creating }: any) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="bg-[var(--card)] rounded-xl shadow-2xl w-full max-w-md p-6 space-y-3" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold text-[var(--foreground)]">Create Cost Sheet</h2>
+          <button onClick={onClose}><X size={18} /></button>
+        </div>
+        <div>
+          <label className="text-xs font-medium text-[var(--muted-foreground)] mb-1 block">Project</label>
+          <ProjectPicker value={form.projectId} onChange={(id: string, name: string) => setForm((f: any) => ({ ...f, projectId: id, projectName: name, unitId: '', unitLabel: '' }))} />
+        </div>
+        <div>
+          <label className="text-xs font-medium text-[var(--muted-foreground)] mb-1 block">Unit</label>
+          <UnitPicker value={form.unitId} onChange={(id: string, label: string) => setForm((f: any) => ({ ...f, unitId: id, unitLabel: label }))} projectId={form.projectId} />
+        </div>
+        <div className="flex justify-end gap-2">
+          <button onClick={onClose} className="h-9 px-4 rounded-lg border border-[var(--border)] text-sm text-[var(--foreground)]">Cancel</button>
+          <button onClick={onSubmit} disabled={creating}
+            className="h-9 px-5 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90 disabled:opacity-50">
+            {creating ? 'Creating...' : 'Create'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HoldUnitModal({ lead, form, setForm, onClose, onSubmit, creating }: any) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="bg-[var(--card)] rounded-xl shadow-2xl w-full max-w-md p-6 space-y-3" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold text-[var(--foreground)]">Hold Unit</h2>
+          <button onClick={onClose}><X size={18} /></button>
+        </div>
+        <p className="text-xs text-[var(--muted-foreground)]">Reserve a unit for {lead?.contact?.name || 'this lead'} — blocks other sales</p>
+        <div>
+          <label className="text-xs font-medium text-[var(--muted-foreground)] mb-1 block">Project</label>
+          <ProjectPicker value={form.projectId} onChange={(id: string, name: string) => setForm((f: any) => ({ ...f, projectId: id, projectName: name, unitId: '', unitLabel: '' }))} />
+        </div>
+        <div>
+          <label className="text-xs font-medium text-[var(--muted-foreground)] mb-1 block">Unit</label>
+          <UnitPicker value={form.unitId} onChange={(id: string, label: string) => setForm((f: any) => ({ ...f, unitId: id, unitLabel: label }))} projectId={form.projectId} />
+        </div>
+        <div>
+          <label className="text-xs font-medium text-[var(--muted-foreground)] mb-1 block">Hold Duration</label>
+          <select value={form.holdHours} onChange={e => setForm((f: any) => ({ ...f, holdHours: Number(e.target.value) }))}
+            className="w-full h-10 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm">
+            <option value={6}>6 hours</option>
+            <option value={12}>12 hours</option>
+            <option value={24}>24 hours</option>
+            <option value={48}>48 hours</option>
+            <option value={72}>72 hours (3 days)</option>
+            <option value={168}>7 days</option>
+          </select>
+        </div>
+        <div className="flex justify-end gap-2">
+          <button onClick={onClose} className="h-9 px-4 rounded-lg border border-[var(--border)] text-sm text-[var(--foreground)]">Cancel</button>
+          <button onClick={onSubmit} disabled={creating || !form.unitId}
+            className="h-9 px-5 rounded-lg bg-amber-600 text-white text-sm font-medium hover:opacity-90 disabled:opacity-50">
+            {creating ? 'Holding...' : 'Hold Unit'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BookingFormModal({ lead, form, setForm, onClose, onSubmit, creating, existingBookings }: any) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="bg-[var(--card)] rounded-xl shadow-2xl w-full max-w-md p-6 space-y-3" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold text-[var(--foreground)]">Proceed to Booking</h2>
+          <button onClick={onClose}><X size={18} /></button>
+        </div>
+        <p className="text-xs text-[var(--muted-foreground)]">Create a booking for {lead?.contact?.name || 'this lead'}</p>
+        {existingBookings.length > 0 && (
+          <div className="px-3 py-2 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 text-xs dark:bg-blue-900/20 dark:border-blue-800/30 dark:text-blue-400">
+            {existingBookings.length} existing booking{existingBookings.length > 1 ? 's' : ''} found for this lead
+          </div>
+        )}
+        <div>
+          <label className="text-xs font-medium text-[var(--muted-foreground)] mb-1 block">Booking Title</label>
+          <input value={form.title} onChange={e => setForm((f: any) => ({ ...f, title: e.target.value }))}
+            placeholder={`Booking for ${lead?.contact?.name || 'Lead'}`}
+            className="w-full h-10 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm" />
+        </div>
+        <div>
+          <label className="text-xs font-medium text-[var(--muted-foreground)] mb-1 block">Project</label>
+          <ProjectPicker value={form.projectId} onChange={(id: string, name: string) => setForm((f: any) => ({ ...f, projectId: id, projectName: name, unitId: '', unitLabel: '' }))} />
+        </div>
+        <div>
+          <label className="text-xs font-medium text-[var(--muted-foreground)] mb-1 block">Unit</label>
+          <UnitPicker value={form.unitId} onChange={(id: string, label: string) => setForm((f: any) => ({ ...f, unitId: id, unitLabel: label }))} projectId={form.projectId} />
+        </div>
+        <div className="flex justify-end gap-2">
+          <button onClick={onClose} className="h-9 px-4 rounded-lg border border-[var(--border)] text-sm text-[var(--foreground)]">Cancel</button>
+          <button onClick={onSubmit} disabled={creating || !form.unitId}
+            className="h-9 px-5 rounded-lg bg-green-600 text-white text-sm font-medium hover:opacity-90 disabled:opacity-50">
+            {creating ? 'Creating...' : 'Create Booking'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
