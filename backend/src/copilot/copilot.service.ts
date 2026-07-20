@@ -17,7 +17,6 @@ import { KhojClientService } from '../khoj-client/khoj-client.service';
 import { MikeyService } from '../mikey/mikey.service';
 import { OutcomeEngineService } from '../mikey/outcome-engine.service';
 import { MemoryService } from '../mikey/memory.service';
-import { FederatedService } from '../mikey/federated.service';
 
 const MAX_COPILOT_MESSAGES_PER_TENANT_PER_DAY = 500;
 import { PERMISSION_MATRIX } from '../permissions/permissions.matrix';
@@ -66,7 +65,6 @@ export class CopilotService {
     private Mikey: MikeyService,
     private outcomeEngine: OutcomeEngineService,
     private memory: MemoryService,
-    private federated: FederatedService,
   ) {}
 
   private can(role: string, permission: string): boolean {
@@ -157,16 +155,6 @@ export class CopilotService {
         memoryContext = recentMemory.map((m: any) => `- [${m.type}] ${m.summary || m.value}`).join('\n');
       }
     } catch {}
-    let benchmarkContext = '';
-    try {
-      const benchmarks = await this.federated.getLocalBenchmarks(tenantId);
-      if (benchmarks?.length) {
-        benchmarkContext = benchmarks.slice(0, 3).map((b: any) =>
-          `- ${b.metric}: ${b.avgValue} (peer avg, n=${b.sampleSize})`
-        ).join('\n');
-      }
-    } catch {}
-
     let khojContext = '';
     try {
       const khojResult = await this.khoj.query(message);
@@ -206,7 +194,6 @@ export class CopilotService {
           },
           khojContext,
           memoryContext,
-          benchmarkContext,
         }),
       });
       pythonResult = await res.json();

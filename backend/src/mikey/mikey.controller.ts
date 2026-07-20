@@ -6,8 +6,7 @@ import { StaffAwarenessService } from './staff-awareness.service';
 import { EventsService } from '../events/events.service';
 import { MikeySchedulerService } from './mikey-scheduler.service';
 import { AutonomyGuardrailsService, AutonomyCategory, AutonomyLevel } from './autonomy-guardrails.service';
-import { MetaCycleService } from './meta-cycle.service';
-import { ReflexionService } from './reflexion.service';
+import { MemoryService } from './memory.service';
 
 @Controller('mikey')
 export class MikeyController {
@@ -21,25 +20,26 @@ export class MikeyController {
     private events: EventsService,
     private scheduler: MikeySchedulerService,
     private guardrails: AutonomyGuardrailsService,
-    private metaCycle: MetaCycleService,
-    private reflexion: ReflexionService,
+    private memory: MemoryService,
   ) {}
 
   /** Learning tab data (spec 56.5): decision/impact stats, generalized patterns, and reflexion outcome breakdown — the evidence behind "is Mikey actually helping". */
   @Get('learning')
   async getLearning(@Query('tenantId') tenantId: string) {
-    const [stats, patterns, reflexionStats] = await Promise.all([
-      this.metaCycle.getStats(),
-      this.metaCycle.getGeneralizedPatterns(),
-      this.reflexion.getReflexionStats(tenantId),
-    ]);
-    return { decisionStats: stats, patterns, reflexionStats };
+    const reflexionStats = await this.memory.getReflexionStats(tenantId);
+    return { reflexionStats };
   }
 
   /** Is the always-on scan loop actually alive and healthy? Surfaces a stuck or repeatedly-failing scan instead of hiding it in logs (spec invariant: every failed job becomes visible to a human). */
   @Get('health')
   async getHealth() {
     return this.scheduler.getHealth();
+  }
+
+  /** Scan-specific health endpoint with pause state and findings count — for the dashboard pause toggle and external watchdog. */
+  @Get('scan-health')
+  async getScanHealth() {
+    return this.scheduler.getScanHealth();
   }
 
   /** Per-category autonomy dial (spec 56.4) — the owner controls what Mikey is allowed to act on, not one global switch. */

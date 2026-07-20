@@ -1,7 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { MemoryService } from './memory.service';
-import { EmbeddingService } from './embedding.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 describe('MemoryService', () => {
@@ -36,7 +35,6 @@ describe('MemoryService', () => {
       providers: [
         MemoryService,
         { provide: PrismaService, useValue: mockDb },
-        { provide: EmbeddingService, useValue: { embed: jest.fn().mockResolvedValue([]), cosineSimilarity: jest.fn().mockReturnValue(0.5), findSimilar: jest.fn().mockResolvedValue([]) } },
         { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue(undefined) } },
       ],
     }).compile();

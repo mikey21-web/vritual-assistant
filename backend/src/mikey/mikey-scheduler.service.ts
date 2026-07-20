@@ -1,13 +1,11 @@
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
+import { FeatureFlagsService } from '../shared/feature-flags.service';
 import { TemporalStrategyService } from './temporal-strategy.service';
 import { StaffAwarenessService } from './staff-awareness.service';
-import { MetaCycleService } from './meta-cycle.service';
 import { NicheScannerService } from './niche-scanner.service';
 import { NicheActionService } from './niche-action.service';
-import { ReflexionService } from './reflexion.service';
-import { FederatedService } from './federated.service';
 import { BookingLifecycleService } from '../bookings/booking-lifecycle.service';
 import { SiteVisitsService } from '../site-visits/site-visits.service';
 import { UnitHoldsService } from '../unit-holds/unit-holds.service';
@@ -15,6 +13,7 @@ import { SlaBreachService } from '../sla/sla-breach.service';
 import { MorningDigestService } from './morning-digest.service';
 import { SalienceEngineService } from './salience-engine.service';
 import { MikeyService } from './mikey.service';
+import { MemoryService } from './memory.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { MetricsService } from '../monitoring/metrics.service';
 import type { SchedulerFinding } from './mikey-scheduler.types';
@@ -33,6 +32,7 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
   private lastScanDurationMs: number | null = null;
   private lastScanError: string | null = null;
   private consecutiveFailures = 0;
+  private findingsCount = 0;
 
   getHealth() {
     return {
@@ -42,20 +42,32 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
       lastScanDurationMs: this.lastScanDurationMs,
       lastScanError: this.lastScanError,
       consecutiveFailures: this.consecutiveFailures,
+      findingsCount: this.findingsCount,
       healthy: this.consecutiveFailures < 3,
     };
+  }
+
+  private backoffUntil: Date | null = null;
+
+  /** Returns scan-specific health — same as getHealth but with pause state, so a dashboard or external watchdog can see everything in one shot. */
+  async getScanHealth(): Promise<{
+    scanning: boolean; totalScans: number; lastScanAt: Date | null; lastScanDurationMs: number | null;
+    lastScanError: string | null; consecutiveFailures: number; findingsCount: number; healthy: boolean;
+    isPaused: boolean;
+  }> {
+    const isPaused = await this.featureFlags.isEnabled('mikey_paused');
+    return { ...this.getHealth(), isPaused };
   }
 
   constructor(
     private prisma: PrismaService,
     private events: EventsService,
+    private featureFlags: FeatureFlagsService,
     private temporal: TemporalStrategyService,
     private staff: StaffAwarenessService,
-    private metaCycle: MetaCycleService,
     private nicheScanner: NicheScannerService,
     private nicheAction: NicheActionService,
-    private reflexion: ReflexionService,
-    private federated: FederatedService,
+    private memory: MemoryService,
     private bookingLifecycle: BookingLifecycleService,
     private siteVisits: SiteVisitsService,
     private unitHolds: UnitHoldsService,
@@ -70,6 +82,9 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
   onApplicationBootstrap(): void {
     this.logger.log('Mikey Scheduler starting — scanning every 5 minutes');
     this.scan();
+    // ponytail: setInterval is fine for single-instance deployments. If this runs
+    // across multiple backend instances, migrate to @Cron (via @nestjs/schedule)
+    // with a distributed lock (e.g. Redis via Bull) so only one instance executes.
     this.interval = setInterval(() => this.scan(), 5 * 60 * 1000);
     this.runDailyJobs();
     this.scheduleMorningDigest();
@@ -99,10 +114,8 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
     setTimeout(async () => {
       this.logger.log('Running daily peak Mikey jobs');
       await this.runReflexionOnRecentOutcomes();
-      await this.pushFederatedAggregates();
       setInterval(async () => {
         await this.runReflexionOnRecentOutcomes();
-        await this.pushFederatedAggregates();
       }, 24 * 60 * 60 * 1000);
     }, msUntilMidnight());
   }
@@ -118,8 +131,16 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
   }
 
   private async scan(): Promise<void> {
+    if (await this.featureFlags.isEnabled('mikey_paused')) {
+      this.logger.debug('Mikey is paused via mikey_paused flag — skipping scan cycle');
+      return;
+    }
     if (this.scanning) {
       this.logger.warn('Scan already in progress — skipping this tick (previous scan is still running)');
+      return;
+    }
+    if (this.backoffUntil && new Date() < this.backoffUntil) {
+      this.logger.warn(`Circuit breaker active — skipping scan until ${this.backoffUntil.toISOString()} (${this.consecutiveFailures} consecutive failures)`);
       return;
     }
     this.scanning = true;
@@ -230,14 +251,7 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
             metadata: { insights: temporalInsights.slice(0, 3) },
           });
 
-          // Record temporal insights in the meta-cycle for follow-up measurement
-          for (const insight of temporalInsights) {
-            await this.metaCycle.recordDecision(
-              'temporal_insight',
-              `temporal: ${insight.type}${insight.source !== 'all' ? ` source=${insight.source}` : ''}`,
-              insight.recommendation.slice(0, 180),
-            );
-          }
+
         }
       } catch (err: any) {
         this.logger.error(`Temporal scan failed: ${err.message}`);
@@ -275,14 +289,7 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
             payload: finding as any,
           });
 
-          // Track every scheduler finding as a decision in the meta-cycle
-          await this.metaCycle.recordDecision(
-            'scheduler_finding',
-            `${finding.type}: ${finding.title}`,
-            finding.description,
-          );
-
-          this.logger.warn(`[${finding.severity}] ${finding.title}: ${finding.description}`);
+            this.logger.warn(`[${finding.severity}] ${finding.title}: ${finding.description}`);
 
           if (finding.severity === 'info') {
             const result = await this.nicheAction.execute(finding);
@@ -300,13 +307,19 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
       }
 
       this.lastFindings = findings;
+      this.findingsCount = findings.length;
       this.lastScanError = null;
       this.consecutiveFailures = 0;
+      this.backoffUntil = null;
       this.metrics.incrementCounter('agent_runs_total', { result: 'success' });
     } catch (err: any) {
       this.logger.error(`Scheduler scan failed: ${err.message}`);
       this.lastScanError = err.message;
       this.consecutiveFailures++;
+      if (this.consecutiveFailures >= 3) {
+        this.backoffUntil = new Date(Date.now() + 15 * 60 * 1000);
+        this.logger.warn(`Circuit breaker: ${this.consecutiveFailures} consecutive failures, backoff 15min until ${this.backoffUntil.toISOString()}`);
+      }
       this.metrics.incrementCounter('agent_runs_total', { result: 'error' });
     } finally {
       this.scanning = false;
@@ -460,7 +473,7 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
 
       for (const lead of converted) {
         try {
-          await this.reflexion.reflectOnOutcome(lead.tenantId, 'lead_converted', lead.id);
+          await this.memory.reflectOnOutcome(lead.tenantId, 'lead_converted', lead.id);
           this.logger.log(`Reflexion: lead_converted ${lead.id}`);
         } catch (err: any) {
           this.logger.warn(`Reflexion failed for lead_converted ${lead.id}: ${err.message}`);
@@ -468,7 +481,7 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
       }
       for (const lead of lost) {
         try {
-          await this.reflexion.reflectOnOutcome(lead.tenantId, 'lead_lost', lead.id);
+          await this.memory.reflectOnOutcome(lead.tenantId, 'lead_lost', lead.id);
           this.logger.log(`Reflexion: lead_lost ${lead.id}`);
         } catch (err: any) {
           this.logger.warn(`Reflexion failed for lead_lost ${lead.id}: ${err.message}`);
@@ -489,7 +502,7 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
       ]);
       for (const booking of [...confirmedBookings, ...cancelledBookings]) {
         try {
-          await this.reflexion.reflectOnOutcome(booking.tenantId, 'booking_outcome', booking.id);
+          await this.memory.reflectOnOutcome(booking.tenantId, 'booking_outcome', booking.id);
           this.logger.log(`Reflexion: booking_outcome ${booking.id}`);
         } catch (err: any) {
           this.logger.warn(`Reflexion failed for booking_outcome ${booking.id}: ${err.message}`);
@@ -503,7 +516,7 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
       });
       for (const campaign of deactivatedCampaigns) {
         try {
-          await this.reflexion.reflectOnOutcome(campaign.tenantId, 'campaign_result', campaign.id);
+          await this.memory.reflectOnOutcome(campaign.tenantId, 'campaign_result', campaign.id);
           this.logger.log(`Reflexion: campaign_result ${campaign.id}`);
         } catch (err: any) {
           this.logger.warn(`Reflexion failed for campaign_result ${campaign.id}: ${err.message}`);
@@ -524,29 +537,6 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
       }
     } catch (err: any) {
       this.logger.error(`Reflexion scan failed: ${err.message}`);
-    }
-  }
-
-  // ── P5: Federated push ────────────────────────────────────────────────
-  private async pushFederatedAggregates(): Promise<void> {
-    try {
-      const tenants = await this.prisma.tenant.findMany({
-        where: { active: true },
-        select: { id: true },
-      });
-      let pushed = 0;
-      for (const t of tenants) {
-        const ok = await this.federated.pushToAggregator(t.id);
-        if (ok) pushed++;
-      }
-      this.logger.log(`Federated: pushed aggregates for ${pushed}/${tenants.length} active tenants`);
-      await this.events.emit({
-        type: 'mikey.federated_push_completed',
-        source: 'mikey-scheduler',
-        payload: { pushed, total: tenants.length },
-      });
-    } catch (err: any) {
-      this.logger.error(`Federated push failed: ${err.message}`);
     }
   }
 

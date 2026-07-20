@@ -18,7 +18,6 @@ import { KhojClientService } from '../khoj-client/khoj-client.service';
 import { MikeyService } from '../mikey/mikey.service';
 import { OutcomeEngineService } from '../mikey/outcome-engine.service';
 import { MemoryService } from '../mikey/memory.service';
-import { FederatedService } from '../mikey/federated.service';
 
 /**
  * Tests that the navigate_ui tool now accepts ALL page names (not just the old 7).
@@ -61,7 +60,6 @@ describe('CopilotService — navigate_ui accepts all pages', () => {
         { provide: MikeyService, useValue: { runAutonomousAction: jest.fn(), getActionRules: jest.fn().mockReturnValue([]) } },
         { provide: OutcomeEngineService, useValue: { defineOutcome: jest.fn() } },
         { provide: MemoryService, useValue: { recallRecent: jest.fn().mockResolvedValue([]) } },
-        { provide: FederatedService, useValue: { getLocalBenchmarks: jest.fn().mockResolvedValue([]) } },
       ],
     }).compile();
     service = module.get<CopilotService>(CopilotService);

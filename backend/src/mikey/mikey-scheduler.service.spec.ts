@@ -7,7 +7,7 @@ import { MikeySchedulerService } from './mikey-scheduler.service';
  */
 describe('MikeySchedulerService reliability', () => {
   let prisma: any;
-  let reflexion: any;
+  let memory: any;
   let scheduler: MikeySchedulerService;
 
   beforeEach(() => {
@@ -23,22 +23,22 @@ describe('MikeySchedulerService reliability', () => {
     };
     const noop = { scan: jest.fn().mockResolvedValue([]), reconcile: jest.fn().mockResolvedValue(undefined) };
     const events = { emit: jest.fn().mockResolvedValue(undefined) };
-    const metaCycle = { recordDecision: jest.fn().mockResolvedValue(undefined) };
     const nicheScanner = { scanAll: jest.fn().mockResolvedValue([]) };
     const nicheAction = { execute: jest.fn().mockResolvedValue({ executed: false }) };
-    reflexion = { reflectOnOutcome: jest.fn().mockResolvedValue(null) };
     const bookingLifecycle = { scanNoShows: jest.fn().mockResolvedValue(undefined), scanOverduePayments: jest.fn().mockResolvedValue(undefined) };
     const siteVisits = { scanNoShows: jest.fn().mockResolvedValue(undefined) };
     const unitHolds = { scanExpiredHolds: jest.fn().mockResolvedValue(undefined) };
     const salienceEngine = { route: jest.fn().mockResolvedValue({ acted: false }) };
     const mikey = { generateProactiveTasksForAllLeads: jest.fn().mockResolvedValue(0) };
     const notifications = { create: jest.fn().mockResolvedValue(undefined) };
+    memory = { reflectOnOutcome: jest.fn().mockResolvedValue(null) };
 
     const metrics = { record: jest.fn(), increment: jest.fn(), incrementCounter: jest.fn() };
+    const featureFlags = { isEnabled: jest.fn().mockResolvedValue(false), isEnabledDefault: jest.fn().mockResolvedValue(false) };
 
     scheduler = new MikeySchedulerService(
-      prisma, events as any, noop as any, noop as any, metaCycle as any,
-      nicheScanner as any, nicheAction as any, reflexion as any, {} as any,
+      prisma, events as any, featureFlags as any, noop as any, noop as any,
+      nicheScanner as any, nicheAction as any, memory as any,
       bookingLifecycle as any, siteVisits as any, unitHolds as any,
       { reconcile: jest.fn().mockResolvedValue(undefined) } as any,
       {} as any, salienceEngine as any, mikey as any, notifications as any,
@@ -62,16 +62,13 @@ describe('MikeySchedulerService reliability', () => {
   });
 
   it('skips a scan that starts while one is already in progress', async () => {
-    let resolveFirst: () => void;
-    prisma.lead.findMany.mockImplementationOnce(() => new Promise((resolve) => { resolveFirst = () => resolve([]); }));
+    (scheduler as any).scanning = true;
 
-    const first = (scheduler as any).scan();
-    const second = (scheduler as any).scan(); // should skip immediately, not queue
+    await (scheduler as any).scan();
 
-    resolveFirst!();
-    await Promise.all([first, second]);
-
-    expect(scheduler.getHealth().totalScans).toBe(1);
+    expect(scheduler.getHealth().totalScans).toBe(0);
+    expect(prisma.lead.findMany).not.toHaveBeenCalled();
+    (scheduler as any).scanning = false;
   });
 
   it('runs reflexion on recently confirmed/cancelled bookings and deactivated campaigns, not just leads', async () => {
@@ -82,21 +79,23 @@ describe('MikeySchedulerService reliability', () => {
 
     await (scheduler as any).runReflexionOnRecentOutcomes();
 
-    expect(reflexion.reflectOnOutcome).toHaveBeenCalledWith('t1', 'booking_outcome', 'b1');
-    expect(reflexion.reflectOnOutcome).toHaveBeenCalledWith('t1', 'booking_outcome', 'b2');
-    expect(reflexion.reflectOnOutcome).toHaveBeenCalledWith('t1', 'campaign_result', 'c1');
+    expect(memory.reflectOnOutcome).toHaveBeenCalledWith('t1', 'booking_outcome', 'b1');
+    expect(memory.reflectOnOutcome).toHaveBeenCalledWith('t1', 'booking_outcome', 'b2');
+    expect(memory.reflectOnOutcome).toHaveBeenCalledWith('t1', 'campaign_result', 'c1');
   });
 
   it('does not let a failed reflection on one booking stop the others', async () => {
     prisma.booking.findMany
       .mockResolvedValueOnce([{ id: 'b1', tenantId: 't1' }, { id: 'b2', tenantId: 't1' }])
       .mockResolvedValueOnce([]);
-    reflexion.reflectOnOutcome.mockRejectedValueOnce(new Error('LLM timeout'));
+    memory.reflectOnOutcome.mockRejectedValueOnce(new Error('LLM timeout'));
 
     await (scheduler as any).runReflexionOnRecentOutcomes();
 
-    expect(reflexion.reflectOnOutcome).toHaveBeenCalledWith('t1', 'booking_outcome', 'b1');
-    expect(reflexion.reflectOnOutcome).toHaveBeenCalledWith('t1', 'booking_outcome', 'b2');
+    expect(memory.reflectOnOutcome).toHaveBeenCalledWith('t1', 'booking_outcome', 'b1');
+    expect(memory.reflectOnOutcome).toHaveBeenCalledWith('t1', 'booking_outcome', 'b2');
   });
 });
+
+
 

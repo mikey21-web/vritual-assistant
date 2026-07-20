@@ -22,15 +22,8 @@ import { OutcomeEngineService } from './outcome-engine.service';
 import { MikeyService } from './mikey.service';
 import { TemporalStrategyService } from './temporal-strategy.service';
 import { StaffAwarenessService } from './staff-awareness.service';
-import { MetaCycleService } from './meta-cycle.service';
 import { MemoryService } from './memory.service';
 import { MemoryController } from './memory.controller';
-import { ReflexionService } from './reflexion.service';
-import { ReflexionController } from './reflexion.controller';
-import { FederatedService } from './federated.service';
-import { FederatedController } from './federated.controller';
-import { AggregatorController } from './aggregator.controller';
-import { EmbeddingService } from './embedding.service';
 import { NicheScannerService } from './niche-scanner.service';
 import { NicheActionService } from './niche-action.service';
 import { MikeyController } from './mikey.controller';
@@ -40,7 +33,7 @@ import { MikeyController } from './mikey.controller';
     BookingsModule, AnalyticsModule, ConversationsModule, SiteVisitsModule, UnitHoldsModule, SlaModule,
     CostSheetsModule, OffersModule, DocumentsModule, ChannelPartnerClaimsModule, TicketsModule,
   ],
-  controllers: [MikeyController, MemoryController, ReflexionController, FederatedController, AggregatorController, AutonomousActionController, JarvisToolsController],
+  controllers: [MikeyController, MemoryController, AutonomousActionController, JarvisToolsController],
   providers: [
     JarvisToolsService,
     MikeySchedulerService,
@@ -49,11 +42,7 @@ import { MikeyController } from './mikey.controller';
     MikeyService,
     TemporalStrategyService,
     StaffAwarenessService,
-    MetaCycleService,
     MemoryService,
-    EmbeddingService,
-    ReflexionService,
-    FederatedService,
     NicheScannerService,
     NicheActionService,
     SalienceEngineService,
@@ -65,14 +54,9 @@ import { MikeyController } from './mikey.controller';
     OutcomeEngineService,
     TemporalStrategyService,
     StaffAwarenessService,
-    MetaCycleService,
     MemoryService,
-    EmbeddingService,
-    ReflexionService,
-    FederatedService,
     AutonomousActionService,
     AutonomyGuardrailsService,
   ],
 })
 export class MikeyModule {}
-

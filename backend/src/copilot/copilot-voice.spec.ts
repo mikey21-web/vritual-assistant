@@ -18,7 +18,7 @@ import { KhojClientService } from '../khoj-client/khoj-client.service';
 import { MikeyService } from '../mikey/mikey.service';
 import { OutcomeEngineService } from '../mikey/outcome-engine.service';
 import { MemoryService } from '../mikey/memory.service';
-import { FederatedService } from '../mikey/federated.service';
+
 
 // chat() delegates all reasoning/tool execution to the Python agent-service over HTTP
 // (POST /agent/copilot/chat) and just relays back `{ response, actions }`. Voice/nav
@@ -69,7 +69,6 @@ describe('CopilotService — voice command navigation', () => {
         { provide: MikeyService, useValue: { runAutonomousAction: jest.fn(), getActionRules: jest.fn().mockReturnValue([]) } },
         { provide: OutcomeEngineService, useValue: { defineOutcome: jest.fn().mockResolvedValue({ id: 'o1', goal: 'test', steps: [] }) } },
         { provide: MemoryService, useValue: { recallRecent: jest.fn().mockResolvedValue([]) } },
-        { provide: FederatedService, useValue: { getLocalBenchmarks: jest.fn().mockResolvedValue([]) } },
       ],
     }).compile();
     service = module.get<CopilotService>(CopilotService);
