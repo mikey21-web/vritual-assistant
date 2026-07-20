@@ -65,6 +65,23 @@ export class MetricsService {
       registers: [this.register],
     });
 
+    // Synthetic check duration histogram
+    new client.Histogram({
+      name: 'synthetic_check_duration_ms',
+      help: 'Synthetic monitoring check duration in milliseconds',
+      labelNames: ['check', 'status'],
+      buckets: [50, 100, 250, 500, 1000, 2500, 5000, 10000, 30000],
+      registers: [this.register],
+    });
+
+    // Synthetic check failure counter
+    new client.Counter({
+      name: 'synthetic_check_failures_total',
+      help: 'Total number of synthetic monitoring check failures',
+      labelNames: ['check'],
+      registers: [this.register],
+    });
+
     // Circuit breaker state gauge
     new client.Gauge({
       name: 'circuit_breaker_state',

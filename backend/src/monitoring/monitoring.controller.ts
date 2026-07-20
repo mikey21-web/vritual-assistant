@@ -6,6 +6,7 @@ import { Roles } from '../auth/roles.decorator';
 import { Public } from '../auth/public.decorator';
 import { MonitoringService } from './monitoring.service';
 import { AlertingService } from './alerting.service';
+import { SyntheticCheckService, CheckResult } from './synthetic-check.service';
 
 class TestAlertDto {
   channel: string;
@@ -22,6 +23,7 @@ export class MonitoringController {
   constructor(
     private monitoring: MonitoringService,
     private alerting: AlertingService,
+    private synthetic: SyntheticCheckService,
   ) {}
 
   @Get('health')
@@ -37,6 +39,14 @@ export class MonitoringController {
   @ApiOperation({ summary: 'Simple public status endpoint (database ping)' })
   async status() {
     return this.monitoring.getSimpleStatus();
+  }
+
+  @Get('synthetic')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('OWNER', 'ADMIN')
+  @ApiOperation({ summary: 'Run all synthetic checks on demand' })
+  async runSynthetic(): Promise<{ passed: boolean; results: CheckResult[] }> {
+    return this.synthetic.runAll();
   }
 
   @Post('test-alert')

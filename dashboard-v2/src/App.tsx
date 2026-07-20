@@ -121,6 +121,7 @@ const PageComponents: Record<string, React.LazyExoticComponent<React.ComponentTy
   AdvancedMarketing: lazy(() => import("./pages/AdvancedMarketingPage")),
   OnboardingProgress: lazy(() => import("./pages/OnboardingProgressPage")),
   LaunchControl: lazy(() => import("./pages/LaunchControlPage")),
+  AgentQueue: lazy(() => import("./pages/AgentQueuePage")),
 };
 
 function PageFallback() {
@@ -197,6 +198,7 @@ function getPageKey(path: string): string {
     "/advanced-marketing": "AdvancedMarketing",
     "/onboarding-progress": "OnboardingProgress",
     "/launch-control": "LaunchControl",
+    "/queue": "AgentQueue",
   };
   return map[path] || "Overview";
 }
