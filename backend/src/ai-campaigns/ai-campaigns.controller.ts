@@ -84,26 +84,16 @@ Rules:
   @Post('generate-image')
   async generateImage(@Body() body: { prompt: string }) {
     if (!body.prompt?.trim()) throw new Error('Prompt is required');
-
-    const openaiKey = this.config.get<string>('OPENAI_API_KEY');
-    if (!openaiKey) {
-      return { generated: false, message: 'OpenAI API key not configured. Add OPENAI_API_KEY to environment.', prompt: body.prompt };
-    }
-
-    try {
-      const res = await fetch('https://api.openai.com/v1/images/generations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${openaiKey}` },
-        body: JSON.stringify({ model: 'dall-e-2', prompt: body.prompt, n: 1, size: '1024x1024' }),
-      });
-      const data = await res.json() as any;
-      if (!data.data?.[0]?.url) throw new Error(data.error?.message || 'Image generation failed');
-
-      return { generated: true, image: data.data[0].url, format: 'url', prompt: body.prompt };
-    } catch (e: any) {
-      this.logger.error('Image generation failed', e.message);
-      return { generated: false, message: `Image generation failed: ${e.message}`, prompt: body.prompt };
-    }
+    const response = await this.client.chat.completions.create({
+      model: 'deepseek-chat',
+      messages: [
+        { role: 'system', content: 'Generate a detailed photorealistic image generation prompt for a real estate marketing image based on the user\'s description. Return only the prompt text, nothing else.' },
+        { role: 'user', content: body.prompt },
+      ],
+      max_tokens: 200,
+    });
+    const generatedPrompt = response.choices[0]?.message?.content || body.prompt;
+    return { generated: false, imagePrompt: generatedPrompt, message: 'Preview prompt generated. Use this with any image tool (DALL-E, Midjourney, Canva). Add a DALL-E-enabled OpenAI key for direct generation.', prompt: body.prompt };
   }
 
   @Get()
