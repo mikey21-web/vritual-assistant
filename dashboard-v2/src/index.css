@@ -111,6 +111,11 @@ code, pre, .font-mono {
   outline-offset: 2px;
 }
 
+/* Safe-area bottom padding for iOS notch — used by fixed bottom bars */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
 /* Floating action buttons (Mikey chat, voice command) sit in the same
    bottom-right corner as every Dialog/Drawer footer and use z-indexes
    (999/9999) that keep winning over the overlay regardless of z-index

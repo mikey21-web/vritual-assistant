@@ -450,7 +450,7 @@ export default function LeadWorkbenchPage() {
           <h1 className="text-lg sm:text-xl font-bold text-[var(--foreground)] truncate">{lead.contact?.name || 'Unknown'}</h1>
           <SlaClock lead={lead} />
           <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium shrink-0 ${statusStyles[lead.status] || ''}`}>{lead.status}</span>
-          <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium shrink-0 ${segmentStyles[lead.segment] || ''}`}>{lead.segment}</span>
+          <span className={`hidden sm:inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium shrink-0 ${segmentStyles[lead.segment] || ''}`}>{lead.segment}</span>
           {lead.score !== undefined && <span className="font-mono text-xs text-[var(--muted-foreground)] shrink-0 hidden sm:inline">Score: {lead.score}</span>}
         </div>
       </div>

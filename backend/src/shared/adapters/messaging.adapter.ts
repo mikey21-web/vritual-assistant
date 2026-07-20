@@ -108,7 +108,7 @@ export class WhatsAppCloudAdapter implements MessagingAdapter {
       });
       const json = await res.json();
       if (!res.ok) return { success: false, error: json.error || json.message || `HTTP ${res.status}` };
-      return { success: true, messageId: json.messageId || json.id || json.data?.messageId };
+      return { success: true, messageId: json.data?.msgId?.toString() || json.messageId || json.id || json.data?.messageId };
     } catch (e: any) { return { success: false, error: e.message }; }
   }
 
@@ -119,7 +119,7 @@ export class WhatsAppCloudAdapter implements MessagingAdapter {
       if (!token) return false;
       try {
         const res = await fetch('https://wasenderapi.com/api/send-message', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ to: 'validate', text: '' }) });
-        return res.status !== 401;
+        return res.status !== 401 && res.status !== 422;
       } catch { return false; }
     }
     const token = config?.accessToken || config?.WHATSAPP_ACCESS_TOKEN;

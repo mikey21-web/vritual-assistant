@@ -1,4 +1,9 @@
-import { Controller, Post, Get, Param, Query, Body, Logger } from '@nestjs/common';
+import { Controller, Post, Get, Param, Query, Body, Logger, UseGuards, HttpCode } from '@nestjs/common';
+import { ApiOperation } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
+import { FeatureFlagsService } from '../shared/feature-flags.service';
 import { MikeyService } from './mikey.service';
 import { OutcomeEngineService } from './outcome-engine.service';
 import { TemporalStrategyService } from './temporal-strategy.service';
@@ -9,6 +14,8 @@ import { AutonomyGuardrailsService, AutonomyCategory, AutonomyLevel } from './au
 import { MemoryService } from './memory.service';
 
 @Controller('mikey')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('OWNER', 'ADMIN')
 export class MikeyController {
   private readonly logger = new Logger(MikeyController.name);
 
@@ -21,10 +28,12 @@ export class MikeyController {
     private scheduler: MikeySchedulerService,
     private guardrails: AutonomyGuardrailsService,
     private memory: MemoryService,
+    private featureFlags: FeatureFlagsService,
   ) {}
 
   /** Learning tab data (spec 56.5): decision/impact stats, generalized patterns, and reflexion outcome breakdown — the evidence behind "is Mikey actually helping". */
   @Get('learning')
+  @Roles('OWNER', 'ADMIN', 'MANAGER')
   async getLearning(@Query('tenantId') tenantId: string) {
     const reflexionStats = await this.memory.getReflexionStats(tenantId);
     return { reflexionStats };
@@ -32,18 +41,21 @@ export class MikeyController {
 
   /** Is the always-on scan loop actually alive and healthy? Surfaces a stuck or repeatedly-failing scan instead of hiding it in logs (spec invariant: every failed job becomes visible to a human). */
   @Get('health')
+  @Roles('OWNER', 'ADMIN', 'MANAGER')
   async getHealth() {
     return this.scheduler.getHealth();
   }
 
   /** Scan-specific health endpoint with pause state and findings count — for the dashboard pause toggle and external watchdog. */
   @Get('scan-health')
+  @Roles('OWNER', 'ADMIN', 'MANAGER')
   async getScanHealth() {
     return this.scheduler.getScanHealth();
   }
 
   /** Per-category autonomy dial (spec 56.4) — the owner controls what Mikey is allowed to act on, not one global switch. */
   @Get('autonomy-policies')
+  @Roles('OWNER', 'ADMIN', 'MANAGER')
   async getAutonomyPolicies(@Query('tenantId') tenantId: string) {
     return this.guardrails.getAllCategoryLevels(tenantId);
   }
@@ -63,6 +75,7 @@ export class MikeyController {
    * happens to be in the live socket buffer.
    */
   @Get('activity')
+  @Roles('OWNER', 'ADMIN', 'MANAGER')
   async getActivity(@Query('limit') limit?: string) {
     const events = await this.events.findByTypePrefix('mikey.', limit ? parseInt(limit, 10) : 50);
     return events.map(e => ({
@@ -82,11 +95,13 @@ export class MikeyController {
   }
 
   @Get('outcomes')
+  @Roles('OWNER', 'ADMIN', 'MANAGER')
   async listOutcomes() {
     return this.outcomes.listOutcomes();
   }
 
   @Get('outcomes/:id')
+  @Roles('OWNER', 'ADMIN', 'MANAGER')
   async getOutcome(@Param('id') id: string) {
     return this.outcomes.getOutcome(id);
   }
@@ -142,6 +157,24 @@ export class MikeyController {
       totalOutcomes: outcomes.length,
       outcomes: outcomes.map(o => ({ id: o.id, goal: o.goal, status: o.status, steps: o.steps.length, progress: o.steps.filter(s => s.status === 'completed').length })),
     };
+  }
+
+  @Post('pause')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Globally pause the Mikey agent (emergency kill-switch)' })
+  async pause() {
+    await this.featureFlags.enable('mikey_paused');
+    this.logger.warn('Mikey agent PAUSED via API');
+    return { status: 'paused' };
+  }
+
+  @Post('unpause')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Unpause the Mikey agent' })
+  async unpause() {
+    await this.featureFlags.disable('mikey_paused');
+    this.logger.log('Mikey agent UNPAUSED via API');
+    return { status: 'unpaused' };
   }
 }
 

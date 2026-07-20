@@ -409,6 +409,114 @@ export class WebhooksService {
     return { data: result };
   }
 
+  async handleWasenderWebhook(payload: any, req?: any) {
+    const event = payload?.event;
+    if (!event) return { status: 'ignored', reason: 'no event type' };
+
+    const key = this.idempotencyKey(['wasender', event, payload.data?.key?.id || payload.data?.key?.remoteJid || this.payloadHash(payload)]);
+    const existing = await this.prisma.webhookEvent.findUnique({ where: { idempotencyKey: key } });
+    if (existing) return { status: 'duplicate', result: existing.processedResult };
+
+    // ── messages.update — delivery status callback ─────────────────
+    if (event === 'messages.update') {
+      const statusCode = payload.data?.update?.status;
+      const providerMsgId = payload.data?.key?.id;
+      const statusMap: Record<number, string> = { 0: 'failed', 1: 'pending', 2: 'sent', 3: 'delivered', 4: 'read', 5: 'read' };
+      const deliveryStatus = statusMap[statusCode] || 'pending';
+
+      if (providerMsgId) {
+        const updated = await this.prisma.conversationMessage.updateMany({
+          where: { providerMessageId: providerMsgId },
+          data: {
+            deliveryStatus,
+            metadata: { waStatus: statusCode, waStatusTimestamp: Date.now(), wasenderEvent: event } as any,
+          },
+        });
+        if (updated.count > 0) {
+          const msg = await this.prisma.conversationMessage.findFirst({
+            where: { providerMessageId: providerMsgId },
+            select: { leadId: true },
+          });
+          if (msg) this.timeline.recordDeliveryUpdated(msg.leadId, 'WhatsApp', deliveryStatus).catch(() => {});
+        }
+      }
+
+      const result = { event, providerMessageId: providerMsgId, deliveryStatus };
+      await this.prisma.webhookEvent.create({
+        data: { provider: 'wasender', eventType: 'messages.update', idempotencyKey: key, rawPayload: payload, processedResult: result },
+      });
+      this.metrics.incrementCounter('webhooks_processed_total', { provider: 'wasender', status: 'success' });
+      return { data: result };
+    }
+
+    // ── messages.upsert — inbound message ──────────────────────────
+    if (event === 'messages.upsert') {
+      const msg = payload.data?.message || payload.data?.messages?.[0];
+      if (!msg) return { status: 'ignored', reason: 'no message in upsert' };
+
+      const remoteJid: string = msg.key?.remoteJid || '';
+      const fromNumber = remoteJid.replace(/[^0-9]/g, '').replace(/^91/, '');
+      const msgId: string = msg.key?.id || '';
+      const text: string = msg.message?.conversation
+        || msg.message?.extendedTextMessage?.text
+        || msg.message?.imageMessage?.caption
+        || '';
+
+      const contactName = payload.data?.name || `Wasender User ${fromNumber.slice(-4)}`;
+      const contact = await this.contactsService.findOrCreate({
+        name: contactName,
+        phone: fromNumber,
+        whatsapp: fromNumber,
+      }, req);
+
+      const existingLead = await this.prisma.lead.findFirst({
+        where: { contactId: contact.id, status: { notIn: ['LOST', 'CONVERTED', 'SPAM'] } },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      const lead = existingLead || await this.leadsService.create({
+        contactId: contact.id,
+        source: 'WHATSAPP',
+        message: text,
+        metadata: { from: fromNumber, timestamp: Date.now(), msgId, provider: 'wasender' },
+      });
+
+      const stopPattern = /^\s*(stop|unsubscribe|cancel|opt.?out)\s*$/i;
+      if (text && stopPattern.test(text.trim())) {
+        await this.prisma.contact.update({
+          where: { id: contact.id },
+          data: { consentStatus: 'opted_out', optedOutAt: new Date() },
+        });
+        await this.prisma.consentEvent.create({
+          data: { contactId: contact.id, channel: 'WHATSAPP', action: 'opt_out', source: 'wasender_webhook' },
+        });
+      }
+
+      await this.conversationsService.create({
+        text, channel: 'WHATSAPP', direction: 'INBOUND', providerMessageId: msgId,
+        leadId: lead.id, contactId: contact.id,
+        metadata: { from: fromNumber, timestamp: Date.now(), provider: 'wasender' },
+      });
+
+      const result = { contact, lead, providerMessageId: msgId };
+      await this.prisma.webhookEvent.create({
+        data: { provider: 'wasender', eventType: 'messages.upsert', idempotencyKey: key, rawPayload: payload, processedResult: result },
+      });
+
+      this.agentClient.trigger(lead.id, msgId || key, 'WHATSAPP', text, lead.tenantId || contact.tenantId);
+      this.metrics.incrementCounter('webhooks_processed_total', { provider: 'wasender', status: 'success' });
+      return { data: result };
+    }
+
+    // ── catch-all — audit unknown events ───────────────────────────
+    const result = { received: true, event };
+    await this.prisma.webhookEvent.create({
+      data: { provider: 'wasender', eventType: event, idempotencyKey: key, rawPayload: payload, processedResult: result },
+    });
+    this.metrics.incrementCounter('webhooks_processed_total', { provider: 'wasender', status: 'success' });
+    return { data: result };
+  }
+
   async handleGeneric(provider: string, eventType: string, payload: any) {
     const key = this.idempotencyKey([provider, eventType, payload.id || payload.eventId || this.payloadHash(payload)]);
     const existing = await this.prisma.webhookEvent.findUnique({ where: { idempotencyKey: key } });
@@ -525,7 +633,7 @@ export class WebhooksService {
   }
 
   async findWebhookStatuses() {
-    const providers = ['whatsapp', 'telegram', 'social', 'voice', 'forms', 'chatbot', 'mobile-app', 'payments', 'indiamart', '99acres', 'justdial', 'magicbricks', 'housing', 'tradeindia'];
+    const providers = ['whatsapp', 'telegram', 'social', 'voice', 'forms', 'chatbot', 'mobile-app', 'payments', 'indiamart', '99acres', 'justdial', 'magicbricks', 'housing', 'tradeindia', 'wasender'];
     const apiUrl = process.env.API_URL || 'http://localhost:3001';
 
     const results = await Promise.all(
@@ -601,6 +709,22 @@ export class WebhooksService {
             { headers: { Authorization: `Bearer ${secretKey}` }, timeout: timeoutMs },
           );
           return resp?.status === 200 ? 'ok' : 'unreachable';
+        }
+        case 'wasender': {
+          const token = decrypted?.WHATSAPP_ACCESS_TOKEN || decrypted?.accessToken;
+          if (!token) return 'unknown';
+          try {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), timeoutMs);
+            const resp = await fetch('https://wasenderapi.com/api/send-message', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ to: 'validate', text: '' }),
+              signal: controller.signal,
+            });
+            clearTimeout(timer);
+            return resp.status !== 401 && resp.status !== 422 ? 'ok' : 'unreachable';
+          } catch { return 'unreachable'; }
         }
         case 'voice': {
           const accountSid = decrypted?.TWILIO_ACCOUNT_SID || decrypted?.accountSid;

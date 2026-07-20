@@ -22,11 +22,11 @@ describe('AutonomyGuardrailsService', () => {
     service = module.get(AutonomyGuardrailsService);
   });
 
-  it('defaults every category to autonomous when nothing is configured', async () => {
+  it('defaults every category to observe when nothing is configured', async () => {
     const levels = await service.getAllCategoryLevels('t1');
     expect(levels).toEqual({
-      lead_assignment: 'autonomous', lead_messaging: 'autonomous',
-      task_escalation: 'autonomous', jarvis_tools: 'autonomous',
+      lead_assignment: 'observe', lead_messaging: 'observe',
+      task_escalation: 'observe', jarvis_tools: 'observe',
     });
   });
 

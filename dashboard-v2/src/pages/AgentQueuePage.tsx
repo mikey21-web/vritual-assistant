@@ -160,7 +160,7 @@ export default function AgentQueuePage() {
       {tab === 'today' && (
         <div className="flex-1 px-4 py-4 space-y-4">
           {stats && (
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {[
                 { label: 'Today', value: `${stats.conversationsHandled || 0}`, icon: <ListChecks size={16} /> },
                 { label: 'Qualified', value: `${stats.leadsQualified || 0}`, icon: <User size={16} /> },

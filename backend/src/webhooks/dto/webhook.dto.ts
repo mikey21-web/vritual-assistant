@@ -93,3 +93,23 @@ export class UpdateOutboundWebhookDto {
   @ApiPropertyOptional() @IsOptional() @IsString() secret?: string;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() active?: boolean;
 }
+
+export class WasenderWebhookDto {
+  @ApiProperty({ description: 'Event type (e.g. messages.upsert, messages.update)' })
+  @IsString()
+  event!: string;
+
+  @ApiPropertyOptional({ description: 'Wasender session ID' })
+  @IsOptional()
+  @IsString()
+  sessionId?: string;
+
+  @ApiPropertyOptional({ description: 'Event payload data' })
+  @IsOptional()
+  @IsObject()
+  data?: Record<string, any>;
+
+  @ApiPropertyOptional({ description: 'Event timestamp' })
+  @IsOptional()
+  timestamp?: number;
+}

@@ -12,7 +12,7 @@ import { Public } from '../auth/public.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-import { FormWebhookDto, WhatsAppWebhookDto, GenericWebhookDto, TelegramWebhookDto, SocialWebhookDto, VoiceIncomingWebhookDto, VoiceStatusWebhookDto, CreateOutboundWebhookDto, UpdateOutboundWebhookDto } from './dto/webhook.dto';
+import { FormWebhookDto, WhatsAppWebhookDto, GenericWebhookDto, TelegramWebhookDto, SocialWebhookDto, VoiceIncomingWebhookDto, VoiceStatusWebhookDto, CreateOutboundWebhookDto, UpdateOutboundWebhookDto, WasenderWebhookDto } from './dto/webhook.dto';
 import * as crypto from 'crypto';
 
 @ApiTags('Webhooks')
@@ -263,6 +263,25 @@ export class WebhooksController {
       throw new UnauthorizedException('Invalid webhook API key');
     }
     return this.service.handleGeneric('mobile-app', 'app_event', d);
+  }
+
+  @Public()
+  @Post('wasender') @HttpCode(200) @Throttle({ default: { limit: 300, ttl: 60000 } })
+  @ApiOperation({ summary: 'Receive Wasender webhook (delivery callbacks & inbound messages)' })
+  async wasenderWebhook(
+    @Body() d: WasenderWebhookDto,
+    @Headers('x-webhook-signature') signature?: string,
+    @Req() req?: RawBodyRequest<Request>,
+  ) {
+    const secret = this.configService.get<string>('WASENDER_WEBHOOK_SECRET');
+    if (secret) {
+      const rawBody = req?.rawBody ?? Buffer.from(JSON.stringify(d));
+      const computed = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
+      if (!signature || computed !== signature) {
+        throw new UnauthorizedException('Invalid Wasender webhook signature');
+      }
+    }
+    return this.service.handleWasenderWebhook(d, req);
   }
 
   // ─── Outbound webhook subscriptions ────────────────────────────────

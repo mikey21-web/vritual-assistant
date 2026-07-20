@@ -31,7 +31,6 @@ const ACTION_RULES: ActionRule[] = [
   { tool: 'update_lead_status', risk: 'medium', autoExecute: true, description: 'Update lead status (auto-executable)' },
   { tool: 'set_segment', risk: 'medium', autoExecute: true, description: 'Set lead segment (auto-executable)' },
   { tool: 'update_score', risk: 'medium', autoExecute: true, description: 'Update lead score (auto-executable)' },
-  { tool: 'draft_message', risk: 'low', autoExecute: true, description: 'Draft message (auto-executable)' },
   { tool: 'send_message', risk: 'high', autoExecute: false, description: 'Send message' },
   { tool: 'create_campaign', risk: 'high', autoExecute: false, description: 'Create campaign' },
   { tool: 'update_ticket', risk: 'high', autoExecute: false, description: 'Update ticket' },
@@ -39,7 +38,7 @@ const ACTION_RULES: ActionRule[] = [
   { tool: 'send_email', risk: 'high', autoExecute: false, description: 'Send email' },
   { tool: 'bulk_send_message', risk: 'high', autoExecute: false, description: 'Bulk send message' },
   { tool: 'search_media', risk: 'low', autoExecute: true, description: 'Search media files' },
-  { tool: 'send_media', risk: 'low', autoExecute: true, description: 'Send media file to lead' },
+  { tool: 'send_media', risk: 'high', autoExecute: false, description: 'Send media file to lead' },
 ];
 
 @Injectable()
