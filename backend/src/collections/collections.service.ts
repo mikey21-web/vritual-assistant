@@ -116,6 +116,22 @@ export class CollectionsService {
 
     await this.timeline.add({ type: 'payment_confirmed', title: 'Payment confirmed', leadId: receipt.leadId, metadata: { paymentReceiptId: id }, createdById: actorId });
     await this.auditLogs.log('CONFIRM', 'PaymentReceipt', id, actorId, {});
+
+    // Auto-link: find the oldest PENDING/OVERDUE schedule for this lead and mark it PAID
+    try {
+      const oldestDue = await this.prisma.paymentSchedule.findFirst({
+        where: { tenantId, leadId: receipt.leadId, status: { in: ['PENDING', 'OVERDUE'] as any } },
+        orderBy: { dueDate: 'asc' },
+      });
+      if (oldestDue) {
+        await this.prisma.paymentSchedule.update({
+          where: { id: oldestDue.id },
+          data: { status: 'PAID' as any, paidAt: new Date() },
+        });
+        await this.timeline.add({ type: 'payment_schedule_paid', title: `Milestone "${oldestDue.label}" auto-marked paid`, leadId: receipt.leadId, metadata: { paymentReceiptId: id, paymentScheduleId: oldestDue.id }, createdById: actorId });
+      }
+    } catch { /* non-critical; don't fail the confirm */ }
+
     return this.serializable(updated);
   }
 

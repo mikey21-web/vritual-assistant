@@ -1,5 +1,5 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Get, Post, Param, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -16,5 +16,12 @@ export class PortalHealthController {
   @Roles('OWNER', 'ADMIN', 'MANAGER')
   getHealth() {
     return this.service.getHealth();
+  }
+
+  @Post('health/:provider/replay')
+  @Roles('OWNER', 'ADMIN')
+  @ApiOperation({ summary: 'Replay the last failed webhook event for a provider' })
+  replayFailed(@Param('provider') provider: string) {
+    return this.service.replayFailed(provider);
   }
 }

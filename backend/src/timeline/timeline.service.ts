@@ -70,4 +70,14 @@ export class TimelineService {
   async recordAutomationFailed(leadId: string, reason: string) {
     return this.add({ type: 'automation_failed', title: `Automation failed: ${reason}`, leadId });
   }
+
+  async recordDeliveryUpdated(leadId: string, channel: string, status: string) {
+    const icons: Record<string, string> = { delivered: '\u2713', read: '\u2713\u2713', sent: '\u2197', failed: '\u2717', pending: '\u25CB' };
+    return this.add({ type: 'delivery_updated', title: `${channel}: ${icons[status] || status}`, description: status, leadId });
+  }
+
+  async recordCall(leadId: string, status: string, recordingUrl?: string | null, disposition?: string | null) {
+    const title = disposition ? `Call: ${disposition.replace(/_/g, ' ')}` : `Call status: ${status}`;
+    return this.add({ type: 'call', title, description: status, leadId, metadata: { recordingUrl, disposition } as any });
+  }
 }

@@ -75,6 +75,15 @@ describe('AnalyticsService', () => {
         count: jest.fn().mockResolvedValue(3),
         findMany: jest.fn().mockResolvedValue([]),
       },
+      callLog: {
+        count: jest.fn().mockResolvedValue(0),
+      },
+      siteVisit: {
+        count: jest.fn().mockResolvedValue(0),
+      },
+      unitHold: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
       paymentSchedule: {
         count: jest.fn().mockResolvedValue(2),
         findMany: jest.fn().mockResolvedValue([]),
@@ -349,3 +358,5 @@ describe('AnalyticsService', () => {
     await expect(service.overview()).rejects.toThrow('Database connection lost');
   });
 });
+
+

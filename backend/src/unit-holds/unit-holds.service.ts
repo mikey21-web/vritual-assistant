@@ -1,21 +1,24 @@
 import { Injectable, NotFoundException, ConflictException, ForbiddenException, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { TimelineService } from '../timeline/timeline.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { UnitHoldStatus, UnitStatus } from '@prisma/client';
 
-const DEFAULT_HOLD_HOURS = 48;
-
 @Injectable()
 export class UnitHoldsService {
   private readonly logger = new Logger(UnitHoldsService.name);
+  private readonly holdHours: number;
 
   constructor(
     private prisma: PrismaService,
+    private config: ConfigService,
     private timeline: TimelineService,
     private auditLogs: AuditLogsService,
-  ) {}
+  ) {
+    this.holdHours = Number(this.config.get('HOLD_DURATION_HOURS', '48'));
+  }
 
   /**
    * Atomic hold algorithm (spec 48.7): read unit, reject if not AVAILABLE or
@@ -44,7 +47,7 @@ export class UnitHoldsService {
     const lead = await this.prisma.lead.findFirst({ where: { id: data.leadId, tenantId: data.tenantId } });
     if (!lead) throw new NotFoundException('Lead not found');
 
-    const expiresAt = new Date(Date.now() + (data.holdHours || DEFAULT_HOLD_HOURS) * 60 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + (data.holdHours || this.holdHours) * 60 * 60 * 1000);
 
     const hold = await this.prisma.$transaction(async (tx) => {
       const claim = await tx.unit.updateMany({
@@ -176,6 +179,7 @@ export class UnitHoldsService {
     const expired = await this.prisma.unitHold.findMany({
       where: { status: UnitHoldStatus.ACTIVE, expiresAt: { lt: now } },
       take: 50,
+      include: { lead: { select: { assignedAgentId: true, contact: { select: { name: true } } } }, unit: { select: { unitNumber: true } } },
     });
 
     let released = 0;
@@ -188,6 +192,24 @@ export class UnitHoldsService {
           leadId: hold.leadId,
           metadata: { unitHoldId: hold.id },
         });
+
+        const buyerName = (hold as any).lead?.contact?.name?.split(/\s+/)[0] || 'Buyer';
+        const unitNum = (hold as any).unit?.unitNumber || '';
+        const text = `Hi, the hold on unit ${unitNum} for ${buyerName} has expired and been released automatically. Please follow up if the buyer is still interested.`;
+
+        await this.prisma.scheduledAction.upsert({
+          where: { dedupeKey: `hold_expired_notif:${hold.id}` },
+          create: {
+            leadId: hold.leadId,
+            kind: 'notification',
+            runAt: new Date(Date.now() + 1000),
+            dedupeKey: `hold_expired_notif:${hold.id}`,
+            payload: { channel: 'WHATSAPP', text, unitHoldId: hold.id, unitId: hold.unitId },
+            status: 'pending',
+          },
+          update: { runAt: new Date(Date.now() + 1000), status: 'pending' },
+        });
+
         released++;
       } catch (e: any) {
         this.logger.warn(`Failed to auto-release hold ${hold.id}: ${e.message}`);

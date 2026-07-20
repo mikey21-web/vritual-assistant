@@ -174,6 +174,22 @@ export async function fetchBlocklist() { return api('/blocklist') as Promise<any
 export async function fetchSLARules() { return api('/sla-rules') as Promise<any[]>; }
 export async function fetchRevenue() { return api('/revenue') as Promise<any>; }
 
+export async function fetchProjects(params: Record<string, string> = {}) {
+  const q = new URLSearchParams(params); return api(`/projects?${q}`) as Promise<{ data: any[]; meta: any }>;
+}
+export async function fetchUnits(params: Record<string, string> = {}) {
+  const q = new URLSearchParams(params); return api(`/projects/units?${q}`) as Promise<{ data: any[]; meta: any }>;
+}
+export async function holdUnit(data: { unitId: string; leadId: string; holdHours?: number }) {
+  return api('/unit-holds', { method: 'POST', body: JSON.stringify(data) });
+}
+export async function createBooking(leadId: string, data: any) {
+  return api(`/leads/${leadId}/bookings`, { method: 'POST', body: JSON.stringify(data) });
+}
+export async function fetchLeadBookings(leadId: string) {
+  return api(`/bookings?leadId=${leadId}`);
+}
+
 export async function fetchUsers() { return api('/users') as Promise<User[]>; }
 export async function fetchAuditLogs() { return api('/audit-logs') as Promise<any>; }
 

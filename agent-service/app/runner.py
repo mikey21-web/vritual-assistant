@@ -46,21 +46,14 @@ async def execute_run(settings: Settings, req: AgentRunRequest) -> str:
             checkpointer = None
             if USE_CHECKPOINTING:
                 try:
-                    from langgraph.checkpoint.postgres import PostgresSaver
-                    from psycopg import Connection
-                    conn = Connection.connect(DATABASE_URL)
-                    checkpointer = PostgresSaver(conn)
-                    checkpointer.setup()
-                    try:
-                        import inspect
-                        if inspect.iscoroutinefunction(getattr(PostgresSaver, 'aget_tuple', None)):
-                            await checkpointer.aget_tuple({"configurable": {"thread_id": "probe"}})
-                            logger.info("checkpointer_enabled", db_url=DATABASE_URL.split("@")[-1] if "@" in DATABASE_URL else "local")
-                        else:
-                            raise NotImplementedError("sync-only checkpointer")
-                    except (NotImplementedError, Exception):
-                        logger.warning("checkpointer_unsupported_async_fallback", error="sync checkpointer cannot be used in async graph")
-                        checkpointer = None
+                    from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+                    from psycopg_pool import AsyncConnectionPool
+                    pool = AsyncConnectionPool(DATABASE_URL, min_size=1, max_size=4)
+                    await pool.wait()
+                    checkpointer = AsyncPostgresSaver(pool)
+                    await checkpointer.setup()
+                    await checkpointer.aget_tuple({"configurable": {"thread_id": "probe"}})
+                    logger.info("checkpointer_enabled", db_url=DATABASE_URL.split("@")[-1] if "@" in DATABASE_URL else "local")
                 except Exception as e:
                     logger.warning("checkpointer_failed_fallback_to_none", error=str(e), error_type=type(e).__name__)
                     checkpointer = None

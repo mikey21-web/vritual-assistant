@@ -1,10 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PortalHealthService } from './portal-health.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { PortalIntegrationsService } from './portal-integrations.service';
 
 describe('PortalHealthService', () => {
   let service: PortalHealthService;
   let prisma: any;
+  let portalService: any;
 
   beforeEach(async () => {
     prisma = {
@@ -13,8 +15,20 @@ describe('PortalHealthService', () => {
         findMany: jest.fn().mockResolvedValue([]),
       },
     };
+    portalService = {
+      handleIndiaMART: jest.fn(),
+      handle99Acres: jest.fn(),
+      handleJustDial: jest.fn(),
+      handleMagicBricks: jest.fn(),
+      handleHousing: jest.fn(),
+      handleTradeIndia: jest.fn(),
+    };
     const module: TestingModule = await Test.createTestingModule({
-      providers: [PortalHealthService, { provide: PrismaService, useValue: prisma }],
+      providers: [
+        PortalHealthService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: PortalIntegrationsService, useValue: portalService },
+      ],
     }).compile();
     service = module.get(PortalHealthService);
   });
@@ -48,3 +62,5 @@ describe('PortalHealthService', () => {
     expect(health[0].duplicateCount7d).toBe(1);
   });
 });
+
+

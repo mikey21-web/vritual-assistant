@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
-import { fetchLead, getLeadTimeline, fetchContacts } from '../lib/data';
+import { fetchLead, getLeadTimeline, fetchContacts, holdUnit, createBooking, fetchLeadBookings } from '../lib/data';
 import { api } from '../lib/api';
 import toast from 'react-hot-toast';
 import { startExplainFlow } from '../lib/explainMode';
-import { ArrowLeft, Phone, MessageSquare, Calendar, FileText, X, AlertTriangle, Sparkles, Play, Send } from 'lucide-react';
+import { ArrowLeft, Phone, MessageSquare, Calendar, FileText, X, AlertTriangle, Sparkles, Play, Send, Lock, ShoppingCart, MessageCircle } from 'lucide-react';
 import CustomFieldsSection from '../components/CustomFieldsSection';
 import LeadPaymentMilestones from '../components/LeadPaymentMilestones';
 import PreVisitBrief from '../components/PreVisitBrief';
+import ProjectPicker from '../components/ProjectPicker';
+import UnitPicker from '../components/UnitPicker';
 import type { Lead } from '../lib/types';
 
 const statusStyles: Record<string, string> = {
@@ -72,11 +74,22 @@ export default function LeadWorkbenchPage() {
   const [whatsAppText, setWhatsAppText] = useState('');
   const [sendingWA, setSendingWA] = useState(false);
   const [duplicates, setDuplicates] = useState<number>(0);
-  const [visitForm, setVisitForm] = useState({ projectId: '', startAt: '' });
   const [creatingVisit, setCreatingVisit] = useState(false);
-  const [costSheetForm, setCostSheetForm] = useState({ unitId: '', projectId: '' });
   const [creatingCS, setCreatingCS] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const [visitForm, setVisitForm] = useState({ projectId: '', projectName: '', startAt: '' });
+  const [costSheetForm, setCostSheetForm] = useState({ projectId: '', projectName: '', unitId: '', unitLabel: '' });
+
+  const [showHoldForm, setShowHoldForm] = useState(false);
+  const [holdForm, setHoldForm] = useState({ projectId: '', projectName: '', unitId: '', unitLabel: '', holdHours: 24 });
+  const [creatingHold, setCreatingHold] = useState(false);
+
+  const [showBookingForm, setShowBookingForm] = useState(false);
+  const [bookingForm, setBookingForm] = useState({ projectId: '', projectName: '', unitId: '', unitLabel: '', title: '' });
+  const [creatingBooking, setCreatingBooking] = useState(false);
+
+  const [existingBookings, setExistingBookings] = useState<any[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -93,6 +106,10 @@ export default function LeadWorkbenchPage() {
             setDuplicates(dupes.data?.filter((c: any) => c.id !== l.contact?.id).length || 0);
           } catch {}
         }
+        try {
+          const bookings = await fetchLeadBookings(id);
+          setExistingBookings(Array.isArray(bookings) ? bookings : bookings?.data || []);
+        } catch {}
       } catch (e: any) {
         toast.error(e.message || 'Failed to load lead');
       }
@@ -155,7 +172,7 @@ export default function LeadWorkbenchPage() {
       });
       toast.success('Site visit scheduled');
       setShowVisitForm(false);
-      setVisitForm({ projectId: '', startAt: '' });
+      setVisitForm({ projectId: '', projectName: '', startAt: '' });
     } catch (err: any) {
       toast.error(err.message || 'Failed to schedule visit');
     }
@@ -172,11 +189,45 @@ export default function LeadWorkbenchPage() {
       });
       toast.success('Cost sheet created');
       setShowCostSheetForm(false);
-      setCostSheetForm({ unitId: '', projectId: '' });
+      setCostSheetForm({ projectId: '', projectName: '', unitId: '', unitLabel: '' });
     } catch (err: any) {
       toast.error(err.message || 'Failed to create cost sheet');
     }
     setCreatingCS(false);
+  };
+
+  const handleHoldUnit = async () => {
+    if (!holdForm.unitId || !holdForm.projectId) return toast.error('Unit and project required');
+    setCreatingHold(true);
+    try {
+      await holdUnit({ leadId: id, unitId: holdForm.unitId, holdHours: holdForm.holdHours });
+      toast.success(`Unit held for ${holdForm.holdHours}h`);
+      setShowHoldForm(false);
+      setHoldForm({ projectId: '', projectName: '', unitId: '', unitLabel: '', holdHours: 24 });
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to hold unit');
+    }
+    setCreatingHold(false);
+  };
+
+  const handleProceedToBooking = async () => {
+    if (!bookingForm.unitId || !bookingForm.projectId) return toast.error('Unit and project required');
+    setCreatingBooking(true);
+    try {
+      await createBooking(id, {
+        leadId: id,
+        unitId: bookingForm.unitId,
+        propertyId: bookingForm.projectId,
+        title: bookingForm.title || `Booking for ${lead?.contact?.name || 'Lead'}`,
+        startTime: new Date().toISOString(),
+      });
+      toast.success('Booking created');
+      setShowBookingForm(false);
+      setBookingForm({ projectId: '', projectName: '', unitId: '', unitLabel: '', title: '' });
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to create booking');
+    }
+    setCreatingBooking(false);
   };
 
   const handleMarkLost = async () => {
@@ -259,6 +310,32 @@ export default function LeadWorkbenchPage() {
           <FileText size={14} /> Cost Sheet
         </button>
         {!SLA_DONE_STATUSES.has(lead.status) && (
+          <button onClick={() => setShowHoldForm(true)}
+            className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg border border-amber-300 bg-amber-50 text-amber-700 text-sm font-medium hover:bg-amber-100 dark:border-amber-800/30 dark:bg-amber-900/20 dark:text-amber-400 dark:hover:bg-amber-900/30 transition-all">
+            <Lock size={14} /> Hold Unit
+          </button>
+        )}
+        {!SLA_DONE_STATUSES.has(lead.status) && (
+          <button onClick={() => {
+            if (existingBookings.length > 0) {
+              setBookingForm(f => ({ ...f, title: `Booking for ${lead.contact?.name || 'Lead'}` }));
+            }
+            setShowBookingForm(true);
+          }}
+            className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg border border-green-300 bg-green-50 text-green-700 text-sm font-medium hover:bg-green-100 dark:border-green-800/30 dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/30 transition-all">
+            <ShoppingCart size={14} /> Proceed to Booking
+          </button>
+        )}
+        <button onClick={() => {
+          const ordered = [...timeline].reverse();
+          startExplainFlow(ordered.map((t: any) => ({
+            page: 'leads', highlightId: id,
+            narration: t.description ? `${t.title}: ${t.description}` : t.title,
+          })));
+        }} className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg border border-purple-300 bg-purple-50 text-purple-700 text-sm font-medium hover:bg-purple-100 dark:border-purple-800/30 dark:bg-purple-900/20 dark:text-purple-400 dark:hover:bg-purple-900/30 transition-all">
+          <Play size={14} /> Play Timeline
+        </button>
+        {!SLA_DONE_STATUSES.has(lead.status) && (
           <button onClick={handleMarkLost} disabled={actionLoading === 'lost'}
             className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 dark:border-red-800/30 dark:text-red-400 dark:hover:bg-red-900/20 transition-all">
             <X size={14} /> {actionLoading === 'lost' ? '...' : 'Mark Lost'}
@@ -300,6 +377,9 @@ export default function LeadWorkbenchPage() {
               </select>
             </div>
             {lead.assignedAgent && <div><span className="text-[var(--foreground)] font-medium">Agent:</span> <span className="text-[var(--muted-foreground)]">{lead.assignedAgent.name}</span></div>}
+            {existingBookings.length > 0 && (
+              <div><span className="text-[var(--foreground)] font-medium">Bookings:</span> <span className="text-[var(--muted-foreground)]">{existingBookings.length} existing</span></div>
+            )}
             {lead.message && <div><span className="text-[var(--foreground)] font-medium">Message:</span> <span className="text-[var(--muted-foreground)]">{lead.message}</span></div>}
           </div>
         </div>
@@ -323,10 +403,25 @@ export default function LeadWorkbenchPage() {
             {timeline.length === 0 && <p className="text-sm text-[var(--muted-foreground)]">No activity yet</p>}
             {timeline.slice(0, 15).map((t: any) => (
               <div key={t.id} className="flex items-start gap-2.5 text-sm">
-                <Calendar size={14} className="text-[var(--primary)] mt-0.5 shrink-0" />
-                <div>
-                  <p className="text-[var(--foreground)]">{t.title}</p>
-                  <p className="text-xs text-[var(--muted-foreground)]">{new Date(t.createdAt).toLocaleString()}</p>
+                {t.metadata?.recordingUrl ? <Phone size={14} className="text-green-500 mt-0.5 shrink-0" /> : <Calendar size={14} className="text-[var(--primary)] mt-0.5 shrink-0" />}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-[var(--foreground)] truncate">{t.title}</p>
+                    {t.type === 'delivery_updated' && (
+                      <span className={`shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded ${t.description === 'delivered' || t.description === 'read' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : t.description === 'failed' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'}`}>
+                        {t.description}
+                      </span>
+                    )}
+                    {t.metadata?.disposition && (
+                      <span className="shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">{t.metadata.disposition.replace(/_/g, ' ')}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs text-[var(--muted-foreground)]">{new Date(t.createdAt).toLocaleString()}</p>
+                    {t.metadata?.recordingUrl && (
+                      <a href={t.metadata.recordingUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-[var(--primary)] hover:underline">Listen</a>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -380,12 +475,15 @@ export default function LeadWorkbenchPage() {
               <h2 className="text-lg font-bold text-[var(--foreground)]">Schedule Site Visit</h2>
               <button onClick={() => setShowVisitForm(false)}><X size={18} /></button>
             </div>
-            <input value={visitForm.projectId} onChange={e => setVisitForm(f => ({ ...f, projectId: e.target.value }))}
-              placeholder="Project ID" autoFocus
-              className="w-full h-10 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm" />
-            <input value={visitForm.startAt} onChange={e => setVisitForm(f => ({ ...f, startAt: e.target.value }))}
-              type="datetime-local"
-              className="w-full h-10 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm" />
+            <div>
+              <label className="text-xs font-medium text-[var(--muted-foreground)] mb-1 block">Project</label>
+              <ProjectPicker value={visitForm.projectId} onChange={(id, name) => setVisitForm(f => ({ ...f, projectId: id, projectName: name }))} />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-[var(--muted-foreground)] mb-1 block">Date & Time</label>
+              <input value={visitForm.startAt} onChange={e => setVisitForm(f => ({ ...f, startAt: e.target.value }))} type="datetime-local"
+                className="w-full h-10 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm" />
+            </div>
             <div className="flex justify-end gap-2">
               <button onClick={() => setShowVisitForm(false)} className="h-9 px-4 rounded-lg border border-[var(--border)] text-sm">Cancel</button>
               <button onClick={handleCreateVisit} disabled={creatingVisit}
@@ -404,17 +502,96 @@ export default function LeadWorkbenchPage() {
               <h2 className="text-lg font-bold text-[var(--foreground)]">Create Cost Sheet</h2>
               <button onClick={() => setShowCostSheetForm(false)}><X size={18} /></button>
             </div>
-            <input value={costSheetForm.projectId} onChange={e => setCostSheetForm(f => ({ ...f, projectId: e.target.value }))}
-              placeholder="Project ID" autoFocus
-              className="w-full h-10 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm" />
-            <input value={costSheetForm.unitId} onChange={e => setCostSheetForm(f => ({ ...f, unitId: e.target.value }))}
-              placeholder="Unit ID"
-              className="w-full h-10 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm" />
+            <div>
+              <label className="text-xs font-medium text-[var(--muted-foreground)] mb-1 block">Project</label>
+              <ProjectPicker value={costSheetForm.projectId} onChange={(id, name) => setCostSheetForm(f => ({ ...f, projectId: id, projectName: name, unitId: '', unitLabel: '' }))} />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-[var(--muted-foreground)] mb-1 block">Unit</label>
+              <UnitPicker value={costSheetForm.unitId} onChange={(id, label) => setCostSheetForm(f => ({ ...f, unitId: id, unitLabel: label }))} projectId={costSheetForm.projectId} />
+            </div>
             <div className="flex justify-end gap-2">
               <button onClick={() => setShowCostSheetForm(false)} className="h-9 px-4 rounded-lg border border-[var(--border)] text-sm">Cancel</button>
               <button onClick={handleCreateCostSheet} disabled={creatingCS}
                 className="h-9 px-5 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90 disabled:opacity-50">
                 {creatingCS ? 'Creating...' : 'Create'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showHoldForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowHoldForm(false)}>
+          <div className="bg-[var(--card)] rounded-xl shadow-2xl w-full max-w-md p-6 space-y-3" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-[var(--foreground)]">Hold Unit</h2>
+              <button onClick={() => setShowHoldForm(false)}><X size={18} /></button>
+            </div>
+            <p className="text-xs text-[var(--muted-foreground)]">Reserve a unit for {lead.contact?.name || 'this lead'} — blocks other sales</p>
+            <div>
+              <label className="text-xs font-medium text-[var(--muted-foreground)] mb-1 block">Project</label>
+              <ProjectPicker value={holdForm.projectId} onChange={(id, name) => setHoldForm(f => ({ ...f, projectId: id, projectName: name, unitId: '', unitLabel: '' }))} />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-[var(--muted-foreground)] mb-1 block">Unit</label>
+              <UnitPicker value={holdForm.unitId} onChange={(id, label) => setHoldForm(f => ({ ...f, unitId: id, unitLabel: label }))} projectId={holdForm.projectId} />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-[var(--muted-foreground)] mb-1 block">Hold Duration</label>
+              <select value={holdForm.holdHours} onChange={e => setHoldForm(f => ({ ...f, holdHours: Number(e.target.value) }))}
+                className="w-full h-10 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm">
+                <option value={6}>6 hours</option>
+                <option value={12}>12 hours</option>
+                <option value={24}>24 hours</option>
+                <option value={48}>48 hours</option>
+                <option value={72}>72 hours (3 days)</option>
+                <option value={168}>7 days</option>
+              </select>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowHoldForm(false)} className="h-9 px-4 rounded-lg border border-[var(--border)] text-sm">Cancel</button>
+              <button onClick={handleHoldUnit} disabled={creatingHold || !holdForm.unitId}
+                className="h-9 px-5 rounded-lg bg-amber-600 text-white text-sm font-medium hover:opacity-90 disabled:opacity-50">
+                {creatingHold ? 'Holding...' : 'Hold Unit'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showBookingForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowBookingForm(false)}>
+          <div className="bg-[var(--card)] rounded-xl shadow-2xl w-full max-w-md p-6 space-y-3" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-[var(--foreground)]">Proceed to Booking</h2>
+              <button onClick={() => setShowBookingForm(false)}><X size={18} /></button>
+            </div>
+            <p className="text-xs text-[var(--muted-foreground)]">Create a booking for {lead.contact?.name || 'this lead'}</p>
+            {existingBookings.length > 0 && (
+              <div className="px-3 py-2 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 text-xs dark:bg-blue-900/20 dark:border-blue-800/30 dark:text-blue-400">
+                {existingBookings.length} existing booking{existingBookings.length > 1 ? 's' : ''} found for this lead
+              </div>
+            )}
+            <div>
+              <label className="text-xs font-medium text-[var(--muted-foreground)] mb-1 block">Booking Title</label>
+              <input value={bookingForm.title} onChange={e => setBookingForm(f => ({ ...f, title: e.target.value }))}
+                placeholder={`Booking for ${lead.contact?.name || 'Lead'}`}
+                className="w-full h-10 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-[var(--muted-foreground)] mb-1 block">Project</label>
+              <ProjectPicker value={bookingForm.projectId} onChange={(id, name) => setBookingForm(f => ({ ...f, projectId: id, projectName: name, unitId: '', unitLabel: '' }))} />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-[var(--muted-foreground)] mb-1 block">Unit</label>
+              <UnitPicker value={bookingForm.unitId} onChange={(id, label) => setBookingForm(f => ({ ...f, unitId: id, unitLabel: label }))} projectId={bookingForm.projectId} />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowBookingForm(false)} className="h-9 px-4 rounded-lg border border-[var(--border)] text-sm">Cancel</button>
+              <button onClick={handleProceedToBooking} disabled={creatingBooking || !bookingForm.unitId}
+                className="h-9 px-5 rounded-lg bg-green-600 text-white text-sm font-medium hover:opacity-90 disabled:opacity-50">
+                {creatingBooking ? 'Creating...' : 'Create Booking'}
               </button>
             </div>
           </div>

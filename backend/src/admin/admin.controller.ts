@@ -24,10 +24,15 @@ export class AdminController {
   @Roles('OWNER', 'ADMIN')
   async listAiKillSwitches() {
     const flags = await this.featureFlags.findAll();
-    const known = ['copilot_enabled', 'lead_agent_enabled'];
+    const descriptions: Record<string, string> = {
+      copilot_enabled: 'AI chat copilot for conversations and lead management',
+      lead_agent_enabled: 'AI lead agent for automated engagement',
+      mikey_paused: 'Pause all autonomous Mikey scans and actions',
+    };
+    const known = ['copilot_enabled', 'lead_agent_enabled', 'mikey_paused'];
     return known.map(key => {
       const existing = flags.find(f => f.key === key);
-      return { key, enabled: existing ? existing.enabled : true, description: existing?.description ?? null };
+      return { key, enabled: existing ? existing.enabled : true, description: existing?.description ?? descriptions[key] ?? null };
     });
   }
 

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { api } from "../lib/api";
 import toast from "react-hot-toast";
-import { Plus, Check, Undo2, Search } from "lucide-react";
+import { Plus, Check, Undo2, Search, X } from "lucide-react";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../components/ui/table";
 import { Badge } from "../components/ui/badge";
 
@@ -24,6 +24,8 @@ export default function CollectionsPage() {
   const [showRecord, setShowRecord] = useState(false);
   const [ledgerLeadId, setLedgerLeadId] = useState("");
   const [ledger, setLedger] = useState<any | null>(null);
+  const [policies, setPolicies] = useState<any[]>([]);
+  const [showCreatePolicy, setShowCreatePolicy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -70,6 +72,15 @@ export default function CollectionsPage() {
       toast.error(e.message || "Failed to load ledger");
     }
   };
+
+  const loadPolicies = useCallback(async () => {
+    try {
+      const res = await api("/interest-policies");
+      setPolicies(res);
+    } catch { /* policies load is non-critical */ }
+  }, []);
+
+  useEffect(() => { loadPolicies(); }, [loadPolicies]);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -180,8 +191,73 @@ export default function CollectionsPage() {
         )}
       </div>
 
+      <InterestPolicySection policies={policies} onChanged={loadPolicies} showCreate={showCreatePolicy} onToggleCreate={() => setShowCreatePolicy(v => !v)} />
+
       {showRecord && <RecordPaymentModal onClose={() => setShowRecord(false)} onDone={() => { setShowRecord(false); load(); }} />}
     </div>
+  );
+}
+
+function InterestPolicySection({ policies, onChanged, showCreate, onToggleCreate }: { policies: any[]; onChanged: () => void; showCreate: boolean; onToggleCreate: () => void }) {
+  return (
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-sm font-semibold text-[var(--foreground)]">Interest policies</h2>
+        <button onClick={onToggleCreate} className="text-xs px-3 py-1.5 rounded-lg bg-[var(--primary)] text-white font-medium hover:opacity-90">
+          {showCreate ? "Cancel" : "Add policy"}
+        </button>
+      </div>
+      {showCreate && <CreatePolicyForm onDone={() => { onToggleCreate(); onChanged(); }} />}
+      {policies.length === 0 ? (
+        <p className="text-sm text-[var(--muted-foreground)] py-2">No policies configured yet.</p>
+      ) : (
+        <div className="divide-y divide-[var(--border)]">
+          {policies.map(p => (
+            <div key={p.id} className="flex items-center justify-between py-2 text-sm">
+              <div>
+                <span className="text-[var(--foreground)] font-medium">{p.name}</span>
+                <span className="text-[var(--muted-foreground)] ml-2">{p.ratePercentPerMonth}%/mo · {p.graceDays}d grace{p.active ? "" : " (inactive)"}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CreatePolicyForm({ onDone }: { onDone: () => void }) {
+  const [name, setName] = useState("");
+  const [ratePercentPerMonth, setRate] = useState("");
+  const [graceDays, setGraceDays] = useState("0");
+  const [saving, setSaving] = useState(false);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name || !ratePercentPerMonth) { toast.error("Name and rate are required"); return; }
+    setSaving(true);
+    try {
+      await api("/interest-policies", {
+        method: "POST",
+        body: JSON.stringify({ name, ratePercentPerMonth: Number(ratePercentPerMonth), graceDays: Number(graceDays) }),
+      });
+      toast.success("Policy created");
+      onDone();
+    } catch (e: any) {
+      toast.error(e.message || "Failed to create policy");
+    }
+    setSaving(false);
+  };
+
+  return (
+    <form onSubmit={submit} className="flex flex-wrap gap-2 mb-3 p-3 rounded-lg bg-[var(--background)] border border-[var(--border)]">
+      <input required placeholder="Policy name" value={name} onChange={e => setName(e.target.value)} className="flex-1 min-w-[140px] h-8 rounded border border-[var(--border)] bg-transparent px-2 text-xs text-[var(--foreground)]" />
+      <input required type="number" step="0.01" placeholder="Rate %/mo" value={ratePercentPerMonth} onChange={e => setRate(e.target.value)} className="w-24 h-8 rounded border border-[var(--border)] bg-transparent px-2 text-xs text-[var(--foreground)]" />
+      <input type="number" placeholder="Grace days" value={graceDays} onChange={e => setGraceDays(e.target.value)} className="w-20 h-8 rounded border border-[var(--border)] bg-transparent px-2 text-xs text-[var(--foreground)]" />
+      <button type="submit" disabled={saving} className="h-8 px-3 rounded bg-[var(--primary)] text-white text-xs font-medium hover:opacity-90 disabled:opacity-50">
+        {saving ? "Saving..." : "Save"}
+      </button>
+    </form>
   );
 }
 

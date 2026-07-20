@@ -14,14 +14,40 @@ export default function MikeyPage() {
   const [activeRules, setActiveRules] = useState<any[]>([]);
   const [autonomousActions, setAutonomousActions] = useState<any[]>([]);
   const [policies, setPolicies] = useState<Record<string, string>>({});
+  const [killSwitches, setKillSwitches] = useState<any[]>([]);
+  const [pausing, setPausing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'outcomes' | 'insights' | 'staff' | 'activity' | 'autonomy'>('overview');
   const [goalInput, setGoalInput] = useState('');
 
+  const togglePause = async () => {
+    const paused = killSwitches.find((k: any) => k.key === 'mikey_paused');
+    const isPaused = paused?.enabled === true;
+    setPausing(true);
+    try {
+      if (isPaused) {
+        await api('/admin/ai-kill-switches/mikey_paused/disable', { method: 'POST' });
+        toast.success('Mikey resumed — scans will run on the next cycle');
+      } else {
+        await api('/admin/ai-kill-switches/mikey_paused/enable', { method: 'POST' });
+        toast.success('Mikey paused — no autonomous scans or actions until resumed');
+      }
+      fetchAll();
+    } catch (e: any) {
+      if (e.message?.includes('403') || e.message?.includes('Forbidden')) {
+        toast.error('Only owners and admins can pause Mikey');
+      } else {
+        toast.error(e.message || 'Failed to toggle pause');
+      }
+    } finally {
+      setPausing(false);
+    }
+  };
+
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [s, o, i, st, a, act, pr, ar, aa, pol] = await Promise.all([
+      const [s, o, i, st, a, act, pr, ar, aa, pol, ks] = await Promise.all([
         api('/mikey/status').catch(() => null),
         api('/mikey/outcomes').catch(() => []),
         api('/mikey/temporal-insights').catch(() => []),
@@ -32,6 +58,7 @@ export default function MikeyPage() {
         api('/mikey/memory/rules/active?tenantId=default-tenant').catch(() => []),
         api('/mikey/autonomous-actions').catch(() => []),
         api('/mikey/autonomy-policies?tenantId=default-tenant').catch(() => ({})),
+        api('/admin/ai-kill-switches').catch(() => []),
       ]);
       setStatus(s);
       setOutcomes(Array.isArray(o) ? o : o?.data || []);
@@ -43,6 +70,7 @@ export default function MikeyPage() {
       setActiveRules(Array.isArray(ar) ? ar : []);
       setAutonomousActions(Array.isArray(aa) ? aa : []);
       setPolicies(pol && typeof pol === 'object' ? pol : {});
+      setKillSwitches(Array.isArray(ks) ? ks : []);
     } catch (e: any) {
       toast.error('Failed to load Mikey data');
     } finally {
@@ -321,6 +349,37 @@ export default function MikeyPage() {
 
       {activeTab === 'autonomy' && (
         <div className="space-y-6">
+          <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-red-500" />
+                Global Kill Switch
+              </p>
+              <p className="text-xs text-[var(--muted-foreground)] mt-0.5">
+                {killSwitches.find((k: any) => k.key === 'mikey_paused')?.enabled
+                  ? 'All autonomous scans and actions are currently paused. No Mikey activity until resumed.'
+                  : 'Mikey is active and scanning every 5 minutes. Toggle to pause all autonomous behavior.'}
+              </p>
+            </div>
+            <button
+              onClick={togglePause}
+              disabled={pausing}
+              className={`shrink-0 inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition-all ${
+                killSwitches.find((k: any) => k.key === 'mikey_paused')?.enabled
+                  ? 'bg-green-500/20 text-green-600 hover:bg-green-500/30 border border-green-500/30'
+                  : 'bg-red-500/20 text-red-600 hover:bg-red-500/30 border border-red-500/30'
+              } disabled:opacity-50`}
+            >
+              {pausing ? (
+                <RefreshCw className="w-4 h-4 animate-spin" />
+              ) : killSwitches.find((k: any) => k.key === 'mikey_paused')?.enabled ? (
+                'Resume Mikey'
+              ) : (
+                'Pause All Autonomous Actions'
+              )}
+            </button>
+          </div>
+
           <div>
             <h2 className="text-lg font-semibold mb-1 flex items-center gap-2">
               <Shield className="w-5 h-5 text-[var(--primary)]" />

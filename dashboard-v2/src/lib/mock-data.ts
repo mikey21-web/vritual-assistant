@@ -419,6 +419,27 @@ export const mockMedia = [
   { id: 'med-4', name: 'pricing-sheet.pdf', type: 'DOCUMENT', size: 480000, url: '/media/pricing-sheet.pdf', createdAt: randomDate(15) },
 ];
 
+export const mockProjects = [
+  { id: 'proj-1', name: 'Emerald Tower', location: 'Bangalore', status: 'ACTIVE', images: [], _count: { units: 12, towers: 1 }, unitSummary: { AVAILABLE: 8, BOOKED: 2, SOLD: 1, ON_HOLD: 1, BLOCKED: 0 } },
+  { id: 'proj-2', name: 'Sapphire Residency', location: 'Mumbai', status: 'ACTIVE', images: [], _count: { units: 24, towers: 2 }, unitSummary: { AVAILABLE: 15, BOOKED: 5, SOLD: 3, ON_HOLD: 1, BLOCKED: 0 } },
+  { id: 'proj-3', name: 'Golden Heights', location: 'Pune', status: 'ACTIVE', images: [], _count: { units: 18, towers: 1 }, unitSummary: { AVAILABLE: 10, BOOKED: 4, SOLD: 3, ON_HOLD: 0, BLOCKED: 1 } },
+  { id: 'proj-4', name: 'Diamond Park', location: 'Hyderabad', status: 'ACTIVE', images: [], _count: { units: 30, towers: 3 }, unitSummary: { AVAILABLE: 20, BOOKED: 6, SOLD: 4, ON_HOLD: 0, BLOCKED: 0 } },
+  { id: 'proj-5', name: 'Ruby Gardens', location: 'Chennai', status: 'PRE_LAUNCH', images: [], _count: { units: 8, towers: 1 }, unitSummary: { AVAILABLE: 8, BOOKED: 0, SOLD: 0, ON_HOLD: 0, BLOCKED: 0 } },
+];
+
+export const mockUnits = [
+  { id: 'unit-1', unitNumber: '101', floor: 1, unitType: '2BHK', status: 'AVAILABLE', price: 7500000, areaSqft: 950, project: { id: 'proj-1', name: 'Emerald Tower' }, tower: { id: 'tower-1', name: 'A Wing' } },
+  { id: 'unit-2', unitNumber: '102', floor: 1, unitType: '3BHK', status: 'AVAILABLE', price: 11000000, areaSqft: 1350, project: { id: 'proj-1', name: 'Emerald Tower' }, tower: { id: 'tower-1', name: 'A Wing' } },
+  { id: 'unit-3', unitNumber: '201', floor: 2, unitType: '2BHK', status: 'BOOKED', price: 7600000, areaSqft: 950, project: { id: 'proj-1', name: 'Emerald Tower' }, tower: { id: 'tower-1', name: 'A Wing' } },
+  { id: 'unit-4', unitNumber: '202', floor: 2, unitType: '3BHK', status: 'ON_HOLD', price: 11200000, areaSqft: 1350, project: { id: 'proj-1', name: 'Emerald Tower' }, tower: { id: 'tower-1', name: 'A Wing' } },
+  { id: 'unit-5', unitNumber: '301', floor: 3, unitType: '2BHK', status: 'AVAILABLE', price: 7700000, areaSqft: 950, project: { id: 'proj-1', name: 'Emerald Tower' }, tower: { id: 'tower-1', name: 'A Wing' } },
+  { id: 'unit-10', unitNumber: 'A-101', floor: 1, unitType: '2BHK', status: 'AVAILABLE', price: 8500000, areaSqft: 1000, project: { id: 'proj-2', name: 'Sapphire Residency' }, tower: { id: 'tower-2', name: 'A Wing' } },
+  { id: 'unit-11', unitNumber: 'A-102', floor: 1, unitType: '1BHK', status: 'AVAILABLE', price: 5500000, areaSqft: 650, project: { id: 'proj-2', name: 'Sapphire Residency' }, tower: { id: 'tower-2', name: 'A Wing' } },
+  { id: 'unit-12', unitNumber: 'B-101', floor: 1, unitType: '3BHK', status: 'SOLD', price: 14000000, areaSqft: 1500, project: { id: 'proj-2', name: 'Sapphire Residency' }, tower: { id: 'tower-3', name: 'B Wing' } },
+  { id: 'unit-20', unitNumber: 'G-01', floor: 0, unitType: '2BHK', status: 'AVAILABLE', price: 6800000, areaSqft: 900, project: { id: 'proj-3', name: 'Golden Heights' }, tower: { id: 'tower-4', name: 'Ground Wing' } },
+  { id: 'unit-21', unitNumber: 'G-02', floor: 0, unitType: '2BHK', status: 'AVAILABLE', price: 6900000, areaSqft: 900, project: { id: 'proj-3', name: 'Golden Heights' }, tower: { id: 'tower-4', name: 'Ground Wing' } },
+];
+
 export const mockContacts = [
   { id: 'c-1', name: 'Emma Johnson', email: 'emma.johnson@brightpath.com', phone: '+1 (212) 555-0147', company: 'BrightPath Solutions', location: 'New York, NY', tags: ['vip'], createdAt: randomDate(60), _count: { leads: 3 } },
   { id: 'c-2', name: 'Liam Williams', email: 'liam.williams@novatech.com', phone: '+1 (310) 555-0283', company: 'NovaTech Industries', location: 'Los Angeles, CA', tags: [], createdAt: randomDate(45), _count: { leads: 2 } },
@@ -468,6 +489,8 @@ const mockResponseMap: Record<string, () => any> = {
   '/agent/status': () => mockAgentStatus,
   '/agent/stats': () => mockAgentStats,
   '/webhooks': () => mockWebhookEndpoints,
+  '/projects': () => ({ data: mockProjects, meta: { total: mockProjects.length } }),
+  '/projects/units': () => ({ data: mockUnits, meta: { total: mockUnits.length } }),
 };
 
 export const mockAICampaigns: AICampaignDraft[] = [

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 
@@ -115,6 +115,53 @@ export class AdvancedMarketingService {
         currency: data.currency ?? 'INR', createdById: data.createdById,
       },
     });
+  }
+
+  async importSpendCsv(tenantId: string, file: Express.Multer.File, userId: string) {
+    if (!file) throw new BadRequestException('CSV file required');
+    const text = file.buffer.toString('utf-8');
+    const lines = text.split(/\r?\n/).filter(l => l.trim());
+    if (lines.length < 2) throw new BadRequestException('CSV must have a header row and at least one data row');
+
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+    const sourceIdx = headers.indexOf('source');
+    const dateIdx = headers.indexOf('date') >= 0 ? headers.indexOf('date') : headers.indexOf('spend_date');
+    const amountIdx = headers.indexOf('amount') >= 0 ? headers.indexOf('amount') : headers.indexOf('spend');
+    const campaignIdx = headers.indexOf('campaign');
+    const currencyIdx = headers.indexOf('currency');
+    if (sourceIdx < 0 || dateIdx < 0 || amountIdx < 0) {
+      throw new BadRequestException('CSV must have columns: source, date (or spend_date), amount (or spend)');
+    }
+
+    type CsvRow = { tenantId: string; source: string; campaign: string | null; spendDate: Date; amountPaise: bigint; currency: string; createdById: string };
+    const rows: CsvRow[] = [];
+    const errors: string[] = [];
+    for (let i = 1; i < lines.length; i++) {
+      const cols = lines[i].split(',').map(c => c.trim());
+      try {
+        const source = cols[sourceIdx];
+        const spendDate = new Date(cols[dateIdx]);
+        const amount = parseFloat(cols[amountIdx]);
+        if (!source || isNaN(spendDate.getTime()) || isNaN(amount)) {
+          errors.push(`Row ${i + 1}: invalid data (source="${source}", date="${cols[dateIdx] || ''}", amount="${cols[amountIdx] || ''}")`);
+          continue;
+        }
+        rows.push({
+          tenantId, source, campaign: campaignIdx >= 0 ? cols[campaignIdx] || null : null,
+          spendDate, amountPaise: BigInt(Math.round(amount * 100)),
+          currency: currencyIdx >= 0 ? cols[currencyIdx] || 'INR' : 'INR',
+          createdById: userId,
+        });
+      } catch (e: any) {
+        errors.push(`Row ${i + 1}: ${e.message}`);
+      }
+    }
+
+    if (rows.length > 0) {
+      await this.prisma.adSpendImport.createMany({ data: rows });
+    }
+
+    return { imported: rows.length, errors: errors.length > 0 ? errors : undefined };
   }
 
   async getSpendReport(tenantId: string, projectId?: string) {

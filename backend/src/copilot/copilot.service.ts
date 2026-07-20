@@ -17,6 +17,7 @@ import { KhojClientService } from '../khoj-client/khoj-client.service';
 import { MikeyService } from '../mikey/mikey.service';
 import { OutcomeEngineService } from '../mikey/outcome-engine.service';
 import { MemoryService } from '../mikey/memory.service';
+import { ApprovalsService } from '../approvals/approvals.service';
 
 const MAX_COPILOT_MESSAGES_PER_TENANT_PER_DAY = 500;
 import { PERMISSION_MATRIX } from '../permissions/permissions.matrix';
@@ -33,18 +34,11 @@ async function fetchWithTimeout(url: string, init: any = {}): Promise<Response> 
   }
 }
 
-interface PendingAction {
-  id: string;
-  userId: string;
-  tool: string;
-  args: any;
-  createdAt: number;
-}
+const APPROVAL_EXPIRY_MS = 5 * 60 * 1000;
 
 @Injectable()
 export class CopilotService {
   private readonly logger = new Logger(CopilotService.name);
-  private pendingActions = new Map<string, PendingAction>();
 
   constructor(
     private config: ConfigService,
@@ -65,6 +59,7 @@ export class CopilotService {
     private Mikey: MikeyService,
     private outcomeEngine: OutcomeEngineService,
     private memory: MemoryService,
+    private approvals: ApprovalsService,
   ) {}
 
   private can(role: string, permission: string): boolean {
@@ -209,16 +204,26 @@ export class CopilotService {
 
     const reply = this.sanitizeReply(pythonResult.response || 'Done.');
 
-    const actions: any[] = (pythonResult.actions || []).map((a: any) => {
-      const isPending = a.status === 'pending';
-      if (isPending) {
-        const paId = `pa_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-        this.pendingActions.set(paId, { id: paId, userId, tool: a.tool, args: a.args, createdAt: Date.now() });
-        setTimeout(() => this.pendingActions.delete(paId), 5 * 60 * 1000);
-        return { ...a, status: 'pending', requiresConfirmation: true, pendingActionId: paId };
+    const actions: any[] = [];
+    for (const a of (pythonResult.actions || [])) {
+      if (a.status === 'pending') {
+        const approval = await this.approvals.request(tenantId, {
+          type: `copilot_${a.tool}`,
+          entityType: 'copilot_action',
+          entityId: a.tool,
+          reason: a.args?.reason || `Copilot action: ${a.tool}`,
+          expiresAt: new Date(Date.now() + APPROVAL_EXPIRY_MS),
+          requestedById: userId,
+        });
+        await this.prisma.approvalRequest.update({
+          where: { id: approval.id },
+          data: { policySnapshot: { tool: a.tool, args: a.args, userId } },
+        });
+        actions.push({ ...a, status: 'pending', requiresConfirmation: true, pendingActionId: approval.id });
+      } else {
+        actions.push(a);
       }
-      return a;
-    });
+    }
 
     await this.prisma.copilotMessage.create({
       data: { conversationId: conversation.id, role: 'assistant', content: reply, toolCalls: actions.length > 0 ? actions : undefined },
@@ -228,36 +233,42 @@ export class CopilotService {
   }
 
   async confirmAction(userId: string, userRole: string, pendingActionId: string) {
-    const action = this.pendingActions.get(pendingActionId);
-    if (!action) throw new NotFoundException('Pending action not found or expired');
-    if (action.userId !== userId) throw new ForbiddenException('This action belongs to another user');
+    const approval = await this.prisma.approvalRequest.findUnique({ where: { id: pendingActionId } });
+    if (!approval || approval.status !== 'PENDING') throw new NotFoundException('Pending action not found or expired');
+    if (approval.requestedById && approval.requestedById !== userId) throw new ForbiddenException('This action belongs to another user');
+    if (approval.expiresAt && approval.expiresAt < new Date()) {
+      await this.prisma.approvalRequest.update({ where: { id: pendingActionId }, data: { status: 'EXPIRED' } });
+      throw new NotFoundException('Pending action has expired');
+    }
+
+    const snapshot = approval.policySnapshot as any;
+    const tool: string = snapshot?.tool || approval.entityId || '';
+    const args: any = snapshot?.args || {};
 
     // Re-check permission at confirm time, not just when the action was queued — the
     // user's role/permissions may have changed in between.
-    const perm = this.toolPermMap[action.tool];
+    const perm = this.toolPermMap[tool];
     if (perm && !this.can(userRole, perm)) {
-      this.pendingActions.delete(pendingActionId);
+      await this.approvals.decide(approval.tenantId, pendingActionId, 'REJECTED', `Permission revoked (requires ${perm})`, userId, userRole);
       throw new ForbiddenException(`You no longer have permission to do this (requires ${perm})`);
     }
 
-    // Delete synchronously, before any await, so a concurrent duplicate confirm request
-    // (double-click, client retry) finds nothing and can't execute the same high-impact
-    // action twice.
-    this.pendingActions.delete(pendingActionId);
+    // Mark approved before execution, so concurrent confirm requests can't double-execute.
+    await this.approvals.decide(approval.tenantId, pendingActionId, 'APPROVED', undefined, userId, userRole);
 
     let result: any;
-    switch (action.tool) {
+    switch (tool) {
       case 'send_message': {
         result = await this.conversationsService.create({
-          leadId: action.args.leadId,
-          channel: action.args.channel,
-          text: action.args.text,
+          leadId: args.leadId,
+          channel: args.channel,
+          text: args.text,
           direction: 'OUTBOUND',
         }, userId);
         break;
       }
       case 'bulk_send_message': {
-        const messages: any[] = action.args.messages || [];
+        const messages: any[] = args.messages || [];
         const results: { leadId: string; status: 'success' | 'error'; error?: string }[] = [];
         for (const m of messages) {
           try {
@@ -276,23 +287,23 @@ export class CopilotService {
         break;
       }
       case 'create_campaign':
-        result = await this.campaignsService.create(action.args);
+        result = await this.campaignsService.create(args);
         break;
       case 'initiate_call': {
-        result = await this.telephonyService.initiateCall(action.args.leadId, userId);
+        result = await this.telephonyService.initiateCall(args.leadId, userId);
         break;
       }
       case 'send_email': {
-        result = await this.emailAdapter.send(action.args.to, action.args.subject, action.args.body);
+        result = await this.emailAdapter.send(args.to, args.subject, args.body);
         break;
       }
       case 'search_media': {
         const mediaRes = await this.prisma.mediaFile.findMany({
           where: {
             OR: [
-              { originalName: { contains: action.args.query, mode: 'insensitive' } },
-              { tags: { hasSome: [action.args.query] } },
-              { fileName: { contains: action.args.query, mode: 'insensitive' } },
+              { originalName: { contains: args.query, mode: 'insensitive' } },
+              { tags: { hasSome: [args.query] } },
+              { fileName: { contains: args.query, mode: 'insensitive' } },
             ],
           },
           take: 10, orderBy: { createdAt: 'desc' },
@@ -302,23 +313,23 @@ export class CopilotService {
         break;
       }
       case 'send_media': {
-        const mediaFile = await this.prisma.mediaFile.findUnique({ where: { id: action.args.mediaId } });
+        const mediaFile = await this.prisma.mediaFile.findUnique({ where: { id: args.mediaId } });
         if (!mediaFile) throw new NotFoundException('Media file not found');
         const url = mediaFile.publicUrl || '';
         result = await this.conversationsService.create({
-          leadId: action.args.leadId,
-          channel: action.args.channel || 'WHATSAPP',
-          text: action.args.caption || mediaFile.originalName,
+          leadId: args.leadId,
+          channel: args.channel || 'WHATSAPP',
+          text: args.caption || mediaFile.originalName,
           direction: 'OUTBOUND',
-          metadata: { mediaUrl: url, mediaType: mediaFile.mimeType, caption: action.args.caption || mediaFile.originalName },
+          metadata: { mediaUrl: url, mediaType: mediaFile.mimeType, caption: args.caption || mediaFile.originalName },
         }, userId);
         break;
       }
       default:
-        throw new Error(`Unknown tool: ${action.tool}`);
+        throw new Error(`Unknown tool: ${tool}`);
     }
 
-    return { status: 'success', result, tool: action.tool, args: action.args };
+    return { status: 'success', result, tool, args };
   }
 
   async getConversations(userId: string) {

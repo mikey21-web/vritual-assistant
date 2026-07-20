@@ -79,26 +79,31 @@ function PartnerLoginForm({ onLoggedIn }: { onLoggedIn: () => void }) {
 }
 
 function PartnerDashboard({ onLogout }: { onLogout: () => void }) {
-  const [tab, setTab] = useState<"units" | "leads" | "commissions">("leads");
+  const [tab, setTab] = useState<"leads" | "units" | "projects" | "commissions">("leads");
   const [me, setMe] = useState<any>(null);
   const [units, setUnits] = useState<any[]>([]);
   const [leads, setLeads] = useState<any[]>([]);
   const [commissions, setCommissions] = useState<any[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
+  const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null);
+  const [projectUnits, setProjectUnits] = useState<Record<string, any[]>>({});
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [meRes, unitsRes, leadsRes, commRes] = await Promise.all([
+      const [meRes, unitsRes, leadsRes, commRes, projRes] = await Promise.all([
         partnerApi("/me"),
         partnerApi("/units"),
         partnerApi("/leads"),
         partnerApi("/commissions"),
+        partnerApi("/projects"),
       ]);
       setMe(meRes);
       setUnits(unitsRes);
       setLeads(leadsRes.data || leadsRes);
       setCommissions(commRes.data || commRes);
+      setProjects(projRes);
     } catch (e: any) {
       if (e.message?.includes("401") || /unauthoriz/i.test(e.message || "")) {
         localStorage.removeItem(TOKEN_KEY);
@@ -111,6 +116,17 @@ function PartnerDashboard({ onLogout }: { onLogout: () => void }) {
   }, [onLogout]);
 
   useEffect(() => { load(); }, [load]);
+
+  const toggleProject = async (projectId: string) => {
+    if (expandedProjectId === projectId) { setExpandedProjectId(null); return; }
+    if (!projectUnits[projectId]) {
+      try {
+        const units = await partnerApi(`/units?projectId=${projectId}`);
+        setProjectUnits(pu => ({ ...pu, [projectId]: units }));
+      } catch { toast.error("Failed to load project units"); return; }
+    }
+    setExpandedProjectId(projectId);
+  };
 
   const logout = () => {
     localStorage.removeItem(TOKEN_KEY);
@@ -127,14 +143,14 @@ function PartnerDashboard({ onLogout }: { onLogout: () => void }) {
         <button onClick={logout} className="text-sm text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">Sign out</button>
       </div>
 
-      <div className="flex gap-1 border-b border-gray-200 dark:border-gray-800 mb-4">
-        {(["leads", "units", "commissions"] as const).map(t => (
+      <div className="flex gap-1 border-b border-gray-200 dark:border-gray-800 mb-4 overflow-x-auto">
+        {(["leads", "units", "projects", "commissions"] as const).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${tab === t ? "border-indigo-600 text-indigo-600" : "border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"}`}
+            className={`whitespace-nowrap px-4 py-2 text-sm font-medium border-b-2 transition-colors ${tab === t ? "border-indigo-600 text-indigo-600" : "border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"}`}
           >
-            {t === "leads" ? "My Leads" : t === "units" ? "Available Units" : "Commissions"}
+            {t === "leads" ? "My Leads" : t === "units" ? "Available Units" : t === "projects" ? "Projects" : "Commissions"}
           </button>
         ))}
       </div>
@@ -145,6 +161,8 @@ function PartnerDashboard({ onLogout }: { onLogout: () => void }) {
         <LeadsTab leads={leads} onRegistered={load} />
       ) : tab === "units" ? (
         <UnitsTab units={units} />
+      ) : tab === "projects" ? (
+        <ProjectsTab projects={projects} expandedProjectId={expandedProjectId} projectUnits={projectUnits} onToggle={toggleProject} />
       ) : (
         <CommissionsTab commissions={commissions} />
       )}
@@ -155,6 +173,7 @@ function PartnerDashboard({ onLogout }: { onLogout: () => void }) {
 function LeadsTab({ leads, onRegistered }: { leads: any[]; onRegistered: () => void }) {
   const [phone, setPhone] = useState("");
   const [registering, setRegistering] = useState(false);
+  const [detailLead, setDetailLead] = useState<any | null>(null);
 
   const register = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -188,11 +207,31 @@ function LeadsTab({ leads, onRegistered }: { leads: any[]; onRegistered: () => v
         {leads.length === 0 ? (
           <p className="text-sm text-gray-500 text-center py-6">No leads registered yet.</p>
         ) : leads.map(l => (
-          <div key={l.id} className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-800 px-4 py-2">
+          <button key={l.id} onClick={() => setDetailLead(detailLead?.id === l.id ? null : l)} className="w-full text-left flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-800 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors">
             <span className="text-sm text-gray-900 dark:text-gray-50">{l.phone}</span>
             <span className="text-xs text-gray-500">{l.status.replace(/_/g, " ")}</span>
-          </div>
+          </button>
         ))}
+      </div>
+      {detailLead && <LeadDetailPanel lead={detailLead} onClose={() => setDetailLead(null)} />}
+    </div>
+  );
+}
+
+function LeadDetailPanel({ lead, onClose }: { lead: any; onClose: () => void }) {
+  return (
+    <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 p-4 space-y-2">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-50">Lead detail</h3>
+        <button onClick={onClose} className="text-xs text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">Close</button>
+      </div>
+      <div className="text-xs space-y-1 text-gray-700 dark:text-gray-300">
+        <p><span className="font-medium">Phone:</span> {lead.phone}</p>
+        <p><span className="font-medium">Status:</span> {lead.status?.replace(/_/g, " ")}</p>
+        <p><span className="font-medium">Created:</span> {lead.createdAt ? new Date(lead.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—"}</p>
+        {lead.leadId && <p><span className="font-medium">Lead ID:</span> {lead.leadId}</p>}
+        {lead.lockUntil && <p><span className="font-medium">Locked until:</span> {new Date(lead.lockUntil).toLocaleDateString("en-IN")}</p>}
+        {lead.decisionReason && <p><span className="font-medium">Decision reason:</span> {lead.decisionReason}</p>}
       </div>
     </div>
   );
@@ -209,6 +248,46 @@ function UnitsTab({ units }: { units: any[] }) {
           {u.price != null && (
             <div className="text-sm mt-1 text-gray-900 dark:text-gray-50">
               {new Intl.NumberFormat("en-IN", { style: "currency", currency: u.currency || "INR", maximumFractionDigits: 0 }).format(u.price)}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ProjectsTab({ projects, expandedProjectId, projectUnits, onToggle }: { projects: any[]; expandedProjectId: string | null; projectUnits: Record<string, any[]>; onToggle: (id: string) => void }) {
+  if (projects.length === 0) return <p className="text-sm text-gray-500 text-center py-6">No projects available.</p>;
+  return (
+    <div className="space-y-3">
+      {projects.map(p => (
+        <div key={p.id} className="rounded-lg border border-gray-200 dark:border-gray-800">
+          <button onClick={() => onToggle(p.id)} className="w-full text-left flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors">
+            <div>
+              <div className="text-sm font-medium text-gray-900 dark:text-gray-50">{p.name}</div>
+              <div className="text-xs text-gray-500">{p.location || p.address || ""}{p.status ? ` · ${p.status.replace(/_/g, " ")}` : ""}</div>
+            </div>
+            <span className="text-xs text-gray-400">{expandedProjectId === p.id ? "−" : "+"}</span>
+          </button>
+          {expandedProjectId === p.id && (
+            <div className="border-t border-gray-200 dark:border-gray-800 p-4">
+              {(projectUnits[p.id] || []).length === 0 ? (
+                <p className="text-xs text-gray-500">No available units in this project.</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {(projectUnits[p.id] || []).map(u => (
+                    <div key={u.id} className="rounded border border-gray-200 dark:border-gray-800 p-3">
+                      <div className="text-sm font-medium text-gray-900 dark:text-gray-50">Unit {u.unitNumber}</div>
+                      <div className="text-xs text-gray-500">{u.unitType} · {u.areaSqft ? `${u.areaSqft} sqft` : ""}{u.facing ? ` · ${u.facing}` : ""}</div>
+                      {u.price != null && (
+                        <div className="text-sm mt-1 text-gray-900 dark:text-gray-50">
+                          {new Intl.NumberFormat("en-IN", { style: "currency", currency: u.currency || "INR", maximumFractionDigits: 0 }).format(u.price)}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

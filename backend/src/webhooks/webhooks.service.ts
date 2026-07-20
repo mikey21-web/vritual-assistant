@@ -6,6 +6,7 @@ import { ConversationsService } from '../conversations/conversations.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { AgentClientService } from '../agent/agent-client.service';
 import { MetricsService } from '../monitoring/metrics.service';
+import { TimelineService } from '../timeline/timeline.service';
 import { envelopeDecrypt } from '../shared/crypto.util';
 import * as crypto from 'crypto';
 
@@ -19,6 +20,7 @@ export class WebhooksService {
     private auditLogs: AuditLogsService,
     private agentClient: AgentClientService,
     private metrics: MetricsService,
+    private timeline: TimelineService,
   ) {}
 
   private idempotencyKey(parts: string[]): string { return parts.join(':').slice(0, 255); }
@@ -124,7 +126,7 @@ export class WebhooksService {
       const msgId = s.id;
 
       if (msgId) {
-        await this.prisma.conversationMessage.updateMany({
+        const updated = await this.prisma.conversationMessage.updateMany({
           where: { providerMessageId: msgId },
           data: {
             deliveryStatus,
@@ -136,6 +138,10 @@ export class WebhooksService {
             } as any,
           },
         });
+        if (updated.count > 0) {
+          const msg = await this.prisma.conversationMessage.findFirst({ where: { providerMessageId: msgId }, select: { leadId: true } });
+          if (msg) this.timeline.recordDeliveryUpdated(msg.leadId, 'WhatsApp', deliveryStatus).catch(() => {});
+        }
       }
       results.push({ messageId: msgId, status: deliveryStatus });
     }
@@ -364,15 +370,23 @@ export class WebhooksService {
 
     // Find the conversation message associated with this call to update delivery status
     if (payload.CallStatus === 'completed') {
-      await this.prisma.conversationMessage.updateMany({
+      const upd = await this.prisma.conversationMessage.updateMany({
         where: { providerMessageId: callSid },
         data: { deliveryStatus: 'delivered' },
       });
+      if (upd.count > 0) {
+        const msg = await this.prisma.conversationMessage.findFirst({ where: { providerMessageId: callSid }, select: { leadId: true } });
+        if (msg) this.timeline.recordDeliveryUpdated(msg.leadId, 'Call', 'delivered').catch(() => {});
+      }
     } else if (payload.CallStatus === 'busy' || payload.CallStatus === 'failed' || payload.CallStatus === 'no-answer') {
-      await this.prisma.conversationMessage.updateMany({
+      const upd = await this.prisma.conversationMessage.updateMany({
         where: { providerMessageId: callSid },
         data: { deliveryStatus: 'failed' },
       });
+      if (upd.count > 0) {
+        const msg = await this.prisma.conversationMessage.findFirst({ where: { providerMessageId: callSid }, select: { leadId: true } });
+        if (msg) this.timeline.recordDeliveryUpdated(msg.leadId, 'Call', 'failed').catch(() => {});
+      }
     }
 
     await this.prisma.webhookEvent.create({
@@ -384,6 +398,12 @@ export class WebhooksService {
         processedResult: result,
       },
     });
+
+    // Record in lead timeline if we can find the lead
+    if (payload.RecordingUrl || ['completed', 'busy', 'failed', 'no-answer'].includes(payload.CallStatus)) {
+      const msg = await this.prisma.conversationMessage.findFirst({ where: { providerMessageId: callSid }, select: { leadId: true } });
+      if (msg) this.timeline.recordCall(msg.leadId, payload.CallStatus, payload.RecordingUrl).catch(() => {});
+    }
 
     this.metrics.incrementCounter('webhooks_processed_total', { provider: 'twilio', status: 'success' });
     return { data: result };

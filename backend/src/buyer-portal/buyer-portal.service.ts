@@ -53,7 +53,10 @@ export class BuyerPortalService {
       select: { id: true, snapshot: true, createdAt: true },
       orderBy: { createdAt: 'desc' },
     });
-    return docs.map(d => ({ id: d.id, documentType: (d.snapshot as any)?.documentType, createdAt: d.createdAt }));
+    return docs.map(d => {
+      const snap = d.snapshot as any;
+      return { id: d.id, documentType: snap?.documentType, body: snap?.body, createdAt: d.createdAt };
+    });
   }
 
   /** The buyer's own KYC checklist — status only, never another applicant's document. */

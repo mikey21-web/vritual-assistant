@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { UnitHoldsService } from './unit-holds.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { TimelineService } from '../timeline/timeline.service';
@@ -37,6 +38,7 @@ describe('UnitHoldsService', () => {
       providers: [
         UnitHoldsService,
         { provide: PrismaService, useValue: prisma },
+        { provide: ConfigService, useValue: { get: (_k: string, d?: any) => d } },
         { provide: TimelineService, useValue: { add: jest.fn() } },
         { provide: AuditLogsService, useValue: { log: jest.fn() } },
       ],

@@ -179,6 +179,9 @@ class BackendClient:
             "destination": destination,
         })
 
+    async def check_auto_send(self, tenant_id: str, lead_id: str) -> dict:
+        return await self._retry_get(f"/mikey/guardrails/auto-send/{tenant_id}/{lead_id}")
+
     async def post_run_summary(self, payload: dict) -> dict:
         return await self._retry_post("/agent/run-summary", payload)
 

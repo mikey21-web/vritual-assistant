@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Plus, X, MapPin, TrendingUp, Building2, ArrowLeft, Upload, Image as ImageIcon, FileText } from "lucide-react";
+import { Plus, X, MapPin, TrendingUp, Building2, ArrowLeft, Upload, Image as ImageIcon, FileText, History, User, Clock, RefreshCw } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
+import { Badge } from "../components/ui/badge";
 import { api, apiUpload } from "../lib/api";
 import toast from "react-hot-toast";
 
@@ -420,29 +421,124 @@ export default function ProjectDetailPage() {
         </div>
       )}
 
-      {/* Unit status editor */}
-      {editingUnit && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setEditingUnit(null)}>
-          <div className="bg-[var(--card)] rounded-xl shadow-2xl w-full max-w-sm p-6 space-y-3 overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold">Unit {editingUnit.unitNumber}</h2>
-              <button onClick={() => setEditingUnit(null)}><X className="h-5 w-5" /></button>
+      {/* Unit detail drawer */}
+      {editingUnit && <UnitDetailDrawer unitId={editingUnit.id} onClose={() => setEditingUnit(null)} onStatusChanged={() => { setEditingUnit(null); refresh(); }} />}
+    </div>
+  );
+}
+
+function UnitDetailDrawer({ unitId, onClose, onStatusChanged }: { unitId: string; onClose: () => void; onStatusChanged: () => void }) {
+  const [unit, setUnit] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      try {
+        const data = await api(`/units/${unitId}`);
+        setUnit(data);
+      } catch (e: any) {
+        setError(e.message || "Failed to load unit details");
+      }
+      setLoading(false);
+    })();
+  }, [unitId]);
+
+  const updateUnitStatus = async (status: string) => {
+    try {
+      await api(`/units/${unitId}`, { method: "PATCH", body: JSON.stringify({ status }), headers: { "Content-Type": "application/json" } });
+      toast.success(`Marked ${status.toLowerCase()}`);
+      const data = await api(`/units/${unitId}`);
+      setUnit(data);
+      onStatusChanged();
+    } catch (e: any) {
+      toast.error(e.message || "Failed to update unit");
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/30" onClick={onClose}>
+      <div className="w-full max-w-md h-full bg-[var(--card)] border-l border-[var(--border)] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-4 border-b border-[var(--border)]">
+          <h2 className="text-lg font-bold text-[var(--foreground)]">Unit Details</h2>
+          <button onClick={onClose} className="p-1 rounded hover:bg-[var(--accent)]"><X size={18} /></button>
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center p-8"><div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--border)] border-t-[var(--primary)]" /></div>
+        ) : error ? (
+          <div className="p-4 text-sm text-red-500">{error}</div>
+        ) : unit ? (
+          <div className="p-4 space-y-4">
+            {/* Header info */}
+            <div className="flex items-center gap-3">
+              <div className={`h-10 w-10 rounded-lg border-2 flex items-center justify-center text-xs font-bold ${statusColors[unit.status] || ""}`}>
+                {unit.unitNumber?.slice(-2)}
+              </div>
+              <div>
+                <div className="text-lg font-bold text-[var(--foreground)]">Unit {unit.unitNumber}</div>
+                <Badge variant={unit.status === "AVAILABLE" ? "success" : unit.status === "BOOKED" ? "default" : unit.status === "ON_HOLD" ? "destructive" : unit.status === "SOLD" ? "secondary" : "warning"} className="mt-0.5">
+                  {unit.status?.replace(/_/g, " ")}
+                </Badge>
+              </div>
             </div>
-            <div className="text-sm text-[var(--muted-foreground)] space-y-1">
-              <div>{editingUnit.unitType} · {formatMoney(editingUnit.price)}</div>
-              {editingUnit.buyerName && <div>Buyer: {editingUnit.buyerName}</div>}
+
+            {/* Quick attributes */}
+            <div className="grid grid-cols-2 gap-3">
+              {unit.tower?.name && <div className="rounded-lg bg-[var(--background)] p-3"><div className="text-[10px] text-[var(--muted-foreground)] uppercase tracking-wide">Tower</div><div className="text-sm font-medium text-[var(--foreground)] mt-0.5">{unit.tower.name}</div></div>}
+              {unit.floor != null && <div className="rounded-lg bg-[var(--background)] p-3"><div className="text-[10px] text-[var(--muted-foreground)] uppercase tracking-wide">Floor</div><div className="text-sm font-medium text-[var(--foreground)] mt-0.5">{unit.floor}</div></div>}
+              {unit.unitType && <div className="rounded-lg bg-[var(--background)] p-3"><div className="text-[10px] text-[var(--muted-foreground)] uppercase tracking-wide">Type</div><div className="text-sm font-medium text-[var(--foreground)] mt-0.5">{unit.unitType}</div></div>}
+              {unit.areaSqft && <div className="rounded-lg bg-[var(--background)] p-3"><div className="text-[10px] text-[var(--muted-foreground)] uppercase tracking-wide">Area</div><div className="text-sm font-medium text-[var(--foreground)] mt-0.5">{unit.areaSqft} sqft</div></div>}
+              {unit.price && <div className="rounded-lg bg-[var(--background)] p-3 col-span-2"><div className="text-[10px] text-[var(--muted-foreground)] uppercase tracking-wide">Price</div><div className="text-sm font-medium text-[var(--foreground)] mt-0.5">{(unit.price >= 10000000 ? `₹${(unit.price / 10000000).toFixed(2)} Cr` : unit.price >= 100000 ? `₹${(unit.price / 100000).toFixed(2)} L` : `₹${unit.price.toLocaleString()}`)}</div></div>}
+              {unit.facing && <div className="rounded-lg bg-[var(--background)] p-3"><div className="text-[10px] text-[var(--muted-foreground)] uppercase tracking-wide">Facing</div><div className="text-sm font-medium text-[var(--foreground)] mt-0.5">{unit.facing}</div></div>}
             </div>
-            <div className="grid grid-cols-2 gap-2 pt-2">
-              {statusOptions.map(s => (
-                <button key={s} onClick={() => updateUnitStatus(editingUnit.id, s)}
-                  className={`h-9 rounded-lg border text-xs font-medium ${statusColors[s]} ${editingUnit.status === s ? 'ring-2 ring-[var(--primary)]' : ''}`}>
-                  {s.replace(/_/g, " ")}
-                </button>
-              ))}
+
+            {/* Lead info */}
+            {unit.lead && (
+              <div className="rounded-lg border border-[var(--border)] p-3">
+                <div className="flex items-center gap-2 text-sm font-semibold text-[var(--foreground)] mb-1"><User size={14} /> Linked Lead</div>
+                <div className="text-sm text-[var(--muted-foreground)]">{unit.lead.contact?.name || "—"}</div>
+                {unit.lead.contact?.phone && <div className="text-xs text-[var(--muted-foreground)]">{unit.lead.contact.phone}</div>}
+              </div>
+            )}
+
+            {/* Status history */}
+            <div>
+              <div className="flex items-center gap-2 text-sm font-semibold text-[var(--foreground)] mb-2"><History size={14} /> Status History</div>
+              <div className="max-h-40 overflow-y-auto space-y-1">
+                {(unit.statusHistory || []).slice(-10).reverse().map((h: any) => (
+                  <div key={h.id} className="flex items-center justify-between text-xs py-1 px-2 rounded bg-[var(--background)]">
+                    <span><span className="text-[var(--muted-foreground)]">{h.fromStatus}</span> → <span className="text-[var(--foreground)]">{h.toStatus}</span></span>
+                    <span className="text-[var(--muted-foreground)]">{new Date(h.changedAt || h.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                  </div>
+                ))}
+                {(!unit.statusHistory || unit.statusHistory.length === 0) && <div className="text-xs text-[var(--muted-foreground)]">No history</div>}
+              </div>
+            </div>
+
+            {/* Active hold info */}
+            {unit.status === "ON_HOLD" && (
+              <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 p-3">
+                <div className="flex items-center gap-2 text-sm font-semibold text-red-700 dark:text-red-400 mb-1"><Clock size={14} /> Active Hold</div>
+              </div>
+            )}
+
+            {/* Status actions */}
+            <div>
+              <div className="text-sm font-semibold text-[var(--foreground)] mb-2">Change Status</div>
+              <div className="grid grid-cols-2 gap-2">
+                {statusOptions.map(s => (
+                  <button key={s} onClick={() => updateUnitStatus(s)}
+                    className={`h-9 rounded-lg border text-xs font-medium transition-all hover:scale-105 ${statusColors[s]} ${unit.status === s ? 'ring-2 ring-[var(--primary)]' : ''}`}>
+                    {s.replace(/_/g, " ")}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        ) : null}
+      </div>
     </div>
   );
 }

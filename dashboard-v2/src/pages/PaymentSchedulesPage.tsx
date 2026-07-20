@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, X, CheckCircle2, Clock, AlertTriangle, Ban } from "lucide-react";
+import { Plus, X, CheckCircle2, Clock, AlertTriangle, Ban, FileText, Printer } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { api } from "../lib/api";
@@ -20,6 +20,7 @@ export default function PaymentSchedulesPage() {
   const [showForm, setShowForm] = useState(false);
   const [selectedLead, setSelectedLead] = useState<{ id: string; label: string } | null>(null);
   const [form, setForm] = useState<any>({ label: "", amount: "", dueDate: "", notes: "" });
+  const [demandLetter, setDemandLetter] = useState<any | null>(null);
 
   const fetchSchedules = useCallback(async () => {
     setLoading(true);
@@ -75,6 +76,15 @@ export default function PaymentSchedulesPage() {
       toast.success("Milestone waived");
       fetchSchedules();
     } catch { toast.error("Failed to update"); }
+  };
+
+  const genDemandLetter = async (scheduleId: string) => {
+    try {
+      const doc = await api("/demand-letters", { method: "POST", body: JSON.stringify({ paymentScheduleId: scheduleId }), headers: { "Content-Type": "application/json" } });
+      setDemandLetter(doc);
+    } catch (e: any) {
+      toast.error(e.message || "Failed to generate demand letter. Ensure an approved DEMAND_LETTER template exists.");
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -147,20 +157,25 @@ export default function PaymentSchedulesPage() {
                       <Icon className="h-3 w-3" /> {meta.label}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex gap-1 justify-end">
-                      {s.status === "PENDING" && (
-                        <>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex gap-1 justify-end">
+                        {["PENDING", "OVERDUE"].includes(s.status) && (
+                          <button onClick={() => genDemandLetter(s.id)} className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 hover:opacity-80 inline-flex items-center gap-1">
+                            <FileText className="h-3 w-3" /> Demand letter
+                          </button>
+                        )}
+                        {s.status === "PENDING" && (
+                          <>
+                            <button onClick={() => markPaid(s.id)} className="text-xs px-2 py-1 rounded bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 hover:opacity-80">Mark paid</button>
+                            <button onClick={() => waive(s.id)} className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 hover:opacity-80">Waive</button>
+                          </>
+                        )}
+                        {s.status === "OVERDUE" && (
                           <button onClick={() => markPaid(s.id)} className="text-xs px-2 py-1 rounded bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 hover:opacity-80">Mark paid</button>
-                          <button onClick={() => waive(s.id)} className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 hover:opacity-80">Waive</button>
-                        </>
-                      )}
-                      {s.status === "OVERDUE" && (
-                        <button onClick={() => markPaid(s.id)} className="text-xs px-2 py-1 rounded bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 hover:opacity-80">Mark paid</button>
-                      )}
-                      <button onClick={() => handleDelete(s.id)} className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900 rounded text-red-500"><X className="h-4 w-4" /></button>
-                    </div>
-                  </td>
+                        )}
+                        <button onClick={() => handleDelete(s.id)} className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900 rounded text-red-500"><X className="h-4 w-4" /></button>
+                      </div>
+                    </td>
                 </tr>
               );
             })}
@@ -168,6 +183,22 @@ export default function PaymentSchedulesPage() {
         </table>
         </div>
       </div>
+
+      {demandLetter && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setDemandLetter(null)}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-800">
+              <h2 className="text-lg font-bold">Demand Letter</h2>
+              <button onClick={() => window.print()} className="inline-flex items-center gap-1 text-sm px-3 py-1.5 rounded-lg bg-indigo-100 text-indigo-800 hover:bg-indigo-200 dark:bg-indigo-900 dark:text-indigo-200">
+                <Printer className="h-4 w-4" /> Print
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6 text-sm leading-relaxed whitespace-pre-wrap font-serif">
+              {demandLetter.snapshot?.body || demandLetter.snapshot || "No content"}
+            </div>
+          </div>
+        </div>
+      )}
 
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowForm(false)}>

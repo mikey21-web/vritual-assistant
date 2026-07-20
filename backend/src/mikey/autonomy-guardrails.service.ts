@@ -1,16 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
-const DEFAULT_QUIET_HOURS_START = 21; // 9pm
-const DEFAULT_QUIET_HOURS_END = 8; // 8am
+const DEFAULT_QUIET_HOURS_START = 21;
+const DEFAULT_QUIET_HOURS_END = 8;
 const DEFAULT_DAILY_CAP = 50;
 const DEFAULT_LEAD_COOLDOWN_HOURS = 24;
+const DEFAULT_AUTO_SEND_MODE = 'enabled';
 
 /** Every autonomous action belongs to exactly one category so an owner can dial autonomy per category instead of one global on/off switch. */
 export type AutonomyCategory = 'lead_assignment' | 'lead_messaging' | 'task_escalation' | 'jarvis_tools';
 export const AUTONOMY_CATEGORIES: AutonomyCategory[] = ['lead_assignment', 'lead_messaging', 'task_escalation', 'jarvis_tools'];
 
-/** off: never acts, only reports. observe: same as off today — reserved for a future "draft for approval" mode. autonomous: acts on its own, subject to the other guardrails below. */
+/** off: never acts, only reports. observe: drafts every action to the approval queue for one-tap approve/reject. autonomous: acts on its own, subject to the other guardrails below. */
 export type AutonomyLevel = 'off' | 'observe' | 'autonomous';
 
 /**
@@ -82,22 +83,38 @@ export class AutonomyGuardrailsService {
   }
 
   /** All internal (non-messaging) checks: category dial, then daily cap — quiet hours and per-lead cooldown are message-specific. */
-  async canActInternally(tenantId: string, category: AutonomyCategory): Promise<{ allowed: boolean; reason?: string }> {
+  async canActInternally(tenantId: string, category: AutonomyCategory): Promise<{ allowed: boolean; reason?: string; mode?: AutonomyLevel }> {
     const level = await this.getCategoryLevel(tenantId, category);
     if (level === 'off') return { allowed: false, reason: `${category} autonomy is turned off` };
-    if (level === 'observe') return { allowed: false, reason: `${category} is in observe-only mode` };
+    if (level === 'observe') return { allowed: true, mode: 'observe', reason: `${category} is in observe-only mode — drafting for approval` };
     if (!(await this.isUnderDailyCap(tenantId))) return { allowed: false, reason: 'daily autonomous action cap reached' };
+    return { allowed: true, mode: 'autonomous' };
+  }
+
+  /** Lead-facing auto-send (the persist-node automatic reply when the agent doesn't call send_message tool). Default is enabled for 24/7 lead answering; per-tenant override exists for owners who want it gated by quiet hours + daily cap. */
+  async getAutoSendMode(tenantId: string): Promise<'enabled' | 'guarded' | 'disabled'> {
+    const settings = await this.getTenantSettings(tenantId);
+    return settings.leadAutoSendMode ?? DEFAULT_AUTO_SEND_MODE;
+  }
+
+  async canAutoSend(tenantId: string, leadId: string): Promise<{ allowed: boolean; reason?: string }> {
+    const mode = await this.getAutoSendMode(tenantId);
+    if (mode === 'disabled') return { allowed: false, reason: 'auto-send is disabled for this tenant' };
+    if (mode === 'enabled') return { allowed: true };
+    if (await this.isQuietHours(tenantId)) return { allowed: false, reason: 'quiet hours' };
+    if (!(await this.isUnderDailyCap(tenantId))) return { allowed: false, reason: 'daily auto-send cap reached' };
+    if (!(await this.isLeadOffCooldown(tenantId, leadId))) return { allowed: false, reason: 'lead was already messaged within cooldown window' };
     return { allowed: true };
   }
 
   /** Full check for any autonomous action that messages a specific lead. */
-  async canMessageLeadAutonomously(tenantId: string, category: AutonomyCategory, leadId: string): Promise<{ allowed: boolean; reason?: string }> {
+  async canMessageLeadAutonomously(tenantId: string, category: AutonomyCategory, leadId: string): Promise<{ allowed: boolean; reason?: string; mode?: AutonomyLevel }> {
     const level = await this.getCategoryLevel(tenantId, category);
     if (level === 'off') return { allowed: false, reason: `${category} autonomy is turned off` };
-    if (level === 'observe') return { allowed: false, reason: `${category} is in observe-only mode` };
+    if (level === 'observe') return { allowed: true, mode: 'observe', reason: `${category} is in observe-only mode — drafting for approval` };
     if (await this.isQuietHours(tenantId)) return { allowed: false, reason: 'quiet hours' };
     if (!(await this.isUnderDailyCap(tenantId))) return { allowed: false, reason: 'daily autonomous action cap reached' };
     if (!(await this.isLeadOffCooldown(tenantId, leadId))) return { allowed: false, reason: 'lead was already actioned autonomously within the cooldown window' };
-    return { allowed: true };
+    return { allowed: true, mode: 'autonomous' };
   }
 }

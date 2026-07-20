@@ -43,11 +43,21 @@ export class LoggingInterceptor implements NestInterceptor {
 
     return next.handle().pipe(
       tap({
-        next: () => {
+        next: (body: any) => {
           const res = context.switchToHttp().getResponse();
           const elapsed = Date.now() - now;
           const userId = req.user?.sub || 'anonymous';
           this.logger.log(`${method} ${res.statusCode} ${url} ${elapsed}ms user=${userId}`);
+          // Redact PII from response body at DEBUG level (same patterns as request body)
+          if (body && typeof body === 'object' && res.statusCode >= 400) {
+            try {
+              const bodyStr = JSON.stringify(body);
+              const redacted = redactPii(bodyStr);
+              if (redacted.length < 1000) {
+                this.logger.debug(`${method} ${res.statusCode} ${url} response=${redacted}`);
+              }
+            } catch {}
+          }
         },
         error: (err: any) => {
           const elapsed = Date.now() - now;

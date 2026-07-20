@@ -175,14 +175,14 @@ export class LeadsService {
         orderBy: { score: 'desc' },
         take: 10,
       }),
-      this.prisma.booking.findMany({
+      this.prisma.siteVisit.findMany({
         where: {
           lead: { assignedAgentId: agentId },
-          startTime: { gte: todayStart, lt: todayEnd },
-          status: { in: ['PENDING', 'CONFIRMED'] },
+          startAt: { gte: todayStart, lt: todayEnd },
+          status: { in: ['SCHEDULED', 'CONFIRMED'] },
         },
-        include: { lead: { include: { contact: { select: { name: true, phone: true } } } }, property: { select: { title: true } } },
-        orderBy: { startTime: 'asc' },
+        include: { lead: { include: { contact: { select: { name: true, phone: true } } } }, project: { select: { name: true } } },
+        orderBy: { startAt: 'asc' },
       }),
       this.prisma.task.findMany({
         where: { assigneeId: agentId, dueAt: { lt: now }, status: { not: 'completed' } },

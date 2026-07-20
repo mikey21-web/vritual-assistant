@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { BookingsModule } from '../bookings/bookings.module';
 import { AnalyticsModule } from '../analytics/analytics.module';
+import { ApprovalsModule } from '../approvals/approvals.module';
 import { ConversationsModule } from '../conversations/conversations.module';
 import { SiteVisitsModule } from '../site-visits/site-visits.module';
 import { UnitHoldsModule } from '../unit-holds/unit-holds.module';
@@ -27,13 +28,14 @@ import { MemoryController } from './memory.controller';
 import { NicheScannerService } from './niche-scanner.service';
 import { NicheActionService } from './niche-action.service';
 import { MikeyController } from './mikey.controller';
+import { GuardrailsController } from './guardrails.controller';
 
 @Module({
   imports: [
     BookingsModule, AnalyticsModule, ConversationsModule, SiteVisitsModule, UnitHoldsModule, SlaModule,
-    CostSheetsModule, OffersModule, DocumentsModule, ChannelPartnerClaimsModule, TicketsModule,
+    CostSheetsModule, OffersModule, DocumentsModule, ChannelPartnerClaimsModule, TicketsModule, ApprovalsModule,
   ],
-  controllers: [MikeyController, MemoryController, AutonomousActionController, JarvisToolsController],
+  controllers: [MikeyController, MemoryController, AutonomousActionController, JarvisToolsController, GuardrailsController],
   providers: [
     JarvisToolsService,
     MikeySchedulerService,

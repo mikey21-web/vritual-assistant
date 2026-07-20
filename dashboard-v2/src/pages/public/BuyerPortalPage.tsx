@@ -107,20 +107,23 @@ function BuyerDashboard({ onLogout }: { onLogout: () => void }) {
   const [documents, setDocuments] = useState<any[]>([]);
   const [kyc, setKyc] = useState<any[]>([]);
   const [tickets, setTickets] = useState<any[]>([]);
+  const [constructionUpdates, setConstructionUpdates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [b, s, r, d, k, t] = await Promise.all([
+      const [b, s, r, d, k, t, cu] = await Promise.all([
         buyerApi("/booking"),
         buyerApi("/payment-schedule"),
         buyerApi("/receipts"),
         buyerApi("/documents"),
         buyerApi("/kyc"),
         buyerApi("/tickets"),
+        buyerApi("/construction-updates"),
       ]);
       setBooking(b); setSchedule(s); setReceipts(r); setDocuments(d); setKyc(k); setTickets(t.data || t);
+      setConstructionUpdates(cu);
     } catch (e: any) {
       if (/unauthoriz|401/i.test(e.message || "")) {
         localStorage.removeItem(TOKEN_KEY);
@@ -163,9 +166,25 @@ function BuyerDashboard({ onLogout }: { onLogout: () => void }) {
 
       <Section title="Documents">
         {documents.length === 0 ? <Empty text="No documents issued yet." /> : documents.map(d => (
-          <Row key={d.id} left={(d.documentType || "Document").replace(/_/g, " ")} right={new Date(d.createdAt).toLocaleDateString()} />
+          <DocumentRow key={d.id} doc={d} />
         ))}
       </Section>
+
+      {constructionUpdates.length > 0 && (
+        <Section title="Construction updates">
+          {constructionUpdates.map((cu: any) => (
+            <div key={cu.id} className="text-sm py-2 border-b border-gray-100 dark:border-gray-800 last:border-0">
+              <div className="font-medium text-gray-900 dark:text-gray-50">{cu.milestoneName}</div>
+              {cu.customerVisibleMessage && (
+                <div className="text-gray-600 dark:text-gray-400 mt-0.5">{cu.customerVisibleMessage}</div>
+              )}
+              <div className="text-xs text-gray-500 mt-0.5">
+                {cu.percentComplete}% complete · {cu.approvedForBuyersAt ? new Date(cu.approvedForBuyersAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : ""}
+              </div>
+            </div>
+          ))}
+        </Section>
+      )}
 
       <Section title="KYC checklist">
         {kyc.length === 0 ? <Empty text="No documents requested yet." /> : kyc.map(k => (
@@ -175,6 +194,27 @@ function BuyerDashboard({ onLogout }: { onLogout: () => void }) {
 
       <SupportSection tickets={tickets} onCreated={load} />
     </div>
+  );
+}
+
+function DocumentRow({ doc }: { doc: any }) {
+  const openDocument = () => {
+    if (doc.body) {
+      const win = window.open("", "_blank");
+      if (win) {
+        win.document.write(doc.body);
+        win.document.close();
+      }
+    } else {
+      toast.error("Document content not available");
+    }
+  };
+
+  return (
+    <button onClick={openDocument} className="w-full text-left flex items-center justify-between text-sm py-1.5 border-b border-gray-100 dark:border-gray-800 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors">
+      <span className="text-indigo-600 dark:text-indigo-400 hover:underline">{(doc.documentType || "Document").replace(/_/g, " ")}</span>
+      <span className="text-gray-500">{new Date(doc.createdAt).toLocaleDateString()}</span>
+    </button>
   );
 }
 

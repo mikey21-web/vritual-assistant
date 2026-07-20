@@ -297,7 +297,7 @@ export class ProjectsService {
   async findUnit(id: string) {
     const unit = await this.prisma.unit.findUnique({
       where: { id },
-      include: { project: true, tower: true, lead: { include: { contact: true } } },
+      include: { project: true, tower: true, lead: { include: { contact: true } }, statusHistory: { orderBy: { changedAt: 'desc' } } },
     });
     if (!unit) throw new NotFoundException('Unit not found');
     return unit;

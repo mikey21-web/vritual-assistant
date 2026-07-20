@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { LedgerEntryType, PaymentScheduleStatus } from '@prisma/client';
@@ -6,10 +7,78 @@ import { LedgerEntryType, PaymentScheduleStatus } from '@prisma/client';
 /** Overdue interest + credit notes — tenant-configured rate, never hardcoded (spec 67.4). Rate math lives here since it's the one money-critical formula; keep it small and tested. */
 @Injectable()
 export class InterestService {
+  private logger = new Logger(InterestService.name);
+
   constructor(
     private prisma: PrismaService,
     private auditLogs: AuditLogsService,
   ) {}
+
+  /** Daily at midnight: post overdue interest for every OVERDUE schedule that hasn't been charged this month. */
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  async scanOverdueCharges() {
+    this.logger.log('Scanning overdue schedules for interest charges...');
+    const schedules = await this.prisma.paymentSchedule.findMany({
+      where: { status: PaymentScheduleStatus.OVERDUE, dueDate: { not: null } },
+    });
+    this.logger.log(`Found ${schedules.length} overdue schedules`);
+
+    const policies = await this.prisma.interestPolicy.findMany({ where: { active: true } });
+    if (policies.length === 0) {
+      this.logger.warn('No active interest policies — skipping overdue charge scan');
+      return;
+    }
+    // Use the first active policy as the default
+    const policy = policies[0];
+    if (policies.length > 1) {
+      this.logger.warn(`Multiple active policies found (${policies.length}), using first: "${policy.name}"`);
+    }
+
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    for (const schedule of schedules) {
+      try {
+        // Avoid duplicates: skip if a DEBIT entry for this schedule was already posted this month
+        const alreadyCharged = await this.prisma.ledgerEntry.findFirst({
+          where: {
+            tenantId: schedule.tenantId,
+            leadId: schedule.leadId,
+            bookingId: schedule.bookingId,
+            type: LedgerEntryType.DEBIT,
+            description: { startsWith: 'Overdue interest' },
+            createdAt: { gte: startOfMonth },
+          },
+        });
+        if (alreadyCharged) continue;
+
+        if (!schedule.dueDate) continue;
+        const overdueDays = Math.max(0, Math.floor((now.getTime() - schedule.dueDate.getTime()) / 86400000) - policy.graceDays);
+        if (overdueDays <= 0) continue;
+
+        const amountPaise = Math.round(schedule.amount * 100);
+        const chargePaise = Math.floor(amountPaise * (policy.ratePercentPerMonth / 100) * (overdueDays / 30));
+        if (chargePaise <= 0) continue;
+
+        await this.prisma.ledgerEntry.create({
+          data: {
+            tenantId: schedule.tenantId,
+            leadId: schedule.leadId,
+            bookingId: schedule.bookingId,
+            type: LedgerEntryType.DEBIT,
+            amountPaise: BigInt(chargePaise),
+            description: `Overdue interest (${overdueDays}d @ ${policy.ratePercentPerMonth}%/mo, policy "${policy.name}")`,
+            createdById: undefined,
+          },
+        });
+        await this.auditLogs.log('CHARGE_INTEREST', 'PaymentSchedule', schedule.id, undefined, { overdueDays, chargePaise, policyId: policy.id });
+        this.logger.log(`Charged ₹${(chargePaise / 100).toFixed(2)} on schedule ${schedule.id} (${overdueDays}d overdue)`);
+      } catch (err) {
+        this.logger.error(`Failed to charge interest on schedule ${schedule.id}`, (err as Error).stack);
+      }
+    }
+    this.logger.log('Overdue interest scan complete');
+  }
 
   createPolicy(tenantId: string, data: { name: string; ratePercentPerMonth: number; graceDays?: number }) {
     return this.prisma.interestPolicy.create({ data: { tenantId, ...data } });

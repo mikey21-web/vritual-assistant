@@ -40,6 +40,7 @@ def build_supervisor(
         max_tokens=settings.agent_max_tokens,
         api_key=settings.deepseek_api_key,
         base_url=settings.deepseek_base_url,
+        model_kwargs={"reasoning_effort": settings.agent_reasoning_effort},
     )
 
     async def load_context_node(state: SharedMikeyState, config: RunnableConfig) -> dict:
@@ -157,6 +158,7 @@ def build_supervisor(
             "lead_context": state.get("lead_context", {}),
             "conversation": state.get("conversation", []),
             "niche_config": state.get("niche_config", {}),
+            "procedural_rules": state.get("procedural_rules"),
         }
 
         sub_config = {
@@ -383,8 +385,12 @@ def build_supervisor(
             for m in reversed(messages):
                 if isinstance(m, AIMessage) and m.content and not getattr(m, "tool_calls", None):
                     try:
-                        await client.send_message(state["lead_id"], state.get("channel", "WHATSAPP"), str(m.content), None)
-                        resolved.append({"tool": "send_message", "status": "auto"})
+                        guard = await client.check_auto_send(tenant_id, state["lead_id"])
+                        if guard.get("allowed", True):
+                            await client.send_message(state["lead_id"], state.get("channel", "WHATSAPP"), str(m.content), None)
+                            resolved.append({"tool": "send_message", "status": "auto"})
+                        else:
+                            logger.info("auto_send_blocked", reason=guard.get("reason", "guardrail"), lead_id=state["lead_id"])
                     except Exception:
                         pass
                     break

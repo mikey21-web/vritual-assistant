@@ -66,8 +66,8 @@ export default function AgentWorklist() {
                 <div className="min-w-0">
                   <div className="font-medium text-[var(--foreground)] truncate">{v.lead?.contact?.name || 'Unknown'}</div>
                   <div className="text-xs text-[var(--muted-foreground)]">
-                    {new Date(v.startTime).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true })}
-                    {v.property ? ` · ${v.property.title}` : ''}
+                    {new Date(v.startAt).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                    {v.project ? ` · ${v.project.name}` : ''}
                   </div>
                 </div>
                 <button onClick={() => setBriefLeadId(v.leadId)} className="shrink-0 p-1.5 rounded-md hover:bg-[var(--accent)] text-[var(--primary)]" title="Pre-visit brief">

@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { api } from "../lib/api";
 import toast from "react-hot-toast";
-import { Plus, FileText, Send, Check, X } from "lucide-react";
+import { Plus, FileText, Send, Check, X, GitCompare, ArrowRightCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../components/ui/table";
 import { Badge } from "../components/ui/badge";
+import BookingWizardModal from "../components/BookingWizardModal";
 
 const statusVariant: Record<string, "default" | "success" | "secondary" | "destructive" | "warning"> = {
   DRAFT: "secondary",
@@ -27,6 +28,7 @@ export default function CostSheetsPage() {
   const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [openSheet, setOpenSheet] = useState<any | null>(null);
+  const [bookingTarget, setBookingTarget] = useState<any | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -123,7 +125,8 @@ export default function CostSheetsPage() {
       </Table>
 
       {showCreate && <CreateCostSheetModal onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); load(); }} />}
-      {openSheet && <CostSheetDrawer sheet={openSheet} onClose={() => setOpenSheet(null)} onChanged={async () => { load(); setOpenSheet(await api(`/cost-sheets/${openSheet.id}`)); }} />}
+      {openSheet && <CostSheetDrawer sheet={openSheet} onClose={() => setOpenSheet(null)} onChanged={async () => { load(); setOpenSheet(await api(`/cost-sheets/${openSheet.id}`)); }} onStartBooking={() => setBookingTarget(openSheet)} />}
+      {bookingTarget && <BookingWizardModal costSheet={bookingTarget} onClose={() => setBookingTarget(null)} onDone={() => { setBookingTarget(null); setOpenSheet(null); load(); }} />}
     </div>
   );
 }
@@ -206,11 +209,13 @@ function CreateCostSheetModal({ onClose, onCreated }: { onClose: () => void; onC
   );
 }
 
-function CostSheetDrawer({ sheet, onClose, onChanged }: { sheet: any; onClose: () => void; onChanged: () => void }) {
+function CostSheetDrawer({ sheet, onClose, onChanged, onStartBooking }: { sheet: any; onClose: () => void; onChanged: () => void; onStartBooking?: () => void }) {
   const [lineItems, setLineItems] = useState<any[]>(sheet.lineItems || []);
   const [saving, setSaving] = useState(false);
   const [discountPaise, setDiscountPaise] = useState("");
   const [reason, setReason] = useState("");
+  const [comparing, setComparing] = useState<any | null>(null);
+  const [compareLoading, setCompareLoading] = useState(false);
 
   const editable = sheet.status === "DRAFT";
   const total = lineItems.reduce((sum, li) => sum + Number(li.amountPaise || 0), 0);
@@ -258,6 +263,22 @@ function CostSheetDrawer({ sheet, onClose, onChanged }: { sheet: any; onClose: (
     }
   };
 
+  const loadCompare = async () => {
+    setCompareLoading(true);
+    try {
+      const all = await api(`/cost-sheets?leadId=${sheet.leadId}&limit=20`);
+      const list: any[] = all.data || all;
+      const older = list.filter((s: any) => s.id !== sheet.id && new Date(s.createdAt) < new Date(sheet.createdAt));
+      if (older.length === 0) { toast.error("No previous version to compare"); setCompareLoading(false); return; }
+      const prevId = older.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0].id;
+      const diff = await api(`/cost-sheets/${sheet.id}/compare/${prevId}`);
+      setComparing(diff);
+    } catch (e: any) {
+      toast.error(e.message || "Failed to compare");
+    }
+    setCompareLoading(false);
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/30" onClick={onClose}>
       <div className="w-full max-w-lg h-full bg-[var(--card)] border-l border-[var(--border)] p-6 overflow-y-auto" onClick={e => e.stopPropagation()}>
@@ -289,6 +310,53 @@ function CostSheetDrawer({ sheet, onClose, onChanged }: { sheet: any; onClose: (
           <button onClick={saveLines} disabled={saving} className="mt-3 h-9 w-full rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90 disabled:opacity-50">
             {saving ? "Saving..." : "Save line items"}
           </button>
+        )}
+
+        {/* Actions row */}
+        <div className="flex gap-2 mt-4">
+          {sheet.status === "APPROVED" && onStartBooking && (
+            <button onClick={onStartBooking} className="flex-1 h-9 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:opacity-90 inline-flex items-center justify-center gap-1">
+              <ArrowRightCircle size={14} /> Proceed to booking
+            </button>
+          )}
+          <button onClick={loadCompare} disabled={compareLoading} className="h-9 px-3 rounded-lg border border-[var(--border)] text-xs text-[var(--foreground)] hover:bg-[var(--accent)] inline-flex items-center gap-1">
+            <GitCompare size={14} /> {compareLoading ? "Loading..." : "Compare with previous"}
+          </button>
+        </div>
+
+        {/* Comparison diff */}
+        {comparing && (
+          <div className="mt-4 p-3 rounded-lg border border-[var(--border)] bg-[var(--background)]">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-xs font-semibold text-[var(--foreground)]">Version comparison</h4>
+              <button onClick={() => setComparing(null)} className="text-[var(--muted-foreground)] hover:text-[var(--foreground)]"><X size={14} /></button>
+            </div>
+            {comparing.diff.added.length > 0 && (
+              <div className="mb-2">
+                <div className="text-[10px] font-medium text-green-600 uppercase mb-1">Added</div>
+                {comparing.diff.added.map((li: any) => <div key={li.code} className="text-xs text-[var(--foreground)] pl-2">+ {li.label} ({li.code}) — {formatPaise(li.amountPaise)}</div>)}
+              </div>
+            )}
+            {comparing.diff.removed.length > 0 && (
+              <div className="mb-2">
+                <div className="text-[10px] font-medium text-red-500 uppercase mb-1">Removed</div>
+                {comparing.diff.removed.map((li: any) => <div key={li.code} className="text-xs text-[var(--muted-foreground)] pl-2 line-through">− {li.label} ({li.code}) — {formatPaise(li.amountPaise)}</div>)}
+              </div>
+            )}
+            {comparing.diff.changed.length > 0 && (
+              <div>
+                <div className="text-[10px] font-medium text-amber-600 uppercase mb-1">Changed</div>
+                {comparing.diff.changed.map((li: any) => (
+                  <div key={li.code} className="text-xs text-[var(--foreground)] pl-2">
+                    ~ {li.label} ({li.code}): {formatPaise(li.oldAmountPaise)} → {formatPaise(li.newAmountPaise)}
+                  </div>
+                ))}
+              </div>
+            )}
+            {comparing.diff.added.length === 0 && comparing.diff.removed.length === 0 && comparing.diff.changed.length === 0 && (
+              <div className="text-xs text-[var(--muted-foreground)]">No changes between versions</div>
+            )}
+          </div>
         )}
 
         <div className="mt-6 pt-4 border-t border-[var(--border)]">

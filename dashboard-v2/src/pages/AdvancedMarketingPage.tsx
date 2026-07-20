@@ -119,8 +119,24 @@ export default function AdvancedMarketingPage() {
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>Ad Spend by Source</CardTitle></CardHeader>
+        <CardHeader className="flex-row items-center justify-between">
+          <CardTitle>Ad Spend by Source</CardTitle>
+          <label className="cursor-pointer inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-[var(--primary)] text-white text-xs font-medium hover:opacity-90">
+            Upload CSV
+            <input type="file" accept=".csv" className="hidden" onChange={async (e) => {
+              const f = e.target.files?.[0]; if (!f) return;
+              const fd = new FormData(); fd.append('file', f);
+              try {
+                const res = await api('/ad-spend/csv', { method: 'POST', body: fd, headers: {} });
+                toast.success(`Imported ${res.imported} rows${res.errors?.length ? ` with ${res.errors.length} errors` : ''}`);
+                load();
+              } catch (e: any) { toast.error(e.message || 'CSV import failed'); }
+              e.target.value = '';
+            }} />
+          </label>
+        </CardHeader>
         <CardContent>
+          <p className="text-xs text-[var(--muted-foreground)] mb-3">CSV format: source, date (YYYY-MM-DD), amount, campaign (optional), currency (optional)</p>
           {spend.length === 0 ? <p className="text-sm text-muted-foreground">No ad spend imported yet.</p> : (
             <table className="w-full text-sm"><thead><tr className="border-b text-left"><th className="pb-2 font-medium">Source</th><th className="pb-2 font-medium">Spend</th><th className="pb-2 font-medium">Leads</th><th className="pb-2 font-medium">Cost/Lead</th></tr></thead><tbody>
               {spend.map((s: any) => (

@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Delete, Body, Param, Query, Req, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Get, Post, Delete, Body, Param, Query, Req, UseGuards, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiTags, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -95,6 +96,16 @@ export class AdvancedMarketingController {
   @Roles('OWNER', 'ADMIN')
   importSpend(@Body() body: any, @Req() req: any) {
     return this.service.importSpend(req.user.tenantId, { ...body, createdById: req.user.id });
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiBearerAuth()
+  @Post('ad-spend/csv')
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }))
+  @Roles('OWNER', 'ADMIN')
+  importSpendCsv(@UploadedFile() file: Express.Multer.File, @Req() req: any) {
+    return this.service.importSpendCsv(req.user.tenantId, file, req.user.id);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

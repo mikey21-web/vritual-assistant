@@ -69,8 +69,14 @@ export class SiteVisitsController {
 
   @Post(':id/check-in')
   @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT')
-  checkIn(@Param('id') id: string, @Req() req: any) {
-    return this.service.checkIn(req.user.tenantId, id, req.user.id);
+  checkIn(@Param('id') id: string, @Body('lat') lat: number | undefined, @Body('lng') lng: number | undefined, @Req() req: any) {
+    return this.service.checkIn(req.user.tenantId, id, req.user.id, lat, lng);
+  }
+
+  @Post(':id/check-out')
+  @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT')
+  checkOut(@Param('id') id: string, @Req() req: any) {
+    return this.service.checkOut(req.user.tenantId, id, req.user.id);
   }
 
   @Post(':id/complete')

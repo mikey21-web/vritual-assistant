@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { api } from "../lib/api";
 import toast from "react-hot-toast";
-import { Plus, MapPin, Check, X, CalendarClock, UserCheck } from "lucide-react";
+import { Plus, MapPin, Check, X, CalendarClock, UserCheck, LogOut } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../components/ui/table";
 import { Badge } from "../components/ui/badge";
@@ -37,6 +37,7 @@ export default function SiteVisitsPage() {
   const [outcomeFor, setOutcomeFor] = useState<any | null>(null);
   const [noShowFor, setNoShowFor] = useState<any | null>(null);
   const [rescheduleFor, setRescheduleFor] = useState<any | null>(null);
+  const [viewMode, setViewMode] = useState<"table" | "calendar">("table");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -115,7 +116,15 @@ export default function SiteVisitsPage() {
             <option key={s} value={s}>{s.replace(/_/g, " ")}</option>
           ))}
         </select>
+        <div className="flex rounded-lg border border-[var(--border)] overflow-hidden">
+          <button onClick={() => setViewMode("table")} className={`px-3 py-1.5 text-xs font-medium ${viewMode === "table" ? "bg-[var(--primary)] text-white" : "text-[var(--foreground)] hover:bg-[var(--accent)]"}`}>Table</button>
+          <button onClick={() => setViewMode("calendar")} className={`px-3 py-1.5 text-xs font-medium ${viewMode === "calendar" ? "bg-[var(--primary)] text-white" : "text-[var(--foreground)] hover:bg-[var(--accent)]"}`}>Calendar</button>
+        </div>
       </div>
+
+      {viewMode === "calendar" ? (
+        <CalendarView visits={visits} onReschedule={setRescheduleFor} />
+      ) : (
 
       <Table>
         <TableHeader>
@@ -170,8 +179,13 @@ export default function SiteVisitsPage() {
                       <button onClick={() => act(v.id, "confirm")} className="text-xs px-2 py-1 rounded-md border border-[var(--border)] hover:bg-[var(--accent)] text-[var(--foreground)]">Confirm</button>
                     )}
                     {OPEN_STATUSES.has(v.status) && !v.checkedInAt && (
-                      <button onClick={() => act(v.id, "check-in")} className="text-xs px-2 py-1 rounded-md border border-[var(--border)] hover:bg-[var(--accent)] text-[var(--foreground)] inline-flex items-center gap-1">
+                      <button onClick={() => { navigator.geolocation.getCurrentPosition(pos => act(v.id, "check-in", { lat: pos.coords.latitude, lng: pos.coords.longitude }), () => act(v.id, "check-in"), { timeout: 5000 }); }} className="text-xs px-2 py-1 rounded-md border border-[var(--border)] hover:bg-[var(--accent)] text-[var(--foreground)] inline-flex items-center gap-1">
                         <UserCheck size={12} /> Check in
+                      </button>
+                    )}
+                    {v.checkedInAt && !v.checkedOutAt && v.status !== "COMPLETED" && (
+                      <button onClick={() => act(v.id, "check-out")} className="text-xs px-2 py-1 rounded-md border border-[var(--border)] hover:bg-[var(--accent)] text-[var(--foreground)] inline-flex items-center gap-1">
+                        <LogOut size={12} /> Check out
                       </button>
                     )}
                     {OPEN_STATUSES.has(v.status) && (
@@ -188,6 +202,7 @@ export default function SiteVisitsPage() {
           )}
         </TableBody>
       </Table>
+      )}
 
       {showCreate && <CreateVisitModal onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); load(); }} />}
       {outcomeFor && <OutcomeModal visit={outcomeFor} onClose={() => setOutcomeFor(null)} onDone={() => { setOutcomeFor(null); load(); }} />}
@@ -467,6 +482,51 @@ function RescheduleModal({ visit, onClose, onDone }: { visit: any; onClose: () =
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function CalendarView({ visits, onReschedule }: { visits: any[]; onReschedule: (v: any) => void }) {
+  const today = new Date();
+  const startOfWeek = new Date(today);
+  startOfWeek.setDate(today.getDate() - today.getDay());
+  const weekDays = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(startOfWeek);
+    d.setDate(startOfWeek.getDate() + i);
+    return d;
+  });
+
+  const grouped: Record<string, any[]> = {};
+  for (const v of visits) {
+    if (!["SCHEDULED", "CONFIRMED"].includes(v.status)) continue;
+    const key = new Date(v.startAt).toDateString();
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(v);
+  }
+
+  return (
+    <div className="grid grid-cols-7 gap-px rounded-xl border border-[var(--border)] bg-[var(--border)] overflow-hidden">
+      {weekDays.map((day, i) => {
+        const key = day.toDateString();
+        const dayVisits = grouped[key] || [];
+        const isToday = key === today.toDateString();
+        return (
+          <div key={i} className={`min-h-[140px] bg-[var(--card)] p-2 ${isToday ? "ring-1 ring-inset ring-[var(--primary)]" : ""}`}>
+            <div className={`text-xs font-semibold mb-1 text-center ${isToday ? "text-[var(--primary)]" : "text-[var(--muted-foreground)]"}`}>
+              {DAY_NAMES[i]} {day.getDate()}
+            </div>
+            {dayVisits.slice(0, 4).map(v => (
+              <div key={v.id} className="text-xs rounded-md px-1.5 py-1 mb-1 bg-[var(--accent)] truncate cursor-pointer hover:opacity-80" onClick={() => onReschedule(v)} title={v.lead?.contact?.name || v.leadId}>
+                <div className="font-medium text-[var(--foreground)] truncate">{v.lead?.contact?.name || "?"}</div>
+                <div className="text-[var(--muted-foreground)]">{new Date(v.startAt).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true })}</div>
+              </div>
+            ))}
+            {dayVisits.length > 4 && <div className="text-xs text-[var(--muted-foreground)] text-center">+{dayVisits.length - 4} more</div>}
+          </div>
+        );
+      })}
     </div>
   );
 }

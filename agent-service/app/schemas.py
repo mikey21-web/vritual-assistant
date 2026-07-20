@@ -47,6 +47,7 @@ class AgentState(TypedDict, total=False):
     terminate: bool
     started_at: str
     run_id: str
+    procedural_rules: list[dict]
 
 
 class SharedMikeyState(TypedDict, total=False):

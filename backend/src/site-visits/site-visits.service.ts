@@ -79,6 +79,12 @@ export class SiteVisitsService {
     });
     await this.auditLogs.log('CREATE', 'SiteVisit', visit.id, data.createdById, { after: visit });
 
+    try {
+      await this.scheduleConfirmation(visit, data.createdById);
+    } catch (e: any) {
+      this.logger.warn(`Failed to schedule confirmation for visit ${visit.id}: ${e.message}`);
+    }
+
     return visit;
   }
 
@@ -159,7 +165,7 @@ export class SiteVisitsService {
     return updated;
   }
 
-  async checkIn(tenantId: string, id: string, actorId?: string) {
+  async checkIn(tenantId: string, id: string, actorId?: string, lat?: number, lng?: number) {
     const visit = await this.findOne(tenantId, id);
     if (!OPEN_STATUSES.includes(visit.status)) {
       throw new BadRequestException(`Cannot check in a visit in status ${visit.status}`);
@@ -168,9 +174,38 @@ export class SiteVisitsService {
       where: { id },
       data: { checkedInAt: new Date() },
     });
+    await this.prisma.visitAttendance.create({
+      data: {
+        tenantId,
+        siteVisitId: id,
+        checkedInById: actorId,
+        method: lat !== undefined && lng !== undefined ? 'GPS' : 'MANUAL',
+        lat: lat ?? undefined,
+        lng: lng ?? undefined,
+      },
+    });
     await this.timeline.add({
       type: 'site_visit_checked_in',
       title: 'Buyer checked in for site visit',
+      leadId: visit.leadId,
+      metadata: { siteVisitId: id, method: lat !== undefined ? 'GPS' : 'MANUAL' },
+      createdById: actorId,
+    });
+    return updated;
+  }
+
+  async checkOut(tenantId: string, id: string, actorId?: string) {
+    const visit = await this.findOne(tenantId, id);
+    if (visit.status !== SiteVisitStatus.COMPLETED && !visit.checkedInAt) {
+      throw new BadRequestException('Buyer must check in before checking out');
+    }
+    const updated = await this.prisma.siteVisit.update({
+      where: { id },
+      data: { checkedOutAt: new Date() },
+    });
+    await this.timeline.add({
+      type: 'site_visit_checked_out',
+      title: 'Buyer checked out from site visit',
       leadId: visit.leadId,
       metadata: { siteVisitId: id },
       createdById: actorId,
@@ -216,6 +251,11 @@ export class SiteVisitsService {
     });
 
     await this.cancelReminders(id);
+    try {
+      await this.schedulePostVisitNurture(visit.id, visit.leadId, visit.assignedAgentId || actorId);
+    } catch (e: any) {
+      this.logger.warn(`Failed to schedule post-visit nurture for visit ${id}: ${e.message}`);
+    }
     await this.timeline.add({
       type: 'site_visit_completed',
       title: 'Site visit completed',
@@ -349,6 +389,60 @@ export class SiteVisitsService {
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
+  private async leadFirstName(leadId: string): Promise<string> {
+    const lead = await this.prisma.lead.findUnique({
+      where: { id: leadId },
+      select: { contact: { select: { name: true } } },
+    });
+    const full = lead?.contact?.name?.trim();
+    if (!full) return 'there';
+    return full.split(/\s+/)[0];
+  }
+
+  private async scheduleConfirmation(visit: { id: string; leadId: string; startAt: Date; projectId: string }, actorId?: string) {
+    const name = await this.leadFirstName(visit.leadId);
+    const when = this.formatWhen(visit.startAt);
+    const project = await this.prisma.project.findUnique({ where: { id: visit.projectId }, select: { name: true } });
+    const text = `Hi ${name}, your site visit at ${project?.name || 'the project'} is confirmed for ${when}. We look forward to showing you around! Reply here if you need any help.`;
+    await this.prisma.scheduledAction.upsert({
+      where: { dedupeKey: `sv_conf:${visit.id}` },
+      create: {
+        leadId: visit.leadId,
+        kind: 'site_visit_reminder',
+        runAt: new Date(Date.now() + 5000),
+        dedupeKey: `sv_conf:${visit.id}`,
+        payload: { siteVisitId: visit.id, channel: 'WHATSAPP', text },
+        status: 'pending',
+      },
+      update: { runAt: new Date(Date.now() + 5000), status: 'pending' },
+    });
+  }
+
+  private async schedulePostVisitNurture(visitId: string, leadId: string, actorId?: string) {
+    const name = await this.leadFirstName(leadId);
+    const steps: { offsetMs: number; suffix: string; text: string }[] = [
+      { offsetMs: 4 * 60 * 60 * 1000, suffix: 'evening', text: `Hi ${name}, thanks for visiting today! Which part of the property felt most like home? Happy to answer any questions that came up.` },
+      { offsetMs: 2 * 24 * 60 * 60 * 1000, suffix: 'day2', text: `Hi ${name}, just checking in after your visit. If it helps, I can share the pricing, floor plan, or nearby options so you can compare with confidence.` },
+      { offsetMs: 4 * 24 * 60 * 60 * 1000, suffix: 'day4', text: `Hi ${name}, a couple of similar options just opened up that match what you liked. Want me to send them across?` },
+      { offsetMs: 7 * 24 * 60 * 60 * 1000, suffix: 'day7', text: `Hi ${name}, no pressure at all — just wanted to keep the door open. Whenever you're ready to take the next step, I'm here to help.` },
+    ];
+    const base = Date.now();
+    for (const s of steps) {
+      await this.prisma.scheduledAction.upsert({
+        where: { dedupeKey: `pv_nurture:${visitId}:${s.suffix}` },
+        create: {
+          leadId,
+          kind: 'post_visit_followup',
+          runAt: new Date(base + s.offsetMs),
+          dedupeKey: `pv_nurture:${visitId}:${s.suffix}`,
+          payload: { siteVisitId: visitId, channel: 'WHATSAPP', text: s.text },
+          status: 'pending',
+        },
+        update: { runAt: new Date(base + s.offsetMs), status: 'pending' },
+      });
+    }
+  }
+
   private async requireOpen(tenantId: string, id: string) {
     const visit = await this.findOne(tenantId, id);
     if (!OPEN_STATUSES.includes(visit.status)) {
@@ -382,10 +476,13 @@ export class SiteVisitsService {
   }
 
   private async cancelReminders(visitId: string) {
-    await this.prisma.scheduledAction.updateMany({
-      where: { status: 'pending', dedupeKey: { startsWith: `sitevisit_reminder:${visitId}:` } },
-      data: { status: 'cancelled' },
-    });
+    const prefixes = [`sitevisit_reminder:${visitId}:`, `sv_conf:${visitId}`, `pv_nurture:${visitId}:`];
+    for (const p of prefixes) {
+      await this.prisma.scheduledAction.updateMany({
+        where: { status: 'pending', dedupeKey: { startsWith: p } },
+        data: { status: 'cancelled' },
+      });
+    }
   }
 
   private formatWhen(dt: Date): string {

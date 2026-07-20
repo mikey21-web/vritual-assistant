@@ -8,7 +8,7 @@ import { WhatsAppCloudAdapter, TelegramBotAdapter, MessagingAdapter } from '../s
 import { EmailAdapter } from '../shared/adapters/email.adapter';
 import { ConversationsService } from '../conversations/conversations.service';
 
-const FOLLOWUP_KINDS = ['followup', 're_engage', 'send_retry', 'site_visit_reminder', 'post_visit_followup', 'payment_reminder'] as const;
+const FOLLOWUP_KINDS = ['followup', 're_engage', 'send_retry', 'site_visit_reminder', 'post_visit_followup', 'payment_reminder', 'notification'] as const;
 type FollowupKind = (typeof FOLLOWUP_KINDS)[number];
 
 @Injectable()
@@ -122,6 +122,7 @@ export class FollowupProcessorService extends WorkerHost implements OnApplicatio
       case 'site_visit_reminder':
       case 'post_visit_followup':
       case 'payment_reminder':
+      case 'notification':
         // Booking/payment lifecycle messages arrive with fully-rendered text in the
         // payload; just dispatch it on the requested channel.
         return this.handleBookingMessage(lead, payload);

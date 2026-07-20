@@ -103,6 +103,16 @@ async def _load_context(state: AgentState, config: RunnableConfig) -> AgentState
     system_prompt = build_system_prompt(nich, lead)
 
     lc_messages: list[Any] = [SystemMessage(content=system_prompt)]
+
+    procedural_rules = state.get("procedural_rules")
+    if procedural_rules:
+        rules_text = "\n".join(
+            f"- {r.get('rule', r.get('value', ''))} (category: {r.get('category', 'general')}, score: {r.get('score', 'N/A')})"
+            if r.get('score') else f"- {r.get('rule', r.get('value', ''))} (category: {r.get('category', 'general')})"
+            for r in procedural_rules
+        )
+        lc_messages.append(SystemMessage(content=f"Active learned rules (follow these, highest relevance first):\n{rules_text}"))
+
     for pm in prior_messages:
         if pm["role"] == "user":
             lc_messages.append(HumanMessage(content=pm["text"]))
@@ -145,6 +155,7 @@ async def _agent_node(state: AgentState, config: RunnableConfig) -> AgentState:
         max_tokens=settings.agent_max_tokens,
         api_key=settings.deepseek_api_key,
         base_url=settings.deepseek_base_url,
+        model_kwargs={"reasoning_effort": settings.agent_reasoning_effort},
     ).bind_tools(tools)
 
     msg_types = [f"{type(m).__name__}(tool_calls={hasattr(m,'tool_calls') and bool(m.tool_calls)})" for m in state["messages"]]
@@ -254,8 +265,13 @@ async def _persist_node(state: AgentState, config: RunnableConfig) -> AgentState
                 try:
                     lead_id = state["lead_id"]
                     channel = state.get("channel", "WHATSAPP")
-                    await client.send_message(lead_id, channel, str(m.content), None)
-                    resolved_actions.append({"tool": "send_message", "args": {"text": str(m.content)[:100]}, "status": "auto"})
+                    tenant_id = state.get("tenant_id", "")
+                    guard = await client.check_auto_send(tenant_id, lead_id)
+                    if guard.get("allowed", True):
+                        await client.send_message(lead_id, channel, str(m.content), None)
+                        resolved_actions.append({"tool": "send_message", "args": {"text": str(m.content)[:100]}, "status": "auto"})
+                    else:
+                        logger.info("auto_send_blocked", reason=guard.get("reason", "guardrail"), lead_id=lead_id)
                 except Exception as e:
                     logger.warning("auto_send_failed", error=str(e))
                 break

@@ -25,6 +25,10 @@ interface WhatsAppTemplateComponent {
 @Injectable()
 export class WhatsAppCloudAdapter implements MessagingAdapter {
   async sendMessage(to: string, text: string, config: any): Promise<{ success: boolean; messageId?: string; error?: string }> {
+    const provider = config?.whatsappProvider || process.env.WHATSAPP_PROVIDER || 'meta';
+    if (provider === 'wasender') {
+      return this.sendWasender(to, text, config);
+    }
     const phoneNumberId = config?.phoneNumberId || config?.WHATSAPP_PHONE_NUMBER_ID;
     const token = config?.accessToken || config?.WHATSAPP_ACCESS_TOKEN;
     const within24h = config?.within24h !== false;
@@ -32,8 +36,8 @@ export class WhatsAppCloudAdapter implements MessagingAdapter {
     const templateLang = config?.templateLang || 'en';
     const templateComponents = config?.templateComponents as WhatsAppTemplateComponent[] | undefined;
     const mediaUrl = config?.mediaUrl;
-    const mediaType = config?.mediaType; // 'image' | 'document' | 'video' | 'audio'
-    const interactiveType = config?.interactiveType; // 'button' | 'list'
+    const mediaType = config?.mediaType;
+    const interactiveType = config?.interactiveType;
     const interactiveBody = config?.interactiveBody;
     const interactiveButtons = config?.interactiveButtons as Array<{ id: string; title: string }> | undefined;
     const interactiveSections = config?.interactiveSections as Array<{ title: string; rows: Array<{ id: string; title: string; description?: string }> }> | undefined;
@@ -92,7 +96,32 @@ export class WhatsAppCloudAdapter implements MessagingAdapter {
       return { success: true, messageId: json.messages?.[0]?.id };
     } catch (e: any) { return { success: false, error: e.message }; }
   }
+
+  private async sendWasender(to: string, text: string, config: any): Promise<{ success: boolean; messageId?: string; error?: string }> {
+    const token = config?.accessToken || config?.WHATSAPP_ACCESS_TOKEN || process.env.WHATSAPP_ACCESS_TOKEN;
+    if (!token) return { success: false, error: 'Wasender API token not configured' };
+    try {
+      const res = await fetchWithTimeout('https://wasenderapi.com/api/send-message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ to, text }),
+      });
+      const json = await res.json();
+      if (!res.ok) return { success: false, error: json.error || json.message || `HTTP ${res.status}` };
+      return { success: true, messageId: json.messageId || json.id || json.data?.messageId };
+    } catch (e: any) { return { success: false, error: e.message }; }
+  }
+
   async healthCheck(config: any): Promise<boolean> {
+    const provider = config?.whatsappProvider || process.env.WHATSAPP_PROVIDER || 'meta';
+    if (provider === 'wasender') {
+      const token = config?.accessToken || config?.WHATSAPP_ACCESS_TOKEN || process.env.WHATSAPP_ACCESS_TOKEN;
+      if (!token) return false;
+      try {
+        const res = await fetch('https://wasenderapi.com/api/send-message', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ to: 'validate', text: '' }) });
+        return res.status !== 401;
+      } catch { return false; }
+    }
     const token = config?.accessToken || config?.WHATSAPP_ACCESS_TOKEN;
     const phoneNumberId = config?.phoneNumberId || config?.WHATSAPP_PHONE_NUMBER_ID;
     if (!token || !phoneNumberId) return false;
