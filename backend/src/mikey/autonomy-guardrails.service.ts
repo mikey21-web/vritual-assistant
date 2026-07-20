@@ -32,10 +32,10 @@ export class AutonomyGuardrailsService {
     return (tenant?.settings as Record<string, any>) || {};
   }
 
-  /** New tenants default to 'autonomous' for every category so existing behavior doesn't silently change when this ships. */
+  /** New tenants default to 'observe' for every category so Mikey is observe-first by default. */
   async getCategoryLevel(tenantId: string, category: AutonomyCategory): Promise<AutonomyLevel> {
     const settings = await this.getTenantSettings(tenantId);
-    return settings.mikeyAutonomyCategories?.[category] ?? 'autonomous';
+    return settings.mikeyAutonomyCategories?.[category] ?? 'observe';
   }
 
   async setCategoryLevel(tenantId: string, category: AutonomyCategory, level: AutonomyLevel): Promise<void> {
@@ -48,7 +48,7 @@ export class AutonomyGuardrailsService {
   async getAllCategoryLevels(tenantId: string): Promise<Record<AutonomyCategory, AutonomyLevel>> {
     const settings = await this.getTenantSettings(tenantId);
     const stored = settings.mikeyAutonomyCategories || {};
-    return Object.fromEntries(AUTONOMY_CATEGORIES.map((c) => [c, stored[c] ?? 'autonomous'])) as Record<AutonomyCategory, AutonomyLevel>;
+    return Object.fromEntries(AUTONOMY_CATEGORIES.map((c) => [c, stored[c] ?? 'observe'])) as Record<AutonomyCategory, AutonomyLevel>;
   }
 
   async isQuietHours(tenantId: string): Promise<boolean> {

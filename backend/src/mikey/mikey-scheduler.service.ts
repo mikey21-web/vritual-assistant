@@ -1,4 +1,5 @@
-import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { FeatureFlagsService } from '../shared/feature-flags.service';
@@ -19,9 +20,8 @@ import { MetricsService } from '../monitoring/metrics.service';
 import type { SchedulerFinding } from './mikey-scheduler.types';
 
 @Injectable()
-export class MikeySchedulerService implements OnApplicationBootstrap {
+export class MikeySchedulerService {
   private readonly logger = new Logger(MikeySchedulerService.name);
-  private interval: ReturnType<typeof setInterval> | null = null;
   private lastFindings: SchedulerFinding[] = [];
 
   // Health/heartbeat state, exposed via getHealth() so a stuck or repeatedly
@@ -80,44 +80,28 @@ export class MikeySchedulerService implements OnApplicationBootstrap {
   ) {}
 
   onApplicationBootstrap(): void {
-    this.logger.log('Mikey Scheduler starting — scanning every 5 minutes');
+    this.logger.log('Mikey Scheduler starting — scanning every 5 minutes via @Cron');
     this.scan();
-    // ponytail: setInterval is fine for single-instance deployments. If this runs
-    // across multiple backend instances, migrate to @Cron (via @nestjs/schedule)
-    // with a distributed lock (e.g. Redis via Bull) so only one instance executes.
-    this.interval = setInterval(() => this.scan(), 5 * 60 * 1000);
-    this.runDailyJobs();
-    this.scheduleMorningDigest();
   }
 
-  /** Mikey speaks first: an 8am brief to every owner/admin, unprompted. */
-  private scheduleMorningDigest(): void {
-    const msUntil8am = () => {
-      const now = new Date();
-      const next = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 8, 0, 0);
-      if (next <= now) next.setDate(next.getDate() + 1);
-      return next.getTime() - now.getTime();
-    };
-    const run = () => this.morningDigest.sendDailyDigests().catch(err => this.logger.error(`Morning digest failed: ${err.message}`));
-    setTimeout(() => {
-      run();
-      setInterval(run, 24 * 60 * 60 * 1000);
-    }, msUntil8am());
+  @Cron(CronExpression.EVERY_5_MINUTES)
+  async handleScheduledScan(): Promise<void> {
+    await this.scan();
   }
 
-  private async runDailyJobs(): Promise<void> {
-    const msUntilMidnight = () => {
-      const now = new Date();
-      const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 15, 0);
-      return midnight.getTime() - now.getTime();
-    };
-    setTimeout(async () => {
-      this.logger.log('Running daily peak Mikey jobs');
-      await this.runReflexionOnRecentOutcomes();
-      setInterval(async () => {
-        await this.runReflexionOnRecentOutcomes();
-      }, 24 * 60 * 60 * 1000);
-    }, msUntilMidnight());
+  @Cron('0 8 * * *')
+  async handleMorningDigest(): Promise<void> {
+    try {
+      await this.morningDigest.sendDailyDigests();
+    } catch (err: any) {
+      this.logger.error(`Morning digest failed: ${err.message}`);
+    }
+  }
+
+  @Cron('15 0 * * *')
+  async handleMidnightReflexion(): Promise<void> {
+    this.logger.log('Running daily peak Mikey jobs');
+    await this.runReflexionOnRecentOutcomes();
   }
 
   /** Runs one check and swallows its error so a single broken query can't take down the rest of the scan cycle. */

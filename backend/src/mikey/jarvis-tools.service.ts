@@ -7,6 +7,7 @@ import { OffersService } from '../offers/offers.service';
 import { DocumentsService } from '../documents/documents.service';
 import { ChannelPartnerClaimsService } from '../channel-partner-claims/channel-partner-claims.service';
 import { TicketsService } from '../tickets/tickets.service';
+import { ApprovalsService } from '../approvals/approvals.service';
 import { AutonomousActionService } from './autonomous-action.service';
 import { AutonomyGuardrailsService } from './autonomy-guardrails.service';
 
@@ -37,6 +38,7 @@ export class JarvisToolsService {
     private documents: DocumentsService,
     private partnerClaims: ChannelPartnerClaimsService,
     private tickets: TicketsService,
+    private approvals: ApprovalsService,
     private autonomousActions: AutonomousActionService,
     private guardrails: AutonomyGuardrailsService,
   ) {}
@@ -132,6 +134,18 @@ export class JarvisToolsService {
     if (!gate.allowed) {
       await this.autonomousActions.record({ tenantId, findingType: tool, tool, leadId, result: `BLOCKED_BY_POLICY: ${gate.reason}` });
       return { status: 'BLOCKED_BY_POLICY', reason: gate.reason! };
+    }
+
+    if (gate.mode === 'observe') {
+      await this.approvals.request(tenantId, {
+        type: `mikey_${tool}`,
+        entityType: leadId ? 'lead' : 'tool',
+        entityId: leadId || tool,
+        reason: `[DRAFT] ${tool} — waiting for owner approval`,
+        requestedById: undefined,
+      });
+      await this.autonomousActions.record({ tenantId, findingType: tool, tool, leadId, result: 'DRAFTED_FOR_APPROVAL' });
+      return { status: 'BLOCKED_BY_POLICY', reason: `${tool} is in observe-only mode — drafted for approval` };
     }
 
     try {
