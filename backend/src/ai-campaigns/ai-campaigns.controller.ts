@@ -97,10 +97,14 @@ Rules:
         headers: { Authorization: `Bearer ${cfToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: body.prompt }),
       });
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('image/')) {
+        const buf = Buffer.from(await res.arrayBuffer());
+        return { generated: true, image: `data:${contentType};base64,${buf.toString('base64')}`, format: contentType.split('/')[1], prompt: body.prompt };
+      }
       const data = await res.json() as any;
       if (!data.success) throw new Error(data.errors?.[0]?.message || 'Image generation failed');
-
-      const base64 = Buffer.from(data.result.image).toString('base64');
+      const base64 = typeof data.result?.image === 'string' ? data.result.image : Buffer.from(data.result.image).toString('base64');
       return { generated: true, image: `data:image/png;base64,${base64}`, format: 'png', prompt: body.prompt };
     } catch (e: any) {
       this.logger.error('Image generation failed', e.message);
