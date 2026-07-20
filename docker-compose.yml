@@ -78,6 +78,7 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:-}
       CLOUDFLARE_ACCOUNT_ID: ${CLOUDFLARE_ACCOUNT_ID:-}
+      MOONSHINE_URL: http://moonshine:8002
       AGENT_MODEL: ${AGENT_MODEL:-deepseek-v4-flash}
       POSTHOG_KEY: ${POSTHOG_KEY:-}
       POSTHOG_HOST: ${POSTHOG_HOST:-https://us.i.posthog.com}
@@ -276,12 +277,26 @@ services:
       postgres:
         condition: service_healthy
 
+  # ── Moonshine Voice AI (on-device STT / TTS) ───────────────────
+  moonshine:
+    build: ./moonshine-service
+    container_name: lead-automation-moonshine
+    restart: unless-stopped
+    ports:
+      - "8002:8002"
+    environment:
+      MOONSHINE_MODEL_PATH: /models/moonshine
+      MOONSHINE_MODEL_ARCH: moonshine_base
+    volumes:
+      - moonshine_models:/models/moonshine
+
 volumes:
   pgdata:
   redisdata:
   uploads:
   n8ndata:
   khoj_db:
+  moonshine_models:
   khoj_config:
   khoj_models:
   khoj_search:

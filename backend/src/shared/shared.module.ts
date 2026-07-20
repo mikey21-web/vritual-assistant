@@ -17,6 +17,7 @@ import { TwiMLGenerator } from './adapters/twiml.generator';
 import { EmailAdapter } from './adapters/email.adapter';
 import { HealthController } from './health.controller';
 import { SentryService } from './sentry.service';
+import { MoonshineService } from './moonshine.service';
 
 @Global()
 @Module({
@@ -27,7 +28,7 @@ import { SentryService } from './sentry.service';
     HubspotAdapter, SalesforceAdapter, ZohoAdapter,
     CalendlyAdapter, GoogleCalendarAdapter,
     WhatsAppCloudAdapter, TelegramBotAdapter, TwilioSmsAdapter, TwilioVoiceAdapter, TwiMLGenerator,
-    EmailAdapter, OutboxService, SentryService,
+    EmailAdapter, OutboxService, SentryService, MoonshineService,
   ],
   exports: [
     SignedUrlService, WebhookSecurityService, HealthService, PackApplierService,
@@ -35,7 +36,7 @@ import { SentryService } from './sentry.service';
     HubspotAdapter, SalesforceAdapter, ZohoAdapter,
     CalendlyAdapter, GoogleCalendarAdapter,
     WhatsAppCloudAdapter, TelegramBotAdapter, TwilioSmsAdapter, TwilioVoiceAdapter, TwiMLGenerator,
-    EmailAdapter, OutboxService, SentryService,
+    EmailAdapter, OutboxService, SentryService, MoonshineService,
   ],
 })
 export class SharedModule {}

@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
+import { MoonshineService } from '../shared/moonshine.service';
 import OpenAI from 'openai';
 import * as fs from 'fs';
 
@@ -15,6 +16,7 @@ export class CallSummaryService {
     private config: ConfigService,
     private prisma: PrismaService,
     private realtime: RealtimeGateway,
+    private moonshine: MoonshineService,
   ) {
     const openaiApiKey = this.config.get<string>('OPENAI_API_KEY');
     if (openaiApiKey) {
@@ -29,6 +31,12 @@ export class CallSummaryService {
   }
 
   async transcribe(filePath: string): Promise<string> {
+    try {
+      const buf = fs.readFileSync(filePath);
+      return await this.moonshine.transcribe(buf);
+    } catch (e: any) {
+      this.logger.warn(`Moonshine failed (${e.message}), falling back to Whisper`);
+    }
     if (!this.openaiClient) throw new Error('OPENAI_API_KEY not configured');
     const transcription = await this.openaiClient.audio.transcriptions.create({
       file: fs.createReadStream(filePath),
