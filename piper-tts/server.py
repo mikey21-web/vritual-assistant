@@ -19,13 +19,13 @@ async def tts(request):
         return web.json_response({'error': f'voice model not found for {lang}', 'available': available}, status=400)
     try:
         # Try piper via command line, fall back to espeak-ng
-        piper = subprocess.run(['which', 'piper'], capture_output=True, text=True)
-        if piper.returncode == 0:
+        piper_available = os.path.exists('/usr/local/bin/piper')
+        if piper_available:
             proc = await asyncio.create_subprocess_exec(
                 'piper', '--model', model, '--output-raw',
                 stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE
             )
-            stdout, stderr = await proc.communicate(text.encode(), timeout=30)
+            stdout, stderr = await asyncio.wait_for(proc.communicate(text.encode()), timeout=30)
             if proc.returncode == 0:
                 return web.Response(body=stdout, content_type='audio/x-wav')
         # Fallback to espeak-ng
@@ -33,7 +33,7 @@ async def tts(request):
             'espeak-ng', '-v', voice.replace('_', '-'), '--stdout', text,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
-        stdout, stderr = await proc.communicate(timeout=30)
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30)
         return web.Response(body=stdout, content_type='audio/x-wav')
     except Exception as e:
         return web.json_response({'error': str(e)}, status=500)
