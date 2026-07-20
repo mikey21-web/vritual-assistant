@@ -15,9 +15,10 @@ import { AnalyticsModule } from '../analytics/analytics.module';
 import { ContactsModule } from '../contacts/contacts.module';
 import { MikeyModule } from '../mikey/mikey.module';
 import { CallTrackingModule } from '../call-tracking/call-tracking.module';
+import { ApprovalsModule } from '../approvals/approvals.module';
 
 @Module({
-  imports: [PrismaModule, LeadsModule, TasksModule, TicketsModule, CampaignsModule, ConversationsModule, ReportsModule, CustomFieldsModule, TelephonyModule, SharedModule, AnalyticsModule, ContactsModule, MikeyModule, CallTrackingModule],
+  imports: [PrismaModule, LeadsModule, TasksModule, TicketsModule, CampaignsModule, ConversationsModule, ReportsModule, CustomFieldsModule, TelephonyModule, SharedModule, AnalyticsModule, ContactsModule, MikeyModule, CallTrackingModule, ApprovalsModule],
   controllers: [CopilotController],
   providers: [CopilotService],
 })
