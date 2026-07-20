@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
+import { EventsService } from '../events/events.service';
 import { ApprovalRequestStatus } from '@prisma/client';
 
 /**
@@ -20,6 +21,7 @@ export class ApprovalsService {
   constructor(
     private prisma: PrismaService,
     private auditLogs: AuditLogsService,
+    private events: EventsService,
   ) {}
 
   /** Highest-threshold active policy for this type whose minAmountPaise <= amount; null amount matches only policies with no minimum. */
