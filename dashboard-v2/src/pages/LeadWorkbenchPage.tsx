@@ -60,7 +60,7 @@ function NextBestAction({ lead }: { lead: Lead }) {
   return null;
 }
 
-function backToList() { window.location.hash = '#/leads'; }
+function backToList() { window.location.hash = '#/queue'; }
 
 export default function LeadWorkbenchPage() {
   const id = window.location.hash.replace('#', '').replace('/leads/', '');

@@ -1,8 +1,25 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { fetchTasks, fetchLeads, fetchAgentStatus, fetchAgentStats, updateTask } from '../lib/data';
-import { CheckCircle, Circle, Phone, User, AlertTriangle, Clock, ListChecks, BarChart3 } from 'lucide-react';
+import { api } from '../lib/api';
+import toast from 'react-hot-toast';
+import { CheckCircle, Circle, Phone, User, AlertTriangle, Clock, ListChecks, BarChart3, MessageSquare, ChevronRight, Send } from 'lucide-react';
 
 type Tab = 'today' | 'leads' | 'activity';
+
+function goToLead(id: string) { window.location.hash = `#/leads/${id}`; }
+function goToQueue() { window.location.hash = '#/queue'; }
+
+async function sendWA(leadId: string, phone: string) {
+  const text = prompt('WhatsApp message:');
+  if (!text?.trim()) return;
+  try {
+    await api('/conversations/messages', {
+      method: 'POST',
+      body: JSON.stringify({ leadId, channel: 'WHATSAPP', direction: 'OUTBOUND', text: text.trim() }),
+    });
+    toast.success('WhatsApp sent');
+  } catch (e: any) { toast.error(e.message || 'Failed'); }
+}
 
 export default function AgentQueuePage() {
   const [tab, setTab] = useState<Tab>('today');
@@ -128,27 +145,31 @@ export default function AgentQueuePage() {
               </h2>
               <div className="space-y-2">
                 {hotLeads.map(l => (
-                  <div key={l.id} className="rounded-xl bg-[var(--card)] border border-[var(--border)] p-3">
+                  <div key={l.id} className="rounded-xl bg-[var(--card)] border border-red-200 dark:border-red-900/50 p-3">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className="w-8 h-8 rounded-full bg-[var(--primary)]/10 flex items-center justify-center shrink-0">
-                          <User size={14} className="text-[var(--primary)]" />
+                      <button onClick={() => goToLead(l.id)} className="flex items-center gap-2 min-w-0 flex-1 text-left">
+                        <div className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center shrink-0">
+                          <User size={14} className="text-red-600 dark:text-red-400" />
                         </div>
                         <div className="min-w-0">
                           <div className="text-sm font-medium text-[var(--foreground)] truncate">
                             {l.contact?.name || 'Unknown'}
                           </div>
                           <div className="text-xs text-[var(--muted-foreground)] truncate">
-                            {l.interest || ''} · Score: {l.score || '-'}
+                            {l.interest || ''} · Score: {l.score || '-'} · {l.status}
                           </div>
                         </div>
-                      </div>
+                      </button>
                       <div className="flex gap-1 shrink-0">
-                        <button className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 hover:bg-emerald-100 transition-colors" title="Call">
-                          <Phone size={14} />
-                        </button>
-                        <button className="p-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 hover:bg-blue-100 transition-colors text-xs font-medium">
-                          View
+                        {l.contact?.phone && (
+                          <button onClick={() => sendWA(l.id, l.contact.phone)}
+                            className="p-2 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-600 hover:bg-green-100 transition-colors" title="WhatsApp">
+                            <MessageSquare size={14} />
+                          </button>
+                        )}
+                        <button onClick={() => goToLead(l.id)}
+                          className="p-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 hover:bg-blue-100 transition-colors" title="Open">
+                          <ChevronRight size={14} />
                         </button>
                       </div>
                     </div>
@@ -164,7 +185,8 @@ export default function AgentQueuePage() {
             </h2>
             <div className="space-y-2">
               {leads.slice(0, 15).map(l => (
-                <div key={l.id} className="rounded-xl bg-[var(--card)] border border-[var(--border)] p-3">
+                <button key={l.id} onClick={() => goToLead(l.id)}
+                  className="w-full rounded-xl bg-[var(--card)] border border-[var(--border)] p-3 text-left hover:bg-[var(--accent)] transition-colors">
                   <div className="flex items-center gap-2">
                     <div className={`w-2 h-2 rounded-full shrink-0 ${
                       l.segment === 'HOT' ? 'bg-red-500' : l.segment === 'WARM' ? 'bg-amber-400' : 'bg-gray-300'
@@ -184,8 +206,9 @@ export default function AgentQueuePage() {
                     }`}>
                       {l.segment}
                     </span>
+                    <ChevronRight size={14} className="text-[var(--muted-foreground)] shrink-0" />
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           </section>

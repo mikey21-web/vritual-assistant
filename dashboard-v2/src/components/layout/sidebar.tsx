@@ -14,7 +14,7 @@ import { useBranding } from "../../lib/useBranding";
 import { isFeatureEnabled, getLabel, getBusinessName, getNicheLogo, onConfigChange } from "../../lib/niche-config";
 
 const featureMap: Record<string, string> = {
-  "/": "overview", "/builder-desk": "overview", "/leads": "leads", "/pipeline": "pipeline", "/contacts": "contacts",
+  "/": "overview", "/queue": "overview", "/builder-desk": "overview", "/leads": "leads", "/pipeline": "pipeline", "/contacts": "contacts",
   "/campaigns": "campaigns", "/forms": "forms", "/qr-codes": "qrCodes",
   "/conversations": "messages", "/templates": "templates", "/media": "media",
   "/scoring": "scoring", "/rules": "routing",
@@ -64,6 +64,7 @@ const rawNavGroups = [
     label: "Overview",
     items: [
       { label: "Dashboard", icon: LayoutDashboard, path: "/" },
+      { label: "My Queue", icon: CheckSquare, path: "/queue" },
       { label: "Builder Desk", icon: Building2, path: "/builder-desk" },
       { label: "Portfolio", icon: BarChart3, path: "/portfolio" },
       { label: "Launch Control", icon: Activity, path: "/launch-control" },

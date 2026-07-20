@@ -261,7 +261,7 @@ export default function App() {
   const [page, setPage] = useState("Overview");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [publicRoute, setPublicRoute] = useState(() => window.location.hash.replace("#", "") || "/");
+  const [publicRoute, setPublicRoute] = useState(() => window.location.hash.replace("#", "") || "/queue");
 
   useEffect(() => {
     initNicheConfig();
