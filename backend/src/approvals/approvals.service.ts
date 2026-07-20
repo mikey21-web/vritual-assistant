@@ -110,6 +110,7 @@ export class ApprovalsService {
       data: { status: decision, approvedById, decidedAt: new Date(), reason: reason || request.reason },
     });
     await this.auditLogs.log(decision, 'ApprovalRequest', id, approvedById, { reason });
+    this.events.emit({ type: `mikey.approval.${decision.toLowerCase()}`, source: 'approvals', entityType: request.entityType || undefined, entityId: request.entityId || undefined, payload: { approvalId: id, requestType: request.type, reason, previousType: request.type } });
     return this.serializable(updated);
   }
 

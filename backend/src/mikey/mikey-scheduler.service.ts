@@ -114,6 +114,25 @@ export class MikeySchedulerService {
   }
 
   /** Runs one check and swallows its error so a single broken query can't take down the rest of the scan cycle. */
+  private lastPushAt = 0;
+
+  /** Push critical findings to the dashboard in real time — no waiting for the morning digest. */
+  private async pushCriticalFindings(findings: SchedulerFinding[]): Promise<void> {
+    const critical = findings.filter(f => f.severity === 'critical');
+    if (critical.length === 0) return;
+    // Don't spam — at most once per 30 minutes
+    if (Date.now() - this.lastPushAt < 30 * 60 * 1000) return;
+    this.lastPushAt = Date.now();
+    for (const f of critical) {
+      await this.events.emit({
+        type: `mikey.${f.type}`,
+        source: 'mikey-scheduler',
+        payload: { severity: f.severity, title: f.title, description: f.description, count: f.count, leadIds: f.metadata?.leadIds },
+      });
+    }
+    this.logger.log(`Pushed ${critical.length} critical finding(s) to dashboard`);
+  }
+
   private async runCheck(name: string, check: () => Promise<SchedulerFinding[]>): Promise<SchedulerFinding[]> {
     try {
       return await check();
@@ -197,6 +216,9 @@ export class MikeySchedulerService {
       } catch (err: any) {
         this.logger.error(`Unit-hold expiry scan failed: ${err.message}`);
       }
+
+      // Proactive push: notify owner immediately for critical findings
+      await this.pushCriticalFindings(findings);
 
       if (new Date().getMinutes() % 15 === 0) {
         try {
