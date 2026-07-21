@@ -455,7 +455,7 @@ export class MikeySchedulerService {
         if (outcome.acted) {
           await this.prisma.task.update({
             where: { id: task.id },
-            data: { status: 'completed', completedAt: new Date() },
+            data: { status: 'completed' },
           });
           executed++;
         } else {
