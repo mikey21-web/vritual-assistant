@@ -316,21 +316,30 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { co
   const userName = profile?.name || "User";
   const userEmail = profile?.email || "user@local";
 
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [mobileOpen]);
+
   return (
     <>
       {mobileOpen && <div className="fixed inset-0 z-40 bg-black/30 lg:hidden" onClick={onMobileClose} />}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex h-full w-64 flex-col border-r border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] transition-transform duration-200 lg:transition-[width] ${
+        className={`fixed inset-y-0 left-0 z-50 flex h-dvh w-[min(18rem,85vw)] flex-col border-r border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] transition-transform duration-200 lg:w-64 lg:transition-[width] ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         } lg:translate-x-0 ${collapsed ? "lg:w-16" : "lg:w-64"}`}
       >
         <div className="flex h-14 items-center justify-between border-b border-[var(--sidebar-border)] px-4">
           {!collapsed && (
-            <div className="flex items-center gap-2.5">
-              <span className="text-sm font-bold text-[var(--sidebar-fg)]">{companyName}</span>
+            <div className="flex min-w-0 items-center gap-2.5">
+              <span className="truncate text-sm font-bold text-[var(--sidebar-fg)]">{companyName}</span>
             </div>
           )}
-          <button onClick={onToggle} className="rounded-md p-1.5 hover:bg-[var(--sidebar-hover)] text-[var(--sidebar-muted)] transition-colors">
+          <button onClick={onToggle} className="hidden rounded-md p-1.5 text-[var(--sidebar-muted)] transition-colors hover:bg-[var(--sidebar-hover)] lg:block">
             {collapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
           </button>
         </div>
@@ -375,8 +384,8 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { co
                         }`}
                       >
                         {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-[3px] rounded-full bg-[var(--sidebar-active-fg)]" />}
-                        <item.icon size={17} strokeWidth={2} />
-                        {!collapsed && <span>{item.label}</span>}
+                        <item.icon size={17} strokeWidth={2} className="shrink-0" />
+                        {!collapsed && <span className="truncate">{item.label}</span>}
                       </a>
                     );
                   })}

@@ -45,12 +45,30 @@
   border-color: var(--border);
 }
 
+html {
+  min-width: 320px;
+}
+
 body {
   font-family: var(--font-body);
   background: var(--background);
   color: var(--foreground);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  min-width: 320px;
+  overflow-x: hidden;
+}
+
+#root {
+  min-height: 100dvh;
+}
+
+img, svg, video, canvas {
+  max-width: 100%;
+}
+
+table {
+  max-width: 100%;
 }
 
 h1, h2, h3, h4, h5, h6 {

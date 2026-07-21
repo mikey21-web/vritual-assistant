@@ -86,7 +86,7 @@ function GlobalSearch() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-80 rounded-lg border border-[var(--border)] bg-[var(--card)] shadow-lg z-50 overflow-hidden">
+        <div className="fixed inset-x-3 top-16 rounded-lg border border-[var(--border)] bg-[var(--card)] shadow-lg z-50 overflow-hidden sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80">
           <div className="flex items-center gap-2 border-b border-[var(--border)] px-3 py-2">
             <Search size={14} className="text-[var(--muted-foreground)]" />
             <input
@@ -94,7 +94,7 @@ function GlobalSearch() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search leads or contacts..."
-              className="flex-1 bg-transparent text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none"
+              className="min-w-0 flex-1 bg-transparent text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none"
             />
             {query && (
               <button onClick={() => setQuery("")} className="text-[var(--muted-foreground)] hover:text-[var(--foreground)]">
@@ -119,8 +119,8 @@ function GlobalSearch() {
                     onClick={() => goToLeads(lead.contact?.email || lead.contact?.name || query)}
                     className="w-full text-left px-3 py-2 text-sm hover:bg-[var(--accent)] transition-colors"
                   >
-                    <p className="text-[var(--foreground)] font-medium">{lead.contact?.name || "Unnamed"}</p>
-                    <p className="text-xs text-[var(--muted-foreground)]">{lead.contact?.email || lead.status}</p>
+                    <p className="truncate text-[var(--foreground)] font-medium">{lead.contact?.name || "Unnamed"}</p>
+                    <p className="truncate text-xs text-[var(--muted-foreground)]">{lead.contact?.email || lead.status}</p>
                   </button>
                 ))}
               </div>
@@ -135,8 +135,8 @@ function GlobalSearch() {
                     onClick={() => goToContacts(contact.email || contact.name || query)}
                     className="w-full text-left px-3 py-2 text-sm hover:bg-[var(--accent)] transition-colors"
                   >
-                    <p className="text-[var(--foreground)] font-medium">{contact.name || "Unnamed"}</p>
-                    <p className="text-xs text-[var(--muted-foreground)]">{contact.email}</p>
+                    <p className="truncate text-[var(--foreground)] font-medium">{contact.name || "Unnamed"}</p>
+                    <p className="truncate text-xs text-[var(--muted-foreground)]">{contact.email}</p>
                   </button>
                 ))}
               </div>
@@ -265,7 +265,7 @@ function NotificationsBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-80 rounded-lg border border-[var(--border)] bg-[var(--card)] shadow-lg z-50 overflow-hidden">
+        <div className="fixed inset-x-3 top-16 rounded-lg border border-[var(--border)] bg-[var(--card)] shadow-lg z-50 overflow-hidden sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80">
           <div className="flex items-center justify-between border-b border-[var(--border)] px-3 py-2">
             <p className="text-sm font-semibold text-[var(--foreground)]">Notifications</p>
             {items.some((i) => !i.read) && (
@@ -285,8 +285,8 @@ function NotificationsBell() {
                 onClick={() => handleItemClick(n)}
                 className={`w-full text-left px-3 py-2.5 border-b border-[var(--border)] last:border-0 transition-colors hover:bg-[var(--accent)] ${!n.read ? "bg-[var(--primary-light)]" : ""}`}
               >
-                <p className="text-sm text-[var(--foreground)] font-medium">{n.title}</p>
-                {n.body && <p className="text-xs text-[var(--muted-foreground)] mt-0.5">{n.body}</p>}
+                <p className="break-words text-sm text-[var(--foreground)] font-medium">{n.title}</p>
+                {n.body && <p className="mt-0.5 break-words text-xs text-[var(--muted-foreground)]">{n.body}</p>}
                 <p className="text-[10px] text-[var(--muted-foreground-light)] mt-1">{timeAgo(n.createdAt)}</p>
               </button>
             ))}
@@ -299,12 +299,12 @@ function NotificationsBell() {
 
 export function Topbar({ onMenuToggle }: { onMenuToggle: () => void }) {
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b border-[var(--border)] bg-[var(--background)] px-4 lg:px-6">
-      <button onClick={onMenuToggle} className="rounded-md p-2 text-[var(--muted-foreground)] hover:bg-[var(--accent)] hover:text-[var(--foreground)] transition-colors">
+    <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-[var(--border)] bg-[var(--background)] px-3 sm:gap-3 sm:px-4 lg:px-6">
+      <button onClick={onMenuToggle} className="rounded-md p-2 text-[var(--muted-foreground)] hover:bg-[var(--accent)] hover:text-[var(--foreground)] transition-colors lg:hidden" title="Open navigation">
         <Menu size={17} />
       </button>
 
-      <div className="flex-1" />
+      <div className="min-w-0 flex-1" />
 
       <GlobalSearch />
       <GuidedToursMenu />

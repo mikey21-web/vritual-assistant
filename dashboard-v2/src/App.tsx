@@ -400,16 +400,16 @@ export default function App() {
     <BrandingProvider>
     <AppProvider>
     <SocketProvider>
-      <div className="flex h-screen bg-[var(--background)] text-[var(--foreground)]">
+      <div className="flex min-h-dvh bg-[var(--background)] text-[var(--foreground)] overflow-hidden">
         <Sidebar
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
           mobileOpen={mobileNavOpen}
           onMobileClose={() => setMobileNavOpen(false)}
         />
-        <div className={`flex flex-1 flex-col transition-all duration-200 ${sidebarCollapsed ? "lg:ml-16" : "lg:ml-64"}`}>
+        <div className={`flex min-w-0 flex-1 flex-col transition-all duration-200 ${sidebarCollapsed ? "lg:ml-16" : "lg:ml-64"}`}>
           <Topbar onMenuToggle={() => setMobileNavOpen(!mobileNavOpen)} />
-          <main className="flex-1 overflow-auto p-4 lg:p-6 relative">
+          <main className="relative flex-1 overflow-auto px-3 py-4 sm:px-4 lg:p-6">
             <MikeyConnectedBanner />
             <ErrorBoundary>
               <Suspense fallback={<PageFallback />}>
