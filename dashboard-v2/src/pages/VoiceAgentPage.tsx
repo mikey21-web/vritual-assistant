@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import { fetchLeads } from '../lib/data';
 import { Phone, PhoneOff, Clock, Loader2, ChevronRight, Globe } from 'lucide-react';
 
 const LANGUAGES = [
@@ -23,7 +24,7 @@ export default function VoiceAgentPage() {
 
   useEffect(() => {
     Promise.all([
-      api('/leads?limit=10&status=NEW,ENGAGED,QUALIFYING').then(r => setLeads(r.data || r || [])).catch(() => {}),
+      fetchLeads(1, { hasPhone: 'true', limit: '10' }).then(r => setLeads(r.data || [])).catch(() => {}),
       api('/voice-agent/history').then(setHistory).catch(() => {}),
     ]).finally(() => setLoading(false));
   }, []);

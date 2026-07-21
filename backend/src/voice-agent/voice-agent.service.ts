@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { DograhService } from '../shared/dograh.service';
@@ -56,7 +56,7 @@ export class VoiceAgentService {
       include: { contact: true },
     });
     const callable = leads.filter((l) => l.contact?.phone);
-    if (callable.length === 0) throw new Error('None of the selected leads have a phone number');
+    if (callable.length === 0) throw new BadRequestException('None of the selected leads have a phone number');
 
     const rows = [['phone_number', 'first_name', 'lead_id', 'interest']];
     for (const lead of callable) {
@@ -69,8 +69,16 @@ export class VoiceAgentService {
     }
     const csv = rows.map((r) => r.join(',')).join('\n');
 
-    const { campaignId } = await this.dograh.createCampaignFromCsv(name, language, csv);
-    await this.dograh.startCampaign(campaignId);
+    let campaignId: number;
+    try {
+      ({ campaignId } = await this.dograh.createCampaignFromCsv(name, language, csv));
+      await this.dograh.startCampaign(campaignId);
+    } catch (e: any) {
+      if (String(e.message).includes('telephony_configuration_not_found')) {
+        throw new BadRequestException('Voice calling isn\'t fully set up yet — telephony isn\'t configured. Contact your admin.');
+      }
+      throw new BadRequestException('Could not start the campaign — the voice agent service is unavailable.');
+    }
     this.logger.log(`Campaign "${name}" created (id ${campaignId}) with ${callable.length} leads`);
     return { campaignId, leadCount: callable.length };
   }
