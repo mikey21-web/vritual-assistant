@@ -9,7 +9,7 @@ import { VoiceAgentModule } from '../voice-agent/voice-agent.module';
 import { TimelineModule } from '../timeline/timeline.module';
 
 @Module({
-  imports: [forwardRef(() => AdvancedFeaturesModule), ContactsModule, RealtimeModule, VoiceAgentModule, TimelineModule],
+  imports: [forwardRef(() => AdvancedFeaturesModule), forwardRef(() => ContactsModule), RealtimeModule, VoiceAgentModule, TimelineModule],
   controllers: [LeadsController],
   providers: [LeadsService, LeadContextService],
   exports: [LeadsService, LeadContextService],
