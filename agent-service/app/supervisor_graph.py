@@ -233,6 +233,43 @@ def build_supervisor(
             messages.append(response)
 
             if hasattr(response, "tool_calls") and response.tool_calls:
+                has_high_impact = False
+                for tc in response.tool_calls:
+                    name = tc.get("name", "") if isinstance(tc, dict) else tc.name
+                    if name in high_impact_tools:
+                        has_high_impact = True
+                        break
+
+                # Execute all non-high-impact tools first (navigate_ui, search_leads, etc.)
+                # even when a high-impact tool is in the same response.
+                low_risk_calls = [
+                    tc for tc in response.tool_calls
+                    if (tc.get("name", "") if isinstance(tc, dict) else tc.name) not in high_impact_tools
+                    and (tc.get("name", "") if isinstance(tc, dict) else tc.name) not in ("escalate_to_human", "mark_lost")
+                ]
+                if low_risk_calls:
+                    call_by_id = {
+                        (tc.get("id") if isinstance(tc, dict) else tc.id): (
+                            tc.get("name", "") if isinstance(tc, dict) else tc.name,
+                            tc.get("args", {}) if isinstance(tc, dict) else tc.args,
+                        )
+                        for tc in low_risk_calls
+                    }
+                    partial = {"messages": messages + [response]}
+                    tool_results = await agent_tools_node.ainvoke(partial)
+                    for msg in tool_results.get("messages", []):
+                        messages.append(msg)
+                        call_id = getattr(msg, "tool_call_id", "")
+                        name, args = call_by_id.get(call_id, ("operator_tool", {}))
+                        actions_taken.append({
+                            "id": call_id or str(uuid.uuid4()),
+                            "tool": name,
+                            "args": args,
+                            "status": "success" if not str(getattr(msg, "content", "")).startswith("error:") else "error",
+                            "result": str(getattr(msg, "content", "")),
+                        })
+
+                # Then handle high-impact and terminal tools
                 should_terminate = False
                 for tc in response.tool_calls:
                     name = tc.get("name", "") if isinstance(tc, dict) else tc.name
@@ -259,30 +296,9 @@ def build_supervisor(
                 if should_terminate:
                     break
 
-                # Map each dispatched call's id -> (name, args) so the ToolMessages
-                # coming back (which only carry tool_call_id + content) can be
-                # reported with their real tool name instead of a generic
-                # placeholder — callers like navigate_ui matching in the
-                # dashboard depend on the actual tool name surviving here.
-                call_by_id = {
-                    (tc.get("id") if isinstance(tc, dict) else tc.id): (
-                        tc.get("name", "") if isinstance(tc, dict) else tc.name,
-                        tc.get("args", {}) if isinstance(tc, dict) else tc.args,
-                    )
-                    for tc in response.tool_calls
-                }
-                tool_results = await agent_tools_node.ainvoke({"messages": messages})
-                for msg in tool_results.get("messages", []):
-                    messages.append(msg)
-                    call_id = getattr(msg, "tool_call_id", "")
-                    name, args = call_by_id.get(call_id, ("operator_tool", {}))
-                    actions_taken.append({
-                        "id": call_id or str(uuid.uuid4()),
-                        "tool": name,
-                        "args": args,
-                        "status": "success" if not str(getattr(msg, "content", "")).startswith("error:") else "error",
-                        "result": str(getattr(msg, "content", "")),
-                    })
+                # If only low-risk tools were called, we already handled them above
+                if not has_high_impact:
+                    continue
             else:
                 break
 

@@ -36,7 +36,7 @@ export default function MikeyWidget() {
       });
       if (res.conversationId && res.conversationId !== convId) setConvId(res.conversationId);
       setMessages(prev => [...prev, { id: `m-${Date.now()}`, role: "assistant", content: res.reply, createdAt: new Date().toISOString(), toolCalls: res.actions || [] }]);
-      runUIActions(res.actions);
+      runUIActions(res.actions, res.reply);
     } catch (e: any) {
       setMessages(prev => [...prev, { id: `e-${Date.now()}`, role: "assistant", content: `Error: ${e.message}`, createdAt: new Date().toISOString() }]);
     }
