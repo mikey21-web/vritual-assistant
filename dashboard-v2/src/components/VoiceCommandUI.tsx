@@ -30,6 +30,45 @@ const PAGE_ALIASES: Record<string, string> = {
   dashboard: 'overview', home: 'overview', inbox: 'inbox',
 };
 
+// Fuzzy match a potentially messy transcript against known page names.
+// Handles typos, slurred speech, abbreviations, and partial matches.
+function fuzzyPageMatch(text: string): string | null {
+  const known = Object.entries(PAGE_MAP);
+  const lower = text.toLowerCase().replace(/[^a-z0-9\s-]/g, '');
+  const words = lower.split(/\s+/).filter(Boolean);
+
+  // Direct or alias match first
+  for (const w of words) {
+    if (PAGE_MAP[w]) return w;
+    const aliased = PAGE_ALIASES[w];
+    if (aliased && PAGE_MAP[aliased]) return aliased;
+  }
+
+  // Fuzzy: for each known page name, check if the input text contains
+  // a word with high character overlap (handles "whsirpflow" -> "workflow")
+  for (const [name] of known) {
+    const normalized = name.replace(/[^a-z0-9]/g, '');
+    if (normalized.length < 2) continue;
+    for (const w of words) {
+      if (w.length < 2) continue;
+      // word is substring of page name or vice versa
+      if (normalized.includes(w) || w.includes(normalized)) return name;
+      // character overlap > 60% = likely typo/mispronunciation
+      const overlap = [...new Set([...w])].filter(c => normalized.includes(c)).length;
+      const maxLen = Math.max(w.length, normalized.length);
+      if (overlap / maxLen > 0.6) return name;
+    }
+    // Check if most characters of the page name appear in order in the text
+    let ci = 0;
+    for (const ch of lower) {
+      if (ch === normalized[ci]) ci++;
+      if (ci === normalized.length) return name;
+    }
+  }
+
+  return null;
+}
+
 function navigateTo(page: string) {
   const resolved = PAGE_ALIASES[page] || page;
   const path = PAGE_MAP[resolved];
@@ -40,20 +79,20 @@ function navigateTo(page: string) {
 }
 
 function matchCommand(text: string): { page: string; filter?: string } | null {
-  const t = text.toLowerCase().trim().replace(/^show me |^go to |^open |^navigate to |^navigate |^take me to /, '');
+  const t = text.toLowerCase().trim().replace(/^(?:show\s+me|go\s+to|open|navigate\s+to|navigate|take\s+me\s+to)\s+/i, '');
   const words = t.split(/\s+/);
 
-  // Check for "show me [filter] [page]" pattern
+  // Check for "[filter] [page]" pattern
   const filters = ['hot', 'warm', 'cold', 'new', 'open', 'converted', 'lost', 'qualified', 'urgent', 'high', 'medium', 'low'];
   if (words.length >= 2 && filters.includes(words[0])) {
     const page = words.slice(1).join(' ');
-    const resolved = PAGE_ALIASES[page] || page;
-    if (PAGE_MAP[resolved]) return { page: resolved, filter: words[0] };
+    const fuzzy = fuzzyPageMatch(page);
+    if (fuzzy) return { page: fuzzy, filter: words[0] };
   }
 
-  // Direct page match
-  const resolved = PAGE_ALIASES[t] || t;
-  if (PAGE_MAP[resolved]) return { page: resolved };
+  // Try fuzzy matching the whole thing
+  const fuzzy = fuzzyPageMatch(t);
+  if (fuzzy) return { page: fuzzy };
 
   return null;
 }
@@ -93,6 +132,8 @@ export default function VoiceCommandUI() {
   const handleTranscript = useCallback((text: string) => {
     setMode('copilot');
 
+    const transcriptLine = `🗣️ You said: "${text}"`;
+
     const cmd = matchCommand(text);
     if (cmd) {
       const filters: Record<string, string> = {};
@@ -106,14 +147,13 @@ export default function VoiceCommandUI() {
       }
       setPendingFilter(cmd.page, { filters: Object.keys(filters).length ? filters : undefined });
       window.location.hash = PAGE_MAP[cmd.page];
-      setResult(`Showing ${cmd.page}${cmd.filter ? ' (' + cmd.filter + ')' : ''}`);
+      setResult(`${transcriptLine}\n→ Showing ${cmd.page}${cmd.filter ? ' (' + cmd.filter + ')' : ''}`);
       setMode('idle');
       setListening(false);
       return;
     }
 
-    // Fallback to copilot — it can chain multi-step actions like "pull my hot
-    // leads and book a site visit for this customer", not just navigate.
+    // Fallback to copilot — it handles messy phrases and multi-step actions.
     api('/copilot/chat', {
       method: 'POST',
       body: JSON.stringify({ message: text }),
@@ -122,12 +162,12 @@ export default function VoiceCommandUI() {
       if (nav) {
         setPendingFilter(nav.args.page, { filters: nav.args.filters, highlightId: nav.args.highlightId, zoom: nav.args.zoom, summary: nav.args.summary });
         window.location.hash = PAGE_MAP[nav.args.page] || '/' + nav.args.page;
-        setResult(nav.args.summary || `Navigated to ${nav.args.page}`);
+        setResult(`${transcriptLine}\n→ ${nav.args.summary || `Navigated to ${nav.args.page}`}`);
       } else {
-        setResult(res.reply || 'Done');
+        setResult(`${transcriptLine}\n→ ${res.reply || 'Done'}`);
       }
     }).catch(() => {
-      setResult("I didn't understand that. Try 'show me leads' or 'go to qr'.");
+      setResult(`${transcriptLine}\n→ I didn't understand that. Try 'show me leads' or 'go to qr'.`);
     }).finally(() => { setMode('idle'); setListening(false); });
   }, []);
 
@@ -292,11 +332,21 @@ export default function VoiceCommandUI() {
   if (!supported) return null;
 
   if (result) {
+    const lines = result.split('\n');
+    const hasTranscript = lines.length > 1;
     return (
       <div className="fixed bottom-28 left-1/2 -translate-x-1/2 z-[9999] max-w-lg w-full mx-4 animate-fade-up pointer-events-none">
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] px-5 py-4 shadow-2xl flex items-start gap-3">
-          <Sparkles size={18} className="text-[var(--primary)] mt-0.5 shrink-0" />
-          <p className="text-sm text-[var(--foreground)] leading-relaxed flex-1">{result}</p>
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] px-5 py-4 shadow-2xl flex flex-col gap-2">
+          {hasTranscript && (
+            <div className="flex items-start gap-2">
+              <Mic size={14} className="text-[var(--primary)] mt-0.5 shrink-0" />
+              <p className="text-xs text-[var(--muted-foreground)]">{lines[0]}</p>
+            </div>
+          )}
+          <div className="flex items-start gap-2">
+            <Sparkles size={16} className="text-[var(--primary)] mt-0.5 shrink-0" />
+            <p className="text-sm text-[var(--foreground)] leading-relaxed flex-1">{hasTranscript ? lines.slice(1).join('\n') : result}</p>
+          </div>
         </div>
       </div>
     );
