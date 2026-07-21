@@ -72,13 +72,15 @@ export class VoiceAgentController {
       maxConcurrency?: number;
       retryConfig?: { enabled: boolean; maxRetries: number; retryDelaySeconds: number; retryOnBusy: boolean; retryOnNoAnswer: boolean; retryOnVoicemail: boolean };
       scheduleConfig?: { enabled: boolean; timezone: string; slots: Array<{ dayOfWeek: number; startTime: string; endTime: string }> };
+      contacts?: Array<{ phone: string; name?: string }>;
     },
     @Req() req: any,
   ) {
-    return this.service.createCampaign(req.user.tenantId, body.name, body.leadIds, body.lang || 'en', {
+    return this.service.createCampaign(req.user.tenantId, body.name, body.leadIds || [], body.lang || 'en', {
       maxConcurrency: body.maxConcurrency,
       retryConfig: body.retryConfig,
       scheduleConfig: body.scheduleConfig,
+      contacts: body.contacts,
     });
   }
 

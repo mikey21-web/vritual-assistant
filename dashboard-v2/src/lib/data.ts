@@ -213,7 +213,7 @@ export interface VoiceCampaign { id: number; name: string; state: string; total_
 export interface VoiceRetryConfig { enabled: boolean; maxRetries: number; retryDelaySeconds: number; retryOnBusy: boolean; retryOnNoAnswer: boolean; retryOnVoicemail: boolean; }
 export interface VoiceScheduleConfig { enabled: boolean; timezone: string; slots: Array<{ dayOfWeek: number; startTime: string; endTime: string }>; }
 export async function fetchVoiceCampaigns() { return api('/voice-agent/campaigns') as Promise<{ campaigns: VoiceCampaign[] }>; }
-export async function createVoiceCampaign(name: string, leadIds: string[], lang = 'en', extra?: { maxConcurrency?: number; retryConfig?: VoiceRetryConfig; scheduleConfig?: VoiceScheduleConfig }) {
+export async function createVoiceCampaign(name: string, leadIds: string[], lang = 'en', extra?: { maxConcurrency?: number; retryConfig?: VoiceRetryConfig; scheduleConfig?: VoiceScheduleConfig; contacts?: Array<{ phone: string; name?: string }> }) {
   return api('/voice-agent/campaigns', { method: 'POST', body: JSON.stringify({ name, leadIds, lang, ...extra }) }) as Promise<{ campaignId: number; leadCount: number }>;
 }
 export async function getVoiceCampaignProgress(id: number) { return api(`/voice-agent/campaigns/${id}/progress`) as Promise<any>; }

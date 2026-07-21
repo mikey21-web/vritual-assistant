@@ -1,8 +1,38 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { fetchLeads, fetchVoiceCampaigns, createVoiceCampaign, pauseVoiceCampaign, resumeVoiceCampaign, downloadVoiceCampaignReport, VoiceCampaign, VoiceRetryConfig } from '../lib/data';
 import type { Lead } from '../lib/types';
-import { Megaphone, Plus, Pause, Play, RefreshCw, Phone, X, ChevronRight, ChevronLeft, Check, Download } from 'lucide-react';
+import { Megaphone, Plus, Pause, Play, RefreshCw, Phone, X, ChevronRight, ChevronLeft, Check, Download, Upload, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
+
+interface CsvContact { phone: string; name?: string; }
+
+/** Minimal CSV parser: no quoted-field/embedded-comma support — fine for a two-column phone/name template. */
+function parseContactsCsv(text: string): { contacts: CsvContact[]; error: string | null } {
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (lines.length === 0) return { contacts: [], error: 'File is empty' };
+  const headers = lines[0].split(',').map((h) => h.trim().toLowerCase());
+  const phoneIdx = headers.findIndex((h) => h === 'phone_number' || h === 'phone');
+  const nameIdx = headers.findIndex((h) => h === 'name' || h === 'first_name');
+  if (phoneIdx === -1) return { contacts: [], error: 'CSV must have a "phone_number" (or "phone") column' };
+
+  const contacts: CsvContact[] = [];
+  for (const line of lines.slice(1)) {
+    const cols = line.split(',').map((c) => c.trim());
+    const phone = cols[phoneIdx];
+    if (!phone) continue;
+    contacts.push({ phone, name: nameIdx !== -1 ? cols[nameIdx] : undefined });
+  }
+  return { contacts, error: null };
+}
+
+function downloadCsvTemplate() {
+  const csv = 'phone_number,name\n9876543210,Jane Doe\n+919876543211,John Smith';
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'contacts-template.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
 
 const LANGUAGES = [
   { code: 'en', label: 'English' },
@@ -25,6 +55,11 @@ export default function VoiceCampaignsPage() {
   const [lang, setLang] = useState('en');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [creating, setCreating] = useState(false);
+  const [contactMode, setContactMode] = useState<'leads' | 'csv'>('leads');
+  const [csvContacts, setCsvContacts] = useState<CsvContact[]>([]);
+  const [csvFileName, setCsvFileName] = useState('');
+  const [csvError, setCsvError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [concurrency, setConcurrency] = useState(1);
   const [retry, setRetry] = useState<VoiceRetryConfig>(DEFAULT_RETRY);
   // Dograh's schedule_config restricts calling to a recurring daily time window
@@ -48,7 +83,17 @@ export default function VoiceCampaignsPage() {
   const openModal = () => {
     setStep(0); setName(''); setLang('en'); setSelected(new Set());
     setConcurrency(1); setRetry(DEFAULT_RETRY); setCallingHoursEnabled(false); setCallingHoursStart('09:00'); setCallingHoursEnd('19:00');
+    setContactMode('leads'); setCsvContacts([]); setCsvFileName(''); setCsvError(null);
     setModalOpen(true);
+  };
+
+  const handleCsvUpload = (file: File) => {
+    setCsvFileName(file.name);
+    file.text().then((text) => {
+      const { contacts, error } = parseContactsCsv(text);
+      setCsvContacts(contacts);
+      setCsvError(error);
+    });
   };
 
   const toggleLead = (id: string) => {
@@ -59,7 +104,7 @@ export default function VoiceCampaignsPage() {
     });
   };
 
-  const canAdvance = step === 0 ? name.trim().length > 0 : step === 1 ? selected.size > 0 : true;
+  const canAdvance = step === 0 ? name.trim().length > 0 : step === 1 ? (contactMode === 'leads' ? selected.size > 0 : csvContacts.length > 0) : true;
 
   const handleCreate = async () => {
     setCreating(true);
@@ -67,10 +112,11 @@ export default function VoiceCampaignsPage() {
       const scheduleConfig = callingHoursEnabled
         ? { enabled: true, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata', slots: Array.from({ length: 7 }, (_, dayOfWeek) => ({ dayOfWeek, startTime: callingHoursStart, endTime: callingHoursEnd })) }
         : undefined;
-      const res = await createVoiceCampaign(name.trim(), Array.from(selected), lang, {
+      const res = await createVoiceCampaign(name.trim(), contactMode === 'leads' ? Array.from(selected) : [], lang, {
         maxConcurrency: concurrency,
         retryConfig: retry.enabled ? retry : undefined,
         scheduleConfig,
+        contacts: contactMode === 'csv' ? csvContacts : undefined,
       });
       toast.success(`Campaign launched — calling ${res.leadCount} leads`);
       setModalOpen(false);
@@ -237,24 +283,84 @@ export default function VoiceCampaignsPage() {
 
               {step === 1 && (
                 <div>
-                  <p className="text-xs font-medium text-[var(--muted-foreground)] mb-2">Select leads to call ({selected.size} selected)</p>
-                  <div className="max-h-64 overflow-y-auto rounded-lg border border-[var(--border)] divide-y divide-[var(--border)]">
-                    {leads.length === 0 && (
-                      <div className="p-4 text-xs text-[var(--muted-foreground)] text-center">No leads with a phone number found</div>
-                    )}
-                    {leads.map((lead) => (
-                      <label key={lead.id} className="flex items-center gap-3 px-3 py-2 text-sm hover:bg-[var(--accent)] cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={selected.has(lead.id)}
-                          onChange={() => toggleLead(lead.id)}
-                          className="w-4 h-4 rounded border-[var(--border)] text-[var(--primary)] focus:ring-[var(--primary)]/30"
-                        />
-                        <span className="text-[var(--foreground)] flex-1">{lead.contact?.name || 'Unnamed'}</span>
-                        <span className="text-[var(--muted-foreground)] text-xs">{lead.contact?.phone}</span>
-                      </label>
-                    ))}
+                  <div className="flex rounded-lg border border-[var(--border)] p-0.5 mb-3">
+                    <button
+                      onClick={() => setContactMode('leads')}
+                      className={`flex-1 h-8 rounded-md text-xs font-medium transition-colors ${contactMode === 'leads' ? 'bg-[var(--primary)] text-white' : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'}`}
+                    >
+                      From Leads
+                    </button>
+                    <button
+                      onClick={() => setContactMode('csv')}
+                      className={`flex-1 h-8 rounded-md text-xs font-medium transition-colors ${contactMode === 'csv' ? 'bg-[var(--primary)] text-white' : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'}`}
+                    >
+                      Upload CSV
+                    </button>
                   </div>
+
+                  {contactMode === 'leads' ? (
+                    <>
+                      <p className="text-xs font-medium text-[var(--muted-foreground)] mb-2">Select leads to call ({selected.size} selected)</p>
+                      <div className="max-h-64 overflow-y-auto rounded-lg border border-[var(--border)] divide-y divide-[var(--border)]">
+                        {leads.length === 0 && (
+                          <div className="p-4 text-xs text-[var(--muted-foreground)] text-center">No leads with a phone number found</div>
+                        )}
+                        {leads.map((lead) => (
+                          <label key={lead.id} className="flex items-center gap-3 px-3 py-2 text-sm hover:bg-[var(--accent)] cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={selected.has(lead.id)}
+                              onChange={() => toggleLead(lead.id)}
+                              className="w-4 h-4 rounded border-[var(--border)] text-[var(--primary)] focus:ring-[var(--primary)]/30"
+                            />
+                            <span className="text-[var(--foreground)] flex-1">{lead.contact?.name || 'Unnamed'}</span>
+                            <span className="text-[var(--muted-foreground)] text-xs">{lead.contact?.phone}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="rounded-lg border border-[var(--border)] bg-[var(--accent)]/30 p-3">
+                        <p className="text-xs text-[var(--foreground)] font-medium mb-1">CSV format</p>
+                        <p className="text-[11px] text-[var(--muted-foreground)]">Columns: <code className="font-mono">phone_number</code> (required), <code className="font-mono">name</code> (optional). 10-digit numbers are treated as India (+91); include a country code for others.</p>
+                        <button onClick={downloadCsvTemplate} className="mt-2 text-xs text-[var(--primary)] hover:underline flex items-center gap-1">
+                          <FileText size={12} /> Download template
+                        </button>
+                      </div>
+
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".csv"
+                        className="hidden"
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCsvUpload(f); }}
+                      />
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-full h-24 rounded-lg border-2 border-dashed border-[var(--border)] hover:border-[var(--primary)] flex flex-col items-center justify-center gap-1.5 text-[var(--muted-foreground)] hover:text-[var(--primary)] transition-colors"
+                      >
+                        <Upload size={18} />
+                        <span className="text-xs">{csvFileName || 'Click to upload a CSV file'}</span>
+                      </button>
+
+                      {csvError && <p className="text-xs text-rose-600">{csvError}</p>}
+                      {csvContacts.length > 0 && !csvError && (
+                        <div>
+                          <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 mb-2 flex items-center gap-1"><Check size={12} /> {csvContacts.length} contact{csvContacts.length > 1 ? 's' : ''} ready</p>
+                          <div className="max-h-40 overflow-y-auto rounded-lg border border-[var(--border)] divide-y divide-[var(--border)]">
+                            {csvContacts.slice(0, 20).map((c, i) => (
+                              <div key={i} className="flex items-center justify-between px-3 py-1.5 text-sm">
+                                <span className="text-[var(--foreground)]">{c.name || 'Unnamed'}</span>
+                                <span className="text-[var(--muted-foreground)] text-xs">{c.phone}</span>
+                              </div>
+                            ))}
+                            {csvContacts.length > 20 && <div className="px-3 py-1.5 text-xs text-[var(--muted-foreground)]">+{csvContacts.length - 20} more</div>}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -324,8 +430,8 @@ export default function VoiceCampaignsPage() {
                     <span className="font-medium text-[var(--foreground)]">{LANGUAGES.find((l) => l.code === lang)?.label}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm py-1.5 border-b border-[var(--border)]">
-                    <span className="text-[var(--muted-foreground)]">Leads to call</span>
-                    <span className="font-medium text-[var(--foreground)]">{selected.size}</span>
+                    <span className="text-[var(--muted-foreground)]">Contacts to call</span>
+                    <span className="font-medium text-[var(--foreground)]">{contactMode === 'leads' ? selected.size : csvContacts.length}{contactMode === 'csv' ? ' (from CSV)' : ''}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm py-1.5 border-b border-[var(--border)]">
                     <span className="text-[var(--muted-foreground)]">Concurrency</span>

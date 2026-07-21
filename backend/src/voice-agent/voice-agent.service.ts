@@ -50,6 +50,15 @@ export class VoiceAgentService {
     return this.dograh.getSettings(language);
   }
 
+  /** Bare 10-digit Indian mobile numbers are assumed +91; anything with a country code (leading +, or 11+ digits) is left as-is. */
+  private normalizePhone(raw: string): string {
+    const digits = raw.replace(/[\s\-()]/g, '');
+    if (digits.startsWith('+')) return digits;
+    if (digits.length === 10) return `+91${digits}`;
+    if (digits.startsWith('91') && digits.length === 12) return `+${digits}`;
+    return digits.startsWith('+') ? digits : `+${digits}`;
+  }
+
   async createCampaign(
     tenantId: string,
     name: string,
@@ -59,23 +68,40 @@ export class VoiceAgentService {
       maxConcurrency?: number;
       retryConfig?: { enabled: boolean; maxRetries: number; retryDelaySeconds: number; retryOnBusy: boolean; retryOnNoAnswer: boolean; retryOnVoicemail: boolean };
       scheduleConfig?: { enabled: boolean; timezone: string; slots: Array<{ dayOfWeek: number; startTime: string; endTime: string }> };
+      contacts?: Array<{ phone: string; name?: string; [key: string]: any }>;
     },
   ): Promise<{ campaignId: number; leadCount: number }> {
-    const leads = await this.prisma.lead.findMany({
-      where: { id: { in: leadIds }, tenantId },
-      include: { contact: true },
-    });
-    const callable = leads.filter((l) => l.contact?.phone);
-    if (callable.length === 0) throw new BadRequestException('None of the selected leads have a phone number');
+    let rows: string[][];
 
-    const rows = [['phone_number', 'first_name', 'lead_id', 'interest']];
-    for (const lead of callable) {
-      rows.push([
-        lead.contact!.phone!,
-        (lead.contact!.name || 'there').replace(/,/g, ' '),
-        lead.id,
-        (lead.interest || 'properties').replace(/,/g, ' '),
-      ]);
+    if (options?.contacts && options.contacts.length > 0) {
+      const valid = options.contacts.filter((c) => c.phone && c.phone.trim());
+      if (valid.length === 0) throw new BadRequestException('No contacts with a phone number found in the upload');
+      rows = [['phone_number', 'first_name', 'lead_id', 'interest']];
+      for (const c of valid) {
+        rows.push([
+          this.normalizePhone(c.phone),
+          (c.name || 'there').replace(/,/g, ' '),
+          '',
+          'properties',
+        ]);
+      }
+    } else {
+      const leads = await this.prisma.lead.findMany({
+        where: { id: { in: leadIds }, tenantId },
+        include: { contact: true },
+      });
+      const callable = leads.filter((l) => l.contact?.phone);
+      if (callable.length === 0) throw new BadRequestException('None of the selected leads have a phone number');
+
+      rows = [['phone_number', 'first_name', 'lead_id', 'interest']];
+      for (const lead of callable) {
+        rows.push([
+          lead.contact!.phone!,
+          (lead.contact!.name || 'there').replace(/,/g, ' '),
+          lead.id,
+          (lead.interest || 'properties').replace(/,/g, ' '),
+        ]);
+      }
     }
     const csv = rows.map((r) => r.join(',')).join('\n');
 
@@ -94,8 +120,9 @@ export class VoiceAgentService {
       }
       throw new BadRequestException(e.message);
     }
-    this.logger.log(`Campaign "${name}" created (id ${campaignId}) with ${callable.length} leads`);
-    return { campaignId, leadCount: callable.length };
+    const leadCount = rows.length - 1;
+    this.logger.log(`Campaign "${name}" created (id ${campaignId}) with ${leadCount} contacts`);
+    return { campaignId, leadCount };
   }
 
   async listCampaigns() {
