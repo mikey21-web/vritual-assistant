@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { VoiceAgentService } from './voice-agent.service';
@@ -28,9 +28,9 @@ export class LeadOrchestratorService {
     private voiceAgent: VoiceAgentService,
     private conversations: ConversationsService,
     private outboundDispatch: OutboundWebhookDispatchService,
-    private guardrails: AutonomyGuardrailsService,
-    private autonomousAction: AutonomousActionService,
-    private permissionGate: PermissionGateService,
+    @Inject(forwardRef(() => AutonomyGuardrailsService)) private guardrails: AutonomyGuardrailsService,
+    @Inject(forwardRef(() => AutonomousActionService)) private autonomousAction: AutonomousActionService,
+    @Inject(forwardRef(() => PermissionGateService)) private permissionGate: PermissionGateService,
     private approvals: ApprovalsService,
     private notifications: NotificationsService,
   ) {}
