@@ -63,6 +63,7 @@ import { GuardrailsController } from './guardrails.controller';
     MemoryService,
     AutonomousActionService,
     AutonomyGuardrailsService,
+    PermissionGateService,
   ],
 })
 export class MikeyModule {}
