@@ -253,6 +253,7 @@ model CallLog {
   summaryStatus   String        @default("PENDING")
   disposition     String? // connected_qualified | connected_follow_up | wrong_number | no_answer | busy | switched_off | not_interested | site_visit_scheduled | lost (spec 64.1)
   nextActionAt    DateTime?
+  outcome         Json? // structured data extracted by the voice agent (e.g. Dograh call outcomes: property_type, area, bhk, budget, timeline, needs_loan, wants_site_visit)
   createdAt       DateTime      @default(now())
 
   callSyncLogs   CallSyncLog[]

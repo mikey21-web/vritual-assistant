@@ -18,8 +18,9 @@ import { EmailAdapter } from './adapters/email.adapter';
 import { HealthController } from './health.controller';
 import { SentryService } from './sentry.service';
 import { MoonshineService } from './moonshine.service';
-import { BolnaService } from './bolna.service';
+import { DograhService } from './dograh.service';
 import { PiperTtsService } from './piper-tts.service';
+import { OutboundWebhookDispatchService } from './outbound-webhook-dispatch.service';
 
 @Global()
 @Module({
@@ -30,7 +31,7 @@ import { PiperTtsService } from './piper-tts.service';
     HubspotAdapter, SalesforceAdapter, ZohoAdapter,
     CalendlyAdapter, GoogleCalendarAdapter,
     WhatsAppCloudAdapter, TelegramBotAdapter, TwilioSmsAdapter, TwilioVoiceAdapter, TwiMLGenerator,
-    EmailAdapter, OutboxService, SentryService, MoonshineService, BolnaService, PiperTtsService,
+    EmailAdapter, OutboxService, SentryService, MoonshineService, DograhService, PiperTtsService, OutboundWebhookDispatchService,
   ],
   exports: [
     SignedUrlService, WebhookSecurityService, HealthService, PackApplierService,
@@ -38,7 +39,7 @@ import { PiperTtsService } from './piper-tts.service';
     HubspotAdapter, SalesforceAdapter, ZohoAdapter,
     CalendlyAdapter, GoogleCalendarAdapter,
     WhatsAppCloudAdapter, TelegramBotAdapter, TwilioSmsAdapter, TwilioVoiceAdapter, TwiMLGenerator,
-    EmailAdapter, OutboxService, SentryService, MoonshineService, BolnaService, PiperTtsService,
+    EmailAdapter, OutboxService, SentryService, MoonshineService, DograhService, PiperTtsService, OutboundWebhookDispatchService,
   ],
 })
 export class SharedModule {}

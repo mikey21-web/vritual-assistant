@@ -78,15 +78,24 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:-}
       CLOUDFLARE_ACCOUNT_ID: ${CLOUDFLARE_ACCOUNT_ID:-}
-      BOLNA_URL: http://bolna:8000
       PIPER_URL: http://piper-tts:8123
       DEEPGRAM_AUTH_TOKEN: ${DEEPGRAM_AUTH_TOKEN:-}
       AGENT_MODEL: ${AGENT_MODEL:-deepseek-v4-flash}
       POSTHOG_KEY: ${POSTHOG_KEY:-}
       POSTHOG_HOST: ${POSTHOG_HOST:-https://us.i.posthog.com}
+      DOGRAH_URL: ${DOGRAH_URL:-http://host.docker.internal:8010}
+      DOGRAH_API_KEY: ${DOGRAH_API_KEY:-}
+      DOGRAH_WORKFLOW_UUID_EN: ${DOGRAH_WORKFLOW_UUID_EN:-}
+      DOGRAH_WORKFLOW_ID_EN: ${DOGRAH_WORKFLOW_ID_EN:-}
+      DOGRAH_WORKFLOW_UUID_TE: ${DOGRAH_WORKFLOW_UUID_TE:-}
+      DOGRAH_WORKFLOW_ID_TE: ${DOGRAH_WORKFLOW_ID_TE:-}
+      DOGRAH_TELEPHONY_CONFIG_ID: ${DOGRAH_TELEPHONY_CONFIG_ID:-1}
+      WEBHOOK_API_KEY_DOGRAH: ${WEBHOOK_API_KEY_DOGRAH:-}
     volumes:
       - uploads:/app/uploads
       - ./niche.config.yaml:/app/niche.config.yaml:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
         condition: service_healthy
@@ -287,25 +296,7 @@ services:
     ports:
       - "8123:8123"
 
-  # ── Bolna Voice Agent Orchestrator (STT → LLM → TTS → Twilio) ──
-  bolna:
-    build: ./bolna-server
-    container_name: lead-automation-bolna
-    restart: unless-stopped
-    ports:
-      - "8003:8000"
-    environment:
-      REDIS_URL: redis://redis:6379
-      DEEPGRAM_AUTH_TOKEN: ${DEEPGRAM_AUTH_TOKEN:-}
-      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
-      OPENAI_API_KEY: ${DEEPSEEK_API_KEY:-}
-      OPENAI_MODEL: deepseek-chat
-      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
-      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
-      TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER:-}
-    depends_on:
-      redis:
-        condition: service_healthy
+  # ── Voice agent orchestration is Dograh (self-hosted, see dograh/) ──
 
 volumes:
   pgdata:

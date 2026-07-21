@@ -8,6 +8,7 @@ import { AgentClientService } from '../agent/agent-client.service';
 import { MetricsService } from '../monitoring/metrics.service';
 import { TimelineService } from '../timeline/timeline.service';
 import { envelopeDecrypt } from '../shared/crypto.util';
+import { OutboundWebhookDispatchService } from '../shared/outbound-webhook-dispatch.service';
 import * as crypto from 'crypto';
 
 @Injectable()
@@ -21,6 +22,7 @@ export class WebhooksService {
     private agentClient: AgentClientService,
     private metrics: MetricsService,
     private timeline: TimelineService,
+    private outboundDispatch: OutboundWebhookDispatchService,
   ) {}
 
   private idempotencyKey(parts: string[]): string { return parts.join(':').slice(0, 255); }
@@ -813,39 +815,13 @@ export class WebhooksService {
   async testOutboundWebhook(id: string) {
     const wh = await this.prisma.outboundWebhook.findUnique({ where: { id } });
     if (!wh) throw new NotFoundException('Webhook not found');
-    return this.sendWebhookPayload(wh, { event: 'test', data: { message: 'This is a test event from DeploySafe CRM' } });
+    return this.outboundDispatch.send(wh, { event: 'test', data: { message: 'This is a test event from DeploySafe CRM' } });
   }
 
   // Called by the event system when any AutomationEvent fires
   async dispatchToOutboundWebhooks(eventType: string, payload: any) {
-    const hooks = await this.prisma.outboundWebhook.findMany({
-      where: { events: { has: eventType }, active: true },
-    });
-    const results = await Promise.allSettled(
-      hooks.map(wh => this.sendWebhookPayload(wh, { event: eventType, data: payload })),
-    );
-    return { dispatched: hooks.length, results: results.map(r => r.status) };
-  }
-
-  private async sendWebhookPayload(wh: { url: string; secret?: string; id: string }, body: any) {
-    const payload = JSON.stringify(body);
-    const signature = wh.secret
-      ? crypto.createHmac('sha256', wh.secret).update(payload).digest('hex')
-      : '';
-    try {
-      const res = await fetch(wh.url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-DeploySafe-Signature': signature,
-          'User-Agent': 'DeploySafe-CRM-Webhook/1.0',
-        },
-        body: payload,
-      });
-      return { webhookId: wh.id, status: res.ok ? 'success' : 'failed', statusCode: res.status };
-    } catch (e: any) {
-      return { webhookId: wh.id, status: 'error', error: e.message };
-    }
+    const results = await this.outboundDispatch.dispatch(eventType, payload);
+    return { dispatched: results.length, results: results.map((r) => r.status) };
   }
 
   // === Inbound generic webhook ===

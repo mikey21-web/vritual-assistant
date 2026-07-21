@@ -1,4 +1,4 @@
-import { api } from './api';
+import { api, apiUpload } from './api';
 import type { Lead, Contact, Campaign, Task, Message, Template, Integration, BookingSetting, CrmMapping, ScoringRule, RoutingRule, AutomationRule, PipelineStage, FailureRecord, User, HealthReport, AnalyticsOverview } from './types';
 
 export async function fetchAnalytics() { return api('/analytics/overview') as Promise<AnalyticsOverview>; }
@@ -204,6 +204,38 @@ export async function fetchAuditLogs() { return api('/audit-logs') as Promise<an
 export async function fetchProfile() { return api('/auth/me') as Promise<any>; }
 export async function fetchBusinessSettings() { return api('/business-settings') as Promise<any>; }
 export async function updateBusinessSettings(data: any) { return api('/business-settings', { method: 'PATCH', body: JSON.stringify(data) }); }
+
+export interface VoiceAgentSettings { greeting: string; persona: string; voicemailDetectionEnabled: boolean; }
+export async function fetchVoiceAgentSettings(lang = 'en') { return api(`/voice-agent/settings?lang=${lang}`) as Promise<VoiceAgentSettings>; }
+export async function updateVoiceAgentSettings(data: { greeting?: string; persona?: string }, lang = 'en') { return api(`/voice-agent/settings?lang=${lang}`, { method: 'PATCH', body: JSON.stringify(data) }) as Promise<VoiceAgentSettings>; }
+
+export interface VoiceCampaign { id: number; name: string; state: string; total_rows: number; processed_rows: number; failed_rows: number; created_at: string; }
+export async function fetchVoiceCampaigns() { return api('/voice-agent/campaigns') as Promise<{ campaigns: VoiceCampaign[] }>; }
+export async function createVoiceCampaign(name: string, leadIds: string[], lang = 'en') { return api('/voice-agent/campaigns', { method: 'POST', body: JSON.stringify({ name, leadIds, lang }) }) as Promise<{ campaignId: number; leadCount: number }>; }
+export async function getVoiceCampaignProgress(id: number) { return api(`/voice-agent/campaigns/${id}/progress`) as Promise<any>; }
+export async function pauseVoiceCampaign(id: number) { return api(`/voice-agent/campaigns/${id}/pause`, { method: 'POST' }); }
+export async function resumeVoiceCampaign(id: number) { return api(`/voice-agent/campaigns/${id}/resume`, { method: 'POST' }); }
+
+export interface VoiceKbDocument { id: number; document_uuid: string; filename: string; processing_status: string; total_chunks: number; created_at: string; }
+export async function fetchVoiceKbDocuments() { return api('/voice-agent/knowledge-base/documents') as Promise<{ documents: VoiceKbDocument[] }>; }
+export async function uploadVoiceKbDocument(file: File) {
+  const form = new FormData();
+  form.append('file', file);
+  return apiUpload('/voice-agent/knowledge-base/documents', form) as Promise<VoiceKbDocument>;
+}
+export async function deleteVoiceKbDocument(uuid: string) { return api(`/voice-agent/knowledge-base/documents/${uuid}`, { method: 'DELETE' }); }
+
+export interface OutboundWebhook { id: string; name: string; url: string; events: string[]; active: boolean; createdAt: string; }
+export async function fetchOutboundWebhooks() { return api('/webhooks/outbound') as Promise<OutboundWebhook[]>; }
+export async function createOutboundWebhookSub(data: { name: string; url: string; events: string[]; secret?: string }) { return api('/webhooks/outbound', { method: 'POST', body: JSON.stringify(data) }) as Promise<OutboundWebhook>; }
+export async function updateOutboundWebhookSub(id: string, data: { active?: boolean }) { return api(`/webhooks/outbound/${id}`, { method: 'PATCH', body: JSON.stringify(data) }); }
+export async function deleteOutboundWebhookSub(id: string) { return api(`/webhooks/outbound/${id}`, { method: 'DELETE' }); }
+export async function testOutboundWebhookSub(id: string) { return api(`/webhooks/outbound/${id}/test`, { method: 'POST' }); }
+
+export interface VoiceCustomField { name: string; type: 'string' | 'number' | 'boolean'; prompt: string; }
+export async function fetchVoiceCustomFields(lang = 'en') { return api(`/voice-agent/custom-fields?lang=${lang}`) as Promise<VoiceCustomField[]>; }
+export async function addVoiceCustomField(field: VoiceCustomField, lang = 'en') { return api(`/voice-agent/custom-fields?lang=${lang}`, { method: 'POST', body: JSON.stringify(field) }) as Promise<VoiceCustomField[]>; }
+export async function deleteVoiceCustomField(name: string, lang = 'en') { return api(`/voice-agent/custom-fields/${encodeURIComponent(name)}?lang=${lang}`, { method: 'DELETE' }) as Promise<VoiceCustomField[]>; }
 
 export async function fetchFailures(filter = 'all') { return api(filter === 'open' ? '/failures/open' : '/failures') as Promise<FailureRecord[]>; }
 export async function retryFailure(id: string) { return api(`/failures/${id}/retry`, { method: 'POST' }); }

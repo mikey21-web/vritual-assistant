@@ -8,6 +8,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { ContactsService } from '../contacts/contacts.service';
 import { MetricsService } from '../monitoring/metrics.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
+import { LeadOrchestratorService } from '../voice-agent/lead-orchestrator.service';
 import { getNested, evaluateCondition } from '../shared/scoring.util';
 
 @Injectable()
@@ -23,6 +24,7 @@ export class LeadsService {
     private contacts: ContactsService,
     private metrics: MetricsService,
     private realtimeGateway: RealtimeGateway,
+    private callOrchestrator: LeadOrchestratorService,
   ) {}
 
   async findAll(query: any = {}) {
@@ -271,6 +273,8 @@ export class LeadsService {
     }
 
     this.realtimeGateway.emitToTenant(lead.tenantId, 'lead.created', lead);
+
+    this.callOrchestrator.onLeadCreated(lead.id).catch(() => {});
     return lead;
   }
 

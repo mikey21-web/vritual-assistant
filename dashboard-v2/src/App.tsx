@@ -116,6 +116,10 @@ const PageComponents: Record<string, React.LazyExoticComponent<React.ComponentTy
   DocumentSearch: lazy(() => import("./pages/DocumentSearchPage")),
   PhysicalDocuments: lazy(() => import("./pages/PhysicalDocumentsPage")),
   VoiceAgent: lazy(() => import("./pages/VoiceAgentPage")),
+  VoiceAgentSettings: lazy(() => import("./pages/VoiceAgentSettingsPage")),
+  VoiceCampaigns: lazy(() => import("./pages/VoiceCampaignsPage")),
+  VoiceKnowledgeBase: lazy(() => import("./pages/VoiceKnowledgeBasePage")),
+  VoicePostCallWorkflows: lazy(() => import("./pages/VoicePostCallWorkflowsPage")),
   AlliedInventory: lazy(() => import("./pages/AlliedInventoryPage")),
   SalesTargets: lazy(() => import("./pages/SalesTargetsPage")),
   DigitalSalesRoom: lazy(() => import("./pages/DigitalSalesRoomPage")),
@@ -150,6 +154,10 @@ function getPageKey(raw: string): string {
   if (/^\/leads\/[^/]+$/.test(path)) return "LeadWorkbench";
   if (/^\/forms\/[^/]+\/submissions$/.test(path)) return "FormSubmissions";
   if (path.startsWith("/create-event")) return "CreateEvent";
+  if (path.startsWith("/voice-agent-settings")) return "VoiceAgentSettings";
+  if (path.startsWith("/voice-campaigns")) return "VoiceCampaigns";
+  if (path.startsWith("/voice-knowledge-base")) return "VoiceKnowledgeBase";
+  if (path.startsWith("/voice-post-call-workflows")) return "VoicePostCallWorkflows";
   if (path.startsWith("/voice-agent")) return "VoiceAgent";
   if (path.startsWith("/smart-lists")) return "SmartLists";
   const map: Record<string, string> = {
@@ -201,6 +209,10 @@ function getPageKey(raw: string): string {
     "/allied-inventory": "AlliedInventory",
     "/sales-targets": "SalesTargets",
     "/voice-agent": "VoiceAgent",
+    "/voice-agent-settings": "VoiceAgentSettings",
+    "/voice-campaigns": "VoiceCampaigns",
+    "/voice-knowledge-base": "VoiceKnowledgeBase",
+    "/voice-post-call-workflows": "VoicePostCallWorkflows",
     "/digital-sales-room": "DigitalSalesRoom",
     "/advanced-marketing": "AdvancedMarketing",
     "/onboarding-progress": "OnboardingProgress",

@@ -1,20 +1,26 @@
-import { Controller, Post, Get, Param, Req, UseGuards, Query, Res } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Delete, Param, Req, UseGuards, UseInterceptors, UploadedFile, Query, Res, Body, Headers, UnauthorizedException } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { VoiceAgentService } from './voice-agent.service';
+import { LeadOrchestratorService } from './lead-orchestrator.service';
 import { PiperTtsService } from '../shared/piper-tts.service';
+import { WebhookSecurityService } from '../shared/webhook-security.service';
+import { Public } from '../auth/public.decorator';
 import { Response } from 'express';
 
 @Controller('voice-agent')
-@UseGuards(JwtAuthGuard, RolesGuard)
 export class VoiceAgentController {
   constructor(
     private service: VoiceAgentService,
+    private orchestrator: LeadOrchestratorService,
     private piper: PiperTtsService,
+    private security: WebhookSecurityService,
   ) {}
 
   @Get('tts')
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT')
   async tts(@Query('text') text: string, @Query('lang') lang: string, @Res() res: Response) {
     if (!text) return res.status(400).json({ error: 'no text' });
@@ -28,14 +34,118 @@ export class VoiceAgentController {
   }
 
   @Post('call/:leadId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT')
   async callLead(@Param('leadId') leadId: string, @Req() req: any, @Query('lang') lang?: string) {
     return this.service.callLead(leadId, req.user.sub, lang || 'en');
   }
 
   @Get('history')
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT')
   async history(@Req() req: any, @Query('limit') limit?: string) {
     return this.service.getCallHistory(req.user.tenantId, limit ? parseInt(limit) : 20);
+  }
+
+  @Get('settings')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('OWNER', 'ADMIN')
+  async getSettings(@Query('lang') lang?: string) {
+    return this.service.getSettings(lang || 'en');
+  }
+
+  @Patch('settings')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('OWNER', 'ADMIN')
+  async updateSettings(@Body() body: { greeting?: string; persona?: string }, @Query('lang') lang?: string) {
+    return this.service.updateSettings(lang || 'en', body);
+  }
+
+  @Post('campaigns')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('OWNER', 'ADMIN', 'MANAGER')
+  async createCampaign(@Body() body: { name: string; leadIds: string[]; lang?: string }, @Req() req: any) {
+    return this.service.createCampaign(req.user.tenantId, body.name, body.leadIds, body.lang || 'en');
+  }
+
+  @Get('campaigns')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('OWNER', 'ADMIN', 'MANAGER')
+  async listCampaigns() {
+    return this.service.listCampaigns();
+  }
+
+  @Get('campaigns/:id/progress')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('OWNER', 'ADMIN', 'MANAGER')
+  async getCampaignProgress(@Param('id') id: string) {
+    return this.service.getCampaignProgress(parseInt(id, 10));
+  }
+
+  @Post('campaigns/:id/pause')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('OWNER', 'ADMIN', 'MANAGER')
+  async pauseCampaign(@Param('id') id: string) {
+    return this.service.pauseCampaign(parseInt(id, 10));
+  }
+
+  @Post('campaigns/:id/resume')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('OWNER', 'ADMIN', 'MANAGER')
+  async resumeCampaign(@Param('id') id: string) {
+    return this.service.resumeCampaign(parseInt(id, 10));
+  }
+
+  @Post('knowledge-base/documents')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('OWNER', 'ADMIN')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
+  async uploadKnowledgeBaseDocument(@UploadedFile() file: Express.Multer.File, @Query('lang') lang?: string) {
+    return this.service.uploadKnowledgeBaseDocument(file, lang || 'en');
+  }
+
+  @Get('knowledge-base/documents')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('OWNER', 'ADMIN')
+  async listKnowledgeBaseDocuments() {
+    return this.service.listKnowledgeBaseDocuments();
+  }
+
+  @Delete('knowledge-base/documents/:uuid')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('OWNER', 'ADMIN')
+  async deleteKnowledgeBaseDocument(@Param('uuid') uuid: string) {
+    return this.service.deleteKnowledgeBaseDocument(uuid);
+  }
+
+  @Get('custom-fields')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('OWNER', 'ADMIN')
+  async getCustomFields(@Query('lang') lang?: string) {
+    return this.service.getCustomFields(lang || 'en');
+  }
+
+  @Post('custom-fields')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('OWNER', 'ADMIN')
+  async addCustomField(@Body() body: { name: string; type: 'string' | 'number' | 'boolean'; prompt: string }, @Query('lang') lang?: string) {
+    return this.service.addCustomField(lang || 'en', body);
+  }
+
+  @Delete('custom-fields/:name')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('OWNER', 'ADMIN')
+  async deleteCustomField(@Param('name') name: string, @Query('lang') lang?: string) {
+    return this.service.deleteCustomField(lang || 'en', name);
+  }
+
+  @Public()
+  @Post('webhook/call-completed')
+  async webhookCallCompleted(@Body() body: any, @Headers('x-webhook-secret') secret?: string) {
+    if (!this.security.verifyWebhookApiKey(secret || '', 'dograh')) {
+      throw new UnauthorizedException('Invalid webhook secret');
+    }
+    await this.orchestrator.handleCallWebhook(body);
+    return { ok: true };
   }
 }
