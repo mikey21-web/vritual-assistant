@@ -210,11 +210,42 @@ export async function fetchVoiceAgentSettings(lang = 'en') { return api(`/voice-
 export async function updateVoiceAgentSettings(data: { greeting?: string; persona?: string }, lang = 'en') { return api(`/voice-agent/settings?lang=${lang}`, { method: 'PATCH', body: JSON.stringify(data) }) as Promise<VoiceAgentSettings>; }
 
 export interface VoiceCampaign { id: number; name: string; state: string; total_rows: number; processed_rows: number; failed_rows: number; created_at: string; }
+export interface VoiceRetryConfig { enabled: boolean; maxRetries: number; retryDelaySeconds: number; retryOnBusy: boolean; retryOnNoAnswer: boolean; retryOnVoicemail: boolean; }
+export interface VoiceScheduleConfig { enabled: boolean; timezone: string; slots: Array<{ dayOfWeek: number; startTime: string; endTime: string }>; }
 export async function fetchVoiceCampaigns() { return api('/voice-agent/campaigns') as Promise<{ campaigns: VoiceCampaign[] }>; }
-export async function createVoiceCampaign(name: string, leadIds: string[], lang = 'en') { return api('/voice-agent/campaigns', { method: 'POST', body: JSON.stringify({ name, leadIds, lang }) }) as Promise<{ campaignId: number; leadCount: number }>; }
+export async function createVoiceCampaign(name: string, leadIds: string[], lang = 'en', extra?: { maxConcurrency?: number; retryConfig?: VoiceRetryConfig; scheduleConfig?: VoiceScheduleConfig }) {
+  return api('/voice-agent/campaigns', { method: 'POST', body: JSON.stringify({ name, leadIds, lang, ...extra }) }) as Promise<{ campaignId: number; leadCount: number }>;
+}
 export async function getVoiceCampaignProgress(id: number) { return api(`/voice-agent/campaigns/${id}/progress`) as Promise<any>; }
 export async function pauseVoiceCampaign(id: number) { return api(`/voice-agent/campaigns/${id}/pause`, { method: 'POST' }); }
 export async function resumeVoiceCampaign(id: number) { return api(`/voice-agent/campaigns/${id}/resume`, { method: 'POST' }); }
+
+export interface VoiceCallRun {
+  id: number; workflowId: number; workflowName: string; createdAt: string;
+  durationSeconds: number; calledNumber: string | null; callerNumber: string | null;
+  disposition: string; answered: boolean; leadName: string | null; leadId: string | null;
+  recordingUrl: string | null; transcriptUrl: string | null; gatheredContext: Record<string, any>;
+}
+export async function fetchVoiceCampaignRuns(id: number, page = 1, limit = 50) {
+  return api(`/voice-agent/campaigns/${id}/runs?page=${page}&limit=${limit}`) as Promise<{ runs: VoiceCallRun[]; totalCount: number; page: number; limit: number; totalPages: number }>;
+}
+export function downloadVoiceCampaignReport(id: number) {
+  const t = localStorage.getItem('token');
+  const base = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3001';
+  fetch(`${base}/voice-agent/campaigns/${id}/report`, { headers: t ? { Authorization: `Bearer ${t}` } : {} })
+    .then((res) => res.blob())
+    .then((blob) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `campaign-${id}-report.csv`; a.click();
+      URL.revokeObjectURL(url);
+    });
+}
+export async function fetchVoiceCallLogs(page = 1, limit = 50) {
+  return api(`/voice-agent/call-logs?page=${page}&limit=${limit}`) as Promise<{ runs: VoiceCallRun[]; totalCount: number; page: number; limit: number; totalPages: number; totalDurationSeconds: number }>;
+}
+export interface VoiceDashboardStats { totalCalls: number; answerRate: number; avgDurationSeconds: number; totalMinutesUsed: number; dispositionCounts: Record<string, number>; }
+export async function fetchVoiceDashboardStats() { return api('/voice-agent/dashboard-stats') as Promise<VoiceDashboardStats>; }
 
 export interface VoiceKbDocument { id: number; document_uuid: string; filename: string; processing_status: string; total_chunks: number; created_at: string; }
 export async function fetchVoiceKbDocuments() { return api('/voice-agent/knowledge-base/documents') as Promise<{ documents: VoiceKbDocument[] }>; }

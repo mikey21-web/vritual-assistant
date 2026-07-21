@@ -64,8 +64,22 @@ export class VoiceAgentController {
   @Post('campaigns')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('OWNER', 'ADMIN', 'MANAGER')
-  async createCampaign(@Body() body: { name: string; leadIds: string[]; lang?: string }, @Req() req: any) {
-    return this.service.createCampaign(req.user.tenantId, body.name, body.leadIds, body.lang || 'en');
+  async createCampaign(
+    @Body() body: {
+      name: string;
+      leadIds: string[];
+      lang?: string;
+      maxConcurrency?: number;
+      retryConfig?: { enabled: boolean; maxRetries: number; retryDelaySeconds: number; retryOnBusy: boolean; retryOnNoAnswer: boolean; retryOnVoicemail: boolean };
+      scheduleConfig?: { enabled: boolean; timezone: string; slots: Array<{ dayOfWeek: number; startTime: string; endTime: string }> };
+    },
+    @Req() req: any,
+  ) {
+    return this.service.createCampaign(req.user.tenantId, body.name, body.leadIds, body.lang || 'en', {
+      maxConcurrency: body.maxConcurrency,
+      retryConfig: body.retryConfig,
+      scheduleConfig: body.scheduleConfig,
+    });
   }
 
   @Get('campaigns')
@@ -94,6 +108,36 @@ export class VoiceAgentController {
   @Roles('OWNER', 'ADMIN', 'MANAGER')
   async resumeCampaign(@Param('id') id: string) {
     return this.service.resumeCampaign(parseInt(id, 10));
+  }
+
+  @Get('campaigns/:id/runs')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('OWNER', 'ADMIN', 'MANAGER')
+  async getCampaignRuns(@Param('id') id: string, @Query('page') page?: string, @Query('limit') limit?: string) {
+    return this.service.getCampaignRuns(parseInt(id, 10), page ? parseInt(page, 10) : 1, limit ? parseInt(limit, 10) : 50);
+  }
+
+  @Get('campaigns/:id/report')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('OWNER', 'ADMIN', 'MANAGER')
+  async getCampaignReport(@Param('id') id: string, @Res() res: Response) {
+    const { buffer, contentType } = await this.service.getCampaignReportCsv(parseInt(id, 10));
+    res.set({ 'Content-Type': contentType, 'Content-Disposition': `attachment; filename="campaign-${id}-report.csv"` });
+    res.send(buffer);
+  }
+
+  @Get('call-logs')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT')
+  async getCallLogs(@Query('page') page?: string, @Query('limit') limit?: string, @Query('startDate') startDate?: string, @Query('endDate') endDate?: string) {
+    return this.service.getCallLogs(page ? parseInt(page, 10) : 1, limit ? parseInt(limit, 10) : 50, startDate, endDate);
+  }
+
+  @Get('dashboard-stats')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT')
+  async getDashboardStats(@Query('startDate') startDate?: string, @Query('endDate') endDate?: string) {
+    return this.service.getDashboardStats(startDate, endDate);
   }
 
   @Post('knowledge-base/documents')

@@ -143,7 +143,16 @@ export class DograhService {
     await this.saveAndPublishWorkflow(workflowId, name, definition);
   }
 
-  async createCampaignFromCsv(name: string, language: string, csvContent: string): Promise<{ campaignId: number }> {
+  async createCampaignFromCsv(
+    name: string,
+    language: string,
+    csvContent: string,
+    options?: {
+      maxConcurrency?: number;
+      retryConfig?: { enabled: boolean; maxRetries: number; retryDelaySeconds: number; retryOnBusy: boolean; retryOnNoAnswer: boolean; retryOnVoicemail: boolean };
+      scheduleConfig?: { enabled: boolean; timezone: string; slots: Array<{ dayOfWeek: number; startTime: string; endTime: string }> };
+    },
+  ): Promise<{ campaignId: number }> {
     const workflowId = WORKFLOW_ID_BY_LANGUAGE[language] || WORKFLOW_ID_BY_LANGUAGE.en;
     const fileName = `campaign-${Date.now()}.csv`;
 
@@ -159,20 +168,68 @@ export class DograhService {
     const putRes = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': 'text/csv' }, body: csvContent });
     if (!putRes.ok) throw new Error(`CSV upload to Dograh storage failed: ${putRes.status}`);
 
+    const body: Record<string, any> = {
+      name,
+      workflow_id: parseInt(workflowId, 10),
+      source_type: 'csv',
+      source_id: sourceId,
+      telephony_configuration_id: parseInt(DEFAULT_TELEPHONY_CONFIG_ID, 10),
+    };
+    if (options?.maxConcurrency) body.max_concurrency = options.maxConcurrency;
+    if (options?.retryConfig) {
+      body.retry_config = {
+        enabled: options.retryConfig.enabled,
+        max_retries: options.retryConfig.maxRetries,
+        retry_delay_seconds: options.retryConfig.retryDelaySeconds,
+        retry_on_busy: options.retryConfig.retryOnBusy,
+        retry_on_no_answer: options.retryConfig.retryOnNoAnswer,
+        retry_on_voicemail: options.retryConfig.retryOnVoicemail,
+      };
+    }
+    if (options?.scheduleConfig) {
+      body.schedule_config = {
+        enabled: options.scheduleConfig.enabled,
+        timezone: options.scheduleConfig.timezone,
+        slots: options.scheduleConfig.slots.map((s) => ({ day_of_week: s.dayOfWeek, start_time: s.startTime, end_time: s.endTime })),
+      };
+    }
+
     const createRes = await fetch(`${this.baseUrl}/api/v1/campaign/create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-API-Key': this.apiKey },
-      body: JSON.stringify({
-        name,
-        workflow_id: parseInt(workflowId, 10),
-        source_type: 'csv',
-        source_id: sourceId,
-        telephony_configuration_id: parseInt(DEFAULT_TELEPHONY_CONFIG_ID, 10),
-      }),
+      body: JSON.stringify(body),
     });
-    if (!createRes.ok) throw new Error(`Dograh campaign create failed: ${await createRes.text()}`);
+    if (!createRes.ok) {
+      const raw = await createRes.text();
+      const detail = (() => { try { return JSON.parse(raw).detail; } catch { return null; } })();
+      throw new Error(detail || `Dograh campaign create failed: ${raw}`);
+    }
     const campaign = await createRes.json();
     return { campaignId: campaign.id };
+  }
+
+  async getCampaignRuns(campaignId: number, page = 1, limit = 50): Promise<any> {
+    const res = await fetch(`${this.baseUrl}/api/v1/campaign/${campaignId}/runs?page=${page}&limit=${limit}`, { headers: { 'X-API-Key': this.apiKey } });
+    if (!res.ok) throw new Error(`Dograh campaign runs failed: ${await res.text()}`);
+    return res.json();
+  }
+
+  async getCampaignReportCsv(campaignId: number): Promise<{ buffer: Buffer; contentType: string }> {
+    const res = await fetch(`${this.baseUrl}/api/v1/campaign/${campaignId}/report`, { headers: { 'X-API-Key': this.apiKey } });
+    if (!res.ok) throw new Error(`Dograh campaign report failed: ${await res.text()}`);
+    const buffer = Buffer.from(await res.arrayBuffer());
+    return { buffer, contentType: res.headers.get('content-type') || 'text/csv' };
+  }
+
+  async getUsageRuns(params: { page?: number; limit?: number; startDate?: string; endDate?: string } = {}): Promise<any> {
+    const q = new URLSearchParams();
+    q.set('page', String(params.page || 1));
+    q.set('limit', String(params.limit || 50));
+    if (params.startDate) q.set('start_date', params.startDate);
+    if (params.endDate) q.set('end_date', params.endDate);
+    const res = await fetch(`${this.baseUrl}/api/v1/organizations/usage/runs?${q}`, { headers: { 'X-API-Key': this.apiKey } });
+    if (!res.ok) throw new Error(`Dograh usage runs failed: ${await res.text()}`);
+    return res.json();
   }
 
   async startCampaign(campaignId: number): Promise<any> {

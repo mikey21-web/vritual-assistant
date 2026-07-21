@@ -50,7 +50,17 @@ export class VoiceAgentService {
     return this.dograh.getSettings(language);
   }
 
-  async createCampaign(tenantId: string, name: string, leadIds: string[], language = 'en'): Promise<{ campaignId: number; leadCount: number }> {
+  async createCampaign(
+    tenantId: string,
+    name: string,
+    leadIds: string[],
+    language = 'en',
+    options?: {
+      maxConcurrency?: number;
+      retryConfig?: { enabled: boolean; maxRetries: number; retryDelaySeconds: number; retryOnBusy: boolean; retryOnNoAnswer: boolean; retryOnVoicemail: boolean };
+      scheduleConfig?: { enabled: boolean; timezone: string; slots: Array<{ dayOfWeek: number; startTime: string; endTime: string }> };
+    },
+  ): Promise<{ campaignId: number; leadCount: number }> {
     const leads = await this.prisma.lead.findMany({
       where: { id: { in: leadIds }, tenantId },
       include: { contact: true },
@@ -71,13 +81,18 @@ export class VoiceAgentService {
 
     let campaignId: number;
     try {
-      ({ campaignId } = await this.dograh.createCampaignFromCsv(name, language, csv));
+      ({ campaignId } = await this.dograh.createCampaignFromCsv(name, language, csv, options));
       await this.dograh.startCampaign(campaignId);
     } catch (e: any) {
       if (String(e.message).includes('telephony_configuration_not_found')) {
         throw new BadRequestException('Voice calling isn\'t fully set up yet — telephony isn\'t configured. Contact your admin.');
       }
-      throw new BadRequestException('Could not start the campaign — the voice agent service is unavailable.');
+      // Dograh's own validation messages (concurrency caps, quota, etc.) are already
+      // safe and specific — surface them directly instead of a blanket generic error.
+      if (String(e.message).startsWith('Dograh campaign create failed') || String(e.message).includes('Dograh')) {
+        throw new BadRequestException('Could not start the campaign — the voice agent service is unavailable.');
+      }
+      throw new BadRequestException(e.message);
     }
     this.logger.log(`Campaign "${name}" created (id ${campaignId}) with ${callable.length} leads`);
     return { campaignId, leadCount: callable.length };
@@ -97,6 +112,73 @@ export class VoiceAgentService {
 
   async resumeCampaign(campaignId: number) {
     return this.dograh.resumeCampaign(campaignId);
+  }
+
+  private static readonly NEGATIVE_DISPOSITIONS = ['no_answer', 'busy', 'failed', 'voicemail', 'no-answer'];
+
+  /**
+   * Dograh's /organizations/usage/runs and /campaign/{id}/runs endpoints return two
+   * different response shapes for what's conceptually the same "call" object — this
+   * normalizes both into one shape the frontend can rely on regardless of source.
+   */
+  private normalizeRun(r: any) {
+    const disposition = r.disposition || r.gathered_context?.mapped_call_disposition || 'unknown';
+    return {
+      id: r.id,
+      workflowId: r.workflow_id,
+      workflowName: r.workflow_name || r.name,
+      createdAt: r.created_at,
+      durationSeconds: r.call_duration_seconds ?? r.usage_info?.call_duration_seconds ?? r.cost_info?.call_duration_seconds ?? 0,
+      calledNumber: r.called_number ?? r.initial_context?.phone_number ?? null,
+      callerNumber: r.caller_number ?? null,
+      disposition,
+      answered: !VoiceAgentService.NEGATIVE_DISPOSITIONS.includes(String(disposition).toLowerCase()),
+      leadName: r.initial_context?.first_name || null,
+      leadId: r.initial_context?.lead_id || null,
+      recordingUrl: r.recording_public_url || r.recording_url || null,
+      transcriptUrl: r.transcript_public_url || r.transcript_url || null,
+      gatheredContext: r.gathered_context || {},
+    };
+  }
+
+  async getCampaignRuns(campaignId: number, page = 1, limit = 50) {
+    const data = await this.dograh.getCampaignRuns(campaignId, page, limit);
+    return { runs: (data.runs || []).map((r: any) => this.normalizeRun(r)), totalCount: data.total_count, page: data.page, limit: data.limit, totalPages: data.total_pages };
+  }
+
+  async getCampaignReportCsv(campaignId: number) {
+    return this.dograh.getCampaignReportCsv(campaignId);
+  }
+
+  async getCallLogs(page = 1, limit = 50, startDate?: string, endDate?: string) {
+    const data = await this.dograh.getUsageRuns({ page, limit, startDate, endDate });
+    const runs = (data.runs || []).map((r: any) => this.normalizeRun(r));
+    return { runs, totalCount: data.total_count, page: data.page, limit: data.limit, totalPages: data.total_pages, totalDurationSeconds: data.total_duration_seconds };
+  }
+
+  // ponytail: answerRate/dispositionCounts are computed from the first 100 runs only
+  // (Dograh caps page size at 100); totalCalls/duration are true all-time aggregates
+  // from the API. Upgrade to a full pagination loop if that sampling skew matters.
+  async getDashboardStats(startDate?: string, endDate?: string) {
+    const data = await this.dograh.getUsageRuns({ page: 1, limit: 100, startDate, endDate });
+    const runs: any[] = data.runs || [];
+    const totalCalls = data.total_count || 0;
+    const answered = runs.filter((r) => !VoiceAgentService.NEGATIVE_DISPOSITIONS.includes(String(r.disposition).toLowerCase()));
+    const answerRate = runs.length > 0 ? Math.round((answered.length / runs.length) * 100) : 0;
+    const totalDurationSeconds = data.total_duration_seconds || 0;
+    const avgDurationSeconds = totalCalls > 0 ? Math.round(totalDurationSeconds / totalCalls) : 0;
+    const dispositionCounts: Record<string, number> = {};
+    for (const r of runs) {
+      const key = r.disposition || 'unknown';
+      dispositionCounts[key] = (dispositionCounts[key] || 0) + 1;
+    }
+    return {
+      totalCalls,
+      answerRate,
+      avgDurationSeconds,
+      totalMinutesUsed: Math.round(totalDurationSeconds / 60),
+      dispositionCounts,
+    };
   }
 
   async uploadKnowledgeBaseDocument(file: { originalname: string; mimetype: string; buffer: Buffer }, language = 'en') {

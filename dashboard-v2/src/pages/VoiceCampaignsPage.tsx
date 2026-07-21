@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { fetchLeads, fetchVoiceCampaigns, createVoiceCampaign, pauseVoiceCampaign, resumeVoiceCampaign, VoiceCampaign } from '../lib/data';
+import { fetchLeads, fetchVoiceCampaigns, createVoiceCampaign, pauseVoiceCampaign, resumeVoiceCampaign, downloadVoiceCampaignReport, VoiceCampaign, VoiceRetryConfig } from '../lib/data';
 import type { Lead } from '../lib/types';
-import { Megaphone, Plus, Pause, Play, RefreshCw, Phone, X, ChevronRight, ChevronLeft, Check } from 'lucide-react';
+import { Megaphone, Plus, Pause, Play, RefreshCw, Phone, X, ChevronRight, ChevronLeft, Check, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const LANGUAGES = [
@@ -9,7 +9,9 @@ const LANGUAGES = [
   { code: 'te', label: 'తెలుగు (Telugu)' },
 ];
 
-const STEPS = ['Details', 'Contacts', 'Review'];
+const STEPS = ['Details', 'Contacts', 'Settings', 'Review'];
+
+const DEFAULT_RETRY: VoiceRetryConfig = { enabled: false, maxRetries: 2, retryDelaySeconds: 120, retryOnBusy: true, retryOnNoAnswer: true, retryOnVoicemail: true };
 
 export default function VoiceCampaignsPage() {
   const [campaigns, setCampaigns] = useState<VoiceCampaign[]>([]);
@@ -23,6 +25,13 @@ export default function VoiceCampaignsPage() {
   const [lang, setLang] = useState('en');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [creating, setCreating] = useState(false);
+  const [concurrency, setConcurrency] = useState(1);
+  const [retry, setRetry] = useState<VoiceRetryConfig>(DEFAULT_RETRY);
+  // Dograh's schedule_config restricts calling to a recurring daily time window
+  // (not a one-time future start) — applied to every day of the week when enabled.
+  const [callingHoursEnabled, setCallingHoursEnabled] = useState(false);
+  const [callingHoursStart, setCallingHoursStart] = useState('09:00');
+  const [callingHoursEnd, setCallingHoursEnd] = useState('19:00');
 
   const load = () => {
     Promise.all([fetchVoiceCampaigns(), fetchLeads(1, { hasPhone: 'true' })])
@@ -36,7 +45,11 @@ export default function VoiceCampaignsPage() {
 
   useEffect(() => { load(); }, []);
 
-  const openModal = () => { setStep(0); setName(''); setLang('en'); setSelected(new Set()); setModalOpen(true); };
+  const openModal = () => {
+    setStep(0); setName(''); setLang('en'); setSelected(new Set());
+    setConcurrency(1); setRetry(DEFAULT_RETRY); setCallingHoursEnabled(false); setCallingHoursStart('09:00'); setCallingHoursEnd('19:00');
+    setModalOpen(true);
+  };
 
   const toggleLead = (id: string) => {
     setSelected((prev) => {
@@ -51,7 +64,14 @@ export default function VoiceCampaignsPage() {
   const handleCreate = async () => {
     setCreating(true);
     try {
-      const res = await createVoiceCampaign(name.trim(), Array.from(selected), lang);
+      const scheduleConfig = callingHoursEnabled
+        ? { enabled: true, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata', slots: Array.from({ length: 7 }, (_, dayOfWeek) => ({ dayOfWeek, startTime: callingHoursStart, endTime: callingHoursEnd })) }
+        : undefined;
+      const res = await createVoiceCampaign(name.trim(), Array.from(selected), lang, {
+        maxConcurrency: concurrency,
+        retryConfig: retry.enabled ? retry : undefined,
+        scheduleConfig,
+      });
       toast.success(`Campaign launched — calling ${res.leadCount} leads`);
       setModalOpen(false);
       load();
@@ -118,7 +138,7 @@ export default function VoiceCampaignsPage() {
         ) : (
           <div className="space-y-2">
             {campaigns.map((c) => (
-              <div key={c.id} className="flex items-center justify-between rounded-lg border border-[var(--border)] px-3 py-2.5">
+              <div key={c.id} onClick={() => { window.location.hash = `#/voice-campaigns/${c.id}`; }} className="flex items-center justify-between rounded-lg border border-[var(--border)] px-3 py-2.5 hover:bg-[var(--accent)] cursor-pointer transition-colors">
                 <div>
                   <p className="text-sm font-medium text-[var(--foreground)]">{c.name}</p>
                   <p className="text-xs text-[var(--muted-foreground)]">
@@ -134,9 +154,16 @@ export default function VoiceCampaignsPage() {
                   }`}>
                     {c.state}
                   </span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); downloadVoiceCampaignReport(c.id); }}
+                    className="h-7 w-7 rounded-md border border-[var(--border)] text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--accent)] transition-colors flex items-center justify-center"
+                    title="Export CSV"
+                  >
+                    <Download size={12} />
+                  </button>
                   {(c.state === 'running' || c.state === 'paused') && (
                     <button
-                      onClick={() => handlePauseResume(c)}
+                      onClick={(e) => { e.stopPropagation(); handlePauseResume(c); }}
                       disabled={busyId === c.id}
                       className="h-7 px-2 rounded-md border border-[var(--border)] text-xs text-[var(--foreground)] hover:bg-[var(--accent)] transition-colors flex items-center gap-1"
                     >
@@ -232,6 +259,61 @@ export default function VoiceCampaignsPage() {
               )}
 
               {step === 2 && (
+                <div className="space-y-5">
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-medium text-[var(--muted-foreground)]">Concurrent Call Limit</label>
+                      <span className="text-xs font-semibold text-[var(--foreground)]">{concurrency} call{concurrency > 1 ? 's' : ''}</span>
+                    </div>
+                    <input
+                      type="range" min={1} max={20} value={concurrency}
+                      onChange={(e) => setConcurrency(parseInt(e.target.value, 10))}
+                      className="w-full accent-[var(--primary)]"
+                    />
+                    <p className="text-[11px] text-[var(--muted-foreground)] mt-1">How many calls run at the same time.</p>
+                  </div>
+
+                  <div className="border-t border-[var(--border)] pt-4">
+                    <label className="flex items-center gap-2 text-sm font-medium text-[var(--foreground)] cursor-pointer">
+                      <input type="checkbox" checked={retry.enabled} onChange={(e) => setRetry((r) => ({ ...r, enabled: e.target.checked }))} className="w-4 h-4 rounded border-[var(--border)] text-[var(--primary)]" />
+                      Auto-retry unanswered calls (busy / no-answer / voicemail)
+                    </label>
+                    {retry.enabled && (
+                      <div className="mt-3 grid grid-cols-2 gap-3 pl-6">
+                        <div>
+                          <label className="block text-[11px] text-[var(--muted-foreground)] mb-1">Max retries per contact</label>
+                          <input type="number" min={1} max={10} value={retry.maxRetries} onChange={(e) => setRetry((r) => ({ ...r, maxRetries: parseInt(e.target.value, 10) || 1 }))} className="w-full h-8 rounded-lg border border-[var(--border)] bg-[var(--background)] px-2 text-sm text-[var(--foreground)]" />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] text-[var(--muted-foreground)] mb-1">Delay between retries (sec)</label>
+                          <input type="number" min={30} max={3600} step={30} value={retry.retryDelaySeconds} onChange={(e) => setRetry((r) => ({ ...r, retryDelaySeconds: parseInt(e.target.value, 10) || 30 }))} className="w-full h-8 rounded-lg border border-[var(--border)] bg-[var(--background)] px-2 text-sm text-[var(--foreground)]" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="border-t border-[var(--border)] pt-4">
+                    <label className="flex items-center gap-2 text-sm font-medium text-[var(--foreground)] cursor-pointer">
+                      <input type="checkbox" checked={callingHoursEnabled} onChange={(e) => setCallingHoursEnabled(e.target.checked)} className="w-4 h-4 rounded border-[var(--border)] text-[var(--primary)]" />
+                      Only call during specific hours
+                    </label>
+                    {callingHoursEnabled && (
+                      <div className="mt-3 grid grid-cols-2 gap-3 pl-6">
+                        <div>
+                          <label className="block text-[11px] text-[var(--muted-foreground)] mb-1">From</label>
+                          <input type="time" value={callingHoursStart} onChange={(e) => setCallingHoursStart(e.target.value)} className="w-full h-8 rounded-lg border border-[var(--border)] bg-[var(--background)] px-2 text-sm text-[var(--foreground)]" />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] text-[var(--muted-foreground)] mb-1">To</label>
+                          <input type="time" value={callingHoursEnd} onChange={(e) => setCallingHoursEnd(e.target.value)} className="w-full h-8 rounded-lg border border-[var(--border)] bg-[var(--background)] px-2 text-sm text-[var(--foreground)]" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {step === 3 && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between text-sm py-1.5 border-b border-[var(--border)]">
                     <span className="text-[var(--muted-foreground)]">Campaign name</span>
@@ -241,9 +323,21 @@ export default function VoiceCampaignsPage() {
                     <span className="text-[var(--muted-foreground)]">Language</span>
                     <span className="font-medium text-[var(--foreground)]">{LANGUAGES.find((l) => l.code === lang)?.label}</span>
                   </div>
-                  <div className="flex items-center justify-between text-sm py-1.5">
+                  <div className="flex items-center justify-between text-sm py-1.5 border-b border-[var(--border)]">
                     <span className="text-[var(--muted-foreground)]">Leads to call</span>
                     <span className="font-medium text-[var(--foreground)]">{selected.size}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm py-1.5 border-b border-[var(--border)]">
+                    <span className="text-[var(--muted-foreground)]">Concurrency</span>
+                    <span className="font-medium text-[var(--foreground)]">{concurrency} calls</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm py-1.5 border-b border-[var(--border)]">
+                    <span className="text-[var(--muted-foreground)]">Auto-retry</span>
+                    <span className="font-medium text-[var(--foreground)]">{retry.enabled ? `Up to ${retry.maxRetries}x` : 'Off'}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm py-1.5">
+                    <span className="text-[var(--muted-foreground)]">Calling hours</span>
+                    <span className="font-medium text-[var(--foreground)]">{callingHoursEnabled ? `${callingHoursStart}–${callingHoursEnd}` : 'Anytime'}</span>
                   </div>
                   <p className="text-xs text-[var(--muted-foreground)] pt-2">Calls start immediately once launched.</p>
                 </div>

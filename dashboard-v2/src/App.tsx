@@ -118,6 +118,8 @@ const PageComponents: Record<string, React.LazyExoticComponent<React.ComponentTy
   VoiceAgent: lazy(() => import("./pages/VoiceAgentPage")),
   VoiceAgentSettings: lazy(() => import("./pages/VoiceAgentSettingsPage")),
   VoiceCampaigns: lazy(() => import("./pages/VoiceCampaignsPage")),
+  VoiceCampaignDetail: lazy(() => import("./pages/VoiceCampaignDetailPage")),
+  VoiceCallLogs: lazy(() => import("./pages/VoiceCallLogsPage")),
   VoiceKnowledgeBase: lazy(() => import("./pages/VoiceKnowledgeBasePage")),
   VoicePostCallWorkflows: lazy(() => import("./pages/VoicePostCallWorkflowsPage")),
   AlliedInventory: lazy(() => import("./pages/AlliedInventoryPage")),
@@ -154,8 +156,10 @@ function getPageKey(raw: string): string {
   if (/^\/leads\/[^/]+$/.test(path)) return "LeadWorkbench";
   if (/^\/forms\/[^/]+\/submissions$/.test(path)) return "FormSubmissions";
   if (path.startsWith("/create-event")) return "CreateEvent";
+  if (/^\/voice-campaigns\/[^/]+$/.test(path)) return "VoiceCampaignDetail";
   if (path.startsWith("/voice-agent-settings")) return "VoiceAgentSettings";
   if (path.startsWith("/voice-campaigns")) return "VoiceCampaigns";
+  if (path.startsWith("/voice-call-logs")) return "VoiceCallLogs";
   if (path.startsWith("/voice-knowledge-base")) return "VoiceKnowledgeBase";
   if (path.startsWith("/voice-post-call-workflows")) return "VoicePostCallWorkflows";
   if (path.startsWith("/voice-agent")) return "VoiceAgent";
@@ -211,6 +215,7 @@ function getPageKey(raw: string): string {
     "/voice-agent": "VoiceAgent",
     "/voice-agent-settings": "VoiceAgentSettings",
     "/voice-campaigns": "VoiceCampaigns",
+    "/voice-call-logs": "VoiceCallLogs",
     "/voice-knowledge-base": "VoiceKnowledgeBase",
     "/voice-post-call-workflows": "VoicePostCallWorkflows",
     "/digital-sales-room": "DigitalSalesRoom",

@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Users, MessageSquare, BarChart3, Settings,
    Megaphone, FormInput, QrCode, FileText, Target,
   ShoppingCart, Link, Calendar, Layers, ChevronLeft, ChevronRight, ChevronDown,
-  UserCircle, CheckSquare, Sparkles, Phone,   Bot, MessageCircle, Smartphone, Webhook, Globe, LogOut, Columns3,
+  UserCircle, CheckSquare, Sparkles, Phone, PhoneCall,   Bot, MessageCircle, Smartphone, Webhook, Globe, LogOut, Columns3,
   LifeBuoy, BookOpen, Puzzle, Download, Headset, Brain,
   Truck, ClipboardList, Package, Box, MapPin, DollarSign,
   Building2, Activity, CalendarClock, GitBranch, Gift, HardDrive, BookCopy, FileSearch, Shield,
@@ -16,7 +16,7 @@ import { isFeatureEnabled, getLabel, getBusinessName, getNicheLogo, onConfigChan
 const featureMap: Record<string, string> = {
   "/": "overview", "/queue": "overview", "/builder-desk": "overview", "/leads": "leads", "/smart-lists": "leads", "/pipeline": "pipeline", "/contacts": "contacts",
   "/campaigns": "campaigns", "/forms": "forms", "/qr-codes": "qrCodes",
-  "/voice-agent": "voiceAgent", "/voice-agent-settings": "voiceAgent", "/voice-campaigns": "voiceAgent", "/voice-knowledge-base": "voiceAgent", "/voice-post-call-workflows": "voiceAgent", "/conversations": "messages", "/templates": "templates", "/media": "media",
+  "/voice-agent": "voiceAgent", "/voice-agent-settings": "voiceAgent", "/voice-campaigns": "voiceAgent", "/voice-call-logs": "voiceAgent", "/voice-knowledge-base": "voiceAgent", "/voice-post-call-workflows": "voiceAgent", "/conversations": "messages", "/templates": "templates", "/media": "media",
   "/scoring": "scoring", "/rules": "routing",
   "/ai-campaigns": "aiCampaigns", "/ai-agent": "aiAgent", "/copilot": "copilot",
   "/webhooks": "webhooks", "/sms": "sms", "/widget": "widget", "/calls": "calls", "/sync-logs": "syncLogs",
@@ -89,6 +89,7 @@ const rawNavGroups = [
     items: [
       { label: "Voice Agent", icon: Phone, path: "/voice-agent" },
       { label: "Voice Campaigns", icon: Megaphone, path: "/voice-campaigns" },
+      { label: "Call Logs", icon: PhoneCall, path: "/voice-call-logs" },
       { label: "Voice Knowledge Base", icon: BookOpen, path: "/voice-knowledge-base" },
       { label: "Post-Call Workflows", icon: GitBranch, path: "/voice-post-call-workflows" },
       { label: "Voice Agent Settings", icon: Settings, path: "/voice-agent-settings" },

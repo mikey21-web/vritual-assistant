@@ -1,7 +1,14 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
-import { fetchLeads } from '../lib/data';
-import { Phone, PhoneOff, Clock, Loader2, ChevronRight, Globe } from 'lucide-react';
+import { fetchLeads, fetchVoiceDashboardStats, VoiceDashboardStats } from '../lib/data';
+import { Phone, PhoneOff, Clock, Loader2, ChevronRight, Globe, PhoneCall, CheckCircle2, Timer } from 'lucide-react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+
+const DISPOSITION_COLORS: Record<string, string> = {
+  completed: '#10b981', answered: '#10b981',
+  no_answer: '#f59e0b', 'no-answer': '#f59e0b', busy: '#f59e0b',
+  failed: '#ef4444', voicemail: '#6366f1', unknown: '#9ca3af',
+};
 
 const LANGUAGES = [
   { code: 'en', label: 'English' },
@@ -18,6 +25,7 @@ const LANGUAGES = [
 export default function VoiceAgentPage() {
   const [leads, setLeads] = useState<any[]>([]);
   const [history, setHistory] = useState<any[]>([]);
+  const [stats, setStats] = useState<VoiceDashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [calling, setCalling] = useState<string | null>(null);
   const [callLang, setCallLang] = useState('en');
@@ -26,6 +34,7 @@ export default function VoiceAgentPage() {
     Promise.all([
       fetchLeads(1, { hasPhone: 'true', limit: '10' }).then(r => setLeads(r.data || [])).catch(() => {}),
       api('/voice-agent/history').then(setHistory).catch(() => {}),
+      fetchVoiceDashboardStats().then(setStats).catch(() => {}),
     ]).finally(() => setLoading(false));
   }, []);
 
@@ -47,6 +56,59 @@ export default function VoiceAgentPage() {
         <h1 className="text-xl font-bold text-[var(--foreground)]">Voice Agent</h1>
         <p className="text-sm text-[var(--muted-foreground)] mt-0.5">Call leads with Mikey's AI voice — he talks, listens, and qualifies.</p>
       </div>
+
+      {stats && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 flex items-center gap-3">
+            <div className="h-9 w-9 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0"><PhoneCall size={16} className="text-blue-600 dark:text-blue-400" /></div>
+            <div>
+              <div className="text-xl font-bold text-[var(--foreground)]">{stats.totalCalls}</div>
+              <div className="text-[11px] text-[var(--muted-foreground)]">Total Calls</div>
+            </div>
+          </div>
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 flex items-center gap-3">
+            <div className="h-9 w-9 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0"><CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400" /></div>
+            <div>
+              <div className="text-xl font-bold text-[var(--foreground)]">{stats.answerRate}%</div>
+              <div className="text-[11px] text-[var(--muted-foreground)]">Answer Rate</div>
+            </div>
+          </div>
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 flex items-center gap-3">
+            <div className="h-9 w-9 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center shrink-0"><Timer size={16} className="text-purple-600 dark:text-purple-400" /></div>
+            <div>
+              <div className="text-xl font-bold text-[var(--foreground)]">{stats.avgDurationSeconds}s</div>
+              <div className="text-[11px] text-[var(--muted-foreground)]">Avg Duration</div>
+            </div>
+          </div>
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 flex items-center gap-3">
+            <div className="h-9 w-9 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0"><Clock size={16} className="text-amber-600 dark:text-amber-400" /></div>
+            <div>
+              <div className="text-xl font-bold text-[var(--foreground)]">{stats.totalMinutesUsed}</div>
+              <div className="text-[11px] text-[var(--muted-foreground)]">Total Minutes Used</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {stats && Object.keys(stats.dispositionCounts).length > 0 && (
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
+          <h2 className="text-sm font-semibold text-[var(--foreground)] mb-2">Call Outcome Breakdown</h2>
+          <ResponsiveContainer width="100%" height={200}>
+            <PieChart>
+              <Pie
+                data={Object.entries(stats.dispositionCounts).map(([name, value]) => ({ name, value }))}
+                dataKey="value" nameKey="name" innerRadius={45} outerRadius={75} paddingAngle={2}
+              >
+                {Object.keys(stats.dispositionCounts).map((key) => (
+                  <Cell key={key} fill={DISPOSITION_COLORS[key.toLowerCase()] || '#9ca3af'} />
+                ))}
+              </Pie>
+              <Tooltip />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      )}
 
       <div>
         <div className="flex items-center gap-3 mb-3">
