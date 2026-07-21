@@ -49,7 +49,11 @@ export default function VoiceCallLogsPage() {
               {runs.map((r) => (
                 <tr key={r.id} onClick={() => setSelected(r)} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--accent)] cursor-pointer">
                   <td className="p-3 text-[var(--foreground)]">{new Date(r.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</td>
-                  <td className="p-3 text-[var(--foreground)]">{r.leadName || 'Unknown'}</td>
+                  <td className="p-3 text-[var(--foreground)]">
+                    {r.leadName || 'Unknown'}
+                    {r.summary && <div className="text-xs text-[var(--muted-foreground)] font-normal mt-0.5 max-w-[220px] truncate" title={r.summary}>{r.summary}</div>}
+                    {!r.summary && r.recordingUrl && <div className="text-xs text-[var(--muted-foreground)] font-normal mt-0.5 italic">Transcribing...</div>}
+                  </td>
                   <td className="p-3 text-[var(--muted-foreground)]">{r.calledNumber || '—'}</td>
                   <td className="p-3">
                     <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${r.answered ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'}`}>{r.disposition}</span>

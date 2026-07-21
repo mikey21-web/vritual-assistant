@@ -225,7 +225,9 @@ export interface VoiceCallRun {
   id: number; workflowId: number; workflowName: string; createdAt: string;
   durationSeconds: number; calledNumber: string | null; callerNumber: string | null;
   disposition: string; answered: boolean; leadName: string | null; leadId: string | null;
-  recordingUrl: string | null; transcriptUrl: string | null; gatheredContext: Record<string, any>;
+  recordingUrl: string | null; transcriptUrl: string | null;
+  summary: string | null; transcript: string | null;
+  gatheredContext: Record<string, any>;
 }
 export async function fetchVoiceCampaignRuns(id: number, page = 1, limit = 50) {
   return api(`/voice-agent/campaigns/${id}/runs?page=${page}&limit=${limit}`) as Promise<{ runs: VoiceCallRun[]; totalCount: number; page: number; limit: number; totalPages: number }>;

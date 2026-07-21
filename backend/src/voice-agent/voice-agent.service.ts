@@ -169,6 +169,8 @@ export class VoiceAgentService {
       leadId: r.initial_context?.lead_id || null,
       recordingUrl: r.recording_public_url || r.recording_url || null,
       transcriptUrl: r.transcript_public_url || r.transcript_url || null,
+      summary: r.summary || r.call_summary || r.gathered_context?.summary || r.gathered_context?.call_summary || null,
+      transcript: r.transcript || r.call_transcript || r.gathered_context?.transcript || r.gathered_context?.call_transcript || null,
       gatheredContext: r.gathered_context || {},
     };
   }

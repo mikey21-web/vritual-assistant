@@ -32,6 +32,13 @@ export default function VoiceCallDetailDrawer({ run, onClose }: { run: VoiceCall
             </div>
           )}
 
+          {run.summary && (
+            <div>
+              <h3 className="text-xs font-semibold text-[var(--muted-foreground)] mb-2">AI Summary</h3>
+              <p className="text-sm text-[var(--foreground)] leading-relaxed">{run.summary}</p>
+            </div>
+          )}
+
           {vars.length > 0 && (
             <div>
               <h3 className="text-xs font-semibold text-[var(--muted-foreground)] mb-2">Extracted Conversation Variables</h3>
@@ -46,12 +53,18 @@ export default function VoiceCallDetailDrawer({ run, onClose }: { run: VoiceCall
             </div>
           )}
 
-          {run.transcriptUrl && (
-            <div>
-              <h3 className="text-xs font-semibold text-[var(--muted-foreground)] mb-2">Transcript</h3>
+          <div>
+            <h3 className="text-xs font-semibold text-[var(--muted-foreground)] mb-2">Transcript</h3>
+            {run.transcript ? (
+              <div className="rounded-lg border border-[var(--border)] p-3 max-h-60 overflow-y-auto">
+                <pre className="text-xs text-[var(--foreground)] leading-relaxed whitespace-pre-wrap font-mono">{run.transcript}</pre>
+              </div>
+            ) : run.transcriptUrl ? (
               <a href={run.transcriptUrl} target="_blank" rel="noreferrer" className="text-sm text-[var(--primary)] hover:underline">View full transcript ↗</a>
-            </div>
-          )}
+            ) : (
+              <p className="text-xs text-[var(--muted-foreground)]">No transcript available</p>
+            )}
+          </div>
         </div>
       </div>
     </div>
