@@ -45,9 +45,14 @@ export class VoiceAgentService {
     return this.dograh.getSettings(language);
   }
 
-  async updateSettings(language: string, changes: { greeting?: string; persona?: string }) {
+  async updateSettings(language: string, changes: { greeting?: string; persona?: string; antiEarlyHangupEnabled?: boolean; checklistCopy?: string }) {
     await this.dograh.updateSettings(language, changes);
     return this.dograh.getSettings(language);
+  }
+
+  async toggleAmd(enabled: boolean) {
+    await this.dograh.setTelephonyAmd(enabled);
+    return { voicemailDetectionEnabled: enabled };
   }
 
   /** Bare 10-digit Indian mobile numbers are assumed +91; anything with a country code (leading +, or 11+ digits) is left as-is. */

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { fetchVoiceAgentSettings, updateVoiceAgentSettings, VoiceAgentSettings, fetchVoiceCustomFields, addVoiceCustomField, deleteVoiceCustomField, VoiceCustomField } from '../lib/data';
-import { Phone, RefreshCw, Save, ShieldCheck, ShieldOff, Database, Plus, Trash2 } from 'lucide-react';
+import { fetchVoiceAgentSettings, updateVoiceAgentSettings, toggleVoiceAgentAmd, VoiceAgentSettings, fetchVoiceCustomFields, addVoiceCustomField, deleteVoiceCustomField, VoiceCustomField } from '../lib/data';
+import { Phone, RefreshCw, Save, ShieldCheck, ShieldOff, Database, Plus, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const LANGUAGES = [
@@ -11,7 +11,7 @@ const LANGUAGES = [
 export default function VoiceAgentSettingsPage() {
   const [lang, setLang] = useState('en');
   const [settings, setSettings] = useState<VoiceAgentSettings | null>(null);
-  const [form, setForm] = useState({ greeting: '', persona: '' });
+  const [form, setForm] = useState({ greeting: '', persona: '', antiEarlyHangupEnabled: false, checklistCopy: '' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [fields, setFields] = useState<VoiceCustomField[]>([]);
@@ -24,7 +24,7 @@ export default function VoiceAgentSettingsPage() {
     Promise.all([fetchVoiceAgentSettings(language), fetchVoiceCustomFields(language)])
       .then(([s, f]) => {
         setSettings(s);
-        setForm({ greeting: s.greeting, persona: s.persona });
+        setForm({ greeting: s.greeting, persona: s.persona, antiEarlyHangupEnabled: s.antiEarlyHangupEnabled, checklistCopy: s.checklistCopy });
         setFields(f);
       })
       .catch((e) => toast.error(e.message))
@@ -68,11 +68,23 @@ export default function VoiceAgentSettingsPage() {
     try {
       const updated = await updateVoiceAgentSettings(form, lang);
       setSettings(updated);
+      setForm({ greeting: updated.greeting, persona: updated.persona, antiEarlyHangupEnabled: updated.antiEarlyHangupEnabled, checklistCopy: updated.checklistCopy });
       toast.success('Voice agent settings saved');
     } catch (e: any) {
       toast.error(e.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleToggleAmd = async () => {
+    const next = !settings?.voicemailDetectionEnabled;
+    try {
+      const r = await toggleVoiceAgentAmd(next);
+      setSettings((prev) => prev ? { ...prev, voicemailDetectionEnabled: r.voicemailDetectionEnabled } : prev);
+      toast.success(r.voicemailDetectionEnabled ? 'Voicemail detection enabled' : 'Voicemail detection disabled');
+    } catch (e: any) {
+      toast.error(e.message);
     }
   };
 
@@ -112,15 +124,17 @@ export default function VoiceAgentSettingsPage() {
           )}
           <span className="text-sm font-medium text-[var(--foreground)]">Voicemail detection</span>
         </div>
-        {settings?.voicemailDetectionEnabled ? (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">
-            Enabled
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-[var(--muted-foreground)]">
-            Disabled
-          </span>
-        )}
+        <button
+          onClick={handleToggleAmd}
+          className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-medium transition-colors ${
+            settings?.voicemailDetectionEnabled
+              ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
+              : 'bg-gray-100 dark:bg-gray-800 text-[var(--muted-foreground)]'
+          }`}
+        >
+          {settings?.voicemailDetectionEnabled ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
+          {settings?.voicemailDetectionEnabled ? 'Enabled' : 'Disabled'}
+        </button>
       </div>
 
       <form onSubmit={handleSave} className="rounded-lg bg-[var(--card)] border border-[var(--border)] p-5 shadow-[var(--shadow-sm)] space-y-4">
@@ -142,8 +156,39 @@ export default function VoiceAgentSettingsPage() {
             className="w-full h-36 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
             placeholder="You are Riya, a warm and professional real estate lead qualifier..."
           />
-          <p className="text-[11px] text-[var(--muted-foreground)] mt-1">Applied to every step of the call. Includes the anti-early-hangup safeguard.</p>
+          <p className="text-[11px] text-[var(--muted-foreground)] mt-1">Applied to every step of the call.</p>
         </div>
+
+        <div className="flex items-center justify-between rounded-lg border border-[var(--border)] px-3 py-2">
+          <div>
+            <p className="text-sm font-medium text-[var(--foreground)]">Anti-early-hangup guard</p>
+            <p className="text-xs text-[var(--muted-foreground)]">Prevents routing to cold-lead/wrong-number in the first ~10 seconds</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setForm(p => ({ ...p, antiEarlyHangupEnabled: !p.antiEarlyHangupEnabled }))}
+            className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-xs font-medium transition-colors ${
+              form.antiEarlyHangupEnabled
+                ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
+                : 'bg-gray-100 dark:bg-gray-800 text-[var(--muted-foreground)]'
+            }`}
+          >
+            {form.antiEarlyHangupEnabled ? <ToggleRight size={13} /> : <ToggleLeft size={13} />}
+            {form.antiEarlyHangupEnabled ? 'On' : 'Off'}
+          </button>
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-[var(--muted-foreground)] mb-1">End-call checklist</label>
+          <textarea
+            value={form.checklistCopy}
+            onChange={e => setForm(p => ({ ...p, checklistCopy: e.target.value }))}
+            className="w-full h-20 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20 resize-none"
+            placeholder="Before saying goodbye: (1) confirm the caller has no more questions, (2) give them one clear summary line of what happens next, (3) then say goodbye."
+          />
+          <p className="text-[11px] text-[var(--muted-foreground)] mt-1">Applied to every end-call node. Leave empty to remove the checklist.</p>
+        </div>
+
         <button
           type="submit"
           disabled={saving}

@@ -205,9 +205,10 @@ export async function fetchProfile() { return api('/auth/me') as Promise<any>; }
 export async function fetchBusinessSettings() { return api('/business-settings') as Promise<any>; }
 export async function updateBusinessSettings(data: any) { return api('/business-settings', { method: 'PATCH', body: JSON.stringify(data) }); }
 
-export interface VoiceAgentSettings { greeting: string; persona: string; voicemailDetectionEnabled: boolean; }
+export interface VoiceAgentSettings { greeting: string; persona: string; voicemailDetectionEnabled: boolean; antiEarlyHangupEnabled: boolean; checklistCopy: string; }
 export async function fetchVoiceAgentSettings(lang = 'en') { return api(`/voice-agent/settings?lang=${lang}`) as Promise<VoiceAgentSettings>; }
-export async function updateVoiceAgentSettings(data: { greeting?: string; persona?: string }, lang = 'en') { return api(`/voice-agent/settings?lang=${lang}`, { method: 'PATCH', body: JSON.stringify(data) }) as Promise<VoiceAgentSettings>; }
+export async function updateVoiceAgentSettings(data: { greeting?: string; persona?: string; antiEarlyHangupEnabled?: boolean; checklistCopy?: string }, lang = 'en') { return api(`/voice-agent/settings?lang=${lang}`, { method: 'PATCH', body: JSON.stringify(data) }) as Promise<VoiceAgentSettings>; }
+export async function toggleVoiceAgentAmd(enabled: boolean) { return api('/voice-agent/settings/amd', { method: 'PATCH', body: JSON.stringify({ enabled }) }) as Promise<{ voicemailDetectionEnabled: boolean }>; }
 
 export interface VoiceCampaign { id: number; name: string; state: string; total_rows: number; processed_rows: number; failed_rows: number; created_at: string; }
 export interface VoiceRetryConfig { enabled: boolean; maxRetries: number; retryDelaySeconds: number; retryOnBusy: boolean; retryOnNoAnswer: boolean; retryOnVoicemail: boolean; }

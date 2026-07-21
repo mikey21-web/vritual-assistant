@@ -16,6 +16,8 @@ export interface VoiceAgentSettings {
   greeting: string;
   persona: string;
   voicemailDetectionEnabled: boolean;
+  antiEarlyHangupEnabled: boolean;
+  checklistCopy: string;
 }
 
 @Injectable()
@@ -50,6 +52,23 @@ export class DograhService {
     } catch {
       return false;
     }
+  }
+
+  async getWorkflowDefinition(workflowId: string): Promise<{ name: string; definition: any }> {
+    return this.fetchWorkflowDefinition(workflowId);
+  }
+
+  async updateWorkflowDefinition(workflowId: string, name: string, definition: any): Promise<void> {
+    await this.saveAndPublishWorkflow(workflowId, name, definition);
+  }
+
+  async setTelephonyAmd(enabled: boolean): Promise<void> {
+    const res = await fetch(`${this.baseUrl}/api/v1/organizations/telephony-configs/${DEFAULT_TELEPHONY_CONFIG_ID}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-API-Key': this.apiKey },
+      body: JSON.stringify({ amd_enabled: enabled }),
+    });
+    if (!res.ok) throw new Error(`Dograh telephony config update failed: ${await res.text()}`);
   }
 
   private async fetchWorkflowDefinition(workflowId: string): Promise<{ name: string; definition: any }> {
@@ -90,21 +109,50 @@ export class DograhService {
     const { definition } = await this.fetchWorkflowDefinition(workflowId);
     const globalNode = definition.nodes.find((n: any) => n.type === 'globalNode');
     const startNode = definition.nodes.find((n: any) => n.type === 'startCall');
+    const endCallNodes = definition.nodes.filter((n: any) => n.type === 'endCall');
     const voicemailDetectionEnabled = await this.getAmdEnabled();
+    const antiEarlyHangupEnabled = globalNode?.data?.prompt?.includes('Do not end the call') ?? false;
+    const checklistCopy = endCallNodes.length > 0 && endCallNodes[0].data?.prompt?.includes('Before saying goodbye')
+      ? endCallNodes[0].data.prompt
+      : '';
     return {
       greeting: startNode?.data?.greeting || '',
       persona: globalNode?.data?.prompt || '',
       voicemailDetectionEnabled,
+      antiEarlyHangupEnabled,
+      checklistCopy,
     };
   }
 
-  async updateSettings(language: string, changes: { greeting?: string; persona?: string }): Promise<void> {
+  async updateSettings(language: string, changes: { greeting?: string; persona?: string; antiEarlyHangupEnabled?: boolean; checklistCopy?: string }): Promise<void> {
     const workflowId = WORKFLOW_ID_BY_LANGUAGE[language] || WORKFLOW_ID_BY_LANGUAGE.en;
     const { name, definition } = await this.fetchWorkflowDefinition(workflowId);
     const globalNode = definition.nodes.find((n: any) => n.type === 'globalNode');
     const startNode = definition.nodes.find((n: any) => n.type === 'startCall');
+    const endCallNodes = definition.nodes.filter((n: any) => n.type === 'endCall');
     if (changes.greeting !== undefined && startNode) startNode.data.greeting = changes.greeting;
     if (changes.persona !== undefined && globalNode) globalNode.data.prompt = changes.persona;
+    if (changes.antiEarlyHangupEnabled !== undefined && globalNode) {
+      const guard = ' Do not end the call or mark the lead as not interested within the first 10 seconds of the conversation unless the caller is clearly hostile or has hung up - a hesitant "who is this?" or a slow start is not a reason to give up on the call.';
+      if (changes.antiEarlyHangupEnabled && !globalNode.data.prompt.includes('Do not end the call')) {
+        globalNode.data.prompt += guard;
+      } else if (!changes.antiEarlyHangupEnabled) {
+        globalNode.data.prompt = globalNode.data.prompt.replace(guard, '');
+      }
+    }
+    if (changes.checklistCopy !== undefined) {
+      for (const node of endCallNodes) {
+        const existing = node.data.prompt || '';
+        const checklist = ' Before saying goodbye: (1) confirm the caller has no more questions, (2) give them one clear summary line of what happens next, (3) then say goodbye.';
+        if (changes.checklistCopy) {
+          if (!existing.includes('Before saying goodbye')) {
+            node.data.prompt = existing + checklist;
+          }
+        } else {
+          node.data.prompt = existing.replace(checklist, '');
+        }
+      }
+    }
     await this.saveAndPublishWorkflow(workflowId, name, definition);
   }
 

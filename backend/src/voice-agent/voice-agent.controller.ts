@@ -57,8 +57,15 @@ export class VoiceAgentController {
   @Patch('settings')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('OWNER', 'ADMIN')
-  async updateSettings(@Body() body: { greeting?: string; persona?: string }, @Query('lang') lang?: string) {
+  async updateSettings(@Body() body: { greeting?: string; persona?: string; antiEarlyHangupEnabled?: boolean; checklistCopy?: string }, @Query('lang') lang?: string) {
     return this.service.updateSettings(lang || 'en', body);
+  }
+
+  @Patch('settings/amd')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('OWNER', 'ADMIN')
+  async toggleAmd(@Body() body: { enabled: boolean }) {
+    return this.service.toggleAmd(body.enabled);
   }
 
   @Post('campaigns')
