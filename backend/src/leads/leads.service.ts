@@ -9,6 +9,7 @@ import { ContactsService } from '../contacts/contacts.service';
 import { MetricsService } from '../monitoring/metrics.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { LeadOrchestratorService } from '../voice-agent/lead-orchestrator.service';
+import { LeadContextService } from './lead-context.service';
 import { getNested, evaluateCondition } from '../shared/scoring.util';
 
 @Injectable()
@@ -25,6 +26,7 @@ export class LeadsService {
     private metrics: MetricsService,
     private realtimeGateway: RealtimeGateway,
     private callOrchestrator: LeadOrchestratorService,
+    private leadContext: LeadContextService,
   ) {}
 
   async findAll(query: any = {}) {
@@ -274,8 +276,40 @@ export class LeadsService {
 
     this.realtimeGateway.emitToTenant(lead.tenantId, 'lead.created', lead);
 
+    // Phase 1: context enrichment + AI scoring (fire-and-forget, non-blocking)
+    this.leadContext.enrich(lead.id).catch((e: any) =>
+      this.logger.warn(`Lead context enrichment failed: ${e.message}`)
+    );
+    this.score(lead.id).catch((e: any) =>
+      this.logger.warn(`Lead scoring failed: ${e.message}`)
+    );
+
     this.callOrchestrator.onLeadCreated(lead.id).catch(() => {});
     return lead;
+  }
+
+  /**
+   * Universal intake — every source calls this so all leads go through the
+   * same normalization, enrichment, scoring, and routing pipeline.
+   */
+  async intake(data: {
+    name: string; phone?: string; email?: string; whatsapp?: string;
+    source: string; message?: string; interest?: string; budget?: string;
+    campaignId?: string; metadata?: Record<string, unknown>;
+  }, userId?: string, req?: any) {
+    const contact = await this.contacts.findOrCreate({
+      name: data.name, phone: data.phone, email: data.email, whatsapp: data.whatsapp,
+    }, req);
+    return this.create({
+      contactId: contact.id,
+      tenantId: contact.tenantId,
+      source: data.source,
+      message: data.message,
+      interest: data.interest,
+      budget: data.budget,
+      campaignId: data.campaignId,
+      metadata: { ...(data.metadata || {}), _sourcePayload: data },
+    }, userId);
   }
 
   /**

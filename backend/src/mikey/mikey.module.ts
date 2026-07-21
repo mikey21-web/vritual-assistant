@@ -28,6 +28,7 @@ import { MemoryService } from './memory.service';
 import { MemoryController } from './memory.controller';
 import { NicheScannerService } from './niche-scanner.service';
 import { NicheActionService } from './niche-action.service';
+import { PermissionGateService } from './permission-gate.service';
 import { MikeyController } from './mikey.controller';
 import { GuardrailsController } from './guardrails.controller';
 
@@ -52,6 +53,7 @@ import { GuardrailsController } from './guardrails.controller';
     SalienceEngineService,
     AutonomyGuardrailsService,
     AutonomousActionService,
+    PermissionGateService,
   ],
   exports: [
     MikeyService,

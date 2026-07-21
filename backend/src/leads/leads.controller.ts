@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards, Req } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards, Req, Headers, BadRequestException } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery, ApiBody } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -23,6 +23,14 @@ export class LeadsController {
   @Post()
   @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT')
   create(@Body() d: CreateLeadDto, @Req() req) { return this.service.create(d, req.user.sub); }
+
+  @Post('intake')
+  @ApiOperation({ summary: 'Universal intake — any source POSTs here, Mikey normalizes, enriches, scores, and routes' })
+  @ApiBody({ schema: { type: 'object', properties: { name: { type: 'string' }, phone: { type: 'string' }, email: { type: 'string' }, source: { type: 'string' }, message: { type: 'string' }, interest: { type: 'string' }, budget: { type: 'string' }, campaignId: { type: 'string' }, metadata: { type: 'object' } }, required: ['name', 'source'] } })
+  intake(@Body() d: any, @Req() req) {
+    if (!d.name || !d.source) throw new BadRequestException('name and source are required');
+    return this.service.intake(d, undefined, req);
+  }
 
   @Post('manual')
   @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT')

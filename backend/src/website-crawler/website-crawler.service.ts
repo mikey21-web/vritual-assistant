@@ -2,6 +2,7 @@ import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { PrismaService } from '../prisma/prisma.service';
+import { DograhService } from '../shared/dograh.service';
 
 @Injectable()
 export class WebsiteCrawlerService {
@@ -10,6 +11,7 @@ export class WebsiteCrawlerService {
   constructor(
     private http: HttpService,
     private prisma: PrismaService,
+    private dograh: DograhService,
   ) {}
 
   private extractText(html: string, tag: string): string[] {
@@ -71,7 +73,7 @@ export class WebsiteCrawlerService {
       }
     }
 
-    // Save as knowledge articles
+    // Save as knowledge articles + sync to Dograh KB for voice agent RAG
     const created: any[] = [];
     for (const article of articles) {
       const slug = article.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80) || `page-${Date.now()}`;
@@ -84,6 +86,18 @@ export class WebsiteCrawlerService {
         created.push({ id: saved.id, title: saved.title, tags: saved.tags });
       } catch (e: any) {
         this.logger.warn(`Failed to save article "${article.title}": ${e.message}`);
+      }
+    }
+
+    // Sync new articles to Dograh knowledge base so voice agent can answer questions about them
+    for (const c of created) {
+      try {
+        const buf = Buffer.from(c.title + '\n\n' + articles.find(a => a.title === c.title)?.body || '', 'utf-8');
+        const doc = await this.dograh.uploadKnowledgeBaseDocument(`website-${c.id}.txt`, 'text/plain', buf);
+        // Attach to English workflow so RAG is live for calls
+        await this.dograh.setWorkflowKnowledgeBase('en', doc.document_uuid, true).catch(() => {});
+      } catch (e: any) {
+        this.logger.warn(`Failed to sync article "${c.title}" to Dograh KB: ${e.message}`);
       }
     }
 

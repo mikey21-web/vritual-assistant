@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef 
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { ContactsService } from '../contacts/contacts.service';
+import { LeadsService } from '../leads/leads.service';
 import { CreatePipelineStageDto, UpdatePipelineStageDto, UpdateNotificationPrefsDto } from './dto/advanced-features.dto';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -12,6 +13,7 @@ export class AdvancedFeaturesService {
     private prisma: PrismaService,
     private auditLogs: AuditLogsService,
     @Inject(forwardRef(() => ContactsService)) private contacts: ContactsService,
+    @Inject(forwardRef(() => LeadsService)) private leadsService: LeadsService,
   ) {}
 
   // === PIPELINE STAGES ===
@@ -279,15 +281,14 @@ export class AdvancedFeaturesService {
             contactId = contact.id;
           }
 
-          await this.prisma.lead.create({
-            data: {
-              source: (row.source as any) || 'MANUAL',
-              message: row.message || null,
-              interest: row.interest || null,
-              budget: row.budget || null,
-              urgency: row.urgency || null,
-              contactId,
-            } as any,
+          await this.leadsService.create({
+            source: (row.source as any) || 'MANUAL',
+            message: row.message || undefined,
+            interest: row.interest || undefined,
+            budget: row.budget || undefined,
+            urgency: row.urgency || undefined,
+            contactId,
+            metadata: { _bulkImport: true },
           });
         }
         processed++;

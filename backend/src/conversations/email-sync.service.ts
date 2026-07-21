@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { EmailAdapter } from '../shared/adapters/email.adapter';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
+import { LeadsService } from '../leads/leads.service';
 
 @Injectable()
 export class EmailSyncService implements OnApplicationBootstrap {
@@ -14,6 +15,7 @@ export class EmailSyncService implements OnApplicationBootstrap {
     private emailAdapter: EmailAdapter,
     private realtime: RealtimeGateway,
     private notifications: NotificationsService,
+    private leadsService: LeadsService,
   ) {}
 
   onApplicationBootstrap() {
@@ -53,8 +55,9 @@ export class EmailSyncService implements OnApplicationBootstrap {
       tenantId = existing.tenantId;
       leadId = existing.leads?.[0]?.id;
       if (!leadId) {
-        const lead = await this.prisma.lead.create({
-          data: { tenantId, contactId, source: 'EMAIL', status: 'NEW' },
+        const lead = await this.leadsService.create({
+          contactId, tenantId, source: 'EMAIL',
+          metadata: { _emailInbound: true, fromEmail },
         });
         leadId = lead.id;
       }
@@ -69,8 +72,9 @@ export class EmailSyncService implements OnApplicationBootstrap {
         data: { tenantId, name: fromEmail.split('@')[0], email: fromEmail },
       });
       contactId = newContact.id;
-      const lead = await this.prisma.lead.create({
-        data: { tenantId, contactId, source: 'EMAIL', status: 'NEW' },
+      const lead = await this.leadsService.create({
+        contactId, tenantId, source: 'EMAIL',
+        metadata: { _emailInbound: true, fromEmail },
       });
       leadId = lead.id;
     }

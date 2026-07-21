@@ -152,6 +152,7 @@ const outcomeWebhook = await wf.add({
       timeline: '{{gathered_context.timeline}}',
       needs_loan: '{{gathered_context.needs_loan}}',
       wants_site_visit: '{{gathered_context.wants_site_visit}}',
+      wants_human: '{{gathered_context.wants_human}}',
     },
   },
 });

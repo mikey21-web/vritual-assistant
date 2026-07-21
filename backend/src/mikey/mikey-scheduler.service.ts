@@ -159,7 +159,7 @@ export class MikeySchedulerService {
     const startedAt = Date.now();
     try {
       const findings: SchedulerFinding[] = [];
-      const [staleHot, staleNew, overdue, unassigned, missedCalls, portalFails, weakSales, sourceDrops] = await Promise.all([
+      const [staleHot, staleNew, overdue, unassigned, missedCalls, portalFails, weakSales, sourceDrops, executedTasks] = await Promise.all([
         this.runCheck('checkStaleHotLeads', () => this.checkStaleHotLeads()),
         this.runCheck('checkStaleNewLeads', () => this.checkStaleNewLeads()),
         this.runCheck('checkOverdueTasks', () => this.checkOverdueTasks()),
@@ -168,8 +168,10 @@ export class MikeySchedulerService {
         this.runCheck('scanFailedPortalLeads', () => this.scanFailedPortalLeads()),
         this.runCheck('scanWeakSalespeople', () => this.scanWeakSalespeople()),
         this.runCheck('scanSourceDrops', () => this.scanSourceDrops()),
+        this.runCheck('executeFollowUpTasks', () => this.executeFollowUpTasks()),
       ]);
       findings.push(...staleHot, ...staleNew, ...overdue, ...unassigned, ...missedCalls, ...portalFails, ...weakSales, ...sourceDrops);
+      if (executedTasks.length > 0) findings.push(...executedTasks);
 
       // Triage core: hand findings with an unambiguous, safe remedy straight
       // to the salience engine so Mikey acts on them without being asked,
@@ -416,6 +418,65 @@ export class MikeySchedulerService {
       count: overdue.length,
       metadata: { taskIds: overdue.map(t => t.id) },
     }];
+  }
+
+  private async executeFollowUpTasks(): Promise<SchedulerFinding[]> {
+    const now = new Date();
+    const tasks = await this.prisma.task.findMany({
+      where: {
+        dueAt: { lte: now },
+        status: 'pending',
+        createdBy: 'mikey-auto',
+      },
+      include: { lead: { include: { contact: true } } },
+      take: 10,
+    });
+    if (tasks.length === 0) return [];
+
+    let executed = 0;
+    for (const task of tasks) {
+      try {
+        const title = task.title.toLowerCase();
+        const lead = task.lead;
+        if (!lead) continue;
+        const leadId = lead.id;
+        const tenantId = lead.tenantId;
+        if (!leadId || !tenantId) continue;
+
+        const finding: SchedulerFinding = {
+          type: 'auto_follow_up',
+          severity: 'info',
+          title: task.title,
+          description: `Auto-follow-up: ${task.title}`,
+          count: 1,
+          metadata: { leadId, taskId: task.id, tenantId },
+        };
+        const outcome = await this.salienceEngine.route(finding);
+        if (outcome.acted) {
+          await this.prisma.task.update({
+            where: { id: task.id },
+            data: { status: 'completed', completedAt: new Date() },
+          });
+          executed++;
+        } else {
+          await this.prisma.task.update({
+            where: { id: task.id },
+            data: { status: 'in_progress' },
+          });
+        }
+      } catch (err: any) {
+        this.logger.error(`Failed to execute follow-up task ${task.id}: ${err.message}`);
+      }
+    }
+
+    return executed > 0 ? [{
+      type: 'auto_follow_ups_executed',
+      severity: 'info',
+      title: `Mikey auto-executed ${executed} follow-up(s)`,
+      description: `${executed} of ${tasks.length} pending auto-follow-ups were executed`,
+      count: executed,
+      metadata: { total: tasks.length },
+    }] : [];
   }
 
   private async checkUnassignedHotLeads(): Promise<SchedulerFinding[]> {

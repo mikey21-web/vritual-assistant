@@ -8,6 +8,7 @@ export type NotificationType =
   | 'message_received'
   | 'sla_breach'
   | 'webhook_failure'
+  | 'call_wants_human'
   | 'generic';
 
 const PREF_FIELD_BY_TYPE: Partial<Record<NotificationType, string>> = {
@@ -19,7 +20,7 @@ const PREF_FIELD_BY_TYPE: Partial<Record<NotificationType, string>> = {
 };
 
 // These types are urgent enough to also send a real text, not just an in-app row.
-const SMS_NOTIFICATION_TYPES: NotificationType[] = ['lead_hot', 'sla_breach'];
+const SMS_NOTIFICATION_TYPES: NotificationType[] = ['lead_hot', 'sla_breach', 'call_wants_human'];
 
 @Injectable()
 export class NotificationsService {

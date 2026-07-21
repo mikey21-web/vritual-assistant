@@ -16,6 +16,13 @@ const persona = await wf.add({
     'Be conversational, not robotic. Never pressure the customer.',
 });
 
+const transferHuman = await wf.add({
+  type: 'endCall',
+  name: 'transfer_to_human',
+  add_global_prompt: true,
+  prompt: 'Acknowledge their request to speak to a human. Tell them a team member will call them back shortly. Thank them warmly for their time and end the call.',
+});
+
 const start = await wf.add({
   type: 'startCall',
   name: 'greeting',
@@ -30,6 +37,7 @@ const start = await wf.add({
   extraction_enabled: true,
   extraction_variables: [
     { name: 'call_status', type: 'string', prompt: "one of: 'interested', 'busy', 'wrong_number'" },
+    { name: 'wants_human', type: 'boolean', prompt: 'true if the lead explicitly asks to speak to a human agent or manager' },
   ],
 });
 
@@ -137,9 +145,13 @@ const outcomeWebhook = await wf.add({
       timeline: '{{gathered_context.timeline}}',
       needs_loan: '{{gathered_context.needs_loan}}',
       wants_site_visit: '{{gathered_context.wants_site_visit}}',
+      wants_human: '{{gathered_context.wants_human}}',
     },
   },
 });
+
+// Human handoff
+wf.edge(start, transferHuman, { label: 'human_requested', condition: "wants_human is true" });
 
 // Happy path
 wf.edge(start, propertyType, { label: 'interested', condition: "call_status is 'interested'" });

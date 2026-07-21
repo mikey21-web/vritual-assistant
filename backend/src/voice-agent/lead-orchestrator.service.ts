@@ -4,10 +4,15 @@ import { PrismaService } from '../prisma/prisma.service';
 import { VoiceAgentService } from './voice-agent.service';
 import { ConversationsService } from '../conversations/conversations.service';
 import { OutboundWebhookDispatchService } from '../shared/outbound-webhook-dispatch.service';
+import { AutonomyGuardrailsService } from '../mikey/autonomy-guardrails.service';
+import { AutonomousActionService } from '../mikey/autonomous-action.service';
+import { PermissionGateService } from '../mikey/permission-gate.service';
+import { ApprovalsService } from '../approvals/approvals.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 interface ActionPlan {
   call?: { priority: number; lang: string };
-  whatsapp?: { priority: number; text: string };
+  whatsapp?: { priority: number; text: string; templateId?: string };
   sms?: { priority: number; text: string };
   email?: { priority: number; subject: string; html: string };
   waitHours?: number;
@@ -23,36 +28,30 @@ export class LeadOrchestratorService {
     private voiceAgent: VoiceAgentService,
     private conversations: ConversationsService,
     private outboundDispatch: OutboundWebhookDispatchService,
+    private guardrails: AutonomyGuardrailsService,
+    private autonomousAction: AutonomousActionService,
+    private permissionGate: PermissionGateService,
+    private approvals: ApprovalsService,
+    private notifications: NotificationsService,
   ) {}
 
   async onLeadCreated(leadId: string): Promise<void> {
     const lead = await this.prisma.lead.findUnique({
       where: { id: leadId },
-      include: {
-        contact: true,
-        campaign: true,
-        tenant: { select: { settings: true } },
-      },
+      include: { contact: true, campaign: true, tenant: { select: { settings: true } } },
     });
     if (!lead) { this.logger.warn(`Lead ${leadId} not found`); return; }
 
-    const plan = this.buildActionPlan(lead);
+    const plan = await this.buildActionPlan(lead);
     if (!plan) return;
 
     const userId = lead.assignedAgentId || 'mikey-auto';
 
-    // Execute actions in priority order (lower number = sooner)
     const actions: Array<() => Promise<void>> = [];
     if (plan.call) actions.push(() => this.executeCall(lead, plan.call!.lang, userId));
-    if (plan.whatsapp) actions.push(() => this.executeWhatsApp(lead, plan.whatsapp!.text, userId));
+    if (plan.whatsapp) actions.push(() => this.executeWhatsApp(lead, plan.whatsapp!.text, userId, plan.whatsapp!.templateId));
     if (plan.sms) actions.push(() => this.executeSms(lead, plan.sms!.text, userId));
     if (plan.email) actions.push(() => this.executeEmail(lead, plan.email!.subject, plan.email!.html, userId));
-
-    actions.sort((a, b) => {
-      const pa = plan.call && a.name === 'executeCall' ? plan.call.priority : 99;
-      const pb = plan.call && b.name === 'executeCall' ? plan.call.priority : 99;
-      return pa - pb;
-    });
 
     for (const action of actions) {
       try { await action(); } catch (e: any) { this.logger.error(`Action failed for lead ${leadId}: ${e.message}`); }
@@ -60,39 +59,69 @@ export class LeadOrchestratorService {
     }
   }
 
-  private buildActionPlan(lead: any): ActionPlan | null {
+  private async buildActionPlan(lead: any): Promise<ActionPlan | null> {
     const tenantSettings = (lead.tenant?.settings || {}) as any;
     const source = lead.source as string;
     const campaign = lead.campaign;
     const phone = lead.contact?.phone;
     const whatsapp = lead.contact?.whatsapp || phone;
+    const metadata = (lead.metadata || {}) as any;
+    const context = metadata._context || {};
+    const aiIntent = context.aiIntent ?? 50;
+    const aiUrgency = context.aiUrgency ?? 50;
+    const segment = lead.segment;
 
-    // Campaign auto-actions override everything
-    const campaignChannels = campaign?.channels
-      ? (typeof campaign.channels === 'string' ? JSON.parse(campaign.channels) : campaign.channels)
-      : [];
+    // Next best action logic based on lead context
+    const campaignActions = this.campaignAutoActions(campaign);
 
-    // Look for auto-action config in campaign channels (or a dedicated autoActions field on campaign)
-    // ponytail: uses campaign.channels[].autoAction flag; extend with dedicated field if per-campaign actions grow complex
-    const autoActions = campaign
-      ? this.campaignAutoActions(campaign)
-      : tenantSettings.autoActions || this.sourceDefaults(source);
+    // Campaign actions override everything
+    if (campaignActions && campaignActions.length > 0) {
+      return this.buildPlanFromActions(campaignActions, lead, phone, whatsapp);
+    }
 
-    if (!autoActions || Object.keys(autoActions).length === 0) {
-      // Fallback: default auto-call for leads with phone
+    // Source defaults
+    const sourceDefaults = this.sourceDefaults(source);
+
+    // Lead-context-aware action selection
+    const contextualActions: Array<{ type: string; priority: number; text?: string; lang?: string }> = [];
+
+    // Hot leads with high urgency: call first
+    if ((segment === 'HOT' || aiIntent >= 70) && aiUrgency >= 60 && phone) {
+      contextualActions.push({ type: 'call', priority: 1, lang: this.detectLanguage(lead) });
+      contextualActions.push({ type: 'whatsapp', priority: 2, text: this.immediateFollowUpText(lead) });
+    }
+
+    // Warm + high intent: WhatsApp first with details
+    if (aiIntent >= 50 && aiIntent < 70 && whatsapp) {
+      contextualActions.push({ type: 'whatsapp', priority: 1, text: this.defaultWhatsAppText(lead) });
+    }
+
+    // Cold or low intent: WhatsApp + SMS, no call
+    if (segment === 'COLD' || aiIntent < 30) {
+      if (whatsapp) contextualActions.push({ type: 'whatsapp', priority: 1, text: this.defaultWhatsAppText(lead) });
+      if (phone) contextualActions.push({ type: 'sms', priority: 2, text: this.defaultSmsText(lead) });
+    }
+
+    // Fallback: source defaults
+    const finalActions = contextualActions.length > 0 ? contextualActions : sourceDefaults;
+    if (finalActions.length === 0) {
       if (phone && tenantSettings.autoCallOnLead !== false) {
         return { call: { priority: 1, lang: this.detectLanguage(lead) } };
       }
       return null;
     }
 
+    return this.buildPlanFromActions(finalActions, lead, phone, whatsapp);
+  }
+
+  private buildPlanFromActions(actions: any[], lead: any, phone: string, whatsapp: string): ActionPlan | null {
     const plan: ActionPlan = {};
-    for (const action of autoActions) {
+    for (const action of actions) {
       if (action.type === 'call' && phone) {
         plan.call = { priority: action.priority || 1, lang: action.lang || this.detectLanguage(lead) };
       }
       if (action.type === 'whatsapp' && whatsapp) {
-        plan.whatsapp = { priority: action.priority || 2, text: action.text || this.defaultWhatsAppText(lead) };
+        plan.whatsapp = { priority: action.priority || 2, text: action.text || this.defaultWhatsAppText(lead), templateId: action.templateId };
       }
       if (action.type === 'sms' && phone) {
         plan.sms = { priority: action.priority || 3, text: action.text || this.defaultSmsText(lead) };
@@ -105,19 +134,16 @@ export class LeadOrchestratorService {
   }
 
   private campaignAutoActions(campaign: any): any[] {
+    if (!campaign) return [];
     const channels = (typeof campaign.channels === 'string' ? JSON.parse(campaign.channels) : campaign.channels) as any[];
     const actions = channels.filter((c: any) => c.autoAction || c.onLeadCreate);
     if (actions.length) return actions;
-
-    // Try a dedicated autoActions field on the campaign object
     const raw = (campaign as any).autoActions || campaign.metadata?.autoActions || null;
     if (raw) return typeof raw === 'string' ? JSON.parse(raw) : raw;
-
     return [];
   }
 
   private sourceDefaults(source: string): any[] {
-    // ponytail: simple mapping; extend with editable tenant-level rules if per-source config becomes a request
     const map: Record<string, any[]> = {
       META_ADS: [{ type: 'whatsapp', priority: 1, text: 'Hi! Thanks for reaching out via our ad. How can I help you today?' }],
       GOOGLE_ADS: [{ type: 'whatsapp', priority: 1, text: 'Thanks for your inquiry! Let me know if you need more details.' }],
@@ -132,23 +158,37 @@ export class LeadOrchestratorService {
 
   private async executeCall(lead: any, lang: string, userId: string): Promise<void> {
     if (!lead.contact?.phone) return;
+    const gate = await this.permissionGate.evaluate(lead.id, 'outbound_call', 'VOICE');
+    if (gate.verdict === 'BLOCK') {
+      this.logger.warn(`Call blocked by gate for lead ${lead.id}: ${gate.reason}`);
+      return;
+    }
+    if (gate.verdict === 'REQUIRE_APPROVAL') {
+      // Queue for approval instead of executing
+      await this.createApprovalRequest(lead.id, 'call', 'Outbound call', lead.contact?.phone);
+      this.logger.log(`Call queued for approval for lead ${lead.id}`);
+      return;
+    }
     this.logger.log(`Auto-calling lead ${lead.id} (${lead.contact.name}) in ${lang}`);
     const result = await this.voiceAgent.callLead(lead.id, userId, lang);
     if (!result.success) this.logger.warn(`Auto-call failed for ${lead.id}: ${result.message}`);
   }
 
-  private async executeWhatsApp(lead: any, text: string, userId: string): Promise<void> {
+  private async executeWhatsApp(lead: any, text: string, userId: string, templateId?: string): Promise<void> {
     const to = lead.contact?.whatsapp || lead.contact?.phone;
     if (!to) return;
+    const gate = await this.permissionGate.evaluate(lead.id, 'whatsapp_reply', 'WHATSAPP', { text, templateId });
+    if (gate.verdict === 'BLOCK') {
+      this.logger.warn(`WhatsApp blocked by gate for lead ${lead.id}: ${gate.reason}`);
+      return;
+    }
+    if (gate.verdict === 'REQUIRE_APPROVAL') {
+      await this.createApprovalRequest(lead.id, 'whatsapp', text, to);
+      return;
+    }
     this.logger.log(`Auto-WhatsApp to lead ${lead.id}`);
     try {
-      await this.conversations.create({
-        text,
-        channel: 'WHATSAPP',
-        direction: 'OUTBOUND',
-        leadId: lead.id,
-        contactId: lead.contactId,
-      }, userId);
+      await this.conversations.create({ text, channel: 'WHATSAPP', direction: 'OUTBOUND', leadId: lead.id, contactId: lead.contactId }, userId);
     } catch (e: any) {
       if (e.name !== 'ForbiddenException') throw e;
       this.logger.warn(`WhatsApp blocked by policy for lead ${lead.id}: ${e.message}`);
@@ -157,15 +197,11 @@ export class LeadOrchestratorService {
 
   private async executeSms(lead: any, text: string, userId: string): Promise<void> {
     if (!lead.contact?.phone) return;
+    const gate = await this.permissionGate.evaluate(lead.id, 'sms_reminder', 'SMS', { text });
+    if (gate.verdict !== 'ALLOW') return;
     this.logger.log(`Auto-SMS to lead ${lead.id}`);
     try {
-      await this.conversations.create({
-        text,
-        channel: 'SMS',
-        direction: 'OUTBOUND',
-        leadId: lead.id,
-        contactId: lead.contactId,
-      }, userId);
+      await this.conversations.create({ text, channel: 'SMS', direction: 'OUTBOUND', leadId: lead.id, contactId: lead.contactId }, userId);
     } catch (e: any) {
       if (e.name !== 'ForbiddenException') throw e;
     }
@@ -173,19 +209,28 @@ export class LeadOrchestratorService {
 
   private async executeEmail(lead: any, subject: string, html: string, userId: string): Promise<void> {
     if (!lead.contact?.email) return;
+    const gate = await this.permissionGate.evaluate(lead.id, 'email_followup', 'EMAIL', { text: subject });
+    if (gate.verdict !== 'ALLOW') return;
     this.logger.log(`Auto-email to lead ${lead.id}`);
     try {
-      await this.conversations.create({
-        text: html,
-        subject,
-        channel: 'EMAIL',
-        direction: 'OUTBOUND',
-        leadId: lead.id,
-        contactId: lead.contactId,
-      }, userId);
+      await this.conversations.create({ text: html, subject, channel: 'EMAIL', direction: 'OUTBOUND', leadId: lead.id, contactId: lead.contactId }, userId);
     } catch (e: any) {
       if (e.name !== 'ForbiddenException') throw e;
     }
+  }
+
+  private async createApprovalRequest(leadId: string, action: string, detail: string, target: string): Promise<void> {
+    try {
+      const lead = await this.prisma.lead.findUnique({ where: { id: leadId }, select: { tenantId: true } });
+      if (!lead) return;
+      await this.approvals.request(lead.tenantId, {
+        type: `mikey_${action}`,
+        entityType: 'lead',
+        entityId: leadId,
+        reason: `Mikey needs approval to ${action}: ${detail}`,
+        requestedById: 'mikey-auto',
+      });
+    } catch {}
   }
 
   async handleCallWebhook(payload: any): Promise<void> {
@@ -222,53 +267,100 @@ export class LeadOrchestratorService {
       data: {
         leadId: lead_id,
         userId,
-        content: `📞 Call completed (${duration_seconds || '?'}s)\nTranscript: ${(transcript || 'N/A').slice(0, 2000)}\nSummary: ${(summary || 'N/A').slice(0, 1000)}`,
+        content: `Call completed (${duration_seconds || '?'}s)\nTranscript: ${(transcript || 'N/A').slice(0, 2000)}\nSummary: ${(summary || 'N/A').slice(0, 1000)}`,
       },
     });
 
     if (payload.outcome || summary) {
-      const outcome = payload.outcome
-        ? this.mapStructuredOutcome(payload.outcome)
-        : this.parseCallOutcome(summary, transcript || '');
-      if (outcome.status) {
-        await this.prisma.lead.update({
-          where: { id: lead_id },
-          data: { status: outcome.status as any },
-        }).catch(() => {});
-      }
-      if (outcome.followUpDays) {
-        const dueAt = new Date();
-        dueAt.setDate(dueAt.getDate() + outcome.followUpDays);
-        await this.prisma.task.create({
-          data: {
-            leadId: lead_id,
-            title: outcome.followUpTitle || `Follow-up call (${outcome.followUpDays}d)`,
-            priority: outcome.followUpDays <= 2 ? 'HIGH' : 'MEDIUM',
-            dueAt,
-            status: 'pending',
-            createdBy: 'mikey-auto',
-          },
-        }).catch(() => {});
-      }
+      await this.processCallOutcome(lead_id, payload, userId);
     }
 
     this.outboundDispatch.dispatch('call.completed', {
-      leadId: lead_id,
-      callSid: call_sid,
-      status: callStatus,
+      leadId: lead_id, callSid: call_sid, status: callStatus,
       durationSec: duration_seconds ? Math.round(duration_seconds) : undefined,
-      transcript,
-      summary,
-      outcome: payload.outcome,
+      transcript, summary, outcome: payload.outcome,
     }).catch((e) => this.logger.warn(`Outbound webhook dispatch failed for lead ${lead_id}: ${e.message}`));
 
+    // Re-enter the decision loop: after a call, Mikey re-evaluates what to do next
+    this.onLeadCreated(lead_id).catch((e: any) =>
+      this.logger.warn(`Re-trigger orchestrator for lead ${lead_id} after call: ${e.message}`)
+    );
+
     this.logger.log(`Call webhook processed for lead ${lead_id}`);
+  }
+
+  private isTruthy(v: any): boolean {
+    return v === true || v === 'true' || v === 'True';
+  }
+
+  /** Caller explicitly asked for a human mid-call (IVR handoff) — escalate immediately instead of waiting for the normal follow-up cadence. */
+  private async escalateToHuman(leadId: string): Promise<void> {
+    const lead = await this.prisma.lead.findUnique({ where: { id: leadId }, select: { tenantId: true, assignedAgentId: true, contact: { select: { name: true, phone: true } } } });
+    if (!lead) return;
+
+    await this.prisma.task.create({
+      data: {
+        leadId,
+        title: `Callback requested — ${lead.contact?.name || 'caller'} asked to speak with a human`,
+        priority: 'HIGH',
+        dueAt: new Date(),
+        status: 'pending',
+        createdBy: 'mikey-auto',
+      },
+    }).catch(() => {});
+
+    const recipients = lead.assignedAgentId
+      ? [{ id: lead.assignedAgentId }]
+      : await this.prisma.user.findMany({ where: { tenantId: lead.tenantId, role: { in: ['OWNER', 'ADMIN', 'MANAGER'] }, active: true }, select: { id: true } });
+
+    for (const user of recipients) {
+      await this.notifications.create({
+        tenantId: lead.tenantId,
+        userId: user.id,
+        type: 'call_wants_human',
+        title: 'Caller asked for a human',
+        body: `${lead.contact?.name || 'A caller'} (${lead.contact?.phone || 'unknown number'}) asked the voice agent to be transferred to a real person.`,
+        link: `#/leads/${leadId}`,
+      }).catch(() => {});
+    }
+  }
+
+  private async processCallOutcome(leadId: string, payload: any, userId: string): Promise<void> {
+    if (this.isTruthy(payload.outcome?.wants_human)) {
+      await this.escalateToHuman(leadId);
+    }
+    const outcome = payload.outcome
+      ? this.mapStructuredOutcome(payload.outcome)
+      : this.parseCallOutcome(payload.summary || '', payload.transcript || '');
+    if (outcome.status) {
+      await this.prisma.lead.update({ where: { id: leadId }, data: { status: outcome.status as any } }).catch(() => {});
+    }
+    if (outcome.followUpDays) {
+      const dueAt = new Date();
+      dueAt.setDate(dueAt.getDate() + outcome.followUpDays);
+      await this.prisma.task.create({
+        data: {
+          leadId,
+          title: outcome.followUpTitle || `Follow-up (${outcome.followUpDays}d)`,
+          priority: outcome.followUpDays <= 2 ? 'HIGH' : 'MEDIUM',
+          dueAt, status: 'pending', createdBy: 'mikey-auto',
+        },
+      }).catch(() => {});
+    }
+    if (payload.transcript) {
+      try {
+        await this.prisma.lead.update({
+          where: { id: leadId },
+          data: { metadata: { ...payload.metadata, _lastCallTranscript: (payload.transcript || '').slice(0, 5000) } },
+        });
+      } catch {}
+    }
   }
 
   private mapCallStatus(status: string, endedReason?: string): any {
     if (status === 'completed' || status === 'COMPLETED') return 'COMPLETED';
     if (status === 'failed' || status === 'FAILED') return 'FAILED';
-    if (status === 'no-answer' || status === 'NO_ANSWER' || endedReason === 'no_answer') return 'NO_ANSWER';
+    if (status === 'no-answer' || endedReason === 'no_answer') return 'NO_ANSWER';
     if (status === 'busy' || status === 'BUSY') return 'BUSY';
     return 'COMPLETED';
   }
@@ -292,10 +384,14 @@ export class LeadOrchestratorService {
     const lower = (summary + ' ' + transcript).toLowerCase();
     if (lower.includes('not interested') || lower.includes('no thanks')) return { status: 'LOST' };
     if (lower.includes('site visit') || lower.includes('visit')) return { status: 'APPOINTMENT_BOOKED', followUpDays: 1, followUpTitle: 'Confirm site visit' };
-    if (lower.includes('budget') || lower.includes('price') || lower.includes('cost')) return { followUpDays: 2, followUpTitle: 'Share pricing details' };
+    if (lower.includes('budget') || lower.includes('price') || lower.includes('cost')) return { followUpDays: 2, followUpTitle: 'Share pricing' };
     if (lower.includes('follow') || lower.includes('call back') || lower.includes('later')) return { followUpDays: 3, followUpTitle: 'Follow-up call' };
     if (lower.includes('interested') || lower.includes('yes') || lower.includes('want')) return { status: 'QUALIFIED', followUpDays: 1, followUpTitle: 'Send project details' };
     return { followUpDays: 3, followUpTitle: 'Follow-up call' };
+  }
+
+  private immediateFollowUpText(lead: any): string {
+    return `Hi ${lead.contact?.name || 'there'}! I just tried calling you. Let me know the best time to reach you or if you have any questions right away.`;
   }
 
   private defaultWhatsAppText(lead: any): string {
