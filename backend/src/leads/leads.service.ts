@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException, Logger, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
@@ -19,10 +19,10 @@ export class LeadsService {
   constructor(
     private prisma: PrismaService,
     private auditLogs: AuditLogsService,
-    private advanced: AdvancedFeaturesService,
+    @Inject(forwardRef(() => AdvancedFeaturesService)) private advanced: AdvancedFeaturesService,
     private events: EventsService,
     private notifications: NotificationsService,
-    private contacts: ContactsService,
+    @Inject(forwardRef(() => ContactsService)) private contacts: ContactsService,
     private metrics: MetricsService,
     private realtimeGateway: RealtimeGateway,
     private callOrchestrator: LeadOrchestratorService,
