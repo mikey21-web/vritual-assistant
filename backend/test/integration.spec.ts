@@ -16,20 +16,16 @@ beforeAll(async () => {
   await app.init();
   prisma = app.get(PrismaService);
 
-  // Create test user directly via Prisma
-  const existing = await prisma.user.findUnique({ where: { email: 'e2e@test.com' } });
-  if (existing) {
-    await prisma.auditLog.deleteMany({ where: { userId: existing.id } }).catch(() => {});
-    await prisma.user.delete({ where: { id: existing.id } }).catch(() => {});
-  }
-
-  const hashed = await bcrypt.hash('Test123456', 1);
-  await prisma.user.create({
-    data: { email: 'e2e@test.com', name: 'E2E User', password: hashed, role: 'OWNER', active: true, tenantId: 'default-tenant' },
+  // Create test user directly via Prisma (upsert to handle leftover data from partial runs)
+  const hashed = await bcrypt.hash('Test123!@#', 1);
+  await prisma.user.upsert({
+    where: { email: 'e2e@test.com' },
+    update: { password: hashed, name: 'E2E User', role: 'OWNER', active: true, tenantId: 'default-tenant' },
+    create: { email: 'e2e@test.com', name: 'E2E User', password: hashed, role: 'OWNER', active: true, tenantId: 'default-tenant' },
   });
 
   const login = await request(app.getHttpServer()).post('/auth/login').send({
-    email: 'e2e@test.com', password: 'Test123456',
+    email: 'e2e@test.com', password: 'Test123!@#',
   });
   jwtToken = login.body.accessToken;
 }, 30000);
@@ -70,7 +66,7 @@ describe('Integration Tests', () => {
   let campaignId: string;
 
   it('POST /auth/login — returns JWT', async () => {
-    const res = await request(app.getHttpServer()).post('/auth/login').send({ email: 'e2e@test.com', password: 'Test123456' });
+    const res = await request(app.getHttpServer()).post('/auth/login').send({ email: 'e2e@test.com', password: 'Test123!@#' });
     expect(res.status).toBe(201);
     expect(res.body.accessToken).toBeDefined();
   });
@@ -231,7 +227,7 @@ describe('Integration Tests', () => {
   describe('Authentication', () => {
     it('POST /auth/register — creates user and returns token', async () => {
       const res = await request(app.getHttpServer()).post('/auth/register').set('Authorization', `Bearer ${jwtToken}`).send({
-        email: 'e2e-auth-test@test.com', password: 'Test123456', name: 'Auth Test',
+        email: 'e2e-auth-test@test.com', password: 'Test123!@#', name: 'Auth Test',
       });
       expect(res.status).toBe(201);
       expect(res.body.accessToken).toBeDefined();
@@ -243,7 +239,7 @@ describe('Integration Tests', () => {
     });
 
     it('POST /auth/login — valid credentials return token', async () => {
-      const res = await request(app.getHttpServer()).post('/auth/login').send({ email: 'e2e@test.com', password: 'Test123456' });
+      const res = await request(app.getHttpServer()).post('/auth/login').send({ email: 'e2e@test.com', password: 'Test123!@#' });
       expect(res.status).toBe(201);
       expect(res.body.accessToken).toBeDefined();
     });
@@ -374,19 +370,27 @@ describe('Integration Tests', () => {
     let salesToken: string;
 
     beforeAll(async () => {
+      for (const email of ['e2e-viewer@test.com', 'e2e-sales@test.com']) {
+        const existing = await prisma.user.findUnique({ where: { email } });
+        if (existing) {
+          await prisma.auditLog.deleteMany({ where: { userId: existing.id } }).catch(() => {});
+          await prisma.user.delete({ where: { id: existing.id } }).catch(() => {});
+        }
+      }
+
       try {
-        await request(app.getHttpServer()).post('/auth/register').set('Authorization', `Bearer ${jwtToken}`).send({ email: 'e2e-viewer@test.com', password: 'Test123456', name: 'Viewer' });
+        await request(app.getHttpServer()).post('/auth/register').set('Authorization', `Bearer ${jwtToken}`).send({ email: 'e2e-viewer@test.com', password: 'Test123!@#', name: 'Viewer' });
         const vu = await prisma.user.findUnique({ where: { email: 'e2e-viewer@test.com' } });
         if (vu) await prisma.user.update({ where: { id: vu.id }, data: { role: 'SALES_AGENT' } });
-        const vlogin = await request(app.getHttpServer()).post('/auth/login').send({ email: 'e2e-viewer@test.com', password: 'Test123456' });
+        const vlogin = await request(app.getHttpServer()).post('/auth/login').send({ email: 'e2e-viewer@test.com', password: 'Test123!@#' });
         viewerToken = vlogin.body.accessToken;
       } catch {}
 
       try {
-        await request(app.getHttpServer()).post('/auth/register').set('Authorization', `Bearer ${jwtToken}`).send({ email: 'e2e-sales@test.com', password: 'Test123456', name: 'Sales' });
+        await request(app.getHttpServer()).post('/auth/register').set('Authorization', `Bearer ${jwtToken}`).send({ email: 'e2e-sales@test.com', password: 'Test123!@#', name: 'Sales' });
         const su = await prisma.user.findUnique({ where: { email: 'e2e-sales@test.com' } });
         if (su) await prisma.user.update({ where: { id: su.id }, data: { role: 'SALES_AGENT' } });
-        const slogin = await request(app.getHttpServer()).post('/auth/login').send({ email: 'e2e-sales@test.com', password: 'Test123456' });
+        const slogin = await request(app.getHttpServer()).post('/auth/login').send({ email: 'e2e-sales@test.com', password: 'Test123!@#' });
         salesToken = slogin.body.accessToken;
       } catch {}
     });

@@ -15,8 +15,8 @@ export class CampaignsController {
 
   @Get()
   @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT')
-  findAll(@Query() q: CampaignFilterDto) {
-    return this.service.findAll(q);
+  findAll(@Query() q: CampaignFilterDto, @Req() req) {
+    return this.service.findAll(q, req.user?.tenantId);
   }
 
   @Post()
@@ -30,8 +30,8 @@ export class CampaignsController {
 
   @Get(':id')
   @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT', 'VIEWER')
-  findOne(@Param('id') id: string) {
-    return this.service.findOne(id);
+  findOne(@Param('id') id: string, @Req() req) {
+    return this.service.findOne(id, req.user?.tenantId);
   }
 
   @Patch(':id')

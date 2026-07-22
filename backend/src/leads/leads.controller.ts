@@ -18,7 +18,7 @@ export class LeadsController {
   @Get()
   @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT', 'SUPPORT_AGENT', 'VIEWER')
   @ApiQuery({ name: 'status', required: false }) @ApiQuery({ name: 'segment', required: false }) @ApiQuery({ name: 'source', required: false }) @ApiQuery({ name: 'campaignId', required: false }) @ApiQuery({ name: 'assignedAgentId', required: false }) @ApiQuery({ name: 'search', required: false })
-  findAll(@Query() q: LeadQueryDto & PaginationDto) { return this.service.findAll(q); }
+  findAll(@Query() q: LeadQueryDto & PaginationDto, @Req() req) { return this.service.findAll(q, req.user?.tenantId); }
 
   @Post()
   @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT')
@@ -39,7 +39,7 @@ export class LeadsController {
 
   @Get(':id')
   @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT', 'SUPPORT_AGENT', 'VIEWER')
-  findOne(@Param('id') id: string) { return this.service.findOne(id); }
+  findOne(@Param('id') id: string, @Req() req) { return this.service.findOne(id, req.user?.tenantId); }
 
   @Get(':id/brief')
   @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT')

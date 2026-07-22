@@ -24,13 +24,14 @@ export class CampaignsService {
     });
   }
 
-  async findAll(query: CampaignFilterDto) {
+  async findAll(query: CampaignFilterDto, tenantId?: string) {
     const {
       status, campaignType, sourceType, search, active,
       page = 1, limit = 20, sortBy = 'createdAt', sortOrder = 'desc',
     } = query;
 
     const where: any = {};
+    if (tenantId) where.tenantId = tenantId;
     if (status) where.status = status;
     if (campaignType) where.campaignType = campaignType;
     if (sourceType) where.sourceType = sourceType;
@@ -74,9 +75,11 @@ export class CampaignsService {
     return { data, meta: { total, page: +page, limit: +limit } };
   }
 
-  async findOne(id: string) {
-    const c = await this.prisma.campaign.findUnique({
-      where: { id },
+  async findOne(id: string, tenantId?: string) {
+    const where: any = { id };
+    if (tenantId) where.tenantId = tenantId;
+    const c = await this.prisma.campaign.findFirst({
+      where,
       include: {
         form: true,
         qrCode: true,

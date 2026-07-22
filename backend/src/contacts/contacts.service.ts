@@ -13,9 +13,10 @@ export class ContactsService {
     @Inject(forwardRef(() => AdvancedFeaturesService)) private advanced: AdvancedFeaturesService,
   ) {}
 
-  async findAll(query: any = {}) {
+  async findAll(query: any = {}, tenantId?: string) {
     const { page = 1, limit = 20, search } = query;
     const where: any = { deletedAt: null };
+    if (tenantId) where.tenantId = tenantId;
     if (search) {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
@@ -30,8 +31,10 @@ export class ContactsService {
     return { data, meta: { total, page: +page, limit: +limit } };
   }
 
-  async findOne(id: string) {
-    const c = await this.prisma.contact.findUnique({ where: { id }, include: { leads: true, _count: { select: { leads: true } } } });
+  async findOne(id: string, tenantId?: string) {
+    const where: any = { id };
+    if (tenantId) where.tenantId = tenantId;
+    const c = await this.prisma.contact.findFirst({ where, include: { leads: true, _count: { select: { leads: true } } } });
     if (!c) throw new NotFoundException('Contact not found');
     return c;
   }
@@ -88,8 +91,8 @@ export class ContactsService {
     }
   }
 
-  async update(id: string, data: Prisma.ContactUpdateInput) {
-    const existing = await this.findOne(id);
+  async update(id: string, data: Prisma.ContactUpdateInput, tenantId?: string) {
+    const existing = await this.findOne(id, tenantId);
     try {
       return await this.prisma.contact.update({
         where: { id, version: existing.version },
@@ -103,8 +106,8 @@ export class ContactsService {
     }
   }
 
-  async remove(id: string): Promise<{ message: string }> {
-    const existing = await this.findOne(id);
+  async remove(id: string, tenantId?: string): Promise<{ message: string }> {
+    const existing = await this.findOne(id, tenantId);
     await this.prisma.contact.update({
       where: { id },
       data: { deletedAt: new Date() },

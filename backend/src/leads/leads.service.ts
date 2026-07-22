@@ -29,9 +29,10 @@ export class LeadsService {
     private leadContext: LeadContextService,
   ) {}
 
-  async findAll(query: any = {}) {
+  async findAll(query: any = {}, tenantId?: string) {
     const { page = 1, limit = 20, status, segment, source, campaignId, assignedAgentId, search, sortBy, sortOrder } = query;
     const where: any = {};
+    if (tenantId) where.tenantId = tenantId;
     if (status) where.status = status;
     if (segment) where.segment = segment;
     if (source) where.source = source;
@@ -59,9 +60,11 @@ export class LeadsService {
     return { data, meta: { total, page: +page, limit: +limit } };
   }
 
-  async findOne(id: string) {
-    const l = await this.prisma.lead.findUnique({
-      where: { id },
+  async findOne(id: string, tenantId?: string) {
+    const where: any = { id };
+    if (tenantId) where.tenantId = tenantId;
+    const l = await this.prisma.lead.findFirst({
+      where,
       include: { contact: true, assignedAgent: { select: { id: true, name: true, email: true } }, campaign: { select: { id: true, name: true } }, conversations: true, conversions: true, tasks: true },
     });
     if (!l) throw new NotFoundException('Lead not found');
