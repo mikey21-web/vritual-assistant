@@ -16,6 +16,8 @@ beforeAll(async () => {
   await app.init();
   prisma = app.get(PrismaService);
 
+  // Clean up any leftover test data from a previous partial run
+  await prisma.contact.deleteMany({ where: { email: { in: ['e2e-integration@test.com', 'leadtest@test.com', 'webhook@test.com', 'wtest@test.com'] } } }).catch(() => {});
   // Create test user directly via Prisma (upsert to handle leftover data from partial runs)
   const hashed = await bcrypt.hash('Test123!@#', 1);
   await prisma.user.upsert({
