@@ -6,7 +6,7 @@ import {
   Zap, AlertTriangle, AlertCircle, CheckCircle,
   DollarSign, Clock, Phone, MessageSquare, Calendar,
   ChevronRight, Loader2, ArrowUpRight, ArrowDownRight,
-  CheckSquare, UserCheck, Building2, MapPin,
+  CheckSquare, UserCheck, Building2, MapPin, Bot,
 } from 'lucide-react';
 import { Skeleton } from '../components/ui/skeleton';
 
@@ -104,6 +104,50 @@ function PageFallback() {
 /* ------------------------------------------------------------------ */
 /*  Sub-components                                                     */
 /* ------------------------------------------------------------------ */
+
+/** Conic-gradient progress ring, no chart library needed. */
+function StatDonut({ percent, color }: { percent: number; color: string }) {
+  const clamped = Math.max(0, Math.min(100, percent));
+  return (
+    <div
+      className="relative h-20 w-20 rounded-full shrink-0"
+      style={{ background: `conic-gradient(${color} ${clamped * 3.6}deg, var(--muted) 0deg)` }}
+    >
+      <div className="absolute inset-1.5 rounded-full bg-[var(--card)] flex items-center justify-center">
+        <span className="text-sm font-bold text-[var(--foreground)]">{clamped}%</span>
+      </div>
+    </div>
+  );
+}
+
+function HeroStatCard({ label, value, sublabel }: { label: string; value: number | string; sublabel: string }) {
+  return (
+    <div className="rounded-xl p-6 flex items-center justify-between bg-[var(--primary)] text-white">
+      <div>
+        <p className="text-sm text-white/80">{label}</p>
+        <p className="text-3xl font-bold mt-1">{value}</p>
+        <p className="text-xs text-white/70 mt-2">{sublabel}</p>
+      </div>
+      <Building2 size={40} className="text-white/25 shrink-0" />
+    </div>
+  );
+}
+
+function HotLeadRatioCard({ hot, total }: { hot: number; total: number }) {
+  const percent = total > 0 ? Math.round((hot / total) * 100) : 0;
+  return (
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 flex items-center gap-4">
+      <StatDonut percent={percent} color="var(--chart-orange)" />
+      <div>
+        <p className="text-xs font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 inline-block px-2 py-0.5 rounded-full mb-1">
+          {hot} hot
+        </p>
+        <p className="text-2xl font-bold text-[var(--foreground)]">{total}</p>
+        <p className="text-xs text-[var(--muted-foreground)]">total active leads</p>
+      </div>
+    </div>
+  );
+}
 
 function StatChip({ icon: Icon, label, value, color }: {
   icon: any; label: string; value: string | number; color: 'emerald' | 'red' | 'amber' | 'blue';
@@ -539,17 +583,20 @@ export default function OverviewPage() {
     <>
       {/* Greeting */}
       <div>
-        <div className="flex items-center gap-2 mb-1">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-          <span className="text-[11px] font-semibold text-[var(--muted-foreground)] uppercase tracking-[0.15em]">
+        <div className="flex items-center gap-3 mb-2">
+          <span className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold text-emerald-600 tracking-wide">
+            <Bot size={12} />
+            Mikey
+          </span>
+          <span className="text-[11px] font-medium text-[var(--muted-foreground)] uppercase tracking-[0.15em]">
             {todayLabel()}
           </span>
         </div>
         <h1 className="text-2xl font-bold text-[var(--foreground)]">
-          {greeting()}, {firstName}
+          {greeting()}, <span className="font-[family-name:var(--font-script)] text-3xl font-normal text-emerald-600">{firstName}</span>
         </h1>
         <p className="text-sm text-[var(--muted-foreground)] mt-1">
-          Mikey has been watching the business since 6 AM.
+          Mikey&rsquo;s been watching the business since 6 AM
         </p>
       </div>
 
@@ -580,7 +627,19 @@ export default function OverviewPage() {
         {headerContent}
       </div>
 
-      {/* ── Row 1: Revenue + Approvals ────────────────────────── */}
+      {/* ── Row 1: Hero stat + Hot lead ratio ──────────────────── */}
+      {brief && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <HeroStatCard
+            label="Total Active Leads"
+            value={brief.summary.totalLeads}
+            sublabel={`${brief.summary.newLeadsToday} new today, ${brief.summary.newLeadsYesterday} yesterday`}
+          />
+          <HotLeadRatioCard hot={brief.summary.hotLeads} total={brief.summary.totalLeads} />
+        </div>
+      )}
+
+      {/* ── Row 2: Revenue + Approvals ────────────────────────── */}
       {brief && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <RevenueCard data={brief.revenueAtRisk} />
