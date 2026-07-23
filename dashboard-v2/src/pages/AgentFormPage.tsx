@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
-import { ArrowLeft, IndianRupee, Loader2 } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { ArrowLeft, IndianRupee, Loader2, Camera } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
-import { api } from "../lib/api";
+import { api, apiUpload, resolveMediaUrl } from "../lib/api";
 import toast from "react-hot-toast";
 
 const statusOptions = ["ACTIVE", "INACTIVE", "SUSPENDED"];
@@ -22,18 +22,26 @@ export default function AgentFormPage() {
     name: "", company: "", phone: "", email: "",
     reraId: "", commissionRate: "", status: "ACTIVE", notes: "",
   });
+  const [existingPhotoUrl, setExistingPhotoUrl] = useState<string | null>(null);
+  const [pendingPhoto, setPendingPhoto] = useState<File | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!isEdit || !id) return;
     api(`/channel-partners/${id}`)
-      .then((p: any) => setForm({
-        name: p.name || "", company: p.company || "", phone: p.phone || "", email: p.email || "",
-        reraId: p.reraId || "", commissionRate: p.commissionRate?.toString() || "",
-        status: p.status || "ACTIVE", notes: p.notes || "",
-      }))
+      .then((p: any) => {
+        setForm({
+          name: p.name || "", company: p.company || "", phone: p.phone || "", email: p.email || "",
+          reraId: p.reraId || "", commissionRate: p.commissionRate?.toString() || "",
+          status: p.status || "ACTIVE", notes: p.notes || "",
+        });
+        setExistingPhotoUrl(p.metadata?.photoUrl || null);
+      })
       .catch(() => toast.error("Failed to load agent"))
       .finally(() => setLoading(false));
   }, [id, isEdit]);
+
+  const photoPreview = pendingPhoto ? URL.createObjectURL(pendingPhoto) : (existingPhotoUrl ? resolveMediaUrl(existingPhotoUrl) : null);
 
   const handleSave = async () => {
     if (!form.name.trim()) return;
@@ -50,15 +58,26 @@ export default function AgentFormPage() {
         notes: form.notes || undefined,
       };
       const headers = { "Content-Type": "application/json" };
+      let agentId = id;
       if (isEdit && id) {
         await api(`/channel-partners/${id}`, { method: "PATCH", body: JSON.stringify(payload), headers });
-        toast.success("Agent updated");
-        window.location.hash = `/channel-partners/${id}`;
       } else {
         const created = await api("/channel-partners", { method: "POST", body: JSON.stringify(payload), headers });
-        toast.success("Agent added");
-        window.location.hash = `/channel-partners/${created.id}`;
+        agentId = created.id;
       }
+
+      if (agentId && pendingPhoto) {
+        const fd = new FormData();
+        fd.append("photo", pendingPhoto);
+        try {
+          await apiUpload(`/channel-partners/${agentId}/photo`, fd);
+        } catch {
+          toast.error("Agent saved, but photo upload failed");
+        }
+      }
+
+      toast.success(isEdit ? "Agent updated" : "Agent added");
+      window.location.hash = `/channel-partners/${agentId}`;
     } catch {
       toast.error("Failed to save agent");
     } finally {
@@ -88,6 +107,31 @@ export default function AgentFormPage() {
       </div>
 
       <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6">
+        <div className="flex items-center gap-4 mb-6">
+          <button
+            type="button"
+            onClick={() => photoInputRef.current?.click()}
+            className="relative h-20 w-20 rounded-full bg-[var(--primary-light)] overflow-hidden shrink-0 group"
+          >
+            {photoPreview ? (
+              <img src={photoPreview} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <span className="h-full w-full flex items-center justify-center text-2xl font-bold text-[var(--primary)]">
+                {form.name?.[0]?.toUpperCase() || "?"}
+              </span>
+            )}
+            <span className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              <Camera className="h-5 w-5 text-white" />
+            </span>
+          </button>
+          <div>
+            <p className="text-sm font-medium text-[var(--foreground)]">Profile Photo</p>
+            <p className="text-xs text-[var(--muted-foreground)]">Click the avatar to upload a headshot</p>
+          </div>
+          <input ref={photoInputRef} type="file" accept="image/*" className="hidden"
+            onChange={e => setPendingPhoto(e.target.files?.[0] || null)} />
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="text-sm font-medium block mb-1">Agent Name *</label>

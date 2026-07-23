@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, UseInterceptors, UploadedFile, Req } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -43,6 +44,12 @@ export class ChannelPartnersController {
   @Patch(':id') @Roles('OWNER', 'ADMIN', 'MANAGER')
   update(@Param('id') id: string, @Body() dto: UpdateChannelPartnerDto) {
     return this.service.update(id, dto);
+  }
+
+  @Post(':id/photo') @Roles('OWNER', 'ADMIN', 'MANAGER')
+  @UseInterceptors(FileInterceptor('photo', { limits: { fileSize: 4 * 1024 * 1024 } }))
+  setPhoto(@Param('id') id: string, @UploadedFile() file: Express.Multer.File) {
+    return this.service.setPhoto(id, file);
   }
 
   @Post('allocate') @Roles('OWNER', 'ADMIN', 'MANAGER', 'SALES_AGENT')

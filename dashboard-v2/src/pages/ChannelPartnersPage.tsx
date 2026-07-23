@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Plus, Search, Edit2, Trash2, X, TrendingUp, Users } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
-import { api } from "../lib/api";
+import { api, resolveMediaUrl } from "../lib/api";
 import toast from "react-hot-toast";
 
 const statusColors: Record<string, string> = {
@@ -95,8 +95,12 @@ export default function ChannelPartnersPage() {
             <div key={p.id} className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="h-11 w-11 rounded-full bg-[var(--primary-light)] text-[var(--primary)] flex items-center justify-center font-semibold shrink-0">
-                    {p.name?.[0]?.toUpperCase() || "?"}
+                  <div className="h-11 w-11 rounded-full bg-[var(--primary-light)] text-[var(--primary)] flex items-center justify-center font-semibold shrink-0 overflow-hidden">
+                    {p.metadata?.photoUrl ? (
+                      <img src={resolveMediaUrl(p.metadata.photoUrl)} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      p.name?.[0]?.toUpperCase() || "?"
+                    )}
                   </div>
                   <div className="min-w-0">
                     <a href={`#/channel-partners/${p.id}`} className="font-semibold text-[var(--foreground)] hover:text-[var(--primary)] transition-colors truncate block">

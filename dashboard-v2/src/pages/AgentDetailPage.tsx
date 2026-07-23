@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { ArrowLeft, Phone, Mail, ShieldCheck, Users, TrendingUp, Loader2, Edit2 } from "lucide-react";
-import { api } from "../lib/api";
+import { api, resolveMediaUrl } from "../lib/api";
 
 function getPartnerId() {
   const hash = window.location.hash.replace("#", "");
@@ -63,8 +63,12 @@ export default function AgentDetailPage() {
       {/* Profile header */}
       <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 flex items-start justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="h-16 w-16 rounded-full bg-[var(--primary-light)] text-[var(--primary)] flex items-center justify-center text-2xl font-bold shrink-0">
-            {partner.name?.[0]?.toUpperCase() || "?"}
+          <div className="h-16 w-16 rounded-full bg-[var(--primary-light)] text-[var(--primary)] flex items-center justify-center text-2xl font-bold shrink-0 overflow-hidden">
+            {partner.metadata?.photoUrl ? (
+              <img src={resolveMediaUrl(partner.metadata.photoUrl)} alt="" className="h-full w-full object-cover" />
+            ) : (
+              partner.name?.[0]?.toUpperCase() || "?"
+            )}
           </div>
           <div>
             <div className="flex items-center gap-2">

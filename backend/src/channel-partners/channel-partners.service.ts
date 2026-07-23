@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { saveUploadedFile } from '../shared/file-storage.util';
 
 @Injectable()
 export class ChannelPartnersService {
@@ -54,6 +55,15 @@ export class ChannelPartnersService {
   async update(id: string, data: any) {
     await this.findOne(id);
     return this.prisma.channelPartner.update({ where: { id }, data });
+  }
+
+  /** Stores the photo URL in `metadata` rather than a dedicated column — avoids a migration for one field. */
+  async setPhoto(id: string, file: Express.Multer.File) {
+    const partner = await this.findOne(id);
+    if (!file) throw new BadRequestException('No photo uploaded');
+    const url = saveUploadedFile(file, 'agent-photos');
+    const metadata = { ...(partner.metadata as object || {}), photoUrl: url };
+    return this.prisma.channelPartner.update({ where: { id }, data: { metadata } });
   }
 
   async remove(id: string) {
