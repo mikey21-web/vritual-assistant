@@ -65,8 +65,8 @@
   --sidebar-muted: #7A7268;
   --sidebar-border: #EAE6DF;
   --sidebar-hover: #F2F0EB;
-  --sidebar-active-bg: #C1552C;
-  --sidebar-active-fg: #ffffff;
+  --sidebar-active-bg: #F7E3D9;
+  --sidebar-active-fg: #C1552C;
 }
 
 /* Cold Institutional: tabular numerics for every metric/stat, cards read as data not decoration */
