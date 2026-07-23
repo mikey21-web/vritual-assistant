@@ -122,13 +122,15 @@ function StatDonut({ percent, color }: { percent: number; color: string }) {
 
 function HeroStatCard({ label, value, sublabel }: { label: string; value: number | string; sublabel: string }) {
   return (
-    <div className="rounded-xl p-6 flex items-center justify-between border border-[var(--border)] bg-[var(--primary-light)]">
+    <div className="rounded-xl p-6 flex items-center justify-between border border-[var(--border)] bg-[var(--card)]">
       <div>
-        <p className="text-sm text-[var(--primary)]/80">{label}</p>
+        <p className="text-sm text-[var(--muted-foreground)]">{label}</p>
         <p className="text-3xl font-bold mt-1 text-[var(--foreground)]">{value}</p>
         <p className="text-xs text-[var(--muted-foreground)] mt-2">{sublabel}</p>
       </div>
-      <Building2 size={40} className="text-[var(--primary)]/25 shrink-0" />
+      <div className="h-11 w-11 rounded-full bg-[var(--primary-light)] flex items-center justify-center shrink-0">
+        <Building2 size={20} className="text-[var(--primary)]" />
+      </div>
     </div>
   );
 }
