@@ -654,24 +654,23 @@ export default function FormsPage() {
     return (
       <div
         key={f.id}
-        className={`group w-full flex items-center gap-1 rounded-lg text-sm transition-all ${
-          isSelected
-            ? 'bg-[var(--primary)]/10 text-[var(--primary)] font-medium border border-[var(--primary)]/20'
-            : 'text-[var(--foreground)] hover:bg-[var(--accent)] border border-transparent'
+        className={`group relative w-full flex items-center gap-1 rounded-lg text-sm transition-colors ${
+          isSelected ? 'bg-[var(--primary)]/[0.06]' : 'hover:bg-[var(--accent)]'
         }`}
       >
-        <button onClick={() => setSelectedFormId(f.id)} className="flex-1 min-w-0 text-left px-3 py-2.5">
+        <span
+          className={`absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full transition-colors ${
+            isSelected ? 'bg-[var(--primary)]' : 'bg-transparent'
+          }`}
+        />
+        <button onClick={() => setSelectedFormId(f.id)} className="flex-1 min-w-0 text-left pl-4 pr-2 py-2.5">
           <div className="flex items-center gap-2.5">
-            <div
-              className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
-                isSelected ? 'bg-[var(--primary)]/15' : 'bg-[var(--secondary)]'
-              }`}
-            >
-              <FormInput size={13} className={isSelected ? 'text-[var(--primary)]' : 'text-[var(--muted-foreground)]'} />
-            </div>
+            <FormInput size={14} className={`shrink-0 ${isSelected ? 'text-[var(--primary)]' : 'text-[var(--muted-foreground-light)]'}`} />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm">{f.name}</p>
-              <p className="text-[10px] text-[var(--muted-foreground)]">{fieldCount} field{fieldCount !== 1 ? 's' : ''}</p>
+              <p className={`truncate text-sm ${isSelected ? 'font-semibold text-[var(--primary)]' : 'text-[var(--foreground)]'}`}>
+                {f.name}
+              </p>
+              <p className="text-[11px] text-[var(--muted-foreground)]">{fieldCount} field{fieldCount !== 1 ? 's' : ''}</p>
             </div>
             {f.active !== false && (
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" title="Active" />
@@ -829,26 +828,25 @@ export default function FormsPage() {
 
       case 'settings':
         return (
-          <div className="animate-fade-in space-y-6 max-w-2xl">
-            {/* Form Name */}
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
-              <h4 className="text-sm font-semibold text-[var(--foreground)] mb-3">Form Name</h4>
-              <input
-                value={formData.name || ''}
-                onChange={(e) => {
-                  setFormData((prev: any) => (prev ? { ...prev, name: e.target.value } : prev));
-                }}
-                onBlur={(e) => handleSettingsChange('name', e.target.value)}
-                placeholder="Form name"
-                className="w-full h-10 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
-              />
-            </div>
+          <div className="animate-fade-in max-w-2xl rounded-xl border border-[var(--border)] bg-[var(--card)] divide-y divide-[var(--border)]">
+            {/* Name + Active */}
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-[var(--foreground)] mb-1">Form Name</label>
+                <input
+                  value={formData.name || ''}
+                  onChange={(e) => {
+                    setFormData((prev: any) => (prev ? { ...prev, name: e.target.value } : prev));
+                  }}
+                  onBlur={(e) => handleSettingsChange('name', e.target.value)}
+                  placeholder="Form name"
+                  className="w-full h-10 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
+                />
+              </div>
 
-            {/* Active Toggle */}
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="text-sm font-semibold text-[var(--foreground)]">Active</h4>
+                  <h4 className="text-sm font-medium text-[var(--foreground)]">Active</h4>
                   <p className="text-xs text-[var(--muted-foreground)] mt-0.5">
                     When active, the form can receive submissions
                   </p>
@@ -874,8 +872,8 @@ export default function FormsPage() {
             </div>
 
             {/* Form Type */}
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
-              <h4 className="text-sm font-semibold text-[var(--foreground)] mb-3">Form Type</h4>
+            <div className="p-5">
+              <h4 className="text-sm font-medium text-[var(--foreground)] mb-3">Form Type</h4>
               <div className="flex gap-2">
                 <select
                   value={formData.formType || 'custom'}
@@ -905,91 +903,86 @@ export default function FormsPage() {
             </div>
 
             {/* Post-Submission Settings */}
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
-              <h4 className="text-sm font-semibold text-[var(--foreground)] mb-4">Post-Submission</h4>
+            <div className="p-5 space-y-4">
+              <h4 className="text-sm font-medium text-[var(--foreground)]">Post-Submission</h4>
 
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-medium text-[var(--foreground)] mb-1">
-                    Redirect URL (optional)
-                  </label>
-                  <input
-                    value={formData.settings?.redirectUrl || ''}
-                    onChange={(e) => {
-                      setFormData((prev: any) =>
-                        prev
-                          ? {
-                              ...prev,
-                              settings: { ...prev.settings, redirectUrl: e.target.value },
-                            }
-                          : prev
-                      );
-                    }}
-                    onBlur={(e) => handleSettingsChange('settings.redirectUrl', e.target.value)}
-                    placeholder="https://example.com/thank-you"
-                    className="w-full h-10 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-[var(--foreground)] mb-1">
-                    Confirmation Message
-                  </label>
-                  <textarea
-                    value={formData.settings?.confirmationMessage || ''}
-                    onChange={(e) => {
-                      setFormData((prev: any) =>
-                        prev
-                          ? {
-                              ...prev,
-                              settings: {
-                                ...prev.settings,
-                                confirmationMessage: e.target.value,
-                              },
-                            }
-                          : prev
-                      );
-                    }}
-                    onBlur={(e) =>
-                      handleSettingsChange('settings.confirmationMessage', e.target.value)
-                    }
-                    rows={3}
-                    placeholder="Thanks! We'll be in touch."
-                    className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20 resize-y"
-                  />
-                </div>
-
-                <label className="flex items-center gap-2.5 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formData.settings?.sendConfirmationEmail || false}
-                    onChange={(e) => handleSettingsChange('settings.sendConfirmationEmail', e.target.checked)}
-                    className="rounded border-[var(--border)] text-[var(--primary)] focus:ring-[var(--ring)]/20"
-                  />
-                  <div>
-                    <span className="text-sm text-[var(--foreground)]">Send confirmation email</span>
-                    <p className="text-xs text-[var(--muted-foreground)]">
-                      Email confirmation to the submitter (requires email field)
-                    </p>
-                  </div>
+              <div>
+                <label className="block text-xs font-medium text-[var(--foreground)] mb-1">
+                  Redirect URL (optional)
                 </label>
+                <input
+                  value={formData.settings?.redirectUrl || ''}
+                  onChange={(e) => {
+                    setFormData((prev: any) =>
+                      prev
+                        ? {
+                            ...prev,
+                            settings: { ...prev.settings, redirectUrl: e.target.value },
+                          }
+                        : prev
+                    );
+                  }}
+                  onBlur={(e) => handleSettingsChange('settings.redirectUrl', e.target.value)}
+                  placeholder="https://example.com/thank-you"
+                  className="w-full h-10 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
+                />
               </div>
+
+              <div>
+                <label className="block text-xs font-medium text-[var(--foreground)] mb-1">
+                  Confirmation Message
+                </label>
+                <textarea
+                  value={formData.settings?.confirmationMessage || ''}
+                  onChange={(e) => {
+                    setFormData((prev: any) =>
+                      prev
+                        ? {
+                            ...prev,
+                            settings: {
+                              ...prev.settings,
+                              confirmationMessage: e.target.value,
+                            },
+                          }
+                        : prev
+                    );
+                  }}
+                  onBlur={(e) =>
+                    handleSettingsChange('settings.confirmationMessage', e.target.value)
+                  }
+                  rows={3}
+                  placeholder="Thanks! We'll be in touch."
+                  className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20 resize-y"
+                />
+              </div>
+
+              <label className="flex items-center gap-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.settings?.sendConfirmationEmail || false}
+                  onChange={(e) => handleSettingsChange('settings.sendConfirmationEmail', e.target.checked)}
+                  className="rounded border-[var(--border)] text-[var(--primary)] focus:ring-[var(--ring)]/20"
+                />
+                <div>
+                  <span className="text-sm text-[var(--foreground)]">Send confirmation email</span>
+                  <p className="text-xs text-[var(--muted-foreground)]">
+                    Email confirmation to the submitter (requires email field)
+                  </p>
+                </div>
+              </label>
             </div>
 
             {/* Embed Settings */}
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
-              <h4 className="text-sm font-semibold text-[var(--foreground)] mb-4">Embed Settings</h4>
-              <div>
-                <label className="block text-xs font-medium text-[var(--foreground)] mb-1">Theme</label>
-                <select
-                  value={formData.settings?.embedTheme || 'light'}
-                  onChange={(e) => handleSettingsChange('settings.embedTheme', e.target.value)}
-                  className="w-full h-10 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
-                >
-                  <option value="light">Light</option>
-                  <option value="dark">Dark</option>
-                </select>
-              </div>
+            <div className="p-5">
+              <label className="block text-xs font-medium text-[var(--foreground)] mb-1">Embed Theme</label>
+              <select
+                value={formData.settings?.embedTheme || 'light'}
+                onChange={(e) => handleSettingsChange('settings.embedTheme', e.target.value)}
+                className="w-full h-10 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/20"
+              >
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+              </select>
             </div>
           </div>
         );
@@ -1171,7 +1164,7 @@ export default function FormsPage() {
               </div>
 
               {/* Tabs */}
-              <div className="flex border-b border-[var(--border)] bg-[var(--muted)]/30">
+              <div className="flex items-center gap-1 px-3 py-2.5 border-b border-[var(--border)] overflow-x-auto">
                 {([
                   { key: 'fields', label: 'Edit Fields', icon: LayoutDashboard },
                   { key: 'preview', label: 'Preview', icon: Eye },
@@ -1182,10 +1175,10 @@ export default function FormsPage() {
                   <button
                     key={key}
                     onClick={() => setActiveTab(key)}
-                    className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 ${
+                    className={`flex items-center gap-1.5 shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                       activeTab === key
-                        ? 'border-[var(--primary)] text-[var(--primary)] bg-white'
-                        : 'border-transparent text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--accent)]/50'
+                        ? 'bg-[var(--primary)]/10 text-[var(--primary)]'
+                        : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--accent)]'
                     }`}
                   >
                     <Icon size={15} />
