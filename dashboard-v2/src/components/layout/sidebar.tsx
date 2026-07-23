@@ -150,7 +150,7 @@ const rawNavGroups = [
       { label: "KYC & Documents", icon: FileText, path: "/kyc" },
       { label: "Document Search", icon: FileSearch, path: "/document-search" },
       { label: "Physical Docs", icon: BookCopy, path: "/physical-documents" },
-      { label: "Channel Partners", icon: Truck, path: "/channel-partners" },
+      { label: "Agents", icon: Truck, path: "/channel-partners" },
       { label: "Partner Claims", icon: Truck, path: "/partner-claims" },
       { label: "Approvals", icon: CheckSquare, path: "/approvals" },
       { label: "Payments & Collections", icon: ClipboardList, path: "/payment-schedules" },

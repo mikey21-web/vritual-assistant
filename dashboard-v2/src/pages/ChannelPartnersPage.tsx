@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Search, Edit2, Trash2, X, TrendingUp, IndianRupee, Users } from "lucide-react";
+import { Plus, Search, Edit2, Trash2, X, TrendingUp, Users } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { api } from "../lib/api";
@@ -20,13 +20,8 @@ export default function ChannelPartnersPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [showForm, setShowForm] = useState(false);
-  const [editing, setEditing] = useState<any>(null);
   const [performance, setPerformance] = useState<any>(null);
   const [performanceFor, setPerformanceFor] = useState<string | null>(null);
-  const [form, setForm] = useState<any>({
-    name: "", company: "", phone: "", email: "", reraId: "", commissionRate: "", status: "ACTIVE", notes: "",
-  });
 
   const fetchPartners = useCallback(async () => {
     setLoading(true);
@@ -37,58 +32,19 @@ export default function ChannelPartnersPage() {
       const res = await api(`/channel-partners?${params}`);
       setPartners(res.data || []);
       setTotal(res.meta?.total || 0);
-    } catch { toast.error("Failed to load channel partners"); }
+    } catch { toast.error("Failed to load agents"); }
     finally { setLoading(false); }
   }, [page, search, statusFilter]);
 
   useEffect(() => { fetchPartners(); }, [fetchPartners]);
 
-  const resetForm = () => setForm({ name: "", company: "", phone: "", email: "", reraId: "", commissionRate: "", status: "ACTIVE", notes: "" });
-
-  const handleSave = async () => {
-    try {
-      const payload: any = {
-        name: form.name,
-        company: form.company || undefined,
-        phone: form.phone || undefined,
-        email: form.email || undefined,
-        reraId: form.reraId || undefined,
-        commissionRate: form.commissionRate ? Number(form.commissionRate) : undefined,
-        status: form.status || "ACTIVE",
-        notes: form.notes || undefined,
-      };
-      const headers = { "Content-Type": "application/json" };
-      if (editing) {
-        await api(`/channel-partners/${editing.id}`, { method: "PATCH", body: JSON.stringify(payload), headers });
-        toast.success("Channel partner updated");
-      } else {
-        await api("/channel-partners", { method: "POST", body: JSON.stringify(payload), headers });
-        toast.success("Channel partner added");
-      }
-      setShowForm(false);
-      setEditing(null);
-      resetForm();
-      fetchPartners();
-    } catch { toast.error("Failed to save channel partner"); }
-  };
-
   const handleDelete = async (id: string) => {
-    if (!confirm("Remove this channel partner? Their leads will be kept but unlinked.")) return;
+    if (!confirm("Remove this agent? Their leads will be kept but unlinked.")) return;
     try {
       await api(`/channel-partners/${id}`, { method: "DELETE" });
-      toast.success("Channel partner removed");
+      toast.success("Agent removed");
       fetchPartners();
     } catch { toast.error("Failed to remove"); }
-  };
-
-  const editPartner = (p: any) => {
-    setForm({
-      name: p.name || "", company: p.company || "", phone: p.phone || "", email: p.email || "",
-      reraId: p.reraId || "", commissionRate: p.commissionRate?.toString() || "", status: p.status || "ACTIVE",
-      notes: p.notes || "",
-    });
-    setEditing(p);
-    setShowForm(true);
   };
 
   const viewPerformance = async (id: string) => {
@@ -110,11 +66,11 @@ export default function ChannelPartnersPage() {
     <div className="p-4 lg:p-6 space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--foreground)]">Channel Partners</h1>
-          <p className="text-sm text-[var(--muted-foreground)]">{total} brokers · leads sourced, converted, and commission owed</p>
+          <h1 className="text-2xl font-bold text-[var(--foreground)]">Agents</h1>
+          <p className="text-sm text-[var(--muted-foreground)]">{total} agents · leads sourced, converted, and commission owed</p>
         </div>
-        <Button onClick={() => { resetForm(); setEditing(null); setShowForm(true); }}>
-          <Plus className="h-4 w-4 mr-2" /> Add Partner
+        <Button onClick={() => { window.location.hash = "/channel-partners/new"; }}>
+          <Plus className="h-4 w-4 mr-2" /> Add Agent
         </Button>
       </div>
 
@@ -132,7 +88,7 @@ export default function ChannelPartnersPage() {
       {loading ? (
         <div className="text-center py-12 text-[var(--muted-foreground)]">Loading...</div>
       ) : partners.length === 0 ? (
-        <div className="text-center py-12 text-[var(--muted-foreground)]">No channel partners yet</div>
+        <div className="text-center py-12 text-[var(--muted-foreground)]">No agents yet</div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {partners.map((p: any) => (
@@ -171,7 +127,7 @@ export default function ChannelPartnersPage() {
                 <button onClick={() => viewPerformance(p.id)} className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--foreground)] hover:bg-[var(--accent)] transition-colors">
                   <TrendingUp className="h-3.5 w-3.5" /> Performance
                 </button>
-                <button onClick={() => editPartner(p)} className="p-1.5 hover:bg-[var(--accent)] rounded-lg"><Edit2 className="h-4 w-4" /></button>
+                <a href={`#/channel-partners/${p.id}/edit`} className="p-1.5 hover:bg-[var(--accent)] rounded-lg inline-flex items-center"><Edit2 className="h-4 w-4" /></a>
                 <button onClick={() => handleDelete(p.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-500"><Trash2 className="h-4 w-4" /></button>
               </div>
             </div>
@@ -184,59 +140,6 @@ export default function ChannelPartnersPage() {
           <Button variant="outline" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>Previous</Button>
           <span className="text-sm text-[var(--muted-foreground)]">Page {page} of {Math.ceil(total / 20)}</span>
           <Button variant="outline" disabled={page >= Math.ceil(total / 20)} onClick={() => setPage(p => p + 1)}>Next</Button>
-        </div>
-      )}
-
-      {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowForm(false)}>
-          <div className="bg-[var(--card)] rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 space-y-4" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold">{editing ? "Edit Channel Partner" : "Add Channel Partner"}</h2>
-              <button onClick={() => setShowForm(false)}><X className="h-5 w-5" /></button>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
-                <label className="text-sm font-medium block mb-1">Name *</label>
-                <Input value={form.name} onChange={e => setForm((f: any) => ({ ...f, name: e.target.value }))} placeholder="e.g. Ramesh Kumar" />
-              </div>
-              <div className="col-span-2">
-                <label className="text-sm font-medium block mb-1">Brokerage / Company</label>
-                <Input value={form.company} onChange={e => setForm((f: any) => ({ ...f, company: e.target.value }))} placeholder="e.g. Kumar Realty Associates" />
-              </div>
-              <div>
-                <label className="text-sm font-medium block mb-1">Phone</label>
-                <Input value={form.phone} onChange={e => setForm((f: any) => ({ ...f, phone: e.target.value }))} placeholder="+91 98765 43210" />
-              </div>
-              <div>
-                <label className="text-sm font-medium block mb-1">Email</label>
-                <Input type="email" value={form.email} onChange={e => setForm((f: any) => ({ ...f, email: e.target.value }))} />
-              </div>
-              <div>
-                <label className="text-sm font-medium block mb-1"><IndianRupee className="h-3 w-3 inline" /> Commission (%)</label>
-                <Input type="number" value={form.commissionRate} onChange={e => setForm((f: any) => ({ ...f, commissionRate: e.target.value }))} placeholder="e.g. 2" />
-              </div>
-              <div>
-                <label className="text-sm font-medium block mb-1">Status</label>
-                <select value={form.status} onChange={e => setForm((f: any) => ({ ...f, status: e.target.value }))} className="w-full h-10 rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 text-sm">
-                  {statusOptions.map(k => <option key={k} value={k}>{k}</option>)}
-                </select>
-              </div>
-              <div className="col-span-2">
-                <label className="text-sm font-medium block mb-1">RERA Agent ID</label>
-                <Input value={form.reraId} onChange={e => setForm((f: any) => ({ ...f, reraId: e.target.value }))} />
-              </div>
-              <div className="col-span-2">
-                <label className="text-sm font-medium block mb-1">Notes</label>
-                <textarea value={form.notes} onChange={e => setForm((f: any) => ({ ...f, notes: e.target.value }))} className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] p-2 min-h-[70px] text-sm" />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
-              <Button onClick={handleSave} disabled={!form.name}>{editing ? "Update" : "Add"}</Button>
-            </div>
-          </div>
         </div>
       )}
 

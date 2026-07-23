@@ -81,7 +81,7 @@ export default function AgentDetailPage() {
             </div>
           </div>
         </div>
-        <a href="#/channel-partners" className="p-2 rounded-lg hover:bg-[var(--accent)] shrink-0" title="Edit in list view">
+        <a href={`#/channel-partners/${partner.id}/edit`} className="p-2 rounded-lg hover:bg-[var(--accent)] shrink-0" title="Edit agent">
           <Edit2 className="h-4 w-4" />
         </a>
       </div>

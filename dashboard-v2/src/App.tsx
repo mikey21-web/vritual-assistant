@@ -94,6 +94,7 @@ const PageComponents: Record<string, React.LazyExoticComponent<React.ComponentTy
   Shipments: lazy(() => import("./pages/ShipmentsPage")),
   ChannelPartners: lazy(() => import("./pages/ChannelPartnersPage")),
   AgentDetail: lazy(() => import("./pages/AgentDetailPage")),
+  AgentForm: lazy(() => import("./pages/AgentFormPage")),
   PaymentSchedules: lazy(() => import("./pages/PaymentSchedulesPage")),
   Projects: lazy(() => import("./pages/ProjectsPage")),
   ProjectDetail: lazy(() => import("./pages/ProjectDetailPage")),
@@ -155,6 +156,8 @@ function getPageKey(raw: string): string {
   if (/^\/events\/[^/]+$/.test(path)) return "EventDetail";
   if (/^\/campaigns\/[^/]+$/.test(path)) return "CampaignDetail";
   if (/^\/properties\/[^/]+$/.test(path)) return "PropertyDetail";
+  if (path === "/channel-partners/new") return "AgentForm";
+  if (/^\/channel-partners\/[^/]+\/edit$/.test(path)) return "AgentForm";
   if (/^\/channel-partners\/[^/]+$/.test(path)) return "AgentDetail";
   if (/^\/projects\/[^/]+$/.test(path)) return "ProjectDetail";
   if (/^\/leads\/[^/]+$/.test(path)) return "LeadWorkbench";
