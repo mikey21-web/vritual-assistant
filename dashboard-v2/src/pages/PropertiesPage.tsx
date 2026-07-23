@@ -228,7 +228,11 @@ export default function PropertiesPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {properties.map((p: any) => (
-            <div key={p.id} className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden group">
+            <div
+              key={p.id}
+              onClick={() => { window.location.hash = `/properties/${p.id}`; }}
+              className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden group cursor-pointer hover:border-[var(--primary)]/40 transition-colors"
+            >
               <div className="relative h-44 bg-[var(--muted)]">
                 {p.images?.[0] ? (
                   <img src={resolveMediaUrl(p.images[0].url)} alt={p.title} className="h-full w-full object-cover" />
@@ -241,7 +245,7 @@ export default function PropertiesPage() {
                   {p.status?.replace("_", " ")}
                 </span>
                 <button
-                  onClick={() => toggleFeatured(p.id, p.featured)}
+                  onClick={(e) => { e.stopPropagation(); toggleFeatured(p.id, p.featured); }}
                   title={p.featured ? "Featured" : "Mark as featured"}
                   className="absolute top-3 right-3 h-8 w-8 rounded-full bg-white/90 flex items-center justify-center shadow-sm"
                 >
@@ -251,9 +255,9 @@ export default function PropertiesPage() {
 
               <div className="p-4">
                 <div className="flex items-start justify-between gap-2">
-                  <a href={`#/properties/${p.id}`} className="font-semibold text-[var(--foreground)] hover:text-[var(--primary)] transition-colors truncate">
+                  <span className="font-semibold text-[var(--foreground)] group-hover:text-[var(--primary)] transition-colors truncate">
                     {p.title}
-                  </a>
+                  </span>
                   <Badge variant="outline" className="shrink-0">{typeLabels[p.propertyType] || p.propertyType}</Badge>
                 </div>
 
@@ -273,8 +277,8 @@ export default function PropertiesPage() {
                 <div className="mt-4 flex items-center justify-between">
                   <span className="font-mono text-base font-bold text-[var(--foreground)]">{formatPrice(p.price)}</span>
                   <div className="flex gap-1">
-                    <button onClick={() => editProperty(p)} className="p-1.5 hover:bg-[var(--accent)] rounded-lg"><Edit2 className="h-4 w-4" /></button>
-                    <button onClick={() => handleDelete(p.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-500"><Trash2 className="h-4 w-4" /></button>
+                    <button onClick={(e) => { e.stopPropagation(); editProperty(p); }} className="p-1.5 hover:bg-[var(--accent)] rounded-lg"><Edit2 className="h-4 w-4" /></button>
+                    <button onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }} className="p-1.5 hover:bg-red-50 rounded-lg text-red-500"><Trash2 className="h-4 w-4" /></button>
                   </div>
                 </div>
               </div>
