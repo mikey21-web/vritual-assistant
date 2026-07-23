@@ -1,4 +1,5 @@
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 export function Drawer({
@@ -31,7 +32,13 @@ export function Drawer({
 
   if (!open) return null;
 
-  return (
+  // Rendered via portal straight to document.body. Without this, `fixed`
+  // positioning here is at the mercy of whatever ancestor the page happens
+  // to render inside — any transform/filter/animation-fill-mode:forwards
+  // upstream turns into a new containing block and clips this under the
+  // topbar instead of covering the real viewport (seen on Accounting).
+  // Portaling to body sidesteps the whole class of bug for good.
+  return createPortal(
     <div className="fixed inset-0 z-50 flex justify-end bg-black/40" onClick={onClose} role="presentation">
       <div
         role="dialog"
@@ -62,6 +69,7 @@ export function Drawer({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

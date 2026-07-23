@@ -1,4 +1,5 @@
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 export function Dialog({
@@ -31,7 +32,10 @@ export function Dialog({
 
   if (!open) return null;
 
-  return (
+  // Portaled to document.body for the same reason as Drawer (see its
+  // comment) — `fixed` here would otherwise depend on the ancestor chain
+  // of whatever page renders it.
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
       onClick={onClose}
@@ -66,6 +70,7 @@ export function Dialog({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
