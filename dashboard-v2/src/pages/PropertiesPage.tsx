@@ -221,62 +221,67 @@ export default function PropertiesPage() {
         </select>
       </div>
 
-      <div className="rounded-lg border border-[var(--border)] overflow-hidden">
-        <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-[var(--border)] bg-[var(--muted)]/30">
-              <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--muted-foreground)] uppercase">Title</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--muted-foreground)] uppercase">Type</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--muted-foreground)] uppercase">Price</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--muted-foreground)] uppercase">Beds</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--muted-foreground)] uppercase">Location</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--muted-foreground)] uppercase">Status</th>
-              <th className="text-center px-4 py-3 text-xs font-semibold text-[var(--muted-foreground)] uppercase">Featured</th>
-              <th className="text-right px-4 py-3 text-xs font-semibold text-[var(--muted-foreground)] uppercase">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={8} className="text-center py-8 text-[var(--muted-foreground)]">Loading...</td></tr>
-            ) : properties.length === 0 ? (
-              <tr><td colSpan={8} className="text-center py-8 text-[var(--muted-foreground)]">No properties found</td></tr>
-            ) : properties.map((p: any) => (
-              <tr key={p.id} className="border-b border-[var(--border)] hover:bg-[var(--muted)]/20 transition-colors">
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    {p.images?.[0] && (
-                      <img src={p.images[0].url} alt="" className="h-10 w-10 rounded object-cover" />
-                    )}
-                    <span className="font-medium text-[var(--foreground)]">{p.title}</span>
+      {loading ? (
+        <div className="text-center py-12 text-[var(--muted-foreground)]">Loading...</div>
+      ) : properties.length === 0 ? (
+        <div className="text-center py-12 text-[var(--muted-foreground)]">No properties found</div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {properties.map((p: any) => (
+            <div key={p.id} className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden group">
+              <div className="relative h-44 bg-[var(--muted)]">
+                {p.images?.[0] ? (
+                  <img src={p.images[0].url} alt={p.title} className="h-full w-full object-cover" />
+                ) : (
+                  <div className="h-full w-full flex items-center justify-center">
+                    <Building2 className="h-10 w-10 text-[var(--muted-foreground-light)]" />
                   </div>
-                </td>
-                <td className="px-4 py-3"><Badge variant="outline">{typeLabels[p.propertyType] || p.propertyType}</Badge></td>
-                <td className="px-4 py-3 font-mono text-sm">{formatPrice(p.price)}</td>
-                <td className="px-4 py-3 text-sm">{p.bedrooms ? `${p.bedrooms}BHK` : "-"}</td>
-                <td className="px-4 py-3 text-sm max-w-[150px] truncate">{p.location || "-"}</td>
-                <td className="px-4 py-3">
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${statusColors[p.status] || ""}`}>
-                    {p.status?.replace("_", " ")}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-center">
-                  <button onClick={() => toggleFeatured(p.id, p.featured)} className="text-[var(--muted-foreground)] hover:text-[var(--foreground)]">
-                    {p.featured ? <ToggleRight className="h-5 w-5 text-green-500 inline" /> : <ToggleLeft className="h-5 w-5 inline" />}
-                  </button>
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <div className="flex gap-1 justify-end">
-                    <button onClick={() => editProperty(p)} className="p-1.5 hover:bg-[var(--accent)] rounded"><Edit2 className="h-4 w-4" /></button>
-                    <button onClick={() => handleDelete(p.id)} className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900 rounded text-red-500"><Trash2 className="h-4 w-4" /></button>
+                )}
+                <span className={`absolute top-3 left-3 inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[p.status] || ""}`}>
+                  {p.status?.replace("_", " ")}
+                </span>
+                <button
+                  onClick={() => toggleFeatured(p.id, p.featured)}
+                  title={p.featured ? "Featured" : "Mark as featured"}
+                  className="absolute top-3 right-3 h-8 w-8 rounded-full bg-white/90 flex items-center justify-center shadow-sm"
+                >
+                  {p.featured ? <ToggleRight className="h-4 w-4 text-[var(--primary)]" /> : <ToggleLeft className="h-4 w-4 text-[var(--muted-foreground)]" />}
+                </button>
+              </div>
+
+              <div className="p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <a href={`#/properties/${p.id}`} className="font-semibold text-[var(--foreground)] hover:text-[var(--primary)] transition-colors truncate">
+                    {p.title}
+                  </a>
+                  <Badge variant="outline" className="shrink-0">{typeLabels[p.propertyType] || p.propertyType}</Badge>
+                </div>
+
+                {p.location && (
+                  <div className="mt-1 flex items-center gap-1 text-xs text-[var(--muted-foreground)]">
+                    <MapPin className="h-3 w-3 shrink-0" />
+                    <span className="truncate">{p.location}</span>
                   </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                )}
+
+                <div className="mt-3 flex items-center gap-3 text-xs text-[var(--muted-foreground)]">
+                  {p.bedrooms != null && <span className="flex items-center gap-1"><BedDouble className="h-3.5 w-3.5" /> {p.bedrooms} Bed</span>}
+                  {p.bathrooms != null && <span className="flex items-center gap-1"><Bath className="h-3.5 w-3.5" /> {p.bathrooms} Bath</span>}
+                  {p.areaSqft != null && <span className="flex items-center gap-1"><Maximize className="h-3.5 w-3.5" /> {p.areaSqft} sqft</span>}
+                </div>
+
+                <div className="mt-4 flex items-center justify-between">
+                  <span className="font-mono text-base font-bold text-[var(--foreground)]">{formatPrice(p.price)}</span>
+                  <div className="flex gap-1">
+                    <button onClick={() => editProperty(p)} className="p-1.5 hover:bg-[var(--accent)] rounded-lg"><Edit2 className="h-4 w-4" /></button>
+                    <button onClick={() => handleDelete(p.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-500"><Trash2 className="h-4 w-4" /></button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
-      </div>
+      )}
 
       {total > 20 && (
         <div className="flex justify-center gap-2 items-center">

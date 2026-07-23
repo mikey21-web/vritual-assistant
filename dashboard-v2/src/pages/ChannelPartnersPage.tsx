@@ -129,50 +129,55 @@ export default function ChannelPartnersPage() {
         </select>
       </div>
 
-      <div className="rounded-lg border border-[var(--border)] overflow-hidden">
-        <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-[var(--border)] bg-[var(--muted)]/30">
-              <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--muted-foreground)] uppercase">Name</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--muted-foreground)] uppercase">Company</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--muted-foreground)] uppercase">Phone</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--muted-foreground)] uppercase">Commission</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--muted-foreground)] uppercase">Leads</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--muted-foreground)] uppercase">Status</th>
-              <th className="text-right px-4 py-3 text-xs font-semibold text-[var(--muted-foreground)] uppercase">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={7} className="text-center py-8 text-[var(--muted-foreground)]">Loading...</td></tr>
-            ) : partners.length === 0 ? (
-              <tr><td colSpan={7} className="text-center py-8 text-[var(--muted-foreground)]">No channel partners yet</td></tr>
-            ) : partners.map((p: any) => (
-              <tr key={p.id} className="border-b border-[var(--border)] hover:bg-[var(--muted)]/20 transition-colors">
-                <td className="px-4 py-3 font-medium text-[var(--foreground)]">{p.name}</td>
-                <td className="px-4 py-3 text-sm text-[var(--muted-foreground)]">{p.company || "-"}</td>
-                <td className="px-4 py-3 text-sm">{p.phone || "-"}</td>
-                <td className="px-4 py-3 text-sm">{p.commissionRate != null ? `${p.commissionRate}%` : "-"}</td>
-                <td className="px-4 py-3 text-sm">
-                  <span className="inline-flex items-center gap-1"><Users className="h-3.5 w-3.5 text-[var(--muted-foreground)]" />{p._count?.leads ?? 0}</span>
-                </td>
-                <td className="px-4 py-3">
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${statusColors[p.status] || ""}`}>{p.status}</span>
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <div className="flex gap-1 justify-end">
-                    <button onClick={() => viewPerformance(p.id)} title="View performance" className="p-1.5 hover:bg-[var(--accent)] rounded"><TrendingUp className="h-4 w-4" /></button>
-                    <button onClick={() => editPartner(p)} className="p-1.5 hover:bg-[var(--accent)] rounded"><Edit2 className="h-4 w-4" /></button>
-                    <button onClick={() => handleDelete(p.id)} className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900 rounded text-red-500"><Trash2 className="h-4 w-4" /></button>
+      {loading ? (
+        <div className="text-center py-12 text-[var(--muted-foreground)]">Loading...</div>
+      ) : partners.length === 0 ? (
+        <div className="text-center py-12 text-[var(--muted-foreground)]">No channel partners yet</div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {partners.map((p: any) => (
+            <div key={p.id} className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="h-11 w-11 rounded-full bg-[var(--primary-light)] text-[var(--primary)] flex items-center justify-center font-semibold shrink-0">
+                    {p.name?.[0]?.toUpperCase() || "?"}
                   </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                  <div className="min-w-0">
+                    <a href={`#/channel-partners/${p.id}`} className="font-semibold text-[var(--foreground)] hover:text-[var(--primary)] transition-colors truncate block">
+                      {p.name}
+                    </a>
+                    <p className="text-xs text-[var(--muted-foreground)] truncate">{p.company || "Independent"}</p>
+                  </div>
+                </div>
+                <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[p.status] || ""}`}>{p.status}</span>
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+                <div className="rounded-lg bg-[var(--muted)] px-3 py-2">
+                  <div className="text-[10px] text-[var(--muted-foreground)] uppercase">Leads</div>
+                  <div className="font-semibold text-[var(--foreground)] flex items-center gap-1">
+                    <Users className="h-3.5 w-3.5 text-[var(--muted-foreground)]" />{p._count?.leads ?? 0}
+                  </div>
+                </div>
+                <div className="rounded-lg bg-[var(--muted)] px-3 py-2">
+                  <div className="text-[10px] text-[var(--muted-foreground)] uppercase">Commission</div>
+                  <div className="font-semibold text-[var(--foreground)]">{p.commissionRate != null ? `${p.commissionRate}%` : "-"}</div>
+                </div>
+              </div>
+
+              {p.phone && <p className="mt-3 text-xs text-[var(--muted-foreground)]">{p.phone}</p>}
+
+              <div className="mt-4 flex gap-1.5">
+                <button onClick={() => viewPerformance(p.id)} className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--foreground)] hover:bg-[var(--accent)] transition-colors">
+                  <TrendingUp className="h-3.5 w-3.5" /> Performance
+                </button>
+                <button onClick={() => editPartner(p)} className="p-1.5 hover:bg-[var(--accent)] rounded-lg"><Edit2 className="h-4 w-4" /></button>
+                <button onClick={() => handleDelete(p.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-500"><Trash2 className="h-4 w-4" /></button>
+              </div>
+            </div>
+          ))}
         </div>
-      </div>
+      )}
 
       {total > 20 && (
         <div className="flex justify-center gap-2 items-center">

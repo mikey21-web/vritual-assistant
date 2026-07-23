@@ -90,8 +90,10 @@ const PageComponents: Record<string, React.LazyExoticComponent<React.ComponentTy
   PublicProfile: lazy(() => import("./pages/PublicProfilePage")),
   BuilderDesk: lazy(() => import("./pages/BuilderDeskPage")),
   Properties: lazy(() => import("./pages/PropertiesPage")),
+  PropertyDetail: lazy(() => import("./pages/PropertyDetailPage")),
   Shipments: lazy(() => import("./pages/ShipmentsPage")),
   ChannelPartners: lazy(() => import("./pages/ChannelPartnersPage")),
+  AgentDetail: lazy(() => import("./pages/AgentDetailPage")),
   PaymentSchedules: lazy(() => import("./pages/PaymentSchedulesPage")),
   Projects: lazy(() => import("./pages/ProjectsPage")),
   ProjectDetail: lazy(() => import("./pages/ProjectDetailPage")),
@@ -152,6 +154,8 @@ function getPageKey(raw: string): string {
   const path = raw.split('?')[0];
   if (/^\/events\/[^/]+$/.test(path)) return "EventDetail";
   if (/^\/campaigns\/[^/]+$/.test(path)) return "CampaignDetail";
+  if (/^\/properties\/[^/]+$/.test(path)) return "PropertyDetail";
+  if (/^\/channel-partners\/[^/]+$/.test(path)) return "AgentDetail";
   if (/^\/projects\/[^/]+$/.test(path)) return "ProjectDetail";
   if (/^\/leads\/[^/]+$/.test(path)) return "LeadWorkbench";
   if (/^\/forms\/[^/]+\/submissions$/.test(path)) return "FormSubmissions";
