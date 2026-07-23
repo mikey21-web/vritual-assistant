@@ -3,7 +3,7 @@ import { Plus, Search, Edit2, Trash2, Building2, MapPin, BedDouble, Bath, Maximi
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Badge } from "../components/ui/badge";
-import { api, apiUpload } from "../lib/api";
+import { api, apiUpload, resolveMediaUrl } from "../lib/api";
 import toast from "react-hot-toast";
 
 const statusColors: Record<string, string> = {
@@ -231,7 +231,7 @@ export default function PropertiesPage() {
             <div key={p.id} className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden group">
               <div className="relative h-44 bg-[var(--muted)]">
                 {p.images?.[0] ? (
-                  <img src={p.images[0].url} alt={p.title} className="h-full w-full object-cover" />
+                  <img src={resolveMediaUrl(p.images[0].url)} alt={p.title} className="h-full w-full object-cover" />
                 ) : (
                   <div className="h-full w-full flex items-center justify-center">
                     <Building2 className="h-10 w-10 text-[var(--muted-foreground-light)]" />
@@ -364,7 +364,7 @@ export default function PropertiesPage() {
                     <div className="flex flex-wrap gap-2 mb-2">
                       {editing.images.map((img: any) => (
                         <div key={img.id} className="relative group">
-                          <img src={img.url} alt="" className="h-16 w-16 rounded object-cover border border-[var(--border)]" />
+                          <img src={resolveMediaUrl(img.url)} alt="" className="h-16 w-16 rounded object-cover border border-[var(--border)]" />
                           <button type="button" onClick={() => removeExistingImage(img.id)} className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                             <X className="h-3 w-3" />
                           </button>

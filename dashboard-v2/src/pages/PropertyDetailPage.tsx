@@ -3,7 +3,7 @@ import {
   ArrowLeft, MapPin, BedDouble, Bath, Maximize,
   FileText, Building2, Loader2, ShieldCheck,
 } from "lucide-react";
-import { api } from "../lib/api";
+import { api, resolveMediaUrl } from "../lib/api";
 import { Badge } from "../components/ui/badge";
 
 function getPropertyId() {
@@ -75,7 +75,7 @@ export default function PropertyDetailPage() {
       <div className="rounded-xl overflow-hidden border border-[var(--border)]">
         <div className="h-80 bg-[var(--muted)]">
           {images.length > 0 ? (
-            <img src={images[activeImage]?.url} alt={property.title} className="h-full w-full object-cover" />
+            <img src={resolveMediaUrl(images[activeImage]?.url)} alt={property.title} className="h-full w-full object-cover" />
           ) : (
             <div className="h-full w-full flex items-center justify-center">
               <Building2 className="h-16 w-16 text-[var(--muted-foreground-light)]" />
@@ -90,7 +90,7 @@ export default function PropertyDetailPage() {
                 onClick={() => setActiveImage(i)}
                 className={`h-16 w-16 shrink-0 rounded-lg overflow-hidden border-2 transition-colors ${i === activeImage ? "border-[var(--primary)]" : "border-transparent"}`}
               >
-                <img src={img.url} alt="" className="h-full w-full object-cover" />
+                <img src={resolveMediaUrl(img.url)} alt="" className="h-full w-full object-cover" />
               </button>
             ))}
           </div>

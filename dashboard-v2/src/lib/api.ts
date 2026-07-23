@@ -2,6 +2,15 @@ import { getMockResponse } from './mock-data';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
+/** Uploaded-file URLs come back from the backend as paths relative to the
+ * API origin (e.g. "/uploads/property-images/x.jpg"), not the dashboard's
+ * own origin. Prefix with API_URL so <img src> actually resolves. */
+export function resolveMediaUrl(url: string | null | undefined): string {
+  if (!url) return '';
+  if (/^https?:\/\//.test(url)) return url;
+  return `${API_URL}${url}`;
+}
+
 let token: string | null = localStorage.getItem('token');
 let refreshToken: string | null = localStorage.getItem('refreshToken');
 
@@ -51,7 +60,9 @@ export async function api(path: string, options: RequestInit = {}): Promise<any>
   const isAuth = path.startsWith('/auth/');
   if (isAuth) {
     try {
+      const t = getToken();
       const headers: Record<string, string> = { 'Content-Type': 'application/json', ...(options.headers as Record<string, string> || {}) };
+      if (t) headers['Authorization'] = `Bearer ${t}`;
       const res = await fetch(`${API_URL}${path}`, { ...options, headers });
       if (!res.ok) { const b = await res.json().catch(() => ({})); throw new Error(b.message || res.statusText); }
       const data = await res.json();
