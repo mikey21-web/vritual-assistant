@@ -4,6 +4,7 @@ import {
   fetchForm,
   createForm,
   updateForm,
+  deleteForm,
   addFormField,
   addFormFields,
   updateFormField,
@@ -23,6 +24,7 @@ import {
   BarChart3,
   Sparkles,
   AlertTriangle,
+  Trash2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { FieldTypeIcon, FIELD_TYPE_OPTIONS, getFieldTypeLabel } from '../components/forms/FieldTypeIcon';
@@ -193,6 +195,10 @@ export default function FormsPage() {
   const [newFormName, setNewFormName] = useState('');
   const [creating, setCreating] = useState(false);
 
+  // ─── Delete form ──────────────────────────────────────────
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
   // ─── Selected form ───────────────────────────────────────
   const [selectedFormId, setSelectedFormId] = useState<string | null>(null);
   const [formData, setFormData] = useState<any | null>(null);
@@ -266,9 +272,11 @@ export default function FormsPage() {
     setFormError(null);
     try {
       const data = await fetchForm(id);
-      // Ensure steps array exists
-      if (!data.steps || !Array.isArray(data.steps)) {
+      // Ensure at least one step exists (backend can return an empty steps array).
+      // Persist it immediately so it survives the refetch after adding a field.
+      if (!Array.isArray(data.steps) || data.steps.length === 0) {
         data.steps = [{ id: crypto.randomUUID(), title: 'Step 1', description: '', order: 0 }];
+        updateForm(id, { steps: data.steps }).catch(() => {});
       }
       // Ensure fields exist
       if (!data.fields || !Array.isArray(data.fields)) {
@@ -325,6 +333,33 @@ export default function FormsPage() {
       setCreating(false);
     }
   };
+
+  // ─── Delete form ─────────────────────────────────────────
+  const handleDeleteForm = useCallback(
+    async (id: string) => {
+      if (confirmDeleteId !== id) {
+        setConfirmDeleteId(id);
+        setTimeout(() => setConfirmDeleteId((prev) => (prev === id ? null : prev)), 3000);
+        return;
+      }
+      setDeletingId(id);
+      try {
+        await deleteForm(id);
+        setForms((prev) => prev.filter((f) => f.id !== id));
+        if (selectedFormId === id) {
+          setSelectedFormId(null);
+          setFormData(null);
+        }
+        toast.success('Form deleted');
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to delete form');
+      } finally {
+        setDeletingId(null);
+        setConfirmDeleteId(null);
+      }
+    },
+    [confirmDeleteId, selectedFormId]
+  );
 
   // ─── Update form (debounced) ──────────────────────────────
   const debouncedUpdateForm = useCallback(
@@ -614,33 +649,52 @@ export default function FormsPage() {
   const formListItems = forms.map((f: any) => {
     const fieldCount = f.fields?.length || f._count?.fields || 0;
     const isSelected = f.id === selectedFormId;
+    const isConfirming = confirmDeleteId === f.id;
+    const isDeleting = deletingId === f.id;
     return (
-      <button
+      <div
         key={f.id}
-        onClick={() => setSelectedFormId(f.id)}
-        className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all ${
+        className={`group w-full flex items-center gap-1 rounded-lg text-sm transition-all ${
           isSelected
             ? 'bg-[var(--primary)]/10 text-[var(--primary)] font-medium border border-[var(--primary)]/20'
             : 'text-[var(--foreground)] hover:bg-[var(--accent)] border border-transparent'
         }`}
       >
-        <div className="flex items-center gap-2.5">
-          <div
-            className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
-              isSelected ? 'bg-[var(--primary)]/15' : 'bg-[var(--secondary)]'
-            }`}
-          >
-            <FormInput size={13} className={isSelected ? 'text-[var(--primary)]' : 'text-[var(--muted-foreground)]'} />
+        <button onClick={() => setSelectedFormId(f.id)} className="flex-1 min-w-0 text-left px-3 py-2.5">
+          <div className="flex items-center gap-2.5">
+            <div
+              className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                isSelected ? 'bg-[var(--primary)]/15' : 'bg-[var(--secondary)]'
+              }`}
+            >
+              <FormInput size={13} className={isSelected ? 'text-[var(--primary)]' : 'text-[var(--muted-foreground)]'} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm">{f.name}</p>
+              <p className="text-[10px] text-[var(--muted-foreground)]">{fieldCount} field{fieldCount !== 1 ? 's' : ''}</p>
+            </div>
+            {f.active !== false && (
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" title="Active" />
+            )}
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm">{f.name}</p>
-            <p className="text-[10px] text-[var(--muted-foreground)]">{fieldCount} field{fieldCount !== 1 ? 's' : ''}</p>
-          </div>
-          {f.active !== false && (
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" title="Active" />
-          )}
-        </div>
-      </button>
+        </button>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleDeleteForm(f.id);
+          }}
+          disabled={isDeleting}
+          title={isConfirming ? 'Click again to confirm delete' : 'Delete form'}
+          className={`mr-1.5 p-1.5 rounded-md shrink-0 transition-colors ${
+            isConfirming
+              ? 'bg-red-100 text-red-600 hover:bg-red-200'
+              : 'opacity-0 group-hover:opacity-100 text-[var(--muted-foreground)] hover:text-red-500 hover:bg-red-50'
+          }`}
+        >
+          {isDeleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+        </button>
+      </div>
     );
   });
 
@@ -1069,9 +1123,9 @@ export default function FormsPage() {
             </div>
           ) : formData ? (
             /* Form editor */
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden animate-fade-in">
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] animate-fade-in">
               {/* Form header */}
-              <div className="px-5 py-4 border-b border-[var(--border)]">
+              <div className="px-5 py-4 border-b border-[var(--border)] rounded-t-xl">
                 <div className="flex items-start justify-between">
                   <div className="min-w-0 flex-1">
                     <input

@@ -40,6 +40,11 @@ export class FormsController {
   @ApiBearerAuth()
   update(@Param('id') id: string, @Body() d: UpdateFormDto, @Req() req) { return this.service.update(id, d, req.user.sub); }
 
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard) @Roles('OWNER', 'ADMIN')
+  @ApiBearerAuth()
+  remove(@Param('id') id: string, @Req() req) { return this.service.remove(id, req.user.sub); }
+
   @Post(':id/fields')
   @UseGuards(JwtAuthGuard, RolesGuard) @Roles('OWNER', 'ADMIN', 'MANAGER')
   @ApiBearerAuth()

@@ -74,6 +74,14 @@ export class FormsService {
     return f;
   }
 
+  async remove(id: string, userId?: string) {
+    await this.findOne(id);
+    await this.prisma.formSubmission.deleteMany({ where: { formId: id } });
+    await this.prisma.leadFormField.deleteMany({ where: { formId: id } });
+    await this.prisma.leadForm.delete({ where: { id } });
+    await this.auditLogs.log('form_deleted', 'LeadForm', id, userId);
+  }
+
   addField(formId: string, data: any) {
     return this.prisma.leadFormField.create({ data: { ...data, formId } });
   }
